@@ -7,6 +7,7 @@ import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { defaultCurrency } from "../application/currency-defaults";
+import { getStoredCurrencyFactors } from "../infra/currency-exchange";
 
 const url = requireFixtureUrl("DATABASE_TEST_URL");
 requireFixtureUrl("CACHE_TEST_REDIS_URL");
@@ -79,4 +80,26 @@ test("rolled back preference never publishes uncommitted default", async () => {
 		await distributedCache.finishWrite(userId, namespaces, token);
 	}
 	expect(await defaultCurrency(userId)).toBe("EUR");
+});
+
+test("historical batch reads once and observes destination removal", async () => {
+	await queryRaw(
+		`INSERT INTO "CurrencyRateSnapshot" ("date","baseCurrency","rates") VALUES ('2001-02-03','USD','{"BRL":5}'::jsonb),('2001-02-03','BRL','{"USD":0.2}'::jsonb)`,
+	);
+	const demands = Array.from({ length: 10000 }, () => ({ date: "2001-02-03", source: "USD" }));
+	try {
+		await withQueryMetrics(async () => {
+			expect([...(await getStoredCurrencyFactors(demands, "BRL"))]).toEqual([["USD:2001-02-03", 5]]);
+			expect(getQueryMetrics()?.queryCount).toBe(1);
+		});
+		await queryRaw(
+			`DELETE FROM "CurrencyRateSnapshot" WHERE "date"='2001-02-03' AND "baseCurrency"='BRL'`,
+		);
+		await withQueryMetrics(async () => {
+			expect((await getStoredCurrencyFactors(demands, "BRL")).size).toBe(0);
+			expect(getQueryMetrics()?.queryCount).toBe(1);
+		});
+	} finally {
+		await queryRaw(`DELETE FROM "CurrencyRateSnapshot" WHERE "date"='2001-02-03'`);
+	}
 });

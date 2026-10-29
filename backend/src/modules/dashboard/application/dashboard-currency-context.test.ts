@@ -193,3 +193,29 @@ test("overdue foreign invoices request FX only when a monthly plan reserves them
 	expect(requests).toEqual([["USD", "BRL"]]);
 	expect(historical).toBe(1);
 });
+
+for (const mode of ["hit", "miss", "failure"])
+	test(`historical batch ${mode} preserves conversion and publication date`, async () => {
+		let fallback = 0;
+		let batches = 0;
+		const context = await dashboardCurrencyContext(loaded(), "BRL", today, false, {
+			estimate: async () => null,
+			historical: async () => {
+				fallback++;
+				return 5;
+			},
+			historicalMany: async requests => {
+				batches++;
+				expect(requests).toEqual([{ date: "2026-10-06", source: "USD" }]);
+				if (mode === "failure") throw new Error("offline");
+				return new Map(mode === "hit" ? [["USD:2026-10-06", 5]] : []);
+			},
+			latest: async () => ({ date: "2026-10-07", rate: 6 }),
+			request: async () => null,
+		});
+		expect(batches).toBe(1);
+		expect(fallback).toBe(mode === "hit" ? 0 : 1);
+		expect(context.convert(100, "USD", "2026-10-06")).toBe(500);
+		expect(context.convert(120, "USD", "2026-10-08")).toBe(720);
+		expect(context.publishedDates.USD).toBe("2026-10-07");
+	});

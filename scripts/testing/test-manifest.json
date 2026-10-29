@@ -26,6 +26,7 @@
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],
 	"backend:unit": [
+		"backend/src/modules/currencies/application/stored-currency-factors.test.ts",
 		"backend/performance/preflight.test.ts",
 		"backend/performance/invoice-approval.test.ts",
 		"backend/src/modules/batch/infra/elysia/BatchController.test.ts",

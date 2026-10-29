@@ -573,3 +573,8 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Regressões adicionadas: USD com múltiplos países, orçamento de uma consulta por preparação existente, xmin inalterado, recuperação após exclusão de vínculo/versão antiga, precedência administrativa e indisponibilidade. Integração e diagnóstico em andamento; aceite global permanece pendente.
 
 - Preparação ausente também passa a gravar países, intervalos e moedas em três lotes, sob lock existente; calendário insere feriados em um lote preservando exclusões administrativas. Regressões impõem até sete queries na recuperação de moeda com muitos países e até dez na geração anual, incluindo transação. Quantidade de feriados/países não pode gerar SQL por registro.
+
+### Cotações históricas carregadas em lote
+
+- Dashboard consultava snapshots das duas bases por data histórica. Leitura nova reúne pares distintos em uma consulta; somente pares completos e válidos dispensam fluxo existente. Snapshot da moeda de destino continua obrigatório. Datas/pares ausentes conservam downloads, limites de concorrência e tratamento individual de falhas.
+- Prefetch é local à chamada, sem cache global que esconda correções. Falha na leitura em lote retoma caminho anterior; cotação atual mantém data de publicação. Testes e comparação financeira em andamento.

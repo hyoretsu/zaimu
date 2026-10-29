@@ -1,7 +1,11 @@
 import { matchesBudgetCommitment, monthEnd } from "@zaimu/finance/monthly-budget";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates } from "@zaimu/finance/recurrence-projection";
-import { ensureCurrencyRates, getLatestCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
+import {
+	ensureCurrencyRates,
+	getLatestCurrencyRate,
+	getStoredCurrencyFactors,
+} from "~/modules/currencies/infra/currency-exchange";
 import { getCurrencyHistoryEstimate } from "~/modules/financial-history/application/currency-history-estimate";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
 import { dateKey } from "./dashboard-calculations";
@@ -18,8 +22,13 @@ export class DashboardConversionUnavailable extends Error {
 const defaultDependencies = {
 	estimate: getCurrencyHistoryEstimate,
 	historical: ensureCurrencyRates,
+	historicalMany: getStoredCurrencyFactors,
 	latest: getLatestCurrencyRate,
 	request: requestHistoryCollection,
+};
+
+type CurrencyDependencies = Omit<typeof defaultDependencies, "historicalMany"> & {
+	historicalMany?: typeof getStoredCurrencyFactors;
 };
 
 /** Public reporting factors never modify a native book or a concrete booking. */
@@ -28,7 +37,7 @@ export async function dashboardCurrencyContext(
 	currency: string,
 	today: Date,
 	forecasting: boolean,
-	dependencies = defaultDependencies,
+	dependencies: CurrencyDependencies = defaultDependencies,
 	forecastThrough = `${today.getFullYear() + 2}-12-31`,
 ) {
 	const reference = dateKey(today);
@@ -51,7 +60,8 @@ export async function dashboardCurrencyContext(
 		loaded.accounts.find(row => row.type === "CHECKING" || row.type === "CASH")?.currency ??
 		currency;
 	const addMovementAccounts = (type: string, origin?: string | null, destination?: string | null) => {
-		const ids = type === "INCOME" ? [destination] : type === "TRANSFER" ? [origin, destination] : [origin];
+		const ids =
+			type === "INCOME" ? [destination] : type === "TRANSFER" ? [origin, destination] : [origin];
 		if (ids.some(id => !id)) forecastCurrencies.add(primaryCurrency);
 		for (const id of ids)
 			if (id && accountCurrencies.has(id)) forecastCurrencies.add(accountCurrencies.get(id)!);
@@ -72,7 +82,11 @@ export async function dashboardCurrencyContext(
 		) {
 			forecastCurrencies.add(row.currency ?? "BRL");
 			if (row.movement !== "CARD_PURCHASE")
-				addMovementAccounts(row.movement, row.originFinancialAccountId, row.destinationFinancialAccountId);
+				addMovementAccounts(
+					row.movement,
+					row.originFinancialAccountId,
+					row.destinationFinancialAccountId,
+				);
 			const card = loaded.cards.find(card => card.id === row.creditCardId);
 			if (card) forecastCurrencies.add(card.currency ?? "BRL");
 		}
@@ -123,7 +137,9 @@ export async function dashboardCurrencyContext(
 			)
 		)
 			continue;
-		forecastCurrencies.add(loaded.cards.find(card => card.id === statement.creditCardId)?.currency ?? "BRL");
+		forecastCurrencies.add(
+			loaded.cards.find(card => card.id === statement.creditCardId)?.currency ?? "BRL",
+		);
 		forecastCurrencies.add(primaryCurrency);
 	}
 	const forecastForeign = [...forecastCurrencies].filter(source => source !== currency);
@@ -208,6 +224,12 @@ export async function dashboardCurrencyContext(
 			.map(source => ({ date: reference, source })),
 		...needed.values(),
 	];
+	const stored =
+		dependencies.historicalMany && needed.size
+			? await dependencies
+					.historicalMany([...needed.values()], currency)
+					.catch(() => new Map<string, number>())
+			: new Map<string, number>();
 	let cursor = 0;
 	await Promise.all(
 		Array.from({ length: Math.min(2, requests.length) }, async () => {
@@ -218,7 +240,12 @@ export async function dashboardCurrencyContext(
 						const latest = await dependencies.latest(source, currency);
 						factors.set(`${source}:${date}`, latest.rate);
 						publishedDates[source] = latest.date;
-					} else factors.set(`${source}:${date}`, await dependencies.historical(date, source, currency));
+					} else
+						factors.set(
+							`${source}:${date}`,
+							stored.get(`${source}:${date}`) ??
+								(await dependencies.historical(date, source, currency)),
+						);
 				} catch {
 					missing.add(`${source}:${date}`);
 				}
