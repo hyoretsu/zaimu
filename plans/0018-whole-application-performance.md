@@ -528,3 +528,8 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Listagem de três contas gastava 7.814 ms em EXPLAIN ANALYZE, dos quais 7.719 ms compilando JIT/288 funções. Diagnóstico SET LOCAL jit=off em transação somente leitura levou 2,6 ms; nenhuma configuração global alterada.
 - Projeção repetia cinco vezes toda resolução do perfil para extrair campos. CTE MATERIALIZED resolve regras uma vez por conta e preserva extração/casts/fallbacks existentes. Mesmo JIT padrão: 181 ms, 81 funções, sem inlining/otimização cara; contagem de contas e contrato permanecem iguais.
 - Regressão SQL cobre perfil arquivado padrão, histórico efetivo/futuro, nulos, cashback ausente e taxa zero. Integração e captura HTTP em andamento. Evidência inicial em account-rules-jit-reference-0018.json; orçamento de 1 s e aceite global continuam pendentes.
+
+### Isolamento do orçamento funcional do lote
+
+- Integração detectou teste de mil compras excedendo 30 s porque somava preparação, aprovação com rollback e nova aprovação; Promise continuava após timeout e alterava faturas durante assertion seguinte. Aprovação individual registrada levou 13.833 ms/166 queries.
+- Preparação passa ao beforeAll do grupo; rollback e retry da mesma importação têm testes próprios, cada operação com 30 s. Asserções de atomicidade, mil itens pendentes após falha, limite de 200 queries e preservação de pagamentos permanecem. Sem mudança no orçamento de performance de produção. Nova integração pendente.
