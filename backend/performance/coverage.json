@@ -986,6 +986,13 @@
 		},
 		{
 			"budget": 1000,
+			"method": "GET",
+			"path": "/financial-institutions/:id/policies",
+			"result": "pending",
+			"source": "OpenAPI: getFinancialInstitutionsByIdPolicies"
+		},
+		{
+			"budget": 1000,
 			"method": "POST",
 			"path": "/financial-institutions/:id/policies",
 			"result": "pending",
@@ -1890,5 +1897,5 @@
 			"usableP95Ms": 1000
 		}
 	],
-	"sourceHash": "5afd2e66a98665e95077f8e94c008ced340c4e5c46936ae1bbe05198b1ca4146"
+	"sourceHash": "5a8ee50a7fe56848dc68be700d29fcb2311aaebea5e04d6cd8f4f2ed1a19b3c9"
 }
