@@ -5,12 +5,17 @@ import {
 	type InstitutionCardRules,
 } from "@zaimu/finance/institution-card-rules";
 import { Client } from "pg";
-import { closeDatabase, queryRaw } from "sql";
+import { closeDatabase, getQueryMetrics, queryRaw, withQueryMetrics } from "sql";
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { getFinancialCoverage } from "../../financial-history/application/financial-coverage";
-import { ensureAccountCoverage, ensureCalendarCoverage } from "../../yield-calendar/ensure-coverage";
+import { calendarSourceVersion, currencySourceVersion } from "../../yield-calendar/calendar-source";
+import {
+	ensureAccountCoverage,
+	ensureCalendarCoverage,
+	ensureCurrencyAssociations,
+} from "../../yield-calendar/ensure-coverage";
 import {
 	consolidateLegacyInstitution,
 	listInstitutionCatalog,
@@ -373,6 +378,97 @@ describe("universal institution review and calendar coverage", () => {
 			),
 		).toHaveLength(1);
 	});
+	test("prepared multi-country currency and calendar coverage use one read each without rewriting rows", async () => {
+		await queryRaw(
+			`DELETE FROM "CurrencyCountryAssociation" WHERE currency='USD' AND "sourceVersion"=$1`,
+			[currencySourceVersion],
+		);
+		await withQueryMetrics(async () => {
+			await ensureCurrencyAssociations("USD");
+			expect(getQueryMetrics()!.queryCount).toBeLessThanOrEqual(7);
+		});
+		await ensureCalendarCoverage("BR", 2028);
+		const snapshot = () =>
+			queryRaw(`SELECT 'association' AS kind,id::text AS id,xmin::text AS revision FROM "CurrencyCountryAssociation" WHERE currency='USD'
+            UNION ALL SELECT 'mapping',"countryCode"||':'||currency,xmin::text FROM "YieldCalendarCurrency" WHERE currency='USD'
+            UNION ALL SELECT 'calendar',"countryCode"||':'||year,xmin::text FROM "YieldCalendarCoverage" WHERE "countryCode"='BR' AND year=2028 ORDER BY kind,id`);
+		const before = await snapshot();
+		expect(before.length).toBeGreaterThan(10);
+		await withQueryMetrics(async () => {
+			await ensureCurrencyAssociations("USD");
+			expect(getQueryMetrics()!.queryCount).toBe(1);
+		});
+		await withQueryMetrics(async () => {
+			expect(await ensureCalendarCoverage("BR", 2028)).toBe("COMPLETE");
+			expect(getQueryMetrics()!.queryCount).toBe(1);
+		});
+		expect(await snapshot()).toEqual(before);
+	});
+
+	test("coverage read shortcuts repair missing mappings and stale versions while preserving admin coverage", async () => {
+		await ensureCurrencyAssociations("BRL");
+		await queryRaw(`DELETE FROM "YieldCalendarCurrency" WHERE currency='BRL' AND "countryCode"='BR'`);
+		await ensureCurrencyAssociations("BRL");
+		expect(
+			await queryRaw(
+				`SELECT 1 FROM "YieldCalendarCurrency" WHERE currency='BRL' AND "countryCode"='BR'`,
+			),
+		).toHaveLength(1);
+		await queryRaw(
+			`UPDATE "CurrencyCountryAssociation" SET "sourceVersion"='obsolete' WHERE currency='BRL'`,
+		);
+		await ensureCurrencyAssociations("BRL");
+		expect(
+			(
+				await queryRaw(
+					`SELECT 1 FROM "CurrencyCountryAssociation" WHERE currency='BRL' AND "sourceVersion"=$1`,
+					[currencySourceVersion],
+				)
+			).length,
+		).toBeGreaterThan(0);
+		await ensureCalendarCoverage("BR", 2029);
+		await queryRaw(
+			`UPDATE "YieldCalendarCoverage" SET source='ADMIN',"sourceVersion"='manual',status='COMPLETE' WHERE "countryCode"='BR' AND year=2029`,
+		);
+		await withQueryMetrics(async () => {
+			expect(await ensureCalendarCoverage("BR", 2029)).toBe("COMPLETE");
+			expect(getQueryMetrics()!.queryCount).toBe(1);
+		});
+		await queryRaw(
+			`UPDATE "YieldCalendarCoverage" SET source='DATE_HOLIDAYS',"sourceVersion"='obsolete',status='PENDING' WHERE "countryCode"='BR' AND year=2029`,
+		);
+		expect(await ensureCalendarCoverage("BR", 2029)).toBe("COMPLETE");
+		expect(
+			(
+				await queryRaw(
+					`SELECT "sourceVersion" FROM "YieldCalendarCoverage" WHERE "countryCode"='BR' AND year=2029`,
+				)
+			)[0]!.sourceVersion,
+		).toBe(calendarSourceVersion);
+		await queryRaw(
+			`UPDATE "YieldCalendarCoverage" SET status='UNAVAILABLE' WHERE "countryCode"='BR' AND year=2029`,
+		);
+		await withQueryMetrics(async () => {
+			expect(await ensureCalendarCoverage("BR", 2029)).toBe("UNAVAILABLE");
+			expect(getQueryMetrics()!.queryCount).toBe(1);
+		});
+	});
+
+	test("calendar regeneration batches holiday writes independently of the holiday count", async () => {
+		await queryRaw(`DELETE FROM "YieldCalendarCoverage" WHERE "countryCode"='BR' AND year=2030`);
+		await withQueryMetrics(async () => {
+			expect(await ensureCalendarCoverage("BR", 2030)).toBe("COMPLETE");
+			expect(getQueryMetrics()!.queryCount).toBeLessThanOrEqual(10);
+		});
+		expect(
+			(
+				await queryRaw(
+					`SELECT 1 FROM "YieldCalendarHoliday" WHERE "countryCode"='BR' AND EXTRACT(YEAR FROM date)=2030`,
+				)
+			).length,
+		).toBeGreaterThan(10);
+	});
+
 	test("concurrent generation is idempotent and preserves administrative exclusions", async () => {
 		await Promise.all([
 			ensureAccountCoverage("BRL", "BR", [2026]),

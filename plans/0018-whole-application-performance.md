@@ -565,3 +565,11 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Preferência: reprodução anterior falhou em cleanup HTTP 500 e deixou BRL no banco. Após correção, cinco amostras concluíram sem erros, p95 de edição 136 ms; consulta independente confirmou preferência null após limpeza. Original null restaurado no banco dedicado antes da reprodução corrigida.
 - Fixture recém-semeada não tem preferência e usa fallback USD; corpos preservados da comparação anterior de rendimentos usavam BRL. Falha de cleanup explicava mudança de contexto entre cenários. Não atribuir variação de tempo/queries somente à otimização de replay.
 - Captura final preserva reprovações: contas frias p95 981 ms; dashboard frio 4.152 ms/61 queries, comparação fria 1.847 ms/107 queries; comparação quente 172 ms mesmo com zero SQL. Sync p95 3.510 ms dentro de 30 s. Datas continuam divergentes; relógio fixo, matriz oficial, falhas de infraestrutura e plataformas permanecem pendentes. Evidência completa em yield-context-and-fixture-reference-0018.json; nenhum aceite global.
+
+### Calendário preparado sem locks nem gravações repetidas
+
+- Leituras frias repetiam lock e INSERTs por país da moeda, mesmo com associações CLDR completas. Preparação agora verifica todos os intervalos da moeda numa consulta; falta ou versão antiga conserva caminho transacional existente. Não usa cache em memória que possa ocultar exclusões administrativas.
+- Cobertura anual atual usa uma consulta sem lock; versão antiga ou cobertura ausente continua com lock, rechecagem e geração. Cobertura administrativa completa e estado indisponível da versão atual permanecem preservados.
+- Regressões adicionadas: USD com múltiplos países, orçamento de uma consulta por preparação existente, xmin inalterado, recuperação após exclusão de vínculo/versão antiga, precedência administrativa e indisponibilidade. Integração e diagnóstico em andamento; aceite global permanece pendente.
+
+- Preparação ausente também passa a gravar países, intervalos e moedas em três lotes, sob lock existente; calendário insere feriados em um lote preservando exclusões administrativas. Regressões impõem até sete queries na recuperação de moeda com muitos países e até dez na geração anual, incluindo transação. Quantidade de feriados/países não pode gerar SQL por registro.
