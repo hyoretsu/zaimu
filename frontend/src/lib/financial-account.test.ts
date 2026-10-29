@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { FinancialAccount } from "./api";
+import type { FinancialAccount, FinancialAccountYield } from "./api";
 import {
 	calculateFinancialAccountBalances,
 	calculateFinancialAccountYieldEntries,
@@ -115,9 +115,9 @@ describe("getTransactionAccountTypeLabel", () => {
 
 describe("getFinancialAccountSummaryName", () => {
 	test("keeps the savings prefix with custom names and avoids repeating the fallback label", () => {
-		expect(getFinancialAccountSummaryName({ institution: null, name: "Psicóloga", type: "SAVINGS" })).toBe(
-			"Poupança Psicóloga",
-		);
+		expect(
+			getFinancialAccountSummaryName({ institution: null, name: "Psicóloga", type: "SAVINGS" }),
+		).toBe("Poupança Psicóloga");
 		expect(getFinancialAccountSummaryName({ institution: null, name: "Poupança", type: "SAVINGS" })).toBe(
 			"Poupança",
 		);
@@ -175,7 +175,11 @@ describe("compareFinancialAccountsByTitle", () => {
 	test("sorts by the title shown on account cards", () => {
 		const accounts = [
 			{ institution: { id: "bank-id", name: "Banco Exemplo" }, name: null, type: "CHECKING" as const },
-			{ institution: { id: "bank-id", name: "Banco Exemplo" }, name: null, type: "CREDIT_CARD" as const },
+			{
+				institution: { id: "bank-id", name: "Banco Exemplo" },
+				name: null,
+				type: "CREDIT_CARD" as const,
+			},
 			{
 				institution: { id: "bank-id", name: "Banco Exemplo" },
 				name: "Aplicações",
@@ -261,7 +265,11 @@ describe("calculateFinancialAccountBalances", () => {
 			[
 				{ amount: 100, destinationFinancialAccountId: "checking" },
 				{ amount: 25, originFinancialAccountId: "checking" },
-				{ amount: 10, destinationFinancialAccountId: "savings", originFinancialAccountId: "checking" },
+				{
+					amount: 10,
+					destinationFinancialAccountId: "savings",
+					originFinancialAccountId: "checking",
+				},
 			],
 		);
 
@@ -463,10 +471,9 @@ test("offline balances and yield entries preserve frozen history and require cur
 	const movements = [{ amount: 1000, date: "2026-01-04", destinationFinancialAccountId: "legacy" }];
 	const calendar = { countries: [], coverage: [], currencyCountries: [], holidays: [] };
 	const today = new Date("2026-01-08T12:00:00");
-	expect(calculateFinancialAccountBalances([account], movements, [], calendar, today)[0].balance).toBeCloseTo(
-		1000 * 1.1 ** (1 / 21),
-		4,
-	);
+	expect(
+		calculateFinancialAccountBalances([account], movements, [], calendar, today)[0].balance,
+	).toBeCloseTo(1000 * 1.1 ** (1 / 21), 4);
 	expect(
 		calculateFinancialAccountYieldEntries(account, movements, calendar, today).map(entry => entry.date),
 	).toEqual(["2026-01-05"]);
@@ -504,8 +511,13 @@ describe("guest balance checkpoints", () => {
 			["b", 125, true],
 		]);
 		expect(
-			calculateFinancialAccountBalances([account], movements, [], [], new Date("2026-01-03T12:00:00"))[0]
-				.balance,
+			calculateFinancialAccountBalances(
+				[account],
+				movements,
+				[],
+				[],
+				new Date("2026-01-03T12:00:00"),
+			)[0].balance,
 		).toBe(125);
 	});
 });
@@ -572,5 +584,42 @@ for (const day of ["2026-01-05", "2026-01-10"]) {
 			],
 		);
 		expect(entries.map(entry => [entry.id, entry.amount])).toEqual([["reported", 2]]);
+	});
+}
+
+for (const size of [10, 10000, 100000]) {
+	test(`visitor yield replay reads dates linearly with ${size} stored entries`, () => {
+		let reads = 0;
+		const yields: FinancialAccountYield[] = Array.from({ length: size }, (_, index) => ({
+			amount: 0,
+			get date() {
+				if (++reads > size * 4) throw new Error("Visitor yield history was rescanned for each day");
+				return `2026-01-${String(1 + (index % 28)).padStart(2, "0")}`;
+			},
+			financialAccountId: "indexed",
+			id: String(index),
+			isExcluded: false,
+			kind: "AUTOMATIC",
+			origin: "USER",
+		}));
+		const account: FinancialAccount = {
+			balance: 0,
+			createdAt: "2026-01-01T12:00:00Z",
+			id: "indexed",
+			name: "Indexed",
+			type: "CHECKING",
+			updatedAt: "2026-01-01T12:00:00Z",
+			userId: "visitor",
+		};
+		const balance = calculateFinancialAccountBalances(
+			[account],
+			[{ amount: 1000, date: "2026-01-01", destinationFinancialAccountId: "indexed" }],
+			[],
+			[],
+			new Date("2026-10-04T12:00:00Z"),
+			yields,
+		)[0]?.balance;
+		expect(balance).toBe(1000);
+		expect(reads).toBeLessThanOrEqual(size * 4);
 	});
 }
