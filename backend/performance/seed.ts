@@ -48,13 +48,22 @@ try {
 					text
 						.replaceAll("perf-", userIndex === 0 ? "perf-" : `p${userIndex}-`)
 						.replaceAll("performance@zaimu.local", `performance${userIndex}@zaimu.local`)
-						.replaceAll("performance-peer@zaimu.local", `performance-peer${userIndex}@zaimu.local`)
+						.replaceAll(
+							"performance-peer@zaimu.local",
+							`performance-peer${userIndex}@zaimu.local`,
+						)
 						.replaceAll("generate_series(1, 100000)", `generate_series(1, ${size})`)
 						.replaceAll("generate_series(10, 100000, 10)", `generate_series(10, ${size}, 10)`)
 						.replaceAll("generate_series(1, 20)", `generate_series(1, ${cards})`)
 						.replaceAll("generate_series(0, 59)", `generate_series(0, ${months - 1})`)
-						.replaceAll("generate_series(1, 10) AS item", `generate_series(1, ${purchaseItems}) AS item`)
-						.replaceAll("generate_series(1, 5000)", `generate_series(1, ${Math.min(size, 5000)})`),
+						.replaceAll(
+							"generate_series(1, 10) AS item",
+							`generate_series(1, ${purchaseItems}) AS item`,
+						)
+						.replaceAll(
+							"generate_series(1, 5000)",
+							`generate_series(1, ${Math.min(size, 5000)})`,
+						),
 					values,
 				);
 
@@ -335,14 +344,10 @@ try {
 			 FROM generate_series(1, 100) AS series`,
 				[userId, anchorDate],
 			);
-			await query(
-				`ANALYZE "Transaction", "CreditPurchaseRecord", "CreditInstallmentPlan", "CreditInstallmentRecord",
-			 "CreditEntryReference", "CreditCardStatement", "TagAssignment",
-			 "FinancialAccountYield", "DebtEvent", "Loan", "LoanPayment", "LoanHistory",
-			 "Recurrence", "Store"`,
-			);
 		});
 	}
+	// Plan statistics must cover small context tables too, after every identity has been seeded.
+	await withRawTransaction(query => query("ANALYZE"));
 	console.log(
 		JSON.stringify({
 			creditCards: cards,
