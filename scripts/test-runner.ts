@@ -1,7 +1,7 @@
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { SQL } from "bun";
+import { RedisClient, SQL } from "bun";
 import { prepareSchema } from "./testing/prepare-schema";
 import manifest from "./testing/test-manifest.json";
 import {
@@ -16,9 +16,13 @@ const categories = new Set(["unit", "integration", "e2e", "all"]);
 const args = process.argv.slice(2);
 const target = args.shift() ?? "backend";
 const category = args.shift() ?? "all";
-if (!targets.has(target) || !categories.has(category) || args.some(arg => arg !== "--coverage"))
+if (
+	!targets.has(target) ||
+	!categories.has(category) ||
+	args.some(arg => !["--changed", "--coverage"].includes(arg))
+)
 	throw new Error(
-		"Usage: bun scripts/test-runner.ts <backend|sql> <all|unit|integration|e2e> [--coverage]",
+		"Usage: bun scripts/test-runner.ts <backend|sql> <all|unit|integration|e2e> [--changed] [--coverage]",
 	);
 const temp = await mkdtemp(join(tmpdir(), "zaimu-tests-"));
 const namespace = `zaimu_test_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -26,6 +30,8 @@ const commandTimeoutMs = Number(process.env.TEST_COMMAND_TIMEOUT_MS ?? 120000);
 const containers: string[] = [];
 const createdDatabases: string[] = [];
 let externalAdmin: SQL | undefined;
+let externalRedis: RedisClient | undefined;
+let externalBroker: URL | undefined;
 let child: ReturnType<typeof Bun.spawn> | undefined;
 let interrupted = false;
 const commands = new Set<ReturnType<typeof Bun.spawn>>();
@@ -48,6 +54,25 @@ async function command(command: string[], env?: Record<string, string | undefine
 	if (code) throw new Error(`${command.join(" ")} failed (${code})\n${stdout}${stderr}`);
 	return stdout.trim();
 }
+/** Best effort through the RabbitMQ management API: removes only this run's namespaced queues/exchanges. */
+async function cleanupBroker(url: URL) {
+	const base = process.env.RABBITMQ_DEV_MANAGEMENT_URL ?? `http://${url.hostname}:15672`;
+	const headers = {
+		authorization: `Basic ${btoa(`${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`)}`,
+	};
+	const vhost = encodeURIComponent(decodeURIComponent(url.pathname.slice(1)) || "/");
+	for (const kind of ["queues", "exchanges"]) {
+		const response = await fetch(`${base}/api/${kind}/${vhost}`, { headers });
+		if (!response.ok)
+			return console.warn(`RabbitMQ cleanup skipped (${response.status}): ${namespace}_*`);
+		for (const { name } of (await response.json()) as { name: string }[])
+			if (name.includes(`${namespace}_`))
+				await fetch(`${base}/api/${kind}/${vhost}/${encodeURIComponent(name)}`, {
+					headers,
+					method: "DELETE",
+				});
+	}
+}
 async function cleanup() {
 	child?.kill("SIGTERM");
 	for (const name of createdDatabases)
@@ -56,6 +81,12 @@ async function cleanup() {
 			process.exitCode ||= 1;
 		});
 	await externalAdmin?.close().catch(() => undefined);
+	if (externalRedis) {
+		const keys = (await externalRedis.send("KEYS", [`${namespace}_*`]).catch(() => [])) as string[];
+		if (keys.length) await externalRedis.send("DEL", keys).catch(error => console.error(error));
+		externalRedis.close();
+	}
+	if (externalBroker) await cleanupBroker(externalBroker).catch(error => console.error(error));
 	for (const container of containers.reverse())
 		await command(["docker", "rm", "-f", "-v", container]).catch(error => {
 			console.error(error);
@@ -148,15 +179,14 @@ try {
 		PUBLIC_WEB_URL: "http://127.0.0.1:5173",
 		SERVICE_NAMESPACE: namespace,
 	};
-	/** Existing server used only for disposable databases: a local *TEST_URL (.env) first, then the global POSTGRES_URL. */
-	const isPostgresUrl = (value?: string) => /^postgres(ql)?:\/\//.test(value ?? "");
-	const externalPostgres =
-		Object.entries(env).find(
-			([key, value]) => /_TEST_URL$/.test(key) && !/REDIS|BROKER/.test(key) && isPostgresUrl(value),
-		)?.[1] ?? (isPostgresUrl(env.POSTGRES_URL) ? env.POSTGRES_URL : undefined);
+	/** Existing servers (global or local .env) are used only through namespaced/ephemeral resources; otherwise start containers. */
+	const devUrl = (name: string) => process.env[name]?.trim() || undefined;
+	const postgresDevUrl = devUrl("POSTGRES_DEV_URL");
+	const redisDevUrl = devUrl("REDIS_DEV_URL");
+	const rabbitmqDevUrl = devUrl("RABBITMQ_DEV_URL");
 	for (const key of Object.keys(env))
 		if (
-			/(DATABASE|REDIS|RABBITMQ|BROKER|SQL|FINANCIAL|CREDIT|RECURRENCE|REFERENCE_RATE|OPEN_FINANCE|CASHBACK).*_(URL|SOCKET)$/.test(
+			/(DATABASE|POSTGRES|REDIS|RABBITMQ|BROKER|SQL|FINANCIAL|CREDIT|RECURRENCE|REFERENCE_RATE|OPEN_FINANCE|CASHBACK).*_(URL|SOCKET)$/.test(
 				key,
 			)
 		)
@@ -194,45 +224,62 @@ try {
 	let brokerContainer = "";
 	let unavailableRedis = "";
 	if (selected.some(([key, paths]) => !key.endsWith(":unit") && paths.length)) {
-		if (process.env.DOCKER_HOST) assertLocalDockerSocket(process.env.DOCKER_HOST);
-		const dockerHost = await command([
-			"docker",
-			"context",
-			"inspect",
-			"--format",
-			"{{.Endpoints.docker.Host}}",
-		]);
-		assertLocalDockerSocket(dockerHost);
-		await command(["docker", "info"]);
-		if (externalPostgres) {
-			externalAdmin = new SQL(externalPostgres);
+		if (!postgresDevUrl || !redisDevUrl || !rabbitmqDevUrl) {
+			if (process.env.DOCKER_HOST) assertLocalDockerSocket(process.env.DOCKER_HOST);
+			const dockerHost = await command([
+				"docker",
+				"context",
+				"inspect",
+				"--format",
+				"{{.Endpoints.docker.Host}}",
+			]);
+			assertLocalDockerSocket(dockerHost);
+			await command(["docker", "info"]);
+		}
+		const checks: Promise<unknown>[] = [];
+		if (postgresDevUrl) {
+			const admin = new URL(postgresDevUrl);
+			admin.pathname = "/postgres";
+			externalAdmin = new SQL(admin.toString());
 			await externalAdmin`SELECT 1`;
-			console.log("Postgres: existing server (ephemeral databases only)");
-		} else
+		} else {
 			postgres = await service("postgres", "postgres:16", 5432, [
 				"POSTGRES_PASSWORD=disposable",
 				"POSTGRES_USER=runner",
 			]);
-		const redis = await service("redis", "valkey/valkey:latest", 6379);
-		const broker = await service("rabbitmq", "rabbitmq:latest", 5672, [
-			"RABBITMQ_DEFAULT_USER=runner",
-			"RABBITMQ_DEFAULT_PASS=disposable",
-			"RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=+S 2:2",
-			"RABBITMQ_CTL_ERL_ARGS=+S 1:1",
-		]);
-		const readiness = await Promise.allSettled([
-			...(postgres ? [ready(postgres.container, ["pg_isready", "-U", "runner"])] : []),
-			ready(redis.container, ["valkey-cli", "ping"]),
-			ready(broker.container, ["rabbitmq-diagnostics", "-q", "check_running"]),
-			ready(broker.container, ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]),
-		]);
-		for (const result of readiness) if (result.status === "rejected") throw result.reason;
-		redisUrl = `redis://127.0.0.1:${redis.port}`;
+			checks.push(ready(postgres.container, ["pg_isready", "-U", "runner"]));
+		}
+		if (redisDevUrl) {
+			externalRedis = new RedisClient(redisDevUrl);
+			await externalRedis.send("PING", []);
+			redisUrl = redisDevUrl;
+		} else {
+			const redis = await service("redis", "valkey/valkey:latest", 6379);
+			checks.push(ready(redis.container, ["valkey-cli", "ping"]));
+			redisUrl = `redis://127.0.0.1:${redis.port}`;
+		}
+		if (rabbitmqDevUrl) {
+			externalBroker = new URL(rabbitmqDevUrl);
+			brokerUrl = rabbitmqDevUrl;
+		} else {
+			const broker = await service("rabbitmq", "rabbitmq:latest", 5672, [
+				"RABBITMQ_DEFAULT_USER=runner",
+				"RABBITMQ_DEFAULT_PASS=disposable",
+				"RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=+S 2:2",
+				"RABBITMQ_CTL_ERL_ARGS=+S 1:1",
+			]);
+			checks.push(
+				ready(broker.container, ["rabbitmq-diagnostics", "-q", "check_running"]),
+				ready(broker.container, ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]),
+			);
+			brokerContainer = broker.container;
+			brokerUrl = `amqp://runner:disposable@127.0.0.1:${broker.port}`;
+		}
+		for (const result of await Promise.allSettled(checks))
+			if (result.status === "rejected") throw result.reason;
 		const unused = Bun.serve({ fetch: () => new Response(), hostname: "127.0.0.1", port: 0 });
 		unavailableRedis = `redis://127.0.0.1:${unused.port}`;
 		unused.stop(true);
-		brokerContainer = broker.container;
-		brokerUrl = `amqp://runner:disposable@127.0.0.1:${broker.port}`;
 	}
 	let index = 0;
 	for (const [key, paths] of selected) {
@@ -251,7 +298,7 @@ try {
 				} else {
 					createdDatabases.push(name);
 					await externalAdmin!.unsafe(`CREATE DATABASE "${name}"`);
-					const external = new URL(externalPostgres!);
+					const external = new URL(postgresDevUrl!);
 					external.pathname = `/${name}`;
 					url = external.toString();
 				}
@@ -287,6 +334,7 @@ try {
 					"--reporter=junit",
 					`--reporter-outfile=${report}`,
 					...(args.includes("--coverage") && key.endsWith(":unit") ? ["--coverage"] : []),
+					...(args.includes("--changed") ? ["--changed"] : []),
 					...group.map(
 						file => `./${file.slice((target === "sql" ? "packages/sql/" : "backend/").length)}`,
 					),
@@ -296,7 +344,9 @@ try {
 			const code = await child.exited;
 			child = undefined;
 			if (code) throw new Error(`Suite ${group.join(", ")} failed (${code})`);
-			const xml = await readFile(report, "utf8");
+			const xml = await readFile(report, "utf8").catch(() => "");
+			// --changed legitimately selects nothing when no test depends on the modified files.
+			if (args.includes("--changed") && !/<testcase\b/.test(xml)) continue;
 			assertCompleteReport(xml, group.join(", "));
 		}
 	}

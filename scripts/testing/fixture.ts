@@ -33,8 +33,6 @@ export function assertFixtureServiceUrl(value: string, kind?: "redis" | "broker"
 	const url = new URL(value);
 	if (
 		!["redis:", "amqp:"].includes(url.protocol) ||
-		url.hostname !== "127.0.0.1" ||
-		!url.port ||
 		!(kind
 			? value === config[kind]
 			: [config.redis, config.broker, config.unavailableRedis].includes(value))

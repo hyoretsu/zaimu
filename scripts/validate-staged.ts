@@ -43,7 +43,7 @@ if (packages.length) {
 	if (check.exitCode !== 0) process.exit(check.exitCode);
 }
 if (shared || paths.some(path => path.startsWith("backend/src/"))) {
-	const test = Bun.spawnSync(["bun", "run", "test:unit", "--coverage"], {
+	const test = Bun.spawnSync(["bun", "run", "test:unit", "--changed", "--coverage"], {
 		cwd: "backend",
 		stderr: "inherit",
 		stdout: "inherit",

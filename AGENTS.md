@@ -76,7 +76,8 @@ Run type-check and build for affected packages before a PR or merge. Local valid
 - Unit tests sit next to the file under test: `Foo.ts` → `Foo.test.ts`.
 - Integration/E2E tests (several units, DB, cross-module) live in a `tests/` folder in the module. Never name it `__tests__` or any `__…__` form.
 - Backend runs on Bun: `bun:test` and `bun test`.
-- Ephemeral test databases: the runner uses an existing Postgres server only to create and drop its own uniquely named databases, never touching existing ones, to avoid overloading the machine. Precedence: a `*_TEST_URL` Postgres URL defined locally in `.env` (e.g. `DATABASE_TEST_URL`), then the global `POSTGRES_URL` (not defined in `.env`), and only then an ephemeral Docker Postgres.
+- Pre-commit runs backend unit tests with `--changed` (only tests affected by the modified files); the full suite runs in CI.
+- Ephemeral test services: the runner uses `POSTGRES_DEV_URL`, `REDIS_DEV_URL` and `RABBITMQ_DEV_URL` (set globally or in `.env`) when present, and starts a Docker container for each one that is missing. On an existing server it only creates and removes its own resources and never touches existing ones: Postgres gets a random uniquely named database (any database name in the URL is ignored), Redis keys and RabbitMQ queues/exchanges are namespaced per run and deleted afterwards.
 
 ## i18n - Mandatory Rule
 
