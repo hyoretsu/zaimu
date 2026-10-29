@@ -1,0 +1,27 @@
+import type { FinancialInstitutionYieldPolicy } from "@/lib/api";
+
+/** Editing uses the exact country scope; inherited general rules remain separate. */
+export function selectEditablePolicy(
+	policies: FinancialInstitutionYieldPolicy[],
+	profileId: string | undefined,
+	countryCode: string | undefined,
+	effectiveDate: string,
+	currency: string,
+) {
+	return policies
+		.filter(
+			policy =>
+				policy.profileId === profileId &&
+				(policy.countryCode ?? undefined) === countryCode &&
+				(!policy.status || policy.status === "APPROVED") &&
+				policy.effectiveDate.slice(0, 10) <= effectiveDate &&
+				(!policy.effectiveUntil || effectiveDate < policy.effectiveUntil.slice(0, 10)) &&
+				(policy.currency === null || (policy.currency ?? "BRL") === currency),
+		)
+		.toSorted(
+			(left, right) =>
+				left.effectiveDate.localeCompare(right.effectiveDate) ||
+				Number(left.currency === null) - Number(right.currency === null),
+		)
+		.at(-1);
+}

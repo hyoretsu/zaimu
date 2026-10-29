@@ -26,9 +26,14 @@ export function LegacyInstitutionRow({
 		const start = captureCacheMutation();
 		setPending(true);
 		try {
-			await postFinancialInstitutionsReviewLegacyById(institution.id, publish ? {} : { targetId: target });
+			await postFinancialInstitutionsReviewLegacyById(
+				institution.id,
+				publish ? {} : { targetId: target },
+			);
 			showToast(
-				publish ? "Instituição publicada no catálogo global" : "Instituição associada ao catálogo global",
+				publish
+					? "Instituição publicada no catálogo global"
+					: "Instituição associada ao catálogo global",
 				"positive",
 			);
 			await invalidateMutationCache(queryClient, start, {
@@ -47,11 +52,9 @@ export function LegacyInstitutionRow({
 	return (
 		<article className="grid min-w-0 gap-3 rounded-xl border p-4">
 			<div className="min-w-0 space-y-1">
-				<h3 className="break-words font-semibold">{institution.name}</h3>
-				<p className="break-words text-muted-foreground text-sm">
-					{institution.currency ?? "Moeda não definida"} - Cadastro antigo
-				</p>
-				<p className="break-all text-muted-foreground text-sm">
+				<h3 className="font-semibold break-words">{institution.name}</h3>
+				<p className="text-muted-foreground text-sm break-words">Cadastro antigo</p>
+				<p className="text-muted-foreground text-sm break-all">
 					Usuário: {institution.userId ?? "Não informado"}
 				</p>
 			</div>
@@ -62,7 +65,7 @@ export function LegacyInstitutionRow({
 				options={[
 					{ label: "Publicar no catálogo global", special: true, value: publishOption },
 					...approvedInstitutions.map(item => ({
-						label: `${item.name} - ${item.currency ?? "Moeda não definida"}`,
+						label: item.name,
 						value: item.id,
 					})),
 				]}

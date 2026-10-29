@@ -38,7 +38,7 @@ export interface InstitutionYieldPolicy {
 	countryCode?: null | string;
 	effectiveUntil?: null | Date | string;
 	status?: "APPROVED" | "PENDING" | "REJECTED";
-	currency?: string;
+	currency?: string | null;
 	effectiveDate: Date;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;

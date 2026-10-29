@@ -5,7 +5,10 @@ import type { FinancialCoverageReturn } from "../infra/financial-coverage.dto";
 type Account = FinancialCoverageReturn["accounts"][number];
 type Item = FinancialCoverageReturn["items"][number];
 type Metadata = Partial<
-	Pick<Item, "countryCode" | "currency" | "institutionId" | "profileId" | "version" | "startDate" | "endDate">
+	Pick<
+		Item,
+		"countryCode" | "currency" | "institutionId" | "profileId" | "version" | "startDate" | "endDate"
+	>
 >;
 const day = (date: Date) => date.toISOString().slice(0, 10);
 export function financialCoverageWindow(start?: string, end?: string) {
@@ -33,7 +36,10 @@ export function coverageGaps(start: string, end: string, from: string | null, to
 			startDate: start,
 		});
 	if (to && to < end)
-		gaps.push({ endDate: end, startDate: day(new Date(new Date(`${to}T00:00:00Z`).getTime() + 86400000)) });
+		gaps.push({
+			endDate: end,
+			startDate: day(new Date(new Date(`${to}T00:00:00Z`).getTime() + 86400000)),
+		});
 	return gaps;
 }
 export function uncoveredRanges(
@@ -112,7 +118,7 @@ export async function getFinancialCoverage(
 			name: string;
 			profileId: string | null;
 			countryCode: string | null;
-			currency: string;
+			currency: string | null;
 			startDate: string;
 			endDate: string | null;
 			status: string;
@@ -184,7 +190,9 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 		items[items.length - 1].gaps = uncoveredRanges(
 			window.startDate,
 			window.endDate,
-			associations.filter(other => other.countryCode === row.countryCode && other.currency === row.currency),
+			associations.filter(
+				other => other.countryCode === row.countryCode && other.currency === row.currency,
+			),
 		);
 	}
 	const allCountries = admin
@@ -209,7 +217,12 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 				`${countryCode} - ${year}`,
 				row?.source ?? "date-holidays",
 				row?.status ?? "MISSING",
-				{ countryCode, endDate: `${year}-12-31`, startDate: `${year}-01-01`, version: row?.version ?? null },
+				{
+					countryCode,
+					endDate: `${year}-12-31`,
+					startDate: `${year}-01-01`,
+					version: row?.version ?? null,
+				},
 				accounts.filter(account => account.countryCode === countryCode),
 				row?.status !== "COMPLETE",
 			);
@@ -220,7 +233,8 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 					: [
 							{
 								endDate: window.endDate < `${year}-12-31` ? window.endDate : `${year}-12-31`,
-								startDate: window.startDate > `${year}-01-01` ? window.startDate : `${year}-01-01`,
+								startDate:
+									window.startDate > `${year}-01-01` ? window.startDate : `${year}-01-01`,
 							},
 						];
 		}
@@ -243,7 +257,7 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 			accounts.filter(
 				account =>
 					account.institutionId === row.institutionId &&
-					account.currency === row.currency &&
+					(row.currency === null || account.currency === row.currency) &&
 					(!row.countryCode || account.countryCode === row.countryCode),
 			),
 			row.status !== "APPROVED",
@@ -257,7 +271,7 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 					other.institutionId === row.institutionId &&
 					other.profileId === row.profileId &&
 					other.countryCode === row.countryCode &&
-					other.currency === row.currency,
+					(other.currency === null || other.currency === row.currency),
 			),
 		);
 	}
@@ -276,7 +290,9 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 		items[items.length - 1].gaps = uncoveredRanges(
 			window.startDate,
 			window.endDate,
-			histories.filter(other => other.institutionId === row.institutionId && other.userId === row.userId),
+			histories.filter(
+				other => other.institutionId === row.institutionId && other.userId === row.userId,
+			),
 		);
 	}
 	for (const account of accounts) {
@@ -292,7 +308,9 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 				true,
 			);
 		else if (
-			!associations.some(row => row.countryCode === account.countryCode && row.currency === account.currency)
+			!associations.some(
+				row => row.countryCode === account.countryCode && row.currency === account.currency,
+			)
 		)
 			add(
 				`association:${account.id}`,
@@ -309,7 +327,7 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 			!policies.some(
 				row =>
 					row.institutionId === account.institutionId &&
-					row.currency === account.currency &&
+					(row.currency === null || row.currency === account.currency) &&
 					(!row.countryCode || row.countryCode === account.countryCode),
 			)
 		)

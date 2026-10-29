@@ -6,6 +6,7 @@ import {
 	normalizeCardCalendar,
 	previewCalendarTransition,
 } from "@zaimu/finance/credit-card";
+import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { type SyntheticEvent, useState } from "react";
 import { LuPencil, LuPlus } from "react-icons/lu";
@@ -34,6 +35,7 @@ import { dataService } from "@/lib/dataService";
 import { runDialogSave } from "@/lib/dialog-save";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
+import { useCurrencyStore } from "@/stores/currency";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CardCalendarTransitionFields } from "./CardCalendarTransitionFields";
 import { CardPayerFields } from "./CardPayerFields";
@@ -107,21 +109,23 @@ export function CreateFinancialAccountDialog({
 	const open = controlledOpen ?? internalOpen;
 	const [institutionId, setInstitutionId] = useState<string | undefined>(initialInstitution);
 	const institution = institutions.find(item => item.id === institutionId);
-	const availableCountries = institution ? (institution.operatingCountryCodes ?? []) : [];
+	const availableCountries = institution
+		? [
+				...new Set([
+					...(institution.operatingCountryCodes ?? []),
+					...(account?.countryCode ? [account.countryCode] : []),
+				]),
+			]
+		: [];
 	const countryCode =
 		selectedCountry && availableCountries.includes(selectedCountry)
 			? selectedCountry
 			: availableCountries.length === 1
 				? availableCountries[0]
 				: undefined;
-	const availableCurrencies = institution
-		? (institution.accountCurrenciesByCountry?.[countryCode ?? ""] ?? [])
-		: [];
-	const currency = availableCurrencies.includes(selectedCurrency)
-		? selectedCurrency
-		: availableCurrencies.length === 1
-			? availableCurrencies[0]!
-			: "";
+	const supportedCurrencies = useCurrencyStore(state => state.currencies);
+	const currency =
+		selectedCurrency || (countryCode ? countryCurrency(countryCode, supportedCurrencies) : null) || "";
 	const countryNames = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
 	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? defaultType ?? "CHECKING");
@@ -406,7 +410,6 @@ export function CreateFinancialAccountDialog({
 							onValueChange={value => {
 								setInstitutionId(value);
 								setCountry(undefined);
-								setCurrency("");
 							}}
 							options={[
 								...institutions.map(institution => ({
@@ -427,7 +430,6 @@ export function CreateFinancialAccountDialog({
 							label="País da conta"
 							onValueChange={value => {
 								setCountry(value);
-								setCurrency("");
 							}}
 							options={availableCountries.map(value => ({
 								label: countryNames.of(value) ?? value,
@@ -439,7 +441,6 @@ export function CreateFinancialAccountDialog({
 							value={countryCode}
 						/>
 						<CurrencySelect
-							currencies={availableCurrencies}
 							disabled={!institution || !countryCode}
 							label="Moeda da conta / cartão"
 							onValueChange={setCurrency}

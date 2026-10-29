@@ -1,3 +1,4 @@
+import { countryCurrencies } from "@zaimu/finance/country-currencies";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
@@ -33,6 +34,12 @@ export async function proposeInstitution(
 	payload: Record<string, unknown>,
 	effectiveDate?: string,
 ): Promise<{ id: string; institutionId: string; status: string }> {
+	if (kind === "PROFILE") {
+		const name = String(payload.name ?? "").trim();
+		if (!name || name.length > 100)
+			throw new HttpException("Informe um nome com até 100 caracteres", 400);
+		payload = { ...payload, name };
+	}
 	return withRawTransaction(async query => {
 		let version: number | null = null;
 		if (institutionId) {
@@ -60,7 +67,9 @@ export async function proposeInstitution(
 					userId,
 					normalized.name,
 					normalized.normalizedName,
-					payload.currency ?? "USD",
+					(payload.operatingCountryCodes as string[] | undefined)?.length === 1
+						? (countryCurrencies[(payload.operatingCountryCodes as string[])[0]!] ?? "USD")
+						: "USD",
 					payload.operatingCountryCodes ?? [],
 				],
 			);
@@ -75,7 +84,9 @@ export async function proposeInstitution(
 			[id, institutionId, userId, kind, version, JSON.stringify(payload), effectiveDate ?? null],
 		);
 		if (kind === "NEW_INSTITUTION") {
-			const [author] = await query<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]);
+			const [author] = await query<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [
+				userId,
+			]);
 			if (author?.role === "ADMIN") {
 				const result = await reviewInstitutionProposal(userId, id, "APPROVE");
 				return { ...result, institutionId };
@@ -99,9 +110,10 @@ export async function reviewInstitutionProposal(
 	profileResolution?: { profileId: string; effectiveDate: string }[],
 ) {
 	return withRawTransaction(async query => {
-		const [proposal] = await query(`SELECT * FROM "FinancialInstitutionProposal" WHERE "id"=$1 FOR UPDATE`, [
-			id,
-		]);
+		const [proposal] = await query(
+			`SELECT * FROM "FinancialInstitutionProposal" WHERE "id"=$1 FOR UPDATE`,
+			[id],
+		);
 		if (!proposal) throw new HttpException("Proposta não encontrada", 404);
 		const [institution] = await query(`SELECT * FROM "FinancialInstitution" WHERE "id"=$1 FOR UPDATE`, [
 			proposal.institutionId,
@@ -119,7 +131,11 @@ export async function reviewInstitutionProposal(
 		if (action === "ASSOCIATE") {
 			if (institution.status === "APPROVED" || institution.userId !== proposal.authorId)
 				throw new HttpException("Associação exige instituição privada do proponente", 400);
-			if (!["NEW_INSTITUTION", "MERGE"].includes(proposal.kind) || !targetId || targetId === institution.id)
+			if (
+				!["NEW_INSTITUTION", "MERGE"].includes(proposal.kind) ||
+				!targetId ||
+				targetId === institution.id
+			)
 				throw new HttpException("Associação inválida", 400);
 			const [target] = await query(
 				`SELECT * FROM "FinancialInstitution" WHERE "id"=$1 AND "status"='APPROVED' FOR UPDATE`,
@@ -138,7 +154,10 @@ export async function reviewInstitutionProposal(
 				[crypto.randomUUID(), proposal.authorId, targetId],
 			);
 			if (profileResolution) {
-				if (new Set(profileResolution.map(change => change.effectiveDate)).size !== profileResolution.length)
+				if (
+					new Set(profileResolution.map(change => change.effectiveDate)).size !==
+					profileResolution.length
+				)
 					throw new HttpException("Datas de perfil duplicadas", 400);
 				for (const change of profileResolution) {
 					const [profile] = await query(
@@ -146,7 +165,10 @@ export async function reviewInstitutionProposal(
 						[change.profileId, targetId],
 					);
 					if (!profile)
-						throw new HttpException("Perfil da resolução não pertence à instituição de destino", 400);
+						throw new HttpException(
+							"Perfil da resolução não pertence à instituição de destino",
+							400,
+						);
 				}
 				await query(`DELETE FROM "UserInstitutionProfileChange" WHERE "linkId"=$1`, [targetLink.id]);
 				for (const change of profileResolution)
@@ -178,22 +200,34 @@ export async function reviewInstitutionProposal(
 						name.name,
 						name.normalizedName,
 						payload.currency ?? institution.currency,
-						payload.creditInstallmentRemainderOnFirst ?? institution.creditInstallmentRemainderOnFirst,
+						payload.creditInstallmentRemainderOnFirst ??
+							institution.creditInstallmentRemainderOnFirst,
 						payload.operatingCountryCodes ?? institution.operatingCountryCodes,
-						payload.creditStatementClosingInclusive ?? institution.creditStatementClosingInclusive,
+						payload.creditStatementClosingInclusive ??
+							institution.creditStatementClosingInclusive,
 					],
 				);
 			} else if (proposal.kind === "PROFILE") {
+				const name = String(payload.name ?? "").trim();
+				if (!name || name.length > 100)
+					throw new HttpException("Informe um nome com até 100 caracteres", 400);
+				const duplicates = await query(
+					`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND lower(trim("name"))=lower($2)`,
+					[institution.id, name],
+				);
+				if (duplicates.length) throw new HttpException("Já existe um perfil com esse nome", 409);
 				await query(
 					`INSERT INTO "FinancialInstitutionProfile" ("id","institutionId","name","isDefault","updatedAt") VALUES ($1,$2,$3,false,NOW())`,
-					[crypto.randomUUID(), institution.id, payload.name],
+					[crypto.randomUUID(), institution.id, name],
 				);
 				await query(`UPDATE "FinancialInstitution" SET "version"="version"+1 WHERE "id"=$1`, [
 					institution.id,
 				]);
 			} else if (proposal.kind === "POLICY") {
 				if (!proposal.effectiveDate) throw new HttpException("Informe a vigência", 400);
-				const policy = payload as unknown as Parameters<typeof assertFinancialInstitutionYieldPolicy>[0] & {
+				const policy = payload as unknown as Parameters<
+					typeof assertFinancialInstitutionYieldPolicy
+				>[0] & {
 					profileId: string;
 					countryCode?: string;
 					effectiveUntil?: string;
@@ -203,7 +237,8 @@ export async function reviewInstitutionProposal(
 					policy.effectiveUntil <= new Date(proposal.effectiveDate).toISOString().slice(0, 10)
 				)
 					throw new HttpException("Fim da vigência deve ser posterior ao início", 400);
-				policy.currency = await assertSupportedCurrency(policy.currency ?? institution.currency);
+				// Older pending proposals retain their explicit currency scope.
+				policy.currency = policy.currency ? await assertSupportedCurrency(policy.currency) : null;
 				assertFinancialInstitutionYieldPolicy(policy);
 				await assertTaxSelection(policy.yieldTaxIds, [], new Date(proposal.effectiveDate));
 				const [profile] = await query(
@@ -212,7 +247,7 @@ export async function reviewInstitutionProposal(
 				);
 				if (!profile) throw new HttpException("Perfil não encontrado", 400);
 				const [existing] = await query(
-					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency"=$3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5 FOR UPDATE`,
+					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5 FOR UPDATE`,
 					[
 						institution.id,
 						policy.profileId,
@@ -223,9 +258,10 @@ export async function reviewInstitutionProposal(
 				);
 				const policyId = existing?.id ?? crypto.randomUUID();
 				if (existing) {
-					await query(`DELETE FROM "FinancialInstitutionYieldRule" WHERE "financialYieldPolicyId"=$1`, [
-						policyId,
-					]);
+					await query(
+						`DELETE FROM "FinancialInstitutionYieldRule" WHERE "financialYieldPolicyId"=$1`,
+						[policyId],
+					);
 					await query(
 						`UPDATE "FinancialInstitutionYieldPolicy" SET "yieldPeriod"=$2,"yieldTaxIds"=$3,"yieldTaxRate"=$4,"effectiveUntil"=$5,"updatedAt"=NOW() WHERE "id"=$1`,
 						[
@@ -299,7 +335,11 @@ export async function reviewInstitutionProposal(
 		);
 		await query(
 			`INSERT INTO "AppNotification" ("id","userId","type","payload") VALUES ($1,$2,'INSTITUTION_REVIEW_RESULT',$3)`,
-			[crypto.randomUUID(), proposal.authorId, JSON.stringify({ proposalId: id, reason, status, targetId })],
+			[
+				crypto.randomUUID(),
+				proposal.authorId,
+				JSON.stringify({ proposalId: id, reason, status, targetId }),
+			],
 		);
 		if (action !== "REJECT" && proposal.effectiveDate) {
 			const accounts = await query<{ id: string }>(

@@ -1,3 +1,4 @@
+import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
@@ -30,6 +31,7 @@ import type { YieldPeriod } from "~/modules/accounts/domain/calculate-financial-
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { recalculateCreditCardDueDates } from "~/modules/creditCards/application/normalized-credit-book";
 import { CardCalendarPeriodDTO } from "~/modules/creditCards/infra/elysia/CardCalendarPeriodDTO";
+import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import { CurrencyDTO } from "~/modules/currencies/application/financial-money";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -454,9 +456,6 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 					? await visibleInstitution(userId, body.institutionId)
 					: await resolveFinancialInstitution(userId, body.institutionName, effectiveCurrency);
 				if (institution) await ensureInstitutionLink(userId, institution.id);
-				const currency = body.currency
-					? await assertSupportedCurrency(body.currency)
-					: (institution?.currency ?? effectiveCurrency);
 				const [countryPreference] = await queryRaw<{ preferredCountry: string | null }>(
 					'SELECT "preferredCountry" FROM "user" WHERE "id"=$1',
 					[userId],
@@ -470,6 +469,9 @@ WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
 						: countryPreference?.preferredCountry);
 				if (!countryCode || !supportedCountryCodes.includes(countryCode))
 					throw new HttpException("Selecione o país da conta", 400);
+				const currency = body.currency
+					? await assertSupportedCurrency(body.currency)
+					: (countryCurrency(countryCode, await supportedCurrencies()) ?? effectiveCurrency);
 				await ensureAccountCoverage(currency, countryCode);
 				if (body.rewardsAccount)
 					assertRewardsAccountDetails(

@@ -30,6 +30,7 @@ import {
 	statementCutoffAfter,
 } from "@zaimu/finance/credit-card";
 import { assertImportedPurchaseEdit, distributePurchaseCents } from "@zaimu/finance/credit-purchase";
+import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/dashboard-forecasts";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
@@ -136,6 +137,7 @@ import {
 } from "@/lib/api";
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
+import { useCurrencyStore } from "@/stores/currency";
 import {
 	deleteRecurringById,
 	getCategories,
@@ -447,7 +449,12 @@ export const dataService = {
 					...accountData,
 					balance: data.type === "CREDIT_CARD" ? null : 0,
 					createdAt: now.toISOString(),
-					currency: data.currency ?? institution?.currency ?? activeCurrency(),
+					currency:
+						data.currency ??
+						(data.countryCode
+							? countryCurrency(data.countryCode, useCurrencyStore.getState().currencies)
+							: null) ??
+						activeCurrency(),
 					id: crypto.randomUUID(),
 					institution,
 					institutionId: data.institutionId ?? institution?.id ?? null,
@@ -3100,8 +3107,6 @@ export const dataService = {
 			}
 			if (!navigator.onLine) throw new Error("Propostas institucionais exigem conexão");
 			if (data.yieldPolicy) {
-				if (!data.yieldPolicy.currency)
-					throw new Error("Selecione a moeda da política de rendimento");
 				const profiles = await getFinancialInstitutionsByIdProfiles(id);
 				const profileId =
 					data.yieldPolicy.profileId ?? profiles.find(profile => profile.isDefault)?.id;
@@ -3111,7 +3116,6 @@ export const dataService = {
 				await postFinancialInstitutionsByIdPolicies(id, {
 					...data.yieldPolicy,
 					countryCode: data.yieldPolicy.countryCode ?? undefined,
-					currency: data.yieldPolicy.currency,
 					effectiveDate:
 						data.yieldPolicy.requestedEffectiveDate ?? date.toLocaleDateString("sv-SE"),
 					effectiveUntil: data.yieldPolicy.effectiveUntil ?? undefined,

@@ -1,4 +1,5 @@
-import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
+import { countryCurrency } from "@zaimu/finance/currency-preference";
+import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { supportedCountryCodes } from "~/modules/yield-calendar/calendar-source";
 import { HttpException } from "~/shared/errors";
 import { queryRaw } from "~/shared/infra/sql";
@@ -7,24 +8,25 @@ import type { InstitutionCatalogResult } from "../infra/dto/institution-catalog"
 
 export async function configureInstitutionCountries(
 	institutionId: string,
-	accountCurrenciesByCountry: Record<string, string[]>,
+	operatingCountryCodes: string[],
 	creditStatementClosingInclusive?: boolean,
 	name?: string,
 ): Promise<InstitutionCatalogResult> {
 	const normalized = name === undefined ? undefined : normalizeFinancialInstitutionName(name);
 	if (normalized && (!normalized.name || normalized.name.length > 100))
 		throw new HttpException("Informe um nome com até 100 caracteres", 400);
-	for (const [countryCode, currencies] of Object.entries(accountCurrenciesByCountry)) {
+	for (const countryCode of operatingCountryCodes) {
 		if (!supportedCountryCodes.includes(countryCode)) throw new HttpException("País não suportado", 400);
-		if (!currencies.length) throw new HttpException("Selecione ao menos uma moeda por país", 400);
-		for (const currency of currencies) await assertSupportedCurrency(currency);
 	}
+	const currencies = await supportedCurrencies();
+	const currency =
+		operatingCountryCodes.length === 1 ? countryCurrency(operatingCountryCodes[0]!, currencies) : null;
 	const [institution] = await queryRaw<InstitutionCatalogResult>(
-		`UPDATE "FinancialInstitution" SET "accountCurrenciesByCountry"=$2::jsonb,"operatingCountryCodes"=$3,"creditStatementClosingInclusive"=COALESCE($4,"creditStatementClosingInclusive"),"name"=COALESCE($5,"name"),"normalizedName"=COALESCE($6,"normalizedName"),"version"="version"+1,"updatedAt"=NOW() WHERE "id"=$1 RETURNING *`,
+		`UPDATE "FinancialInstitution" SET "accountCurrenciesByCountry"='{}'::json,"operatingCountryCodes"=$3,"currency"=COALESCE($2,"currency"),"creditStatementClosingInclusive"=COALESCE($4,"creditStatementClosingInclusive"),"name"=COALESCE($5,"name"),"normalizedName"=COALESCE($6,"normalizedName"),"version"="version"+1,"updatedAt"=NOW() WHERE "id"=$1 RETURNING *`,
 		[
 			institutionId,
-			JSON.stringify(accountCurrenciesByCountry),
-			Object.keys(accountCurrenciesByCountry),
+			currency,
+			operatingCountryCodes,
 			creditStatementClosingInclusive ?? null,
 			normalized?.name ?? null,
 			normalized?.normalizedName ?? null,

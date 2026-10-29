@@ -21,24 +21,22 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 				awaitRefetch: true,
 			});
 		} catch (error) {
-			showToast(error instanceof Error ? error.message : "Não foi possível enviar a proposta", "negative");
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível enviar a proposta",
+				"negative",
+			);
 			throw error;
 		}
 	};
 	return (
 		<article className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border p-4">
 			<div className="min-w-0 flex-1 space-y-1">
-				<h3 className="break-words font-semibold">{institution.name}</h3>
-				<p className="break-words text-muted-foreground text-sm">
-					{institution.currency ?? "Moeda não definida"} - Versão {institution.version ?? 1}
-				</p>
-				<p className="break-words text-muted-foreground text-sm">
+				<h3 className="font-semibold break-words">{institution.name}</h3>
+				<p className="text-muted-foreground text-sm break-words">Versão {institution.version ?? 1}</p>
+				<p className="text-muted-foreground text-sm break-words">
 					{institution.operatingCountryCodes?.length
 						? institution.operatingCountryCodes
-								.map(
-									code =>
-										`${countryNames.of(code) ?? code}: ${institution.accountCurrenciesByCountry?.[code]?.join(", ") || "Moedas não definidas"}`,
-								)
+								.map(code => countryNames.of(code) ?? code)
 								.join("; ")
 						: "Países não informados"}
 				</p>
@@ -50,16 +48,18 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 					institution={institution}
 					onUpdate={(item, policy) => {
 						const { requestedEffectiveDate, profileId, yieldTaxIds, ...body } = policy;
-						if (!requestedEffectiveDate || !profileId || !body.currency)
+						if (!requestedEffectiveDate || !profileId)
 							return Promise.reject(new Error("Selecione perfil e data de vigência."));
 						return propose(item.id, {
 							...body,
 							countryCode: body.countryCode ?? undefined,
-							currency: body.currency,
 							effectiveDate: requestedEffectiveDate,
 							effectiveUntil: body.effectiveUntil ?? undefined,
 							profileId,
-							rules: body.rules.map(rule => ({ ...rule, upToBalance: rule.upToBalance ?? null })),
+							rules: body.rules.map(rule => ({
+								...rule,
+								upToBalance: rule.upToBalance ?? null,
+							})),
 							yieldTaxIds: yieldTaxIds ?? undefined,
 						});
 					}}

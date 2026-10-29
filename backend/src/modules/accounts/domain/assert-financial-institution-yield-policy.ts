@@ -9,7 +9,7 @@ export function assertFinancialInstitutionYieldPolicy({
 	yieldTaxIds,
 	yieldTaxRate,
 }: {
-	currency?: string;
+	currency?: string | null;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
 	yieldTaxIds?: string[] | null;
@@ -20,7 +20,11 @@ export function assertFinancialInstitutionYieldPolicy({
 			throw new HttpException("Remova o período e o imposto ao desativar o rendimento", 400);
 		return;
 	}
-	if (yieldTaxRate !== null && yieldTaxRate !== undefined && (yieldTaxRate < 0 || yieldTaxRate > 100))
+	if (
+		yieldTaxRate !== null &&
+		yieldTaxRate !== undefined &&
+		(!Number.isFinite(yieldTaxRate) || yieldTaxRate < 0 || yieldTaxRate > 100)
+	)
 		throw new HttpException("A alíquota de imposto deve estar entre 0% e 100%", 400);
 	if (rules.length > 20) throw new HttpException("Cadastre no máximo 20 faixas de rendimento", 400);
 	let previousLimit = 0;
@@ -29,7 +33,9 @@ export function assertFinancialInstitutionYieldPolicy({
 		if (rule.upToBalance === null || rule.upToBalance === undefined) {
 			if (!isLast) throw new HttpException("Somente a última faixa pode não ter limite", 400);
 		} else {
-			toMinorUnits(rule.upToBalance, currency, 1);
+			if (currency) toMinorUnits(rule.upToBalance, currency, 1);
+			else if (!Number.isFinite(rule.upToBalance) || rule.upToBalance <= 0)
+				throw new HttpException("Informe um limite positivo válido", 400);
 			if (isLast) throw new HttpException("A última faixa deve abranger o saldo excedente", 400);
 			if (rule.upToBalance <= previousLimit)
 				throw new HttpException("Os limites das faixas devem ser crescentes", 400);
@@ -42,6 +48,12 @@ export function assertFinancialInstitutionYieldPolicy({
 			throw new HttpException("Informe a taxa de referência e o percentual juntos", 400);
 		const hasFixed = rule.yieldFixedRate !== null && rule.yieldFixedRate !== undefined;
 		if (!hasFixed && !hasReferenceType)
+			throw new HttpException("Cada faixa deve ter uma taxa maior que zero", 400);
+		if (
+			(hasFixed && (!Number.isFinite(rule.yieldFixedRate) || rule.yieldFixedRate! <= 0)) ||
+			(hasReferencePercentage &&
+				(!Number.isFinite(rule.yieldReferencePercentage) || rule.yieldReferencePercentage! <= 0))
+		)
 			throw new HttpException("Cada faixa deve ter uma taxa maior que zero", 400);
 		if (hasFixed && !yieldPeriod) throw new HttpException("Selecione o período da taxa fixa", 400);
 	}

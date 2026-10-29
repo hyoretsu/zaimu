@@ -81,7 +81,7 @@ export type FinancialInstitutionYieldRuleReturn = typeof FinancialInstitutionYie
 
 export const FinancialInstitutionYieldPolicyReturn = t.Object({
 	countryCode: t.Optional(t.Union([t.Null(), t.String()])),
-	currency: t.Optional(t.String()),
+	currency: t.Optional(t.Nullable(t.String())),
 	effectiveDate: t.String(),
 	effectiveUntil: t.Optional(t.Union([t.Null(), t.String()])),
 	profileId: t.Optional(t.Union([t.Null(), t.String()])),

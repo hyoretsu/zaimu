@@ -4,6 +4,7 @@ import { closeDatabase, queryRaw } from "sql";
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
+import { getFinancialCoverage } from "../../financial-history/application/financial-coverage";
 import { ensureAccountCoverage, ensureCalendarCoverage } from "../../yield-calendar/ensure-coverage";
 import {
 	consolidateLegacyInstitution,
@@ -31,6 +32,91 @@ describe("universal institution review and calendar coverage", () => {
 		);
 	});
 	afterAll(() => closeDatabase());
+	test("new profiles require approval and preserve the standard profile", async () => {
+		const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
+			name: "Profile bank",
+		});
+		const proposal = await proposeInstitution("admin", institution.institutionId, "PROFILE", {
+			name: "  Premium  ",
+		});
+		expect(proposal.status).toBe("PENDING");
+		expect(
+			await queryRaw(
+				`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND "name"='Premium'`,
+				[institution.institutionId],
+			),
+		).toHaveLength(0);
+		await reviewInstitutionProposal("admin", proposal.id, "APPROVE");
+		const profiles = await queryRaw(
+			`SELECT * FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1`,
+			[institution.institutionId],
+		);
+		expect(profiles.find(profile => profile.isDefault)?.name).toBe("Padrão");
+		expect(profiles.find(profile => profile.name === "Premium")?.isDefault).toBe(false);
+		const duplicate = await proposeInstitution("admin", institution.institutionId, "PROFILE", {
+			name: "premium",
+		});
+		await expect(reviewInstitutionProposal("admin", duplicate.id, "APPROVE")).rejects.toThrow(
+			"Já existe",
+		);
+	});
+	test("new policies publish without currency and keep legacy scope intact", async () => {
+		const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
+			name: "Universal policy bank",
+			operatingCountryCodes: ["BR"],
+		});
+		const [profile] = await queryRaw(
+			`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND "isDefault"`,
+			[institution.institutionId],
+		);
+		const legacy = await proposeInstitution(
+			"admin",
+			institution.institutionId,
+			"POLICY",
+			{
+				countryCode: "BR",
+				currency: "BRL",
+				profileId: profile!.id,
+				rules: [{ yieldFixedRate: 1 }],
+				yieldPeriod: "MONTHLY",
+			},
+			"2026-01-01",
+		);
+		await reviewInstitutionProposal("admin", legacy.id, "APPROVE");
+		for (const rate of [2, 3]) {
+			const next = await proposeInstitution(
+				"admin",
+				institution.institutionId,
+				"POLICY",
+				{
+					countryCode: "BR",
+					profileId: profile!.id,
+					rules: [{ yieldFixedRate: rate }],
+					yieldPeriod: "MONTHLY",
+				},
+				"2026-02-01",
+			);
+			await reviewInstitutionProposal("admin", next.id, "APPROVE");
+		}
+		const policies = await queryRaw(
+			`SELECT "currency", "effectiveDate" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 ORDER BY "effectiveDate"`,
+			[institution.institutionId],
+		);
+		expect(policies.map(policy => policy.currency)).toEqual(["BRL", null]);
+		await queryRaw(
+			`INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","countryCode","currency") VALUES ('policy-brl','owner','CHECKING',$1,'BR','BRL'),('policy-usd','owner','CHECKING',$1,'BR','USD')`,
+			[institution.institutionId],
+		);
+		const inventory = await getFinancialCoverage("owner", false, "2026-02-01", "2026-02-28");
+		const universal = inventory.items.find(
+			item =>
+				item.kind === "POLICY" &&
+				item.institutionId === institution.institutionId &&
+				item.currency === null,
+		);
+		expect(universal?.affectedAccountIds.toSorted()).toEqual(["policy-brl", "policy-usd"]);
+		expect(inventory.items.some(item => item.id === "policy:policy-usd")).toBe(false);
+	});
 	test("admin creation publishes immediately with review audit and no pending notification", async () => {
 		const created = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
 			creditStatementClosingInclusive: true,

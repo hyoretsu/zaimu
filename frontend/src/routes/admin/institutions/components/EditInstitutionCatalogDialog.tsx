@@ -21,12 +21,10 @@ import { patchFinancialInstitutionsReviewCatalogById } from "@/lib/api";
 import { countryCodes } from "@/lib/countries";
 import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
-import { useCurrencyStore } from "@/stores/currency";
 import type { AdminInstitution } from "./types";
 
 export function EditInstitutionCatalogDialog({ institution }: { institution: AdminInstitution }) {
 	const queryClient = useQueryClient();
-	const currencies = useCurrencyStore(state => state.currencies);
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
 	const [name, setName] = useState(institution.name);
@@ -35,7 +33,6 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 	const [closingInclusive, setClosingInclusive] = useState(false);
 	const [mapping, setMapping] = useState<Record<string, string[]>>({});
 	const countryNames = new Intl.DisplayNames("pt-BR", { type: "region" });
-	const currencyNames = new Intl.DisplayNames("pt-BR", { type: "currency" });
 	const save = async (submittedName: string) => {
 		if (pending) return;
 		const trimmedName = submittedName.trim();
@@ -48,9 +45,9 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 		setPending(true);
 		try {
 			await patchFinancialInstitutionsReviewCatalogById(institution.id, {
-				accountCurrenciesByCountry: mapping,
 				creditStatementClosingInclusive: closingInclusive,
 				name: trimmedName,
+				operatingCountryCodes: Object.keys(mapping),
 			});
 			await invalidateMutationCache(queryClient, start, {
 				...mutationCacheMeta("institution"),
@@ -77,17 +74,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 					setError("");
 					setClosingInclusive(institution.creditStatementClosingInclusive ?? false);
 					setMapping(
-						Object.fromEntries(
-							[
-								...new Set([
-									...(institution.operatingCountryCodes ?? []),
-									...Object.keys(institution.accountCurrenciesByCountry ?? {}),
-								]),
-							].map(code => [
-								code,
-								[...(institution.accountCurrenciesByCountry?.[code] ?? [])],
-							]),
-						),
+						Object.fromEntries((institution.operatingCountryCodes ?? []).map(code => [code, []])),
 					);
 				}
 				setOpen(value);
@@ -112,7 +99,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 				<DialogHeader>
 					<DialogTitle>Configurar instituição - {institution.name}</DialogTitle>
 					<DialogDescription>
-						Edite o nome, os países, as moedas e a regra de fechamento das faturas.
+						Edite o nome, os países e a regra de fechamento das faturas.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -174,7 +161,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 								placeholder="Ex: Brasil"
 								searchable
 							/>
-							{Object.entries(mapping).map(([country, selected]) => (
+							{Object.keys(mapping).map(country => (
 								<section className="min-w-0 space-y-3 rounded-xl border p-3" key={country}>
 									<div className="flex items-center gap-3">
 										<h3 className="min-w-0 flex-1 font-medium">
@@ -207,26 +194,6 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 											</Tooltip>
 										</ActionGroup>
 									</div>
-									<CustomSelect
-										disabled={pending}
-										label="Moedas de contas"
-										onValueChange={currency =>
-											setMapping(previous => ({
-												...previous,
-												[country]: selected.includes(currency)
-													? selected.filter(code => code !== currency)
-													: [...selected, currency],
-											}))
-										}
-										options={[...new Set([...currencies, ...selected])].map(code => ({
-											label: `${code} - ${currencyNames.of(code) ?? code}`,
-											value: code,
-										}))}
-										placeholder="Ex: BRL - Real brasileiro"
-										required
-										searchable
-										values={selected}
-									/>
 								</section>
 							))}
 							{Object.keys(mapping).length === 0 && (
@@ -248,10 +215,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 						>
 							Descartar
 						</Button>
-						<Button
-							disabled={pending || Object.values(mapping).some(values => values.length === 0)}
-							type="submit"
-						>
+						<Button disabled={pending} type="submit">
 							Salvar
 						</Button>
 					</DialogFooter>

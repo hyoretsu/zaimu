@@ -24,3 +24,25 @@ describe("assertFinancialInstitutionYieldPolicy", () => {
 		).toThrow("última faixa");
 	});
 });
+
+test.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 0])(
+	"rejects invalid currency-independent tier %s",
+	upToBalance => {
+		expect(() =>
+			assertFinancialInstitutionYieldPolicy({
+				currency: null,
+				rules: [{ upToBalance, yieldFixedRate: 1 }, { yieldFixedRate: 1 }],
+				yieldPeriod: "MONTHLY",
+			}),
+		).toThrow();
+	},
+);
+test.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 0])("rejects invalid fixed rate %s", yieldFixedRate => {
+	expect(() =>
+		assertFinancialInstitutionYieldPolicy({
+			currency: null,
+			rules: [{ yieldFixedRate }],
+			yieldPeriod: "MONTHLY",
+		}),
+	).toThrow();
+});

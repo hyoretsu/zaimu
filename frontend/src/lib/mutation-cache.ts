@@ -14,6 +14,8 @@ const auxiliaryOperations = {
 	adminUser: ["admin-users"],
 	history: ["admin-history-coverage", "admin-history-completion"],
 	institution: [
+		"institution-profiles",
+		"institution-policies",
 		"institution-profile-history",
 		"institutions",
 		"institution-review",

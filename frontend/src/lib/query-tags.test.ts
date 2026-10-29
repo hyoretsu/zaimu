@@ -63,3 +63,16 @@ test("retains generated tags after an observer reapplies query options", async (
 	unsubscribeTags();
 	client.clear();
 });
+
+test.each(["institution-profiles", "institution-policies"])("tags %s by explicit session identity", root => {
+	const client = new QueryClient();
+	const unsubscribe = configureQueryTags(client);
+	const key = ["identity", "user:institution-admin", root, "bank"];
+	client.setQueryData(key, []);
+	expect(client.getQueryCache().find({ queryKey: key })?.meta).toMatchObject({
+		apiTags: ["Institutions"],
+		cacheIdentity: "user:institution-admin",
+	});
+	unsubscribe();
+	client.clear();
+});

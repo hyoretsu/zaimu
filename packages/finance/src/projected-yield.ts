@@ -47,7 +47,7 @@ export interface InstitutionYieldPolicy {
 	countryCode?: null | string;
 	effectiveUntil?: null | Date | string;
 	status?: "APPROVED" | "PENDING" | "REJECTED";
-	currency?: string;
+	currency?: string | null;
 	effectiveDate: Date | string;
 	rules: InstitutionYieldRule[];
 	yieldPeriod?: null | YieldPeriod;
@@ -200,12 +200,13 @@ function getYieldSettings(account: YieldAccount, day: string) {
 						account.globalRulesFrom !== null &&
 						(!account.globalRulesFrom || day >= dateKey(account.globalRulesFrom)))) &&
 				(!policy.countryCode || policy.countryCode === account.countryCode) &&
-				(policy.currency ?? "BRL") === (account.currency ?? "BRL"),
+				(policy.currency === null || (policy.currency ?? "BRL") === (account.currency ?? "BRL")),
 		)
 		.toSorted(
 			(left, right) =>
 				Number(Boolean(left.countryCode)) - Number(Boolean(right.countryCode)) ||
-				dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)),
+				dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)) ||
+				Number(left.currency === null) - Number(right.currency === null),
 		)
 		.at(-1);
 }

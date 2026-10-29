@@ -4,6 +4,7 @@ import {
 	consolidateLegacyInstitution,
 	listInstitutionCatalog,
 } from "~/modules/accounts/application/consolidate-legacy-institution";
+import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import {
 	proposeInstitution,
 	reviewInstitutionProposal,
@@ -114,7 +115,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			await requireAdmin(request);
 			return configureInstitutionCountries(
 				params.id,
-				body.accountCurrenciesByCountry,
+				body.operatingCountryCodes,
 				body.creditStatementClosingInclusive,
 				body.name,
 			);
@@ -212,12 +213,33 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		async ({ params, body, request }) =>
 			proposeInstitution(await requireAdmin(request), params.id, "PROFILE", body),
 		{
-			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1 }) }),
+			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1, pattern: "\\S" }) }),
 			detail: { operationId: "postFinancialInstitutionsByIdProfiles" },
 			params: t.Object({ id: Id }),
 			response: MutationReturn,
 		},
 	)
+	.get(
+		"/:id/policies",
+		async ({ params, request }) => {
+			await requireAdmin(request);
+			return ((await getFinancialInstitutionYieldPolicies([params.id])).get(params.id) ?? []).map(
+				policy => ({
+					...policy,
+					effectiveDate: policy.effectiveDate.toISOString().slice(0, 10),
+					effectiveUntil: policy.effectiveUntil
+						? new Date(policy.effectiveUntil).toISOString().slice(0, 10)
+						: null,
+				}),
+			);
+		},
+		{
+			detail: { operationId: "getFinancialInstitutionsByIdPolicies" },
+			params: t.Object({ id: Id }),
+			response: t.Array(FinancialInstitutionYieldPolicyReturn),
+		},
+	)
+
 	.post(
 		"/:id/policies",
 		async ({ params, body, request }) =>
@@ -225,7 +247,6 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		{
 			body: t.Object({
 				countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),
-				currency: t.String({ maxLength: 3, minLength: 3 }),
 				effectiveDate: DateDTO,
 				effectiveUntil: t.Optional(DateDTO),
 				profileId: Id,

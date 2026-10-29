@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { type SyntheticEvent, useState } from "react";
-import { LuBadgePercent, LuPlus } from "react-icons/lu";
-import { CurrencySelect } from "@/components/currency/CurrencySelect";
-import { ActionGroup } from "@/components/ui/ActionGroup";
+import { countryCurrency } from "@zaimu/finance/currency-preference";
+import { type ReactNode, useState } from "react";
+import { LuBadgePercent } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -12,29 +10,23 @@ import {
 	DialogBody,
 	DialogContent,
 	DialogDescription,
-	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/Dialog";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
-import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { FinancialInstitution, FinancialInstitutionYieldPolicy } from "@/lib/api";
-import { getFinancialInstitutionsByIdProfiles } from "@/lib/api";
-import { countryCodes } from "@/lib/country-preference";
-import { runDialogSave } from "@/lib/dialog-save";
-import { useAuthStore } from "@/stores/auth";
-import { YieldTaxFields } from "../YieldTaxFields";
-import { InstitutionYieldRuleRow } from "./InstitutionYieldRuleRow";
-import type { EditableYieldRule } from "./types";
-
-const createRule = (): EditableYieldRule => ({
-	fixedRate: "",
-	id: crypto.randomUUID(),
-	referencePercentage: "100",
-	referenceType: "",
-	upToBalance: "",
-});
+import {
+	type FinancialInstitution,
+	type FinancialInstitutionYieldPolicy,
+	getFinancialInstitutionsByIdPolicies,
+	getFinancialInstitutionsByIdProfiles,
+} from "@/lib/api";
+import { useCacheIdentity } from "@/lib/query-cache";
+import { useCurrencyStore } from "@/stores/currency";
+import { CreateInstitutionProfileDialog } from "./CreateInstitutionProfileDialog";
+import { InstitutionYieldPolicyForm } from "./InstitutionYieldPolicyForm";
+import { selectEditablePolicy } from "./policy-selection";
 
 export function InstitutionYieldDialog({
 	institution,
@@ -46,81 +38,154 @@ export function InstitutionYieldDialog({
 		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
 	) => Promise<unknown>;
 }) {
-	const latestPolicy = institution.yieldPolicies?.at(-1);
-	const [currency, setCurrency] = useState(latestPolicy?.currency ?? institution.currency ?? "BRL");
 	const [open, setOpen] = useState(false);
 	const [profileId, setProfile] = useState<string>();
+	const [requestedProfileName, setRequestedProfileName] = useState<string>();
 	const [countryCode, setCountry] = useState<string>();
 	const [effectiveDate, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
-	const guest = useAuthStore(state => state.isGuestMode);
-	const userId = useAuthStore(state => state.user?.id);
+	const identity = useCacheIdentity();
+	const preferredCurrency = useCurrencyStore(state => state.currency);
+	const currencies = useCurrencyStore(state => state.currencies);
+	const currency = (countryCode ? countryCurrency(countryCode, currencies) : null) ?? preferredCurrency;
 	const profiles = useQuery({
-		enabled: open && !guest,
+		enabled: open,
 		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
-		queryKey: ["institution-profiles", userId, institution.id],
+		queryKey: ["identity", identity, "institution-profiles", institution.id],
 	});
-	const selectedProfile = profileId ?? profiles.data?.find(profile => profile.isDefault)?.id;
-	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
-	const [enabled, setEnabled] = useState(Boolean(latestPolicy?.rules.length));
-	const [period, setPeriod] = useState<"MONTHLY" | "YEARLY">(latestPolicy?.yieldPeriod ?? "MONTHLY");
-	const [taxIds, setTaxIds] = useState<string[]>(latestPolicy?.yieldTaxIds ?? []);
-	const [taxRate, setTaxRate] = useDebouncedInput(String(latestPolicy?.yieldTaxRate ?? ""), () => undefined);
-	const [rules, setRules] = useState<EditableYieldRule[]>(
-		() =>
-			latestPolicy?.rules.map(rule => ({
-				fixedRate: String(rule.yieldFixedRate ?? ""),
-				id: crypto.randomUUID(),
-				referencePercentage: String(rule.yieldReferencePercentage ?? 100),
-				referenceType: rule.yieldReferenceType ?? "",
-				upToBalance: String(rule.upToBalance ?? ""),
-			})) ?? [createRule()],
+	const policies = useQuery({
+		enabled: open,
+		queryFn: () => getFinancialInstitutionsByIdPolicies(institution.id),
+		queryKey: ["identity", identity, "institution-policies", institution.id],
+	});
+	const selectedProfile =
+		profileId ??
+		profiles.data?.find(profile => profile.name === requestedProfileName)?.id ??
+		profiles.data?.find(profile => profile.isDefault)?.id;
+	const policy = selectEditablePolicy(
+		policies.data ?? [],
+		selectedProfile,
+		countryCode,
+		effectiveDate,
+		currency,
 	);
-	const reset = () => {
-		const policy = institution.yieldPolicies?.at(-1);
-		setCurrency(policy?.currency ?? institution.currency ?? "BRL");
-		setEnabled(Boolean(policy?.rules.length));
-		setPeriod(policy?.yieldPeriod ?? "MONTHLY");
-		setTaxIds(policy?.yieldTaxIds ?? []);
-		setTaxRate(String(policy?.yieldTaxRate ?? ""));
-		setRules(
-			policy?.rules.map(rule => ({
-				fixedRate: String(rule.yieldFixedRate ?? ""),
-				id: crypto.randomUUID(),
-				referencePercentage: String(rule.yieldReferencePercentage ?? 100),
-				referenceType: rule.yieldReferenceType ?? "",
-				upToBalance: String(rule.upToBalance ?? ""),
-			})) ?? [createRule()],
+	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
+	const controls = (
+		<>
+			<CustomSelect
+				label="Perfil da política"
+				onValueChange={value => setProfile(value || undefined)}
+				options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
+				placeholder="Ex: Padrão"
+				required
+				searchable
+				value={selectedProfile}
+			/>
+			<CreateInstitutionProfileDialog
+				institutionId={institution.id}
+				onCreated={async name => {
+					setRequestedProfileName(name);
+					setProfile(undefined);
+					await profiles.refetch();
+				}}
+			/>
+			<CustomSelect
+				label="País aplicável"
+				onValueChange={value => setCountry(!value || value === "__all__" ? undefined : value)}
+				options={[
+					{ label: "Todos os países", special: true, value: "__all__" },
+					...(institution.operatingCountryCodes ?? []).map(value => ({
+						label: names.of(value) ?? value,
+						value,
+					})),
+				]}
+				placeholder="Todos os países"
+				searchable
+				value={countryCode ?? "__all__"}
+			/>
+			<DateField
+				id="policy-effective-date"
+				label="Vigente desde"
+				name="policy-effective-date"
+				onValueChange={setDate}
+				required
+				value={effectiveDate}
+			/>
+			<p className="text-muted-foreground text-sm">
+				Proposta entra em vigor somente após aprovação administrativa.
+			</p>
+		</>
+	);
+	let content: ReactNode;
+	if (profiles.isPending || policies.isPending) {
+		content = (
+			<DialogBody>
+				<Skeleton className="h-20" />
+				<Skeleton className="h-20" />
+				<Skeleton className="h-72" />
+			</DialogBody>
 		);
-	};
-	const updateRule = (id: string, rule: EditableYieldRule) =>
-		setRules(current => current.map(item => (item.id === id ? rule : item)));
-	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		if (!guest && !selectedProfile) return;
-		const operation = onUpdate(institution, {
-			countryCode,
-			currency,
-			profileId: selectedProfile,
-			requestedEffectiveDate: effectiveDate,
-			rules: enabled
-				? rules.map((rule, index) => ({
-						upToBalance: index === rules.length - 1 ? null : Number(rule.upToBalance),
-						yieldFixedRate: rule.fixedRate ? Number(rule.fixedRate) : null,
-						yieldReferencePercentage: rule.referenceType ? Number(rule.referencePercentage) : null,
-						yieldReferenceType: rule.referenceType || null,
-					}))
-				: [],
-			yieldPeriod: enabled && rules.some(rule => Boolean(rule.fixedRate)) ? period : null,
-			yieldTaxIds: enabled ? taxIds : null,
-			yieldTaxRate: enabled && taxRate ? Number(taxRate) : null,
-		});
-		runDialogSave(operation, () => setOpen(false), "Salvando rendimento…");
-	};
+	} else if (profiles.isError || policies.isError) {
+		content = (
+			<DialogBody>
+				<p role="alert">Não foi possível carregar a configuração.</p>
+				<Button
+					onClick={() => {
+						void profiles.refetch();
+						void policies.refetch();
+					}}
+					variant="outline"
+				>
+					Tentar novamente
+				</Button>
+			</DialogBody>
+		);
+	} else if (!selectedProfile) {
+		content = (
+			<DialogBody>
+				<p role="alert">
+					Perfil Padrão indisponível. Atualize o catálogo antes de configurar rendimento.
+				</p>
+			</DialogBody>
+		);
+	} else {
+		content = (
+			<InstitutionYieldPolicyForm
+				controls={controls}
+				currency={currency}
+				key={`${open}:${selectedProfile}:${countryCode}:${effectiveDate}:${JSON.stringify(policy)}`}
+				onDiscard={() => setOpen(false)}
+				onSave={async body => {
+					if (!selectedProfile || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
+						throw new Error("Selecione perfil e data de vigência.");
+					}
+					await onUpdate(institution, {
+						...body,
+						countryCode,
+						effectiveUntil: policy?.effectiveUntil ?? undefined,
+						profileId: selectedProfile,
+						requestedEffectiveDate: effectiveDate,
+					});
+					await policies.refetch();
+					setOpen(false);
+				}}
+				policy={policy}
+			/>
+		);
+	}
 	return (
 		<Dialog
-			onOpenChange={nextOpen => {
-				if (nextOpen) reset();
-				setOpen(nextOpen);
+			onOpenChange={value => {
+				if (value) {
+					setProfile(undefined);
+					setRequestedProfileName(undefined);
+					setCountry(
+						institution.operatingCountryCodes?.length === 1
+							? institution.operatingCountryCodes[0]
+							: undefined,
+					);
+					setDate(new Date().toLocaleDateString("sv-SE"));
+				}
+				setOpen(value);
 			}}
 			open={open}
 		>
@@ -129,7 +194,6 @@ export function InstitutionYieldDialog({
 					<DialogTrigger asChild>
 						<Button
 							aria-label={`Rendimento de ${institution.name}`}
-							className="cursor-pointer"
 							size="icon-sm"
 							variant="outline"
 						>
@@ -141,136 +205,12 @@ export function InstitutionYieldDialog({
 			</Tooltip>
 			<DialogContent className="sm:max-w-3xl">
 				<DialogHeader>
-					<DialogTitle>Rendimento de {institution.name}</DialogTitle>
+					<DialogTitle>Rendimento padrão de {institution.name}</DialogTitle>
 					<DialogDescription>
 						Aplicado por faixas progressivas em contas correntes e poupanças sem regra própria.
 					</DialogDescription>
 				</DialogHeader>
-				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
-					<DialogBody>
-						{!guest && (
-							<>
-								<CustomSelect
-									label="Perfil da política"
-									onValueChange={setProfile}
-									options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
-									placeholder="Ex: Padrão"
-									required
-									searchable
-									value={selectedProfile}
-								/>
-								<CustomSelect
-									label="País aplicável"
-									onValueChange={value => setCountry(value === "__all__" ? undefined : value)}
-									options={[
-										{ label: "Todos os países", special: true, value: "__all__" },
-										...countryCodes.map(value => ({ label: names.of(value) ?? value, value })),
-									]}
-									placeholder="Todos os países"
-									searchable
-									value={countryCode ?? "__all__"}
-								/>
-								<DateField
-									id="policy-effective-date"
-									label="Vigente desde"
-									name="policy-effective-date"
-									onValueChange={setDate}
-									required
-									value={effectiveDate}
-								/>
-								<p className="text-muted-foreground text-sm">
-									Proposta entra em vigor somente após aprovação administrativa.
-								</p>
-							</>
-						)}
-
-						<CurrencySelect onValueChange={setCurrency} value={currency} />
-						<CheckboxField
-							checkboxProps={{ checked: enabled, onCheckedChange: checked => setEnabled(checked === true) }}
-						>
-							Usar rendimento padrão nesta instituição
-						</CheckboxField>
-						{enabled && (
-							<div className="">
-								<div className="grid gap-4 pb-2">
-									<div className="grid gap-4 sm:grid-cols-2">
-										<CustomSelect
-											label="Periodicidade da taxa fixa"
-											onValueChange={value => setPeriod(value as "MONTHLY" | "YEARLY")}
-											options={[
-												{ label: "Mensal (21 dias úteis)", value: "MONTHLY" },
-												{ label: "Anual (252 dias úteis)", value: "YEARLY" },
-											]}
-											placeholder="Selecione"
-											required={rules.some(rule => Boolean(rule.fixedRate))}
-											sortOptions={false}
-											value={period}
-										/>
-										<YieldTaxFields
-											id={`institution-yield-tax-${institution.id}`}
-											onTaxIdsChange={setTaxIds}
-											onTaxRateChange={setTaxRate}
-											taxIds={taxIds}
-											taxRate={taxRate}
-										/>
-									</div>
-									{rules.map((rule, index) => (
-										<InstitutionYieldRuleRow
-											currency={currency}
-											index={index}
-											isLast={index === rules.length - 1}
-											key={rule.id}
-											onChange={next => updateRule(rule.id, next)}
-											onRemove={() =>
-												setRules(current =>
-													current.length === 1 ? current : current.filter(item => item.id !== rule.id),
-												)
-											}
-											rule={rule}
-										/>
-									))}
-									<ActionGroup>
-										<Button
-											className="cursor-pointer"
-											onClick={() => setRules(current => [...current, createRule()])}
-											type="button"
-											variant="outline"
-										>
-											<LuPlus /> Adicionar faixa
-										</Button>
-									</ActionGroup>
-								</div>
-							</div>
-						)}
-					</DialogBody>
-					<DialogFooter>
-						<Button
-							className="cursor-pointer"
-							onClick={() => {
-								reset();
-								setOpen(false);
-							}}
-							type="button"
-							variant="outline"
-						>
-							Descartar
-						</Button>
-						<Button
-							className="cursor-pointer"
-							disabled={
-								enabled &&
-								rules.some(
-									(rule, index) =>
-										(!rule.fixedRate && !rule.referenceType) ||
-										(index < rules.length - 1 && !rule.upToBalance),
-								)
-							}
-							type="submit"
-						>
-							Salvar
-						</Button>
-					</DialogFooter>
-				</form>
+				{content}
 			</DialogContent>
 		</Dialog>
 	);

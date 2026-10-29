@@ -5,6 +5,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { showToast } from "@/stores";
 import type { EditableYieldRule } from "./types";
 
 export function InstitutionYieldRuleRow({
@@ -40,7 +41,11 @@ export function InstitutionYieldRuleRow({
 						<Button
 							aria-label={`Excluir faixa ${index + 1}`}
 							className="cursor-pointer"
-							onClick={onRemove}
+							disabled={isLast && index === 0}
+							onClick={() => {
+								onRemove();
+								showToast("Faixa removida da edição", "info");
+							}}
 							size="icon"
 							type="button"
 							variant="outline"
@@ -65,6 +70,7 @@ export function InstitutionYieldRuleRow({
 						id={`institution-yield-limit-${rule.id}`}
 						label="Saldo até"
 						onValueChange={setUpToBalance}
+						rawValueName={`institution-yield-limit-${rule.id}-raw`}
 						required
 						value={upToBalance}
 					/>

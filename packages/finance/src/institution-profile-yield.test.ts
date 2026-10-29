@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { getYieldSettings, type InstitutionYieldPolicy, type YieldAccount } from "./projected-yield";
+import {
+	calculateGrossYield,
+	getYieldSettings,
+	type InstitutionYieldPolicy,
+	type YieldAccount,
+} from "./projected-yield";
 import { countryHolidayDates } from "./yield-calendar";
 
 const standard: InstitutionYieldPolicy = {
@@ -124,4 +129,43 @@ describe("institution profile policy coverage", () => {
 		expect([...countryHolidayDates(countries, "US")]).toEqual(["2026-07-04"]);
 		expect([...countryHolidayDates(countries, "ZZ")]).toEqual([]);
 	});
+});
+
+test("currency-independent policies keep identical nominal tiers across account currencies", () => {
+	const policy: InstitutionYieldPolicy = {
+		...standard,
+		currency: null,
+		rules: [
+			{ upToBalance: 5000, yieldFixedRate: 1 },
+			{ upToBalance: null, yieldFixedRate: 0.5 },
+		],
+		yieldPeriod: "MONTHLY",
+	};
+	const base = { ...account, institutionYieldPolicies: [policy] };
+	const brl = getYieldSettings(base, "2026-02-01");
+	const usd = getYieldSettings({ ...base, currency: "USD" }, "2026-02-01");
+	expect(brl).toBe(policy);
+	expect(usd).toBe(policy);
+	expect(calculateGrossYield(6000, brl, {})).toBe(calculateGrossYield(6000, usd, {}));
+});
+
+test("new currency-independent version takes effect without changing historical coverage", () => {
+	const current = { ...standard, currency: null, effectiveDate: "2026-02-01" };
+	const base = { ...account, institutionYieldPolicies: [standard, current] };
+	expect(getYieldSettings(base, "2026-01-31")).toBe(standard);
+	expect(getYieldSettings({ ...base, currency: "USD" }, "2026-01-31")).toBeUndefined();
+	expect(getYieldSettings(base, "2026-02-01")).toBe(current);
+	expect(getYieldSettings({ ...base, currency: "USD" }, "2026-02-01")).toBe(current);
+});
+
+test("new scope wins over legacy currency on same date independent of input order", () => {
+	const universal = { ...standard, currency: null };
+	for (const policies of [
+		[universal, standard],
+		[standard, universal],
+	]) {
+		expect(getYieldSettings({ ...account, institutionYieldPolicies: policies }, "2026-02-01")).toBe(
+			universal,
+		);
+	}
 });

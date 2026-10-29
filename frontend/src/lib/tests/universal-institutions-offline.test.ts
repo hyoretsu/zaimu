@@ -43,11 +43,30 @@ test("offline catalog isolates owners and allows only cached approved institutio
 	});
 	expect(account.institution?.id).toBe("approved");
 	expect(account.countryCode).toBe("BR");
+	const automatic = await dataService.accounts.create({
+		countryCode: "US",
+		institutionId: "approved",
+		name: "Dólar",
+		type: "CHECKING",
+	});
+	expect(automatic.currency).toBe("USD");
+	const foreign = await dataService.accounts.create({
+		countryCode: "BR",
+		currency: "JPY",
+		institutionId: "approved",
+		name: "Iene",
+		type: "CHECKING",
+	});
+	expect(foreign.currency).toBe("JPY");
 	await expect(
 		dataService.accounts.create({ institutionId: "private", name: "Privada", type: "CHECKING" }),
 	).rejects.toThrow("aprovada");
 	await expect(
-		dataService.accounts.create({ institutionName: "Nova instituição", name: "Proposta", type: "CHECKING" }),
+		dataService.accounts.create({
+			institutionName: "Nova instituição",
+			name: "Proposta",
+			type: "CHECKING",
+		}),
 	).rejects.toThrow("conexão");
 	useAuthStore.setState({
 		user: { id: "other-owner" } as NonNullable<ReturnType<typeof useAuthStore.getState>["user"]>,

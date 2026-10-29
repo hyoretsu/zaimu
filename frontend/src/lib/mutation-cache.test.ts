@@ -172,3 +172,30 @@ it("refreshes the shared public tax catalog without carrying an old mutation acr
 	expect(client.getQueryState(key)?.isInvalidated).toBe(false);
 	client.clear();
 });
+
+it("refreshes institution profiles and policies without touching another session", async () => {
+	const client = new QueryClient();
+	const identity: CacheIdentity = "user:institution-admin";
+	configureMutationInvalidation(client, { currency: () => "BRL", identity: () => identity });
+	const owned = ["institution-profiles", "institution-policies"].map(root => [
+		"identity",
+		identity,
+		root,
+		"bank",
+	]);
+	const other = ["identity", "user:another-admin", "institution-profiles", "bank"];
+	for (const key of [...owned, other]) {
+		client.setQueryDefaults(key, { meta: { cacheIdentity: key[1] as CacheIdentity } });
+		client.setQueryData(key, []);
+	}
+	await client
+		.getMutationCache()
+		.build(client, {
+			meta: { awaitRefetch: true, cacheOperations: ["institution"] },
+			mutationFn: async () => undefined,
+		})
+		.execute(undefined);
+	for (const key of owned) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+	expect(client.getQueryState(other)?.isInvalidated).toBe(false);
+	client.clear();
+});

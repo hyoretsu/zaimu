@@ -72,8 +72,8 @@ export function CreateInstitutionDialog() {
 				<DialogHeader>
 					<DialogTitle>Criar instituição</DialogTitle>
 					<DialogDescription>
-						Cadastre o nome e aprove a proposta na revisão institucional. Após publicar, configure países,
-						moedas e benefícios no catálogo global.
+						Cadastre o nome para publicar a instituição. Depois, configure países, perfis e
+						benefícios no catálogo global.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -106,7 +106,12 @@ export function CreateInstitutionDialog() {
 						{pending && <p role="status">Criando instituição...</p>}
 					</DialogBody>
 					<DialogFooter>
-						<Button disabled={pending} onClick={() => setOpen(false)} type="button" variant="outline">
+						<Button
+							disabled={pending}
+							onClick={() => setOpen(false)}
+							type="button"
+							variant="outline"
+						>
 							Descartar
 						</Button>
 						<Button disabled={pending} type="submit">
