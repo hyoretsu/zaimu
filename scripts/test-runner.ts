@@ -1,6 +1,7 @@
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { SQL } from "bun";
 import { prepareSchema } from "./testing/prepare-schema";
 import manifest from "./testing/test-manifest.json";
 import {
@@ -23,6 +24,8 @@ const temp = await mkdtemp(join(tmpdir(), "zaimu-tests-"));
 const namespace = `zaimu_test_${crypto.randomUUID().replaceAll("-", "")}`;
 const commandTimeoutMs = Number(process.env.TEST_COMMAND_TIMEOUT_MS ?? 120000);
 const containers: string[] = [];
+const createdDatabases: string[] = [];
+let externalAdmin: SQL | undefined;
 let child: ReturnType<typeof Bun.spawn> | undefined;
 let interrupted = false;
 const commands = new Set<ReturnType<typeof Bun.spawn>>();
@@ -47,6 +50,12 @@ async function command(command: string[], env?: Record<string, string | undefine
 }
 async function cleanup() {
 	child?.kill("SIGTERM");
+	for (const name of createdDatabases)
+		await externalAdmin?.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`).catch(error => {
+			console.error(error);
+			process.exitCode ||= 1;
+		});
+	await externalAdmin?.close().catch(() => undefined);
 	for (const container of containers.reverse())
 		await command(["docker", "rm", "-f", "-v", container]).catch(error => {
 			console.error(error);
@@ -139,6 +148,12 @@ try {
 		PUBLIC_WEB_URL: "http://127.0.0.1:5173",
 		SERVICE_NAMESPACE: namespace,
 	};
+	/** Existing server used only for disposable databases: a local *TEST_URL (.env) first, then the global POSTGRES_URL. */
+	const isPostgresUrl = (value?: string) => /^postgres(ql)?:\/\//.test(value ?? "");
+	const externalPostgres =
+		Object.entries(env).find(
+			([key, value]) => /_TEST_URL$/.test(key) && !/REDIS|BROKER/.test(key) && isPostgresUrl(value),
+		)?.[1] ?? (isPostgresUrl(env.POSTGRES_URL) ? env.POSTGRES_URL : undefined);
 	for (const key of Object.keys(env))
 		if (
 			/(DATABASE|REDIS|RABBITMQ|BROKER|SQL|FINANCIAL|CREDIT|RECURRENCE|REFERENCE_RATE|OPEN_FINANCE|CASHBACK).*_(URL|SOCKET)$/.test(
@@ -189,10 +204,15 @@ try {
 		]);
 		assertLocalDockerSocket(dockerHost);
 		await command(["docker", "info"]);
-		postgres = await service("postgres", "postgres:16", 5432, [
-			"POSTGRES_PASSWORD=disposable",
-			"POSTGRES_USER=runner",
-		]);
+		if (externalPostgres) {
+			externalAdmin = new SQL(externalPostgres);
+			await externalAdmin`SELECT 1`;
+			console.log("Postgres: existing server (ephemeral databases only)");
+		} else
+			postgres = await service("postgres", "postgres:16", 5432, [
+				"POSTGRES_PASSWORD=disposable",
+				"POSTGRES_USER=runner",
+			]);
 		const redis = await service("redis", "valkey/valkey:latest", 6379);
 		const broker = await service("rabbitmq", "rabbitmq:latest", 5672, [
 			"RABBITMQ_DEFAULT_USER=runner",
@@ -201,7 +221,7 @@ try {
 			"RABBITMQ_CTL_ERL_ARGS=+S 1:1",
 		]);
 		const readiness = await Promise.allSettled([
-			ready(postgres.container, ["pg_isready", "-U", "runner"]),
+			...(postgres ? [ready(postgres.container, ["pg_isready", "-U", "runner"])] : []),
 			ready(redis.container, ["valkey-cli", "ping"]),
 			ready(broker.container, ["rabbitmq-diagnostics", "-q", "check_running"]),
 			ready(broker.container, ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]),
@@ -220,12 +240,21 @@ try {
 		for (const group of groups) {
 			if (interrupted) throw new Error("Test execution interrupted");
 			const suiteEnv = { ...env };
-			if (postgres) {
+			if (postgres || externalAdmin) {
 				const suiteNamespace = `${namespace}_${index}`;
 				suiteEnv.SERVICE_NAMESPACE = suiteNamespace;
 				const name = `${suiteNamespace}_db`;
-				await command(["docker", "exec", postgres.container, "createdb", "-U", "runner", name]);
-				const url = `postgresql://runner:disposable@127.0.0.1:${postgres.port}/${name}`;
+				let url: string;
+				if (postgres) {
+					await command(["docker", "exec", postgres.container, "createdb", "-U", "runner", name]);
+					url = `postgresql://runner:disposable@127.0.0.1:${postgres.port}/${name}`;
+				} else {
+					createdDatabases.push(name);
+					await externalAdmin!.unsafe(`CREATE DATABASE "${name}"`);
+					const external = new URL(externalPostgres!);
+					external.pathname = `/${name}`;
+					url = external.toString();
+				}
 				for (const name of databaseKeys) suiteEnv[name] = url;
 				suiteEnv.REDIS_URL = suiteEnv.CACHE_TEST_REDIS_URL = redisUrl;
 				suiteEnv.RABBITMQ_URL = suiteEnv.BROKER_TEST_URL = brokerUrl;

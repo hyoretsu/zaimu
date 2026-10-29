@@ -22,8 +22,6 @@ export function assertFixtureUrl(value: string, environment?: Record<string, str
 	const config = fixture(environment);
 	if (
 		!["postgresql:", "postgres:"].includes(url.protocol) ||
-		url.hostname !== "127.0.0.1" ||
-		!url.port ||
 		!config.databases.includes(value) ||
 		!url.pathname.startsWith(`/${config.namespace}_`)
 	)
