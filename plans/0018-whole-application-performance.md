@@ -537,3 +537,7 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Materializar apenas expressão reduziu custo, mas p95 frio ainda ficou em 1.238 ms. EXPLAIN mostrou estimativa de 9.100 linhas na projeção tardia após joins, embora só existam três contas. Materializar contexto das contas antes dos joins levou custo estimado a 232 e execução a 2,8 ms, sem JIT escolhido pelo planejador padrão. Campo interno é removido do JSON; filtro de dono e ordenação preservados. Teste da consulta verifica owner e campos internos ausentes. Captura HTTP final e integração em andamento.
 
 - Auditoria da fixture encontrou CreditCard/RewardsAccount com reltuples=-1: seed analisava somente parte das tabelas e repetia análise a cada usuário. Preparação agora analisa banco dedicado inteiro uma vez, após todas as identidades. Não altera configuração de produção nem encobre regressão da consulta: correção SQL foi medida antes dessa mudança de estatísticas.
+
+- Auditoria da consistência temporal encontrou limite do runner: proxy Date fixa JavaScript, mas SQL CURRENT_DATE continua seguindo relógio real do PostgreSQL. Aceite com relógio fixo entre camadas permanece pendente; diagnósticos anteriores não comprovam essa invariância.
+
+- Preflight agora consulta CURRENT_DATE antes de medir. Execução oficial recusa divergência com data JavaScript; diagnóstico preserva ambas as datas e clock.consistent=false. Não altera relógio/configuração do host ou banco. Regressões cobrem datas diferentes, ausentes, inválidas e diagnóstico explícito.

@@ -91,3 +91,5 @@ Journal contém resultados antes da associação final de telemetria. Recuperaç
 `dashboardComparison` mede `/dashboard/comparison` em frio, quente e 304. Headers condicionais precisam retornar HTTP 304 real, além de cumprir meta de zero SQL total. Diagnósticos de preferência/rollback e capturas com fallback Redis ficam em `reports/dashboard-currency-cache-reference-0018.json`; grupos reprovados continuam explícitos.
 
 Seed executa ANALYZE uma vez após preparar todas as identidades, incluindo tabelas pequenas de contas/perfis. Isso evita estimativas de cardinalidade desconhecidas entre rodadas. Estatísticas não substituem testes da consulta em banco recém-criado.
+
+Preflight compara CURRENT_DATE do PostgreSQL com referência JavaScript antes de medir. Captura oficial recusa divergência; diagnóstico registra clock.consistent=false na fixture e permanece sem aceite. Proxy Date não congela relógio do banco. Até existir mecanismo determinístico entre camadas, matriz oficial fica bloqueada por esse requisito.

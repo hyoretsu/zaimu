@@ -75,7 +75,7 @@ const clearDataCache = async () => {
 };
 try {
 	await journal.initialize({ diagnostic, hostStart, iterations, loads, rounds, selected });
-	fixture = await preflight(Math.max(...loads));
+	fixture = await preflight(Math.max(...loads), { diagnostic });
 	for (let user = 0; user < Math.max(...loads); user++) {
 		const response = await fetch(new URL("/api/auth/sign-in/email", base), {
 			body: JSON.stringify({

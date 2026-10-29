@@ -1,13 +1,33 @@
 import { Client } from "pg";
+import { PERFORMANCE_REFERENCE_DATE } from "./clock";
+
+export function performanceClockEvidence(databaseDate: string, diagnostic = false) {
+	if (
+		!/^\d{4}-\d{2}-\d{2}$/.test(databaseDate) ||
+		!Number.isFinite(Date.parse(`${databaseDate}T00:00:00Z`)) ||
+		new Date(`${databaseDate}T00:00:00Z`).toISOString().slice(0, 10) !== databaseDate
+	)
+		throw new Error("Invalid PostgreSQL business date");
+	const consistent = databaseDate === PERFORMANCE_REFERENCE_DATE;
+	if (!consistent && !diagnostic)
+		throw new Error(
+			`PostgreSQL business date ${databaseDate} differs from application reference ${PERFORMANCE_REFERENCE_DATE}; fixed-clock acceptance unavailable`,
+		);
+	return { applicationDate: PERFORMANCE_REFERENCE_DATE, consistent, databaseDate };
+}
 
 /** Never inherit DATABASE_URL; this connection is always the dedicated loopback fixture. */
-export async function preflight(users: number) {
+export async function preflight(users: number, { diagnostic = false } = {}) {
 	const client = new Client({
 		connectionString: "postgresql://performance:performance-local@127.0.0.1:55495/zaimu_performance",
 		connectionTimeoutMillis: 5000,
 	});
 	try {
 		await client.connect();
+		const dateResult = await client.query<{ businessDate: string }>(
+			`SELECT CURRENT_DATE::text AS "businessDate"`,
+		);
+		const clock = performanceClockEvidence(dateResult.rows[0]?.businessDate ?? "", diagnostic);
 		const accounts = await client.query<{ email: string }>(
 			'SELECT "email" FROM "user" WHERE "email" LIKE $1',
 			["performance%@zaimu.local"],
@@ -24,9 +44,10 @@ export async function preflight(users: number) {
 			"performance-user",
 		]);
 		return {
+			clock,
 			database: "zaimu_performance",
 			namespace: "zaimu_performance",
-			referenceDate: "2026-10-04",
+			referenceDate: PERFORMANCE_REFERENCE_DATE,
 			transactions: Number(size.rows[0].size),
 			users,
 		};
@@ -46,7 +67,8 @@ export async function cleanupPerformanceLoan(id: string, user: number) {
 			'DELETE FROM "Loan" WHERE "id"=$1 AND "userId"=$2 AND "lender" LIKE $3 RETURNING "id"',
 			[id, user === 0 ? "performance-user" : `performance-user-${user}`, "Performance loan%"],
 		);
-		if (result.rowCount !== 1) throw new Error("Loan cleanup did not remove its isolated scenario record");
+		if (result.rowCount !== 1)
+			throw new Error("Loan cleanup did not remove its isolated scenario record");
 	} finally {
 		await client.end();
 	}
