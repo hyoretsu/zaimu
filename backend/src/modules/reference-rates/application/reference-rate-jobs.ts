@@ -6,15 +6,12 @@ import {
 	reconcileBalanceAdjustments,
 } from "~/modules/accounts/application/balance-adjustment-reconciliation";
 import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
-import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
-import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
 import {
 	calculateFinancialAccountYieldBalances,
 	calculateGrossYield,
 	getYieldSettings,
 	type ReferenceRateType,
 	type YieldAccount,
-	type YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import {
 	completeHistoryUnit,
@@ -229,62 +226,15 @@ async function processFetchJob(
 }
 export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAccount[]> {
 	if (!accountIds.length) return [];
-	const accounts = await queryRows(
-		db.sql.public.FinancialAccount.select(
-			"currency",
-			"countryCode",
-			"id",
-			"institutionId",
-			"legacyInstitutionId",
-			"userId",
-			"type",
-			"createdAt",
-			"yieldFixedRate",
-			"yieldPeriod",
-			"yieldReferencePercentage",
-			"yieldReferenceType",
-			"yieldTaxRate",
-			"yieldTaxIds",
-		)
-			.where((fields, functions) => functions.in(fields.id, accountIds))
-			.build(),
-	);
-	const histories = await queryRows(
-		db.sql.public.FinancialAccountYieldRateHistory.select(
-			"financialAccountId",
-			"effectiveDate",
-			"yieldFixedRate",
-			"yieldPeriod",
-			"yieldReferencePercentage",
-			"yieldReferenceType",
-			"yieldTaxRate",
-			"yieldTaxIds",
-		)
-			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
-			.build(),
-	);
-	const profileContext = await getInstitutionProfileContext(accountIds);
-	const policies = await getFinancialInstitutionYieldPolicies([
-		...new Set(accounts.flatMap(account => (account.institutionId ? [account.institutionId] : []))),
-	]);
-	const historiesByAccount = Map.groupBy(histories, history => history.financialAccountId);
 	await loadTaxCatalog();
 	const loaded = await loadFinancialAccountBalanceInput(accountIds);
+	if (!loaded.input) return [];
 	const snapshots = new Map<string, YieldLot[]>();
-	if (loaded.input) calculateFinancialAccountYieldBalances({ ...loaded.input, lotSnapshots: snapshots });
-
-	return accounts.map(account => ({
+	calculateFinancialAccountYieldBalances({ ...loaded.input, lotSnapshots: snapshots });
+	// Replay already loaded these accounts, profile policies and rate histories together.
+	return loaded.input.accounts.map(account => ({
 		...account,
-		...profileContext.get(account.id),
-		institutionYieldPolicies: account.institutionId ? (policies.get(account.institutionId) ?? []) : [],
 		yieldLots: snapshots.get(account.id) ?? [],
-		yieldPeriod: account.yieldPeriod as null | YieldPeriod,
-		yieldRateHistories: (historiesByAccount.get(account.id) ?? []).map(history => ({
-			...history,
-			yieldPeriod: history.yieldPeriod as null | YieldPeriod,
-			yieldReferenceType: history.yieldReferenceType as ReferenceRateType | null,
-		})),
-		yieldReferenceType: account.yieldReferenceType as ReferenceRateType | null,
 	}));
 }
 export async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {

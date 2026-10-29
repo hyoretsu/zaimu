@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { Client } from "pg";
-import { closeDatabase, queryRaw } from "sql";
+import { closeDatabase, getQueryMetrics, queryRaw, withQueryMetrics } from "sql";
+import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
 import type { EventEnvelope } from "~/shared/application/events";
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
@@ -10,6 +11,7 @@ import {
 	enqueueDailyReferenceRateFetches,
 	handleAccountYieldRecalculationCommand,
 	handleReferenceRateFetchCommand,
+	loadYieldAccounts,
 } from "../application/reference-rate-jobs";
 
 const morning = new Date("2026-10-16T09:00:00Z");
@@ -164,6 +166,41 @@ describe("daily yield recovery", () => {
 			handleAccountYieldRecalculationCommand(event),
 		]);
 		expect((await yields("fixed")).map(row => row.amount)).toEqual(fixed.map(row => row.amount));
+	});
+
+	test("bulk yield context reuses replay inputs without reloading account policies and histories", async () => {
+		await seed("context-first");
+		await seed("context-second");
+		await queryRaw(
+			`INSERT INTO "FinancialAccountYieldRateHistory" ("id","financialAccountId","effectiveDate","yieldReferenceType","yieldReferencePercentage") VALUES ('context-history','context-first','2026-10-10','CDI',110)`,
+		);
+		const ids = ["context-first", "context-second"];
+		// Prepare calendar rows before comparing stable query work.
+		await loadFinancialAccountBalanceInput(ids);
+		const baseline = await withQueryMetrics(async () => {
+			const loaded = await loadFinancialAccountBalanceInput(ids);
+			return { input: loaded.input!, queries: getQueryMetrics()!.queryCount };
+		});
+		await withQueryMetrics(async () => {
+			const accounts = await loadYieldAccounts(ids);
+			// The tax catalog is the only query added to the replay input loader.
+			expect(getQueryMetrics()!.queryCount).toBe(baseline.queries + 1);
+			expect(accounts.map(({ yieldLots: _, ...account }) => account)).toEqual(baseline.input.accounts);
+			expect(accounts).toHaveLength(2);
+			for (const account of accounts) {
+				expect(account.countryCode).toBe("BR");
+				expect(account.yieldLots).toEqual([{ balance: 1000, date: "2026-10-02" }]);
+			}
+			const histories = accounts.find(account => account.id === "context-first")!.yieldRateHistories!;
+			expect(histories).toHaveLength(1);
+			expect(histories[0]!.yieldReferenceType).toBe("CDI");
+			expect(Number(histories[0]!.yieldReferencePercentage)).toBe(110);
+			expect(histories[0]!.effectiveDate.toISOString().slice(0, 10)).toBe("2026-10-10");
+		});
+		await withQueryMetrics(async () => {
+			expect(await loadYieldAccounts([])).toEqual([]);
+			expect(getQueryMetrics()!.queryCount).toBe(0);
+		});
 	});
 
 	test("missing country leaves work pending until subsequent recovery", async () => {
