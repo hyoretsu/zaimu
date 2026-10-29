@@ -63,7 +63,10 @@ test("auth journey uses isolated session cookies, validates identity and keeps s
 			return Response.json(
 				{ user: { email: "performance0@zaimu.local" } },
 				{
-					headers: { ...metricHeaders, "set-cookie": "test_session=private-session-value; Path=/; HttpOnly" },
+					headers: {
+						...metricHeaders,
+						"set-cookie": "test_session=private-session-value; Path=/; HttpOnly",
+					},
 				},
 			);
 		}
@@ -137,7 +140,10 @@ test("transfer suggestion rejects cached pair and cleans both transactions and a
 			return Response.json({ id: "destination" }, { headers: metricHeaders });
 		}
 		const body = JSON.parse(String(init?.body));
-		return Response.json({ id: body.type === "EXPENSE" ? "expense" : "income" }, { headers: metricHeaders });
+		return Response.json(
+			{ id: body.type === "EXPENSE" ? "expense" : "income" },
+			{ headers: metricHeaders },
+		);
 	}) as typeof fetch;
 	const report = await runMutationScenario("transferSuggestion", {
 		base: new URL("http://127.0.0.1:3335"),
@@ -154,3 +160,26 @@ test("transfer suggestion rejects cached pair and cleans both transactions and a
 		"/transactions/income",
 	]);
 });
+
+for (const honorsRestore of [true, false]) {
+	test(`preference cleanup verifies original null state (server honors restore: ${honorsRestore})`, async () => {
+		let current: string | null = null;
+		const requester = (async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			if (init?.method === "PATCH") {
+				const body = JSON.parse(String(init.body)) as { preferredCurrency: string | null };
+				if (body.preferredCurrency !== null || honorsRestore) current = body.preferredCurrency;
+			}
+			return Response.json({ preferredCurrency: current }, { headers: metricHeaders });
+		}) as unknown as typeof fetch;
+		const report = await runMutationScenario("currencyPreference", {
+			base: new URL("http://127.0.0.1:3335"),
+			cookies: ["fixture"],
+			iterations: 3,
+			load: 1,
+			requester,
+		});
+		expect(report.passed).toBe(honorsRestore);
+		expect(report.errors).toHaveLength(honorsRestore ? 0 : 1);
+		expect(current === null).toBe(honorsRestore);
+	});
+}

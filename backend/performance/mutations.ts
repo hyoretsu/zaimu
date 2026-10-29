@@ -535,14 +535,19 @@ export async function runMutationScenario(name: string, context: Context) {
 					const before = record(
 						await call("setup", "/currency-preferences/", "GET", undefined, false),
 					);
-					cleanup = () =>
-						call(
-							"restore",
-							"/currency-preferences/",
-							"PATCH",
-							{ preferredCurrency: before.preferredCurrency },
-							false,
+					cleanup = async () => {
+						const restored = record(
+							await call(
+								"restore",
+								"/currency-preferences/",
+								"PATCH",
+								{ preferredCurrency: before.preferredCurrency },
+								false,
+							),
 						);
+						if (restored.preferredCurrency !== before.preferredCurrency)
+							throw new Error("Preference cleanup did not restore its original value");
+					};
 					const after = record(
 						await call("edit", "/currency-preferences/", "PATCH", { preferredCurrency: "BRL" }),
 					);

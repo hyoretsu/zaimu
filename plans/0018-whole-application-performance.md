@@ -553,3 +553,8 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 - Regressão de integração compara contexto completo, histórico efetivo, país e lotes de duas contas do mesmo usuário; orçamento exige somente uma query adicional (catálogo tributário) sobre loader do replay. Lista vazia exige zero SQL. Validação em andamento após incorporar mudanças concorrentes de instituições.
 
 - Integração após mudanças concorrentes detectou wrapper getImportTaxSources sem operação OpenAPI correspondente. Endpoint já está exportado; seletor passa a usar getCreditCardImportsByIdTaxSources gerado, mantendo codificação do ID e mesma resposta. Wrapper manual duplicado removido. Contrato será verificado novamente antes de aceite.
+
+### Restauração da preferência entre amostras
+
+- Reprodução real do cenário currencyPreference encontrou cleanup HTTP 500 ao restaurar null. Primeira amostra deixava BRL persistido e alterava contexto de moeda de cenários posteriores. DTO já admite null; validação passa a permitir remoção da preferência e manter validação de moedas não nulas.
+- Executor também exige que resposta de restauração corresponda ao valor original, incluindo null. Regressão simula servidor que restaura corretamente e servidor que ignora reset mesmo retornando HTTP 200. Captura conectada após correção em andamento.
