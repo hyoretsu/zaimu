@@ -522,3 +522,9 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - Builds backend/frontend passaram (Vite com configLoader runner para evitar diretório temporário compartilhado sem permissão). Corpo integral do dashboard antes/depois conserva 180.223 bytes e SHA-256 idêntico. Captura única passou de 4.288 para 2.804 ms, com SQL variando de 205 para 353 ms; não constitui comparação p95 controlada.
 - Diagnóstico release de cinco amostras: dashboard frio p95 1.488 ms/44 queries, comparação fria 702 ms/44 queries, contas frias 6.508 ms/7 queries; SQL domina consulta de contas e será investigado separadamente. Quente/304 das três rotas passou com zero SQL; sync p95 1.130 ms dentro de seu orçamento específico. Contagem de queries e demais metas mantidas; sem aceite global. Evidência em yield-day-index-reference-0018.json.
+
+### Compilação SQL da projeção de regras do cartão
+
+- Listagem de três contas gastava 7.814 ms em EXPLAIN ANALYZE, dos quais 7.719 ms compilando JIT/288 funções. Diagnóstico SET LOCAL jit=off em transação somente leitura levou 2,6 ms; nenhuma configuração global alterada.
+- Projeção repetia cinco vezes toda resolução do perfil para extrair campos. CTE MATERIALIZED resolve regras uma vez por conta e preserva extração/casts/fallbacks existentes. Mesmo JIT padrão: 181 ms, 81 funções, sem inlining/otimização cara; contagem de contas e contrato permanecem iguais.
+- Regressão SQL cobre perfil arquivado padrão, histórico efetivo/futuro, nulos, cashback ausente e taxa zero. Integração e captura HTTP em andamento. Evidência inicial em account-rules-jit-reference-0018.json; orçamento de 1 s e aceite global continuam pendentes.

@@ -1,4 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+	cardRuleValues,
+	defaultCardRules,
+	type InstitutionCardRules,
+} from "@zaimu/finance/institution-card-rules";
 import { Client } from "pg";
 import { closeDatabase, queryRaw } from "sql";
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
@@ -10,6 +15,7 @@ import {
 	consolidateLegacyInstitution,
 	listInstitutionCatalog,
 } from "../application/consolidate-legacy-institution";
+import { cardRuleValuesSql } from "../application/institution-card-rules";
 import {
 	ensureInstitutionLink,
 	proposeInstitution,
@@ -395,5 +401,89 @@ describe("universal institution review and calendar coverage", () => {
 		).toHaveLength(0);
 		expect(await ensureCalendarCoverage("AQ", 2026)).toBe("UNAVAILABLE");
 		expect(await ensureAccountCoverage("USD", null, [2026])).toBe(false);
+	});
+	test("materialized card rule projection preserves archived history, nulls and numeric values", async () => {
+		const rules = (rate: number): InstitutionCardRules => ({
+			cashback: {
+				conversionAmount: null,
+				conversionPoints: null,
+				kind: "CASHBACK",
+				rate,
+				yieldPeriod: "MONTHLY",
+				yieldReferencePercentage: 110,
+				yieldReferenceRate: 12.5,
+			},
+			workingDueDate: true,
+		});
+		const oldRules = rules(1.25);
+		const currentRules = rules(2.5);
+		const profiles = [
+			{ creditCardRules: oldRules, id: "old" },
+			{ creditCardRules: currentRules, id: "current" },
+		];
+		const cases = [
+			{ context: null, expected: defaultCardRules, id: "none" },
+			{ context: {}, expected: defaultCardRules, id: "empty" },
+			{
+				context: { cardRulesProfiles: profiles, defaultInstitutionProfileId: "old" },
+				expected: oldRules,
+				id: "default",
+			},
+			{
+				context: {
+					cardRulesProfiles: profiles,
+					defaultInstitutionProfileId: "old",
+					institutionProfileChanges: [
+						{ effectiveDate: "2000-01-01", profileId: "current" },
+						{ effectiveDate: "2999-01-01", profileId: "old" },
+					],
+				},
+				expected: currentRules,
+				id: "history",
+			},
+			{
+				context: {
+					cardRulesProfiles: [{ creditCardRules: null, id: "old" }],
+					defaultInstitutionProfileId: "old",
+				},
+				expected: defaultCardRules,
+				id: "null-profile",
+			},
+			{
+				context: {
+					cardRulesProfiles: [
+						{ creditCardRules: { cashback: null, workingDueDate: true }, id: "old" },
+					],
+					defaultInstitutionProfileId: "old",
+				},
+				expected: { cashback: null, workingDueDate: true },
+				id: "no-cashback",
+			},
+			{
+				context: {
+					cardRulesProfiles: [{ creditCardRules: rules(0), id: "old" }],
+					defaultInstitutionProfileId: "old",
+				},
+				expected: rules(0),
+				id: "zero",
+			},
+		];
+		const input = cases.map(row => ({
+			id: row.id,
+			institutionId: null,
+			transferredProfileContext: row.context,
+			userId: "owner",
+		}));
+		const rows = await queryRaw<{ id: string; values: ReturnType<typeof cardRuleValues> }>(
+			`SELECT account.id, ${cardRuleValuesSql("account")} AS values FROM jsonb_to_recordset($1::jsonb) account(id text,"userId" text,"institutionId" text,"transferredProfileContext" jsonb)`,
+			[JSON.stringify(input)],
+		);
+		expect(rows).toHaveLength(cases.length);
+		const expected = new Map(cases.map(row => [row.id, cardRuleValues(row.expected)]));
+		for (const row of rows) {
+			const value = expected.get(row.id);
+			if (!value) throw new Error("Unexpected projected account identity");
+			expect(row.values).toEqual(value);
+		}
 	});
 });

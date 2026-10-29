@@ -1,0 +1,81 @@
+{
+	"after": [
+		{
+			"cost": 440964.76,
+			"executionMs": 181.464,
+			"jit": {
+				"Functions": 81,
+				"Options": {
+					"Deforming": true,
+					"Expressions": true,
+					"Inlining": false,
+					"Optimization": false
+				},
+				"Timing": {
+					"Emission": 117.774,
+					"Generation": 9.286,
+					"Inlining": 0,
+					"Optimization": 9.915,
+					"Total": 136.975
+				}
+			},
+			"mode": "default",
+			"planningMs": 16.785,
+			"rows": 3
+		},
+		{
+			"cost": 440964.76,
+			"executionMs": 2.09,
+			"mode": "jit-off",
+			"planningMs": 2.529,
+			"rows": 3
+		}
+	],
+	"before": [
+		{
+			"cost": 2198993.76,
+			"executionMs": 7814.122,
+			"jit": {
+				"Functions": 288,
+				"Options": {
+					"Deforming": true,
+					"Expressions": true,
+					"Inlining": true,
+					"Optimization": true
+				},
+				"Timing": {
+					"Emission": 3259.562,
+					"Generation": 31.142,
+					"Inlining": 245.83,
+					"Optimization": 4182.344,
+					"Total": 7718.877
+				}
+			},
+			"mode": "default",
+			"planningMs": 16.368,
+			"rows": 3
+		},
+		{
+			"cost": 2198993.76,
+			"executionMs": 2.595,
+			"mode": "jit-off",
+			"planningMs": 5.775,
+			"rows": 3
+		}
+	],
+	"complete": false,
+	"diagnostic": true,
+	"fixture": {
+		"accounts": 3,
+		"referenceDate": "2026-10-04",
+		"transactions": 10
+	},
+	"limitations": [
+		"Single EXPLAIN ANALYZE per mode; not a p95 comparison.",
+		"jit-off used only as SET LOCAL inside a read-only diagnostic transaction.",
+		"Real HTTP capture and integration pending.",
+		"Global performance acceptance remains pending."
+	],
+	"passed": false,
+	"productionJitSettingChanged": false
+}

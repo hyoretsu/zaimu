@@ -146,8 +146,11 @@ export async function cardRulesForPurchase(cardId: string, userId: string, date:
 }
 
 export function cardRuleValuesSql(account = "account") {
+	// Resolve the profile once: repeating this expression inflates PostgreSQL JIT compilation.
 	const rules = institutionCardRulesSql(account);
-	return `jsonb_build_object('workingDueDate',${workingDueDateSql(account)},'cashbackRate',(${rules}#>>'{cashback,rate}')::numeric,'cashbackYieldPeriod',${rules}#>>'{cashback,yieldPeriod}','cashbackYieldReferenceRate',(${rules}#>>'{cashback,yieldReferenceRate}')::numeric,'cashbackYieldReferencePercentage',(${rules}#>>'{cashback,yieldReferencePercentage}')::numeric)`;
+	return `(WITH resolved_card_rules AS MATERIALIZED (SELECT ${rules} AS value)
+ SELECT jsonb_build_object('workingDueDate',COALESCE((value->>'workingDueDate')::boolean,false),'cashbackRate',(value#>>'{cashback,rate}')::numeric,'cashbackYieldPeriod',value#>>'{cashback,yieldPeriod}','cashbackYieldReferenceRate',(value#>>'{cashback,yieldReferenceRate}')::numeric,'cashbackYieldReferencePercentage',(value#>>'{cashback,yieldReferencePercentage}')::numeric)
+ FROM resolved_card_rules)`;
 }
 
 export async function cardRulesByAccount(accountIds: string[]) {
