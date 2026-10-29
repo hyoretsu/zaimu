@@ -1,3 +1,4 @@
+import { runInvoiceApprovalJourney } from "./invoice-approval";
 import { pdfFixture } from "./pdf-fixture";
 import { cleanupPerformanceLoan } from "./preflight";
 import { captureRequest, completeMetrics, percentile, type RequestSample, runConcurrent } from "./runner";
@@ -44,6 +45,8 @@ export const mutationScenarios = [
 	"statementImport",
 	"statementImportDuplicates",
 	"invoiceImport",
+	"invoiceImportApproval",
+	"invoiceImportReconciliation",
 ];
 const expectedActions = (name: string): string[] => {
 	if (name === "transferSuggestion")
@@ -57,6 +60,8 @@ const expectedActions = (name: string): string[] => {
 	if (name === "recurrenceReplay") return ["create", "replay", "delete"];
 	if (name === "loanPayment") return ["create", "pay", "readAfterWrite"];
 	if (name === "loan") return ["create", "readAfterWrite"];
+	if (name === "invoiceImportApproval") return ["parse", "approve", "readAfterWrite"];
+	if (name === "invoiceImportReconciliation") return ["parse", "reconcile", "approve", "readAfterWrite"];
 	if (name.includes("Import")) return ["parse", "review", "delete"];
 	if (name.startsWith("purchase"))
 		return [
@@ -76,7 +81,9 @@ const expectedActions = (name: string): string[] => {
 	return [
 		"create",
 		"delete",
-		...(["category", "account", "transaction", "recurrence", "debtPerson"].includes(name) ? ["edit"] : []),
+		...(["category", "account", "transaction", "recurrence", "debtPerson"].includes(name)
+			? ["edit"]
+			: []),
 		...(["category", "recurrence"].includes(name) ? ["readAfterWrite"] : []),
 	];
 };
@@ -128,7 +135,13 @@ export async function runMutationScenario(name: string, context: Context) {
 						return response;
 					}) as typeof fetch)
 				: context.requester;
-		const call = async (action: string, route: string, method = "GET", body?: unknown, measured = true) => {
+		const call = async (
+			action: string,
+			route: string,
+			method = "GET",
+			body?: unknown,
+			measured = true,
+		) => {
 			const result = await captureRequest(
 				new URL(path(route), context.base),
 				{
@@ -142,7 +155,12 @@ export async function runMutationScenario(name: string, context: Context) {
 					method,
 					...(body === undefined
 						? {}
-						: { body: body instanceof FormData ? body : JSON.stringify(body).replaceAll("perf-", prefix) }),
+						: {
+								body:
+									body instanceof FormData
+										? body
+										: JSON.stringify(body).replaceAll("perf-", prefix),
+							}),
 				},
 				requester,
 			);
@@ -155,7 +173,9 @@ export async function runMutationScenario(name: string, context: Context) {
 		let setupCleanup: (() => Promise<unknown>) | undefined;
 		try {
 			const label = `Performance ${name} ${crypto.randomUUID().slice(0, 8)}`;
-			if (name === "transferSuggestion") {
+			if (name === "invoiceImportApproval" || name === "invoiceImportReconciliation") {
+				await runInvoiceApprovalJourney(name, call, label);
+			} else if (name === "transferSuggestion") {
 				const accountId = responseId(
 					await call(
 						"setup",
@@ -211,7 +231,12 @@ export async function runMutationScenario(name: string, context: Context) {
 				};
 				if (!hasPair(await call("suggestions", "/transactions/transfer-suggestions")))
 					throw new Error("Compatible transfer pair missing");
-				await call("reject", `/transactions/${ids[0]}/transfer-suggestions/${ids[1]}/reject`, "POST", {});
+				await call(
+					"reject",
+					`/transactions/${ids[0]}/transfer-suggestions/${ids[1]}/reject`,
+					"POST",
+					{},
+				);
 				if (hasPair(await call("readAfterReject", "/transactions/transfer-suggestions")))
 					throw new Error("Rejected pair remains cached");
 			} else if (name === "authSession") {
@@ -244,7 +269,10 @@ export async function runMutationScenario(name: string, context: Context) {
 							"Data de vencimento: 24 AGO 2026",
 							"Período vigente: 17 JUL a 17 AGO",
 							"TRANSAÇÕES DE 17 JUL A 17 AGO",
-							...Array.from({ length: 1000 }, (_, i) => `07 AGO Performance ${i} R$ ${i + 1},00`),
+							...Array.from(
+								{ length: 1000 },
+								(_, i) => `07 AGO Performance ${i} R$ ${i + 1},00`,
+							),
 						]
 					: [
 							"01 DE AGOSTO DE 2026 a 31 DE AGOSTO DE 2026 VALORES EM R$",
@@ -259,7 +287,10 @@ export async function runMutationScenario(name: string, context: Context) {
 							).flatMap(line => line.split("\n")),
 						];
 				const form = new FormData();
-				form.set("file", new File([pdfFixture(lines)], "performance.pdf", { type: "application/pdf" }));
+				form.set(
+					"file",
+					new File([pdfFixture(lines)], "performance.pdf", { type: "application/pdf" }),
+				);
 				form.set("provider", "NUBANK");
 				form.set(
 					invoice ? "creditCardId" : "financialAccountId",
@@ -280,7 +311,8 @@ export async function runMutationScenario(name: string, context: Context) {
 				await call("review", `${route}/${id}`);
 			} else if (name === "sync") {
 				const snapshot = record(await call("snapshot", "/sync/", "POST", {}));
-				if (!snapshot.serverData || !snapshot.syncResults) throw new Error("Incomplete sync snapshot");
+				if (!snapshot.serverData || !snapshot.syncResults)
+					throw new Error("Incomplete sync snapshot");
 			} else if (name === "cardPayment") {
 				const result = record(
 					await call("pay", "/credit-cards/perf-card-01/payments", "POST", {
@@ -314,9 +346,13 @@ export async function runMutationScenario(name: string, context: Context) {
 					const actualCents = createdRows
 						.filter(row => !row.isRefund)
 						.reduce((sum, row) => sum + Math.round(Number(row.installmentAmount) * 100), 0);
-					if (actualCents !== expectedCents) throw new Error("Installments do not conserve booked principal");
+					if (actualCents !== expectedCents)
+						throw new Error("Installments do not conserve booked principal");
 				}
-				if (!body.isStatementCharge && createdRows.filter(row => !row.isRefund).length !== body.installments)
+				if (
+					!body.isStatementCharge &&
+					createdRows.filter(row => !row.isRefund).length !== body.installments
+				)
 					throw new Error("Incomplete installment response");
 				if (createdRows.some(row => row.purchaseId && row.purchaseId !== id))
 					throw new Error("Unrelated purchase in mutation response");
@@ -330,10 +366,14 @@ export async function runMutationScenario(name: string, context: Context) {
 					);
 					if (!refund.isRefund || Number(record(refund.refund).amount) !== 10)
 						throw new Error("Refund amount mismatch");
-					await call("editRefund", `${base}/purchases/${id}/refunds/${refund.id}`, "PATCH", { amount: 5 });
+					await call("editRefund", `${base}/purchases/${id}/refunds/${refund.id}`, "PATCH", {
+						amount: 5,
+					});
 					await call("deleteRefund", `${base}/purchases/${id}/refunds/${refund.id}`, "DELETE");
 				} else if (name === "purchaseMove") {
-					await call("move", `${base}/purchases/${id}`, "PATCH", { creditCardId: path("perf-card-02") });
+					await call("move", `${base}/purchases/${id}`, "PATCH", {
+						creditCardId: path("perf-card-02"),
+					});
 					card = "/credit-cards/perf-card-02";
 				} else if (name === "purchaseRefinance") {
 					const result = record(
@@ -354,10 +394,14 @@ export async function runMutationScenario(name: string, context: Context) {
 					const replacements = (result.purchases as unknown[])
 						.map(record)
 						.filter(
-							row => ids.includes(String(row.purchaseId)) && row.description === `Parcelamento - ${label}`,
+							row =>
+								ids.includes(String(row.purchaseId)) &&
+								row.description === `Parcelamento - ${label}`,
 						);
 					cleanup = async () => {
-						for (const replacement of [...new Set(replacements.map(row => String(row.purchaseId)))])
+						for (const replacement of [
+							...new Set(replacements.map(row => String(row.purchaseId))),
+						])
 							await call("deleteRefinanced", `${base}/purchases/${replacement}`, "DELETE");
 						return call("delete", `${base}/purchases/${id}`, "DELETE");
 					};
@@ -365,7 +409,9 @@ export async function runMutationScenario(name: string, context: Context) {
 						throw new Error("Refinancing amount or schedule mismatch");
 				} else if (name !== "purchaseCharge") {
 					const updated = record(
-						await call("edit", `${base}/purchases/${id}`, "PATCH", { description: `${label} updated` }),
+						await call("edit", `${base}/purchases/${id}`, "PATCH", {
+							description: `${label} updated`,
+						}),
 					);
 					if (updated.description !== `${label} updated`) throw new Error("Stale edit response");
 				}
@@ -380,7 +426,12 @@ export async function runMutationScenario(name: string, context: Context) {
 			} else {
 				const definitions: Record<
 					string,
-					{ route: string; body: Record<string, unknown>; edit?: Record<string, unknown>; detail?: boolean }
+					{
+						route: string;
+						body: Record<string, unknown>;
+						edit?: Record<string, unknown>;
+						detail?: boolean;
+					}
 				> = {
 					account: {
 						body: { countryCode: "BR", currency: "BRL", name: label, type: "CHECKING" },
@@ -412,7 +463,11 @@ export async function runMutationScenario(name: string, context: Context) {
 						},
 						route: "/debts/events",
 					},
-					debtPerson: { body: { name: label }, edit: { name: `${label} updated` }, route: "/debts/people" },
+					debtPerson: {
+						body: { name: label },
+						edit: { name: `${label} updated` },
+						route: "/debts/people",
+					},
 					loan: {
 						body: {
 							dueDay: 5,
@@ -477,7 +532,9 @@ export async function runMutationScenario(name: string, context: Context) {
 					},
 				};
 				if (name === "currencyPreference") {
-					const before = record(await call("setup", "/currency-preferences/", "GET", undefined, false));
+					const before = record(
+						await call("setup", "/currency-preferences/", "GET", undefined, false),
+					);
 					cleanup = () =>
 						call(
 							"restore",
@@ -506,13 +563,24 @@ export async function runMutationScenario(name: string, context: Context) {
 							"setup",
 							"/financial-accounts/",
 							"POST",
-							{ countryCode: "BR", currency: "BRL", name: `${label} destination`, type: "CHECKING" },
+							{
+								countryCode: "BR",
+								currency: "BRL",
+								name: `${label} destination`,
+								type: "CHECKING",
+							},
 							false,
 						);
 						const accountId = responseId(account);
 						definition.body.destinationFinancialAccountId = accountId;
 						setupCleanup = () =>
-							call("cleanupAccount", `/financial-accounts/${accountId}`, "DELETE", undefined, false);
+							call(
+								"cleanupAccount",
+								`/financial-accounts/${accountId}`,
+								"DELETE",
+								undefined,
+								false,
+							);
 					}
 					const created = await call(
 						"create",
@@ -525,7 +593,8 @@ export async function runMutationScenario(name: string, context: Context) {
 						? () => cleanupPerformanceLoan(id, user)
 						: () => call("delete", `${definition.route}/${id}`, "DELETE");
 					if (name === "recurrenceAdvance" || name === "recurrenceReplay") {
-						cleanup = () => call("delete", `${definition.route}/${id}?deleteTransactions=true`, "DELETE");
+						cleanup = () =>
+							call("delete", `${definition.route}/${id}?deleteTransactions=true`, "DELETE");
 						const action = name === "recurrenceAdvance" ? "advance" : "replay";
 						const result = record(
 							await call(

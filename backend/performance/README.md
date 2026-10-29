@@ -61,7 +61,7 @@ bun run scripts/test-runner.ts backend integration
 
 Testes do executor verificam seleção, percentis, concorrência, timeout configurado, redirects, headers inválidos, cobertura ausente, resultado financeiro e limpeza após falha. Testes de cache verificam contenção, invalidação concorrente e propriedade de locks; regressões de persistência verificam trabalho constante para edição isolada em históricos crescentes.
 
-Cobertura de aprovação/reconciliação de importações, sync incremental, offline completo/IndexedDB, falhas de infraestrutura, backlog, startup, jornadas de navegação e plataformas nativas ainda precisa completar matriz do plano 0018. Nenhum relatório HTTP pode aprovar essas áreas por inferência. Pendências ficam explícitas no inventário e impedem aceite global.
+Cobertura de aprovação/reconciliação de extratos, sync incremental, offline completo/IndexedDB, falhas de infraestrutura, backlog, startup, jornadas de navegação e plataformas nativas ainda precisa completar matriz do plano 0018. Nenhum relatório HTTP pode aprovar essas áreas por inferência. Pendências ficam explícitas no inventário e impedem aceite global.
 
 `statementImport` gera mil valores distintos; `statementImportDuplicates` preserva mil valores iguais, caso extremo de resposta com candidatos repetidos. Parsing tem orçamento de 15 s; revisão e descarte mantêm 1 s. `loanAdvance`, `recurrenceAdvance` e `recurrenceReplay` medem antecipação/materialização com limpeza dos efeitos criados.
 
@@ -85,3 +85,5 @@ bun backend/performance/journal.ts /tmp/zaimu-performance-result.json.journal.js
 ```
 
 Journal contém resultados antes da associação final de telemetria. Recuperação sempre retorna `passed: false` e `complete: false`; nunca substitui relatório de aceite, mesmo quando runner chegou ao fim. Cauda incompleta fica explícita; registros internos inválidos, duplicados ou namespace incorreto são recusados.
+
+`invoiceImportApproval` mede parsing e aprovação de mil compras; `invoiceImportReconciliation` vincula e aprova uma compra existente, exigindo preservação da identidade. Cada amostra cria cartão exclusivo e remove sua conta em `finally`, incluindo importação aprovada e livro materializado por cascade. Preparação e limpeza ficam fora das latências. Leitura posterior valida cada descrição/valor, quantidade de compras e conservação das parcelas. Aprovação e reconciliação mantêm orçamento CRUD de 1 s; parsing mantém 15 s. Esses cenários não cobrem reembolsos/reparcelamentos importados nem reconciliação de extratos.
