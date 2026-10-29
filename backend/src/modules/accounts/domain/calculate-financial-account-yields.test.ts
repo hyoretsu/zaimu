@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	calculateFinancialAccountYieldBalances,
 	calculateGrossYield,
+	type FinancialAccountYield,
 	getYieldSettings,
 } from "./calculate-financial-account-yields";
 
@@ -60,7 +61,11 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
+				{
+					amount: 100,
+					date: new Date("2026-01-04T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
 			],
 		});
 		const dailyRate = 1.1 ** (1 / 21) - 1;
@@ -75,7 +80,11 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-05T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-06T00:00:00Z"), destinationFinancialAccountId: "account" },
+				{
+					amount: 100,
+					date: new Date("2026-01-06T00:00:00Z"),
+					destinationFinancialAccountId: "account",
+				},
 			],
 		});
 
@@ -90,7 +99,11 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
+				{
+					amount: 100,
+					date: new Date("2026-01-04T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
 			],
 		});
 		const dailyRate = 1.1 ** (1 / 21) - 1;
@@ -158,7 +171,11 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-05T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
+				{
+					amount: 100,
+					date: new Date("2026-01-04T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
 			],
 			yields: [
 				{
@@ -182,7 +199,11 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-05T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
+				{
+					amount: 100,
+					date: new Date("2026-01-04T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
 			],
 		});
 		const dailyRate = 1.1 ** (1 / 21) - 1;
@@ -191,7 +212,9 @@ describe("calculateFinancialAccountYieldBalances", () => {
 
 	test("applies the reference percentage to cashback snapshots", () => {
 		const balances = calculateFinancialAccountYieldBalances({
-			accounts: [{ ...account, id: "rewards", type: "REWARDS", yieldFixedRate: null, yieldPeriod: null }],
+			accounts: [
+				{ ...account, id: "rewards", type: "REWARDS", yieldFixedRate: null, yieldPeriod: null },
+			],
 			cashbackCredits: [
 				{
 					cashbackAccountId: "rewards",
@@ -218,8 +241,16 @@ describe("calculateFinancialAccountYieldBalances", () => {
 					...account,
 					yieldFixedRate: 20,
 					yieldRateHistories: [
-						{ effectiveDate: new Date("2026-01-05T12:00:00"), yieldFixedRate: 10, yieldPeriod: "MONTHLY" },
-						{ effectiveDate: new Date("2026-01-06T12:00:00"), yieldFixedRate: 20, yieldPeriod: "MONTHLY" },
+						{
+							effectiveDate: new Date("2026-01-05T12:00:00"),
+							yieldFixedRate: 10,
+							yieldPeriod: "MONTHLY",
+						},
+						{
+							effectiveDate: new Date("2026-01-06T12:00:00"),
+							yieldFixedRate: 20,
+							yieldPeriod: "MONTHLY",
+						},
 					],
 				},
 			],
@@ -228,7 +259,11 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
+				{
+					amount: 100,
+					date: new Date("2026-01-04T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
 			],
 		});
 		expect(balances.get("account")).toBeCloseTo(100 * 1.1 ** (1 / 21) * 1.2 ** (1 / 21), 4);
@@ -242,7 +277,11 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			initialRewardsBalances: new Map(),
 			today: new Date("2026-01-06T12:00:00"),
 			transactions: [
-				{ amount: 100, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "account" },
+				{
+					amount: 100,
+					date: new Date("2026-01-04T12:00:00"),
+					destinationFinancialAccountId: "account",
+				},
 			],
 			yields: [
 				{
@@ -493,7 +532,10 @@ test("frozen legacy calendar preserves derived history while ambiguous future co
 			{ amount: 1000, date: new Date("2026-01-04T12:00:00"), destinationFinancialAccountId: "legacy" },
 		],
 	};
-	expect(calculateFinancialAccountYieldBalances(input).get("legacy")).toBeCloseTo(1000 * 1.1 ** (1 / 21), 4);
+	expect(calculateFinancialAccountYieldBalances(input).get("legacy")).toBeCloseTo(
+		1000 * 1.1 ** (1 / 21),
+		4,
+	);
 });
 
 test("same-day transfer starts earning on the next eligible day", () => {
@@ -533,7 +575,13 @@ for (const day of ["2026-01-05", "2026-01-10"]) {
 		const date = new Date(`${day}T12:00:00`);
 		const balances = calculateFinancialAccountYieldBalances({
 			accounts: [
-				{ createdAt: date, id: "account", type: "CHECKING", yieldFixedRate: 10, yieldPeriod: "MONTHLY" },
+				{
+					createdAt: date,
+					id: "account",
+					type: "CHECKING",
+					yieldFixedRate: 10,
+					yieldPeriod: "MONTHLY",
+				},
 			],
 			cashbackCredits: [],
 			holidays: [],
@@ -549,9 +597,135 @@ for (const day of ["2026-01-05", "2026-01-10"]) {
 					kind: "AUTOMATIC",
 					origin: "SYSTEM",
 				},
-				{ amount: 2, date, financialAccountId: "account", isExcluded: false, kind: "MANUAL", origin: "USER" },
+				{
+					amount: 2,
+					date,
+					financialAccountId: "account",
+					isExcluded: false,
+					kind: "MANUAL",
+					origin: "USER",
+				},
 			],
 		});
 		expect(balances.get("account")).toBe(102);
+	});
+}
+
+for (const size of [10, 10000, 100000]) {
+	test(`yield replay date work remains linear with ${size} stored entries`, () => {
+		let dateReads = 0;
+		class CountingDate extends Date {
+			override toISOString() {
+				if (++dateReads > size * 4) throw new Error("Yield history was rescanned for each day");
+				return super.toISOString();
+			}
+		}
+		const yields: FinancialAccountYield[] = Array.from({ length: size }, (_, index) => ({
+			amount: 0,
+			date: new CountingDate(Date.UTC(2026, 0, 1 + (index % 28), 12)),
+			financialAccountId: "indexed",
+			isExcluded: false,
+			kind: "AUTOMATIC",
+			origin: "USER",
+		}));
+		const balance = calculateFinancialAccountYieldBalances({
+			accounts: [{ createdAt: new Date("2026-01-01T12:00:00Z"), id: "indexed", type: "CHECKING" }],
+			cashbackCredits: [],
+			holidays: [],
+			initialRewardsBalances: new Map(),
+			today: new Date("2026-10-04T12:00:00Z"),
+			transactions: [
+				{
+					amount: 1000,
+					date: new Date("2026-01-01T12:00:00Z"),
+					destinationFinancialAccountId: "indexed",
+				},
+			],
+			yields,
+		}).get("indexed");
+		expect(balance).toBe(1000);
+		expect(dateReads).toBeLessThanOrEqual(size * 4);
+	});
+}
+
+for (const [day, expected] of [
+	["2026-01-10", 107],
+	["2026-01-12", 100],
+] as const) {
+	test(`daily yield index preserves excluded duplicate precedence on ${day}`, () => {
+		const common = {
+			accounts: [{ createdAt: new Date("2026-01-09T12:00:00Z"), id: "indexed", type: "CHECKING" }],
+			cashbackCredits: [],
+			holidays: [],
+			initialRewardsBalances: new Map<string, number>(),
+			today: new Date(`${day}T12:00:00Z`),
+			transactions: [
+				{
+					amount: 100,
+					date: new Date("2026-01-09T12:00:00Z"),
+					destinationFinancialAccountId: "indexed",
+				},
+			],
+		};
+		const automatic: FinancialAccountYield[] = [
+			{
+				amount: 1,
+				date: common.today,
+				financialAccountId: "indexed",
+				isExcluded: true,
+				kind: "AUTOMATIC",
+				origin: "USER",
+			},
+			{
+				amount: 7,
+				date: common.today,
+				financialAccountId: "indexed",
+				isExcluded: false,
+				kind: "AUTOMATIC",
+				origin: "USER",
+			},
+			{
+				amount: 999,
+				date: new Date("2026-01-20T12:00:00Z"),
+				financialAccountId: "indexed",
+				isExcluded: false,
+				kind: "AUTOMATIC",
+				origin: "USER",
+			},
+			{
+				amount: 999,
+				date: common.today,
+				financialAccountId: "other",
+				isExcluded: false,
+				kind: "AUTOMATIC",
+				origin: "USER",
+			},
+		];
+		expect(calculateFinancialAccountYieldBalances({ ...common, yields: automatic }).get("indexed")).toBe(
+			expected,
+		);
+		const excludedManual: FinancialAccountYield = {
+			amount: 9,
+			date: common.today,
+			financialAccountId: "indexed",
+			isExcluded: true,
+			kind: "MANUAL",
+		};
+		expect(
+			calculateFinancialAccountYieldBalances({ ...common, yields: [...automatic, excludedManual] }).get(
+				"indexed",
+			),
+		).toBe(100);
+		expect(
+			calculateFinancialAccountYieldBalances({
+				...common,
+				yields: [
+					...automatic,
+					excludedManual,
+					{ ...excludedManual, amount: 1.1, isExcluded: false },
+					{ ...excludedManual, amount: 2.2, isExcluded: false },
+				],
+			}).get("indexed"),
+		).toBe(103.3);
 	});
 }

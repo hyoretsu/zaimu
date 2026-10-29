@@ -263,11 +263,12 @@ function calculateYieldedBalance(
 	beforeYieldDay?: string,
 	calendarCovered?: (day: string) => boolean,
 ) {
+	const yieldsByDay = Map.groupBy(yields ?? [], entry => dateKey(entry.date));
 	const firstDay = [
 		...(events?.keys() ?? []),
 		...(adjustments?.keys() ?? []),
 		...(cashbackEvents?.keys() ?? []),
-		...(yields?.map(yieldEntry => dateKey(yieldEntry.date)) ?? []),
+		...yieldsByDay.keys(),
 	].toSorted()[0];
 	if (!firstDay) return 0;
 	let balance = 0;
@@ -275,6 +276,7 @@ function calculateYieldedBalance(
 	const cashbackBalances = new Map<number, number>();
 	for (let day = new Date(`${firstDay}T12:00:00`); dateKey(day) <= todayKey; day = addDays(day, 1)) {
 		const key = dateKey(day);
+		const dayYields = yieldsByDay.get(key) ?? [];
 		for (const movement of events?.get(key) ?? []) ledger.applyCashFlow(movement, key);
 		balance = ledger.balance;
 		for (const credit of cashbackEvents?.get(key) ?? []) {
@@ -292,18 +294,15 @@ function calculateYieldedBalance(
 				balance = ledger.balance;
 			}
 		}
-		const hasManualYield = yields?.some(entry => entry.kind === "MANUAL" && dateKey(entry.date) === key);
-		const manualYields = yields?.filter(
-			yieldEntry =>
-				yieldEntry.kind === "MANUAL" && dateKey(yieldEntry.date) === key && !yieldEntry.isExcluded,
+		const hasManualYield = dayYields.some(entry => entry.kind === "MANUAL");
+		const manualYields = dayYields.filter(
+			yieldEntry => yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded,
 		);
 		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidays.has(key))) {
-			const recorded = yields?.find(
-				entry => entry.kind === "AUTOMATIC" && !entry.isExcluded && dateKey(entry.date) === key,
-			);
+			const recorded = dayYields.find(entry => entry.kind === "AUTOMATIC" && !entry.isExcluded);
 			if (!hasManualYield && recorded?.amount != null)
 				ledger.accrueRecordedNet(recorded.amount, getYieldSettings(account, key), key);
-			for (const manualYield of manualYields ?? []) ledger.accrueNet(manualYield.amount ?? 0, key);
+			for (const manualYield of manualYields) ledger.accrueNet(manualYield.amount ?? 0, key);
 			balance = ledger.balance;
 			if (adjustments?.has(key)) {
 				ledger.adjustBalance(adjustments.get(key)!, key);
@@ -317,9 +316,7 @@ function calculateYieldedBalance(
 				ledger.lots.map(lot => ({ ...lot })),
 			);
 		const yieldSettings = getYieldSettings(account, key);
-		const automaticYield = yields?.find(
-			yieldEntry => yieldEntry.kind === "AUTOMATIC" && dateKey(yieldEntry.date) === key,
-		);
+		const automaticYield = dayYields.find(yieldEntry => yieldEntry.kind === "AUTOMATIC");
 		if (balance > 0 && !hasManualYield && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
 			const grossAmount = hasReference
@@ -337,7 +334,7 @@ function calculateYieldedBalance(
 		for (const [rate, cashbackBalance] of cashbackBalances) {
 			if (cashbackBalance > 0) cashbackBalances.set(rate, cashbackBalance * (1 + rate));
 		}
-		for (const manualYield of manualYields ?? []) {
+		for (const manualYield of manualYields) {
 			ledger.accrueNet(manualYield.amount ?? 0, key);
 			balance = ledger.balance;
 		}

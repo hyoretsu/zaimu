@@ -1,0 +1,454 @@
+{
+	"after": null,
+	"backendRegression": {
+		"assertions": 41,
+		"excludedDuplicateAndManualPrecedence": true,
+		"historySizes": [10, 10000, 100000],
+		"maximumDateReadsPerRecord": 4,
+		"tests": 29
+	},
+	"before": {
+		"bundleSha256": "12fb6390ff434bccf01b00a32068b83f04129a1effdfb9bf564c46ca3d76cd6d",
+		"bytes": 180223,
+		"compiledCommit": "2578d143",
+		"durationMs": 4288.015899,
+		"phase": "before",
+		"queries": 46,
+		"requestId": "0372fc1b-333c-445c-9714-3361c1629ccb",
+		"sha256": "8ff47c256499e1adc3b66467089a64993962134670e33e7c933441ebbf99170d",
+		"sqlDurationMs": 204.68,
+		"telemetry": {
+			"authQueryCount": 2,
+			"businessQueryCount": 44,
+			"bytes": 180223,
+			"completed": true,
+			"connectionWaitMs": 14.27,
+			"cpuMicros": {
+				"system": 282151,
+				"user": 3258228
+			},
+			"durationMs": 4282.87,
+			"eventLoopLagP95Ms": 2.36,
+			"memory": {
+				"arrayBuffers": 19818,
+				"external": 21728240,
+				"heapTotal": 75396096,
+				"heapUsed": 49449632,
+				"rss": 250355712
+			},
+			"method": "GET",
+			"pool": {
+				"idle": 2,
+				"total": 2,
+				"waiting": 0
+			},
+			"queryCount": 46,
+			"requestId": "0372fc1b-333c-445c-9714-3361c1629ccb",
+			"route": "/dashboard/",
+			"spans": [
+				{
+					"durationMs": 0.7474199999996927,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 62.31826600000022
+				},
+				{
+					"durationMs": 2.7618079999992915,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 66.3077540000013
+				},
+				{
+					"durationMs": 1.89923699999963,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 72.05939300000136
+				},
+				{
+					"durationMs": 0.9146339999988413,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 75.73981100000128
+				},
+				{
+					"durationMs": 21.59332600000016,
+					"name": "auth",
+					"outcome": "ok",
+					"startMs": 55.0837960000008
+				},
+				{
+					"durationMs": 3.710908000000927,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 81.20376100000067
+				},
+				{
+					"durationMs": 0.7434990000001562,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 85.48785099999986
+				},
+				{
+					"durationMs": 1.3207449999990786,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 86.2838010000014
+				},
+				{
+					"durationMs": 0.4890400000003865,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 90.25226800000019
+				},
+				{
+					"durationMs": 0.2735109999994165,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 90.87537500000144
+				},
+				{
+					"durationMs": 0.19750500000009197,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 91.1817460000002
+				},
+				{
+					"durationMs": 1.2090279999993072,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 92.19009300000107
+				},
+				{
+					"durationMs": 2.2001130000007834,
+					"name": "loader",
+					"outcome": "ok",
+					"startMs": 91.39857200000006
+				},
+				{
+					"durationMs": 1.3010549999999057,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 93.6555870000011
+				},
+				{
+					"durationMs": 0.7111390000009123,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 95.13705900000059
+				},
+				{
+					"durationMs": 0.6354209999990417,
+					"name": "sql:BEGIN",
+					"outcome": "ok",
+					"startMs": 97.76596800000152
+				},
+				{
+					"durationMs": 23.20238000000063,
+					"name": "sql:WITH",
+					"outcome": "ok",
+					"startMs": 99.32337600000028
+				},
+				{
+					"durationMs": 28.15774600000077,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 124.17103400000087
+				},
+				{
+					"durationMs": 11.04542500000025,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 152.82034999999996
+				},
+				{
+					"durationMs": 19.614285999999993,
+					"name": "sql:WITH",
+					"outcome": "ok",
+					"startMs": 164.60923800000091
+				},
+				{
+					"durationMs": 1.058365999999296,
+					"name": "sql:COMMIT",
+					"outcome": "ok",
+					"startMs": 208.44441300000108
+				},
+				{
+					"durationMs": 1.3287390000004962,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 210.94811300000038
+				},
+				{
+					"durationMs": 3.1147469999996247,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 219.34979700000076
+				},
+				{
+					"durationMs": 2.185414999999921,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 222.96169400000144
+				},
+				{
+					"durationMs": 4.394121999999697,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 231.5149280000005
+				},
+				{
+					"durationMs": 2.3285439999999653,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 238.76951100000042
+				},
+				{
+					"durationMs": 6.166966999999204,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 242.41963700000088
+				},
+				{
+					"durationMs": 2.108368999999584,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 252.40256200000113
+				},
+				{
+					"durationMs": 1.2138149999991583,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 256.42629000000125
+				},
+				{
+					"durationMs": 1.6652809999995952,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 258.59488800000145
+				},
+				{
+					"durationMs": 1.4200120000004972,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 263.3021320000007
+				},
+				{
+					"durationMs": 2.5516459999998915,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 265.4218740000015
+				},
+				{
+					"durationMs": 1.2238199999992503,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 269.4586040000013
+				},
+				{
+					"durationMs": 1.3234929999998712,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 272.13217500000064
+				},
+				{
+					"durationMs": 2.3470330000000104,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 276.3752920000006
+				},
+				{
+					"durationMs": 2.1563420000002225,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 280.5328320000008
+				},
+				{
+					"durationMs": 1.9108950000008917,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 284.49660399999993
+				},
+				{
+					"durationMs": 1.5671480000000884,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 287.85477900000114
+				},
+				{
+					"durationMs": 17.11438200000157,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 291.1863659999999
+				},
+				{
+					"durationMs": 1.8897650000017165,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 359.76996599999984
+				},
+				{
+					"durationMs": 0.8803440000010596,
+					"name": "sql:BEGIN",
+					"outcome": "ok",
+					"startMs": 362.8842430000004
+				},
+				{
+					"durationMs": 1.8968150000000605,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 364.4771630000014
+				},
+				{
+					"durationMs": 1.4595989999997983,
+					"name": "sql:INSERT",
+					"outcome": "ok",
+					"startMs": 369.34975600000143
+				},
+				{
+					"durationMs": 2.969837999999072,
+					"name": "sql:INSERT",
+					"outcome": "ok",
+					"startMs": 370.9000270000015
+				},
+				{
+					"durationMs": 1.4829329999993206,
+					"name": "sql:INSERT",
+					"outcome": "ok",
+					"startMs": 373.91896200000156
+				},
+				{
+					"durationMs": 0.5933860000004643,
+					"name": "sql:COMMIT",
+					"outcome": "ok",
+					"startMs": 375.42956500000037
+				},
+				{
+					"durationMs": 1.6849829999991925,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 376.2120330000016
+				},
+				{
+					"durationMs": 2.2882750000007945,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 378.57570699999997
+				},
+				{
+					"durationMs": 24.80497800000012,
+					"name": "sql:BEGIN",
+					"outcome": "ok",
+					"startMs": 2465.709144000002
+				},
+				{
+					"durationMs": 6.9763039999998,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 2494.7193580000003
+				},
+				{
+					"durationMs": 1.7877359999984037,
+					"name": "sql:INSERT",
+					"outcome": "ok",
+					"startMs": 2506.3463820000015
+				},
+				{
+					"durationMs": 2.427843000001303,
+					"name": "sql:INSERT",
+					"outcome": "ok",
+					"startMs": 2508.2229580000003
+				},
+				{
+					"durationMs": 1.4553470000028028,
+					"name": "sql:INSERT",
+					"outcome": "ok",
+					"startMs": 2510.7237079999995
+				},
+				{
+					"durationMs": 0.9388810000018566,
+					"name": "sql:COMMIT",
+					"outcome": "ok",
+					"startMs": 2512.2306420000004
+				},
+				{
+					"durationMs": 1.3311869999997725,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 2515.4716180000014
+				},
+				{
+					"durationMs": 1.57686399999875,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 2517.401909000002
+				},
+				{
+					"durationMs": 2.1931580000018585,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 2520.07279
+				},
+				{
+					"durationMs": 1.3824710000008054,
+					"name": "sql:SELECT",
+					"outcome": "ok",
+					"startMs": 2524.2769769999995
+				},
+				{
+					"durationMs": 4110.289542000002,
+					"name": "loader",
+					"outcome": "ok",
+					"startMs": 87.98802400000022
+				},
+				{
+					"durationMs": 17.223244000000705,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 4202.510969000001
+				},
+				{
+					"durationMs": 9.093184000001202,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 4217.325627
+				},
+				{
+					"durationMs": 1.0401309999979276,
+					"name": "redis",
+					"outcome": "ok",
+					"startMs": 4226.764668000002
+				}
+			],
+			"sqlDurationMs": 204.68,
+			"sqlElapsedMs": 204.68,
+			"status": 200,
+			"type": "http_request"
+		}
+	},
+	"complete": false,
+	"diagnostic": true,
+	"fixture": {
+		"accountYields": 1826,
+		"referenceDate": "2026-10-04",
+		"transactions": 10,
+		"users": 1,
+		"yieldEnd": "2026-09-22",
+		"yieldStart": "2021-09-23"
+	},
+	"limitations": [
+		"Body equality and post-change release capture pending.",
+		"Single comparison request is not a p95 sample set.",
+		"Official matrix and global acceptance remain pending."
+	],
+	"passed": false,
+	"profile": {
+		"notes": [
+			"Profile contains startup, idle, authentication and five cold dashboard requests.",
+			"Raw wall-time weights include idle/scheduling gaps; sample counts identify callsites, not exact CPU percentages.",
+			"Lookup callbacks repeatedly converted yield dates while scanning full history for each day."
+		],
+		"rawProfileSha256": "7c09dff53a5bccfa9b2d0afaf8ead5833703c50be559ce48eb01a373b58aa0df",
+		"samples": 10690,
+		"yieldLookupISOStringSamples": 3599
+	}
+}
