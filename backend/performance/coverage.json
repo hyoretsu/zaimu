@@ -468,6 +468,13 @@
 		},
 		{
 			"budget": 1000,
+			"method": "GET",
+			"path": "/credit-card-imports/:id/tax-sources",
+			"result": "pending",
+			"source": "OpenAPI: getCreditCardImportsByIdTaxSources"
+		},
+		{
+			"budget": 1000,
 			"method": "POST",
 			"path": "/credit-card-imports/",
 			"result": "pending",
@@ -1883,5 +1890,5 @@
 			"usableP95Ms": 1000
 		}
 	],
-	"sourceHash": "a888fcf318391923302452a771d2dce5785428bfbafb8e37a75d3719931f54dc"
+	"sourceHash": "5afd2e66a98665e95077f8e94c008ced340c4e5c46936ae1bbe05198b1ca4146"
 }

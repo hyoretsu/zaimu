@@ -63,6 +63,1399 @@
 			"rows": 3
 		}
 	],
+	"clockAuditedHttp": {
+		"configuration": {
+			"fixture": {
+				"clock": {
+					"applicationDate": "2026-10-04",
+					"consistent": false,
+					"databaseDate": "2026-10-29"
+				},
+				"database": "zaimu_performance",
+				"namespace": "zaimu_performance",
+				"referenceDate": "2026-10-04",
+				"transactions": 10,
+				"users": 1
+			},
+			"iterations": 5,
+			"loads": [1],
+			"machine": {
+				"bun": "1.4.4",
+				"cpu": "Intel(R) N150",
+				"cpus": 4,
+				"hostEnd": {
+					"freeMemoryBytes": 5962014720,
+					"loadAverage": [20.22, 20.38, 18.74]
+				},
+				"hostStart": {
+					"freeMemoryBytes": 5856944128,
+					"loadAverage": [20.24, 20.38, 18.74]
+				},
+				"memoryBytes": 16527003648
+			},
+			"namespace": "zaimu_performance",
+			"rounds": 1
+		},
+		"diagnostic": true,
+		"generatedAt": "2026-10-29T14:03:06.516Z",
+		"passed": false,
+		"readScenariosPassed": false,
+		"referenceDate": "2026-10-04",
+		"results": {
+			"accounts:1:1:304": {
+				"p50Ms": 46.955119999998715,
+				"p95Ms": 109.82439599999998,
+				"p99Ms": 109.82439599999998,
+				"passed": false,
+				"samples": [
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 68.52174100000047,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "77de46da-78db-4b41-b620-d8ce1fc34b06",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 1927,
+								"user": 5550
+							},
+							"durationMs": 54.19,
+							"eventLoopLagP95Ms": 3.16,
+							"memory": {
+								"arrayBuffers": 181682,
+								"external": 13559510,
+								"heapTotal": 35432448,
+								"heapUsed": 36088654,
+								"rss": 124379136
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "77de46da-78db-4b41-b620-d8ce1fc34b06",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 7.641854999994393,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 29.49434099998325
+								},
+								{
+									"durationMs": 37.36235100001795,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.2615900000091642
+								},
+								{
+									"durationMs": 9.614609000040218,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 37.74959199997829
+								},
+								{
+									"durationMs": 4.909906000015326,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 47.51182399998652
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 109.82439599999998,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "406db4cf-5eae-49ac-8587-d7150e85be3c",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 2170,
+								"user": 9429
+							},
+							"durationMs": 98.47,
+							"eventLoopLagP95Ms": 3.17,
+							"memory": {
+								"arrayBuffers": 182364,
+								"external": 13560672,
+								"heapTotal": 35465216,
+								"heapUsed": 36088654,
+								"rss": 123985920
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "406db4cf-5eae-49ac-8587-d7150e85be3c",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 69.46858600003179,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 8.989569999976084
+								},
+								{
+									"durationMs": 86.14631500001997,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.27738200000021607
+								},
+								{
+									"durationMs": 4.161320000013802,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 86.6628250000067
+								},
+								{
+									"durationMs": 1.6911199999740347,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 91.07644400000572
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 39.049189000001206,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "f132e7a4-c39e-4963-8b88-9262359c3b76",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 27,
+								"user": 3957
+							},
+							"durationMs": 33.07,
+							"eventLoopLagP95Ms": 3.17,
+							"memory": {
+								"arrayBuffers": 183046,
+								"external": 13561834,
+								"heapTotal": 35465216,
+								"heapUsed": 36088654,
+								"rss": 123985920
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "f132e7a4-c39e-4963-8b88-9262359c3b76",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 7.122238000039943,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 13.574139999982435
+								},
+								{
+									"durationMs": 21.020636999979615,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.2657030000118539
+								},
+								{
+									"durationMs": 5.104396999988239,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 21.3878080000286
+								},
+								{
+									"durationMs": 5.971048999985214,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 26.637226000020746
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 36.82806400000118,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "e5ba38c1-1a9f-4fce-b41a-8bf39f9bbd5f",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 366,
+								"user": 4248
+							},
+							"durationMs": 30.15,
+							"eventLoopLagP95Ms": 3.17,
+							"memory": {
+								"arrayBuffers": 183728,
+								"external": 13562996,
+								"heapTotal": 35465216,
+								"heapUsed": 36088654,
+								"rss": 123854848
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "e5ba38c1-1a9f-4fce-b41a-8bf39f9bbd5f",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 3.8790760000119917,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 11.022805999964476
+								},
+								{
+									"durationMs": 15.216404999955557,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.2461650000186637
+								},
+								{
+									"durationMs": 6.018362000002526,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 17.64801299996907
+								},
+								{
+									"durationMs": 5.88831199996639,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 23.804541999998037
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 46.955119999998715,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "3afb6e4c-affc-44eb-a089-9f37822b4089",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 1236,
+								"user": 5530
+							},
+							"durationMs": 39.4,
+							"eventLoopLagP95Ms": 3.17,
+							"memory": {
+								"arrayBuffers": 184410,
+								"external": 13564158,
+								"heapTotal": 35465216,
+								"heapUsed": 36088654,
+								"rss": 123985920
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "3afb6e4c-affc-44eb-a089-9f37822b4089",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 1.7194759999983944,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 15.245350999990478
+								},
+								{
+									"durationMs": 20.709787000028882,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 2.5139409999828786
+								},
+								{
+									"durationMs": 13.00386699999217,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 23.31915100000333
+								},
+								{
+									"durationMs": 1.962048000015784,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 36.46259199996712
+								}
+							],
+							"status": 304
+						}
+					}
+				],
+				"throughput": 16.47289691373452
+			},
+			"accounts:1:1:hot": {
+				"p50Ms": 50.10757899999953,
+				"p95Ms": 54.832141999999294,
+				"p99Ms": 54.832141999999294,
+				"passed": true,
+				"samples": [
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 51.71875999999975,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "ae988697-be52-4005-8385-64e968c02994",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 1049,
+								"user": 3458
+							},
+							"durationMs": 46.13,
+							"eventLoopLagP95Ms": 3.14,
+							"memory": {
+								"arrayBuffers": 147898,
+								"external": 13522366,
+								"heapTotal": 35350528,
+								"heapUsed": 36088654,
+								"rss": 123068416
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "ae988697-be52-4005-8385-64e968c02994",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 0.9123460000264458,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 20.622105999966152
+								},
+								{
+									"durationMs": 21.797166999953333,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.29163300001528114
+								},
+								{
+									"durationMs": 15.468098999990616,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 22.21548299997812
+								},
+								{
+									"durationMs": 5.371054999995977,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 37.84507899999153
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 50.10757899999953,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "ace8958c-9165-4e0c-ad50-a75525d0fd7e",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 1805,
+								"user": 4766
+							},
+							"durationMs": 30.12,
+							"eventLoopLagP95Ms": 3.14,
+							"memory": {
+								"arrayBuffers": 153415,
+								"external": 13528363,
+								"heapTotal": 35350528,
+								"heapUsed": 36088654,
+								"rss": 123068416
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "ace8958c-9165-4e0c-ad50-a75525d0fd7e",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 2.297074000001885,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 19.466098000004422
+								},
+								{
+									"durationMs": 22.601925000024494,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.2888479999965057
+								},
+								{
+									"durationMs": 2.024258999968879,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 23.00153800001135
+								},
+								{
+									"durationMs": 2.416880000033416,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 25.166864999977406
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 54.832141999999294,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "1b9068c9-b40e-4719-b370-d5f2f9b4dd0b",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 348,
+								"user": 6217
+							},
+							"durationMs": 43.72,
+							"eventLoopLagP95Ms": 3.15,
+							"memory": {
+								"arrayBuffers": 158932,
+								"external": 13534360,
+								"heapTotal": 35366912,
+								"heapUsed": 36088654,
+								"rss": 123199488
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "1b9068c9-b40e-4719-b370-d5f2f9b4dd0b",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 7.441107999999076,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.47325100004673
+								},
+								{
+									"durationMs": 12.191013000032399,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.24766300001647323
+								},
+								{
+									"durationMs": 24.541129000019282,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 12.553207000019029
+								},
+								{
+									"durationMs": 5.770851999986917,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 37.235389000037685
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 31.802844999998342,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "cc4f34be-6b56-46af-a070-e66fc7e58639",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 2067,
+								"user": 7573
+							},
+							"durationMs": 27.56,
+							"eventLoopLagP95Ms": 3.14,
+							"memory": {
+								"arrayBuffers": 164449,
+								"external": 13540357,
+								"heapTotal": 35366912,
+								"heapUsed": 36088654,
+								"rss": 123330560
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "cc4f34be-6b56-46af-a070-e66fc7e58639",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 8.84454999997979,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 6.005544000014197
+								},
+								{
+									"durationMs": 15.297663999954239,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.2920490000396967
+								},
+								{
+									"durationMs": 4.154223999998067,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 15.713770000031218
+								},
+								{
+									"durationMs": 4.879068000009283,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 21.657537000020966
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 44.3509920000015,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "1b763bc1-7343-4a67-8d4e-504df1019b27",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 2458,
+								"user": 2119
+							},
+							"durationMs": 34.38,
+							"eventLoopLagP95Ms": 3.14,
+							"memory": {
+								"arrayBuffers": 169966,
+								"external": 13546354,
+								"heapTotal": 35399680,
+								"heapUsed": 36088654,
+								"rss": 123461632
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "1b763bc1-7343-4a67-8d4e-504df1019b27",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 4.4426669999957085,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 2.973600000026636
+								},
+								{
+									"durationMs": 7.806345000048168,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.24407600000267848
+								},
+								{
+									"durationMs": 18.21979599999031,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 8.180438000010327
+								},
+								{
+									"durationMs": 3.625058999983594,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 26.545804000052158
+								}
+							],
+							"status": 200
+						}
+					}
+				],
+				"throughput": 21.3865047237185
+			},
+			"accounts:1:1:redis-cold": {
+				"p50Ms": 364.3420079999996,
+				"p95Ms": 519.9916349999994,
+				"p99Ms": 519.9916349999994,
+				"passed": true,
+				"samples": [
+					{
+						"authQueries": 2,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 3.55,
+						"durationMs": 519.9916349999994,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 7,
+						"requestId": "f570e893-044c-4117-b332-285e8098df47",
+						"sqlDurationMs": 282.38,
+						"sqlElapsedMs": 282.38,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 12287,
+								"user": 58698
+							},
+							"durationMs": 513.23,
+							"eventLoopLagP95Ms": 3.06,
+							"memory": {
+								"arrayBuffers": 41731,
+								"external": 13412839,
+								"heapTotal": 34940928,
+								"heapUsed": 36088654,
+								"rss": 121851904
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "f570e893-044c-4117-b332-285e8098df47",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 2.957047000003513,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 20.206683999975212
+								},
+								{
+									"durationMs": 14.111819000041578,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 72.64869399997406
+								},
+								{
+									"durationMs": 34.69359399995301,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 127.6053570000222
+								},
+								{
+									"durationMs": 14.874574000015855,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 176.5305749999825
+								},
+								{
+									"durationMs": 184.3842510000104,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 7.36294199997792
+								},
+								{
+									"durationMs": 6.126382999995258,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 206.20459799998207
+								},
+								{
+									"durationMs": 2.552854000008665,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 213.59487899998203
+								},
+								{
+									"durationMs": 1.8999590000021271,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 217.04568300000392
+								},
+								{
+									"durationMs": 57.52632000000449,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 220.71477399999276
+								},
+								{
+									"durationMs": 6.511070000007749,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 313.00978199997917
+								},
+								{
+									"durationMs": 17.312108000041917,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 321.6175589999766
+								},
+								{
+									"durationMs": 15.437982000003103,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 343.8683820000151
+								},
+								{
+									"durationMs": 136.69058999995468,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 366.61642600002233
+								},
+								{
+									"durationMs": 283.14073099999223,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 220.4223050000146
+								},
+								{
+									"durationMs": 3.758635000034701,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 504.9675919999718
+								},
+								{
+									"durationMs": 1.7345770000247285,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 509.1881089999806
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 6.7,
+						"durationMs": 249.52568900000006,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "c9c9e093-0d1f-49ea-a64f-a1c596dbaa8f",
+						"sqlDurationMs": 69.62,
+						"sqlElapsedMs": 69.62,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 6011,
+								"user": 28358
+							},
+							"durationMs": 244.9,
+							"eventLoopLagP95Ms": 3.07,
+							"memory": {
+								"arrayBuffers": 64135,
+								"external": 13435723,
+								"heapTotal": 35039232,
+								"heapUsed": 36088654,
+								"rss": 122216448
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "c9c9e093-0d1f-49ea-a64f-a1c596dbaa8f",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 15.117636000039056,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 15.724683000007644
+								},
+								{
+									"durationMs": 69.8846209999756,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 1.4776310000452213
+								},
+								{
+									"durationMs": 9.802155999990646,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 71.49811600003159
+								},
+								{
+									"durationMs": 18.166774999990594,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 81.45924400002696
+								},
+								{
+									"durationMs": 3.483259000000544,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 99.68267900001956
+								},
+								{
+									"durationMs": 17.24466800002847,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 103.52353100001346
+								},
+								{
+									"durationMs": 9.71072400000412,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 150.05351900000824
+								},
+								{
+									"durationMs": 13.037241999991238,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 163.84019800001988
+								},
+								{
+									"durationMs": 2.303872999968007,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 199.8127890000469
+								},
+								{
+									"durationMs": 27.226066000002902,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 205.14227900002152
+								},
+								{
+									"durationMs": 129.43010800000047,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 103.21746300003724
+								},
+								{
+									"durationMs": 5.398245999997016,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 232.79019400000107
+								},
+								{
+									"durationMs": 1.898434000031557,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 240.56214799999725
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 0.24,
+						"durationMs": 364.3420079999996,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "1fa5e4cf-5916-4f81-93ac-dad982c4ed4f",
+						"sqlDurationMs": 161.49,
+						"sqlElapsedMs": 161.49,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 3269,
+								"user": 25512
+							},
+							"durationMs": 356.15,
+							"eventLoopLagP95Ms": 3.09,
+							"memory": {
+								"arrayBuffers": 86539,
+								"external": 13458607,
+								"heapTotal": 35072000,
+								"heapUsed": 36088654,
+								"rss": 122068992
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "1fa5e4cf-5916-4f81-93ac-dad982c4ed4f",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 10.987683000043035,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 6.231367999978829
+								},
+								{
+									"durationMs": 17.396413999958895,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.29110000003129244
+								},
+								{
+									"durationMs": 2.888422000047285,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 21.400047999981325
+								},
+								{
+									"durationMs": 3.859707999974489,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 24.453166000021156
+								},
+								{
+									"durationMs": 11.415528000041377,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 28.392892999981996
+								},
+								{
+									"durationMs": 12.8061699999962,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 40.243401999992784
+								},
+								{
+									"durationMs": 12.71478899999056,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 91.00051500002155
+								},
+								{
+									"durationMs": 7.64690699998755,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 109.95588800002588
+								},
+								{
+									"durationMs": 28.930624999979045,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 175.63210500002606
+								},
+								{
+									"durationMs": 96.24408599996241,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 205.5164470000309
+								},
+								{
+									"durationMs": 262.15132599999197,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 39.98008499998832
+								},
+								{
+									"durationMs": 29.24700999999186,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 302.2771870000288
+								},
+								{
+									"durationMs": 4.547818999970332,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 331.63968700001715
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 0.25,
+						"durationMs": 506.0620170000002,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "cd580390-a457-4fb3-8b89-b5cee3cc5844",
+						"sqlDurationMs": 255.97,
+						"sqlElapsedMs": 255.97,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 1388,
+								"user": 31005
+							},
+							"durationMs": 499.27,
+							"eventLoopLagP95Ms": 3.12,
+							"memory": {
+								"arrayBuffers": 108943,
+								"external": 13481491,
+								"heapTotal": 35104768,
+								"heapUsed": 36088654,
+								"rss": 122548224
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "cd580390-a457-4fb3-8b89-b5cee3cc5844",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 3.8371010000118986,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 15.114624999987427
+								},
+								{
+									"durationMs": 21.377087000000756,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.2897510000038892
+								},
+								{
+									"durationMs": 23.922458000015467,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 21.795931999979075
+								},
+								{
+									"durationMs": 14.046749999979511,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 45.86161500000162
+								},
+								{
+									"durationMs": 18.709891000005882,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 59.95906500000274
+								},
+								{
+									"durationMs": 50.928254000027664,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 78.92602199997054
+								},
+								{
+									"durationMs": 28.485054999997374,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 199.1607419999782
+								},
+								{
+									"durationMs": 24.684155999973882,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 235.18701699998928
+								},
+								{
+									"durationMs": 23.15603299997747,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 312.21993299998576
+								},
+								{
+									"durationMs": 128.67035099997884,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 343.4251529999892
+								},
+								{
+									"durationMs": 394.11155700002564,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 78.71351899998263
+								},
+								{
+									"durationMs": 2.5894060000428,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 473.9244839999592
+								},
+								{
+									"durationMs": 3.485603999986779,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 477.54153300001053
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 0.27,
+						"durationMs": 315.64238300000034,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "6212c0a1-c6fc-47b8-b424-9fe29b35d253",
+						"sqlDurationMs": 171.89,
+						"sqlElapsedMs": 171.89,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 3294,
+								"user": 29889
+							},
+							"durationMs": 299.34,
+							"eventLoopLagP95Ms": 3.13,
+							"memory": {
+								"arrayBuffers": 131347,
+								"external": 13504375,
+								"heapTotal": 35235840,
+								"heapUsed": 36088654,
+								"rss": 122941440
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "6212c0a1-c6fc-47b8-b424-9fe29b35d253",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 7.003813999996055,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 35.17903399997158
+								},
+								{
+									"durationMs": 42.15047900000354,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 6.963993999990635
+								},
+								{
+									"durationMs": 5.148037999984808,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 49.2317509999848
+								},
+								{
+									"durationMs": 3.0175750000053085,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 54.5353119999636
+								},
+								{
+									"durationMs": 6.462736000015866,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 57.60805999999866
+								},
+								{
+									"durationMs": 25.923752999980934,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 64.3520220000064
+								},
+								{
+									"durationMs": 19.243590999976732,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 114.83956799999578
+								},
+								{
+									"durationMs": 13.240308000007644,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 134.6251939999638
+								},
+								{
+									"durationMs": 3.9246609999681823,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 156.49527600000147
+								},
+								{
+									"durationMs": 112.69787999999244,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 161.14141999999993
+								},
+								{
+									"durationMs": 209.97992399998475,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 64.12231800000882
+								},
+								{
+									"durationMs": 6.992069999978412,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 274.26897999999346
+								},
+								{
+									"durationMs": 6.378757999977097,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 281.39203099999577
+								}
+							],
+							"status": 200
+						}
+					}
+				],
+				"throughput": 2.458875404751669
+			}
+		},
+		"selected": ["accounts"],
+		"selectedScenariosPassed": false,
+		"summaries": [
+			{
+				"load": 1,
+				"maxQueries": 7,
+				"mode": "redis-cold",
+				"name": "accounts",
+				"p95Ms": 519.9916349999994,
+				"passed": true,
+				"round": 1
+			},
+			{
+				"load": 1,
+				"maxQueries": 0,
+				"mode": "hot",
+				"name": "accounts",
+				"p95Ms": 54.832141999999294,
+				"passed": true,
+				"round": 1
+			},
+			{
+				"load": 1,
+				"maxQueries": 0,
+				"mode": "304",
+				"name": "accounts",
+				"p95Ms": 109.82439599999998,
+				"passed": false,
+				"round": 1
+			}
+		],
+		"worker": "stopped"
+	},
 	"complete": false,
 	"contextProjection": [
 		{
@@ -86,17 +1479,1454 @@
 		"referenceDate": "2026-10-04",
 		"transactions": 10
 	},
+	"http": {
+		"configuration": {
+			"fixture": {
+				"database": "zaimu_performance",
+				"namespace": "zaimu_performance",
+				"referenceDate": "2026-10-04",
+				"transactions": 10,
+				"users": 1
+			},
+			"iterations": 5,
+			"loads": [1],
+			"machine": {
+				"bun": "1.4.4",
+				"cpu": "Intel(R) N150",
+				"cpus": 4,
+				"hostEnd": {
+					"freeMemoryBytes": 6270803968,
+					"loadAverage": [22.84, 22.91, 19.03]
+				},
+				"hostStart": {
+					"freeMemoryBytes": 6356230144,
+					"loadAverage": [22.84, 22.91, 19.03]
+				},
+				"memoryBytes": 16527003648
+			},
+			"namespace": "zaimu_performance",
+			"rounds": 1
+		},
+		"diagnostic": true,
+		"generatedAt": "2026-10-29T13:59:26.274Z",
+		"passed": false,
+		"readScenariosPassed": false,
+		"referenceDate": "2026-10-04",
+		"results": {
+			"accounts:1:1:304": {
+				"p50Ms": 27.720570999999836,
+				"p95Ms": 34.80693599999995,
+				"p99Ms": 34.80693599999995,
+				"passed": true,
+				"samples": [
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 27.720570999999836,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "dfe70383-a350-4a1d-9218-672d084e596a",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 0,
+								"user": 5135
+							},
+							"durationMs": 20.47,
+							"eventLoopLagP95Ms": 3.2,
+							"memory": {
+								"arrayBuffers": 181682,
+								"external": 19770386,
+								"heapTotal": 35727360,
+								"heapUsed": 43741626,
+								"rss": 157077504
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "dfe70383-a350-4a1d-9218-672d084e596a",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 1.3346500000043306,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 8.03170299998601
+								},
+								{
+									"durationMs": 7.461796999996295,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 4.857287999999244
+								},
+								{
+									"durationMs": 2.8524540000071283,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 12.626410999990185
+								},
+								{
+									"durationMs": 3.9527859999943757,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 15.629877999992459
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 27.847261999999773,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "0dc20d5b-15d1-4cf8-afd4-5e19f3992d1e",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 679,
+								"user": 6412
+							},
+							"durationMs": 25.49,
+							"eventLoopLagP95Ms": 3.2,
+							"memory": {
+								"arrayBuffers": 182364,
+								"external": 19771548,
+								"heapTotal": 35760128,
+								"heapUsed": 43741626,
+								"rss": 157470720
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "0dc20d5b-15d1-4cf8-afd4-5e19f3992d1e",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 2.5251140000036685,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.797826000009081
+								},
+								{
+									"durationMs": 9.873053000002983,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.34406200000375975
+								},
+								{
+									"durationMs": 5.7823780000035185,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 10.404588000004878
+								},
+								{
+									"durationMs": 4.36645000000135,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 16.363796000005095
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 14.766701000000012,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "f2e45fd7-86a3-4b6b-b1e5-69b4efe092e9",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 826,
+								"user": 4945
+							},
+							"durationMs": 13.02,
+							"eventLoopLagP95Ms": 3.2,
+							"memory": {
+								"arrayBuffers": 183046,
+								"external": 19772710,
+								"heapTotal": 35760128,
+								"heapUsed": 43741626,
+								"rss": 157470720
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "f2e45fd7-86a3-4b6b-b1e5-69b4efe092e9",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 1.5250789999990957,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.7029400000028545
+								},
+								{
+									"durationMs": 6.514773999995668,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.3772109999990789
+								},
+								{
+									"durationMs": 2.3002879999985453,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 7.074565999995684
+								},
+								{
+									"durationMs": 2.7487630000105128,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.54126699999324
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 34.80693599999995,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "105d9b85-3159-4141-8577-2850030ddcab",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 2314,
+								"user": 6478
+							},
+							"durationMs": 31.19,
+							"eventLoopLagP95Ms": 3.21,
+							"memory": {
+								"arrayBuffers": 183728,
+								"external": 19773872,
+								"heapTotal": 35760128,
+								"heapUsed": 43741626,
+								"rss": 157470720
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "105d9b85-3159-4141-8577-2850030ddcab",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 4.682125999999698,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.60056999999506
+								},
+								{
+									"durationMs": 14.755602000004728,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.2926489999954356
+								},
+								{
+									"durationMs": 7.025941999992938,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 16.226716999997734
+								},
+								{
+									"durationMs": 7.103619999994407,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 23.564171999998507
+								}
+							],
+							"status": 304
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 0,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 22.312556999999742,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "5fbf2bb0-116d-4cc7-9ed9-b2541ec34ad9",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 304,
+						"telemetry": {
+							"bytes": 0,
+							"completed": true,
+							"cpuMicros": {
+								"system": 2730,
+								"user": 8597
+							},
+							"durationMs": 19.49,
+							"eventLoopLagP95Ms": 3.21,
+							"memory": {
+								"arrayBuffers": 184410,
+								"external": 19775034,
+								"heapTotal": 35760128,
+								"heapUsed": 43741626,
+								"rss": 157995008
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "5fbf2bb0-116d-4cc7-9ed9-b2541ec34ad9",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 4.14031299999624,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.221040999997058
+								},
+								{
+									"durationMs": 7.704552000010153,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 1.2478529999934835
+								},
+								{
+									"durationMs": 6.544983999992837,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.075549000001047
+								},
+								{
+									"durationMs": 2.2280460000038147,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 15.794551999992109
+								}
+							],
+							"status": 304
+						}
+					}
+				],
+				"throughput": 38.08557262980021
+			},
+			"accounts:1:1:hot": {
+				"p50Ms": 23.300313000000187,
+				"p95Ms": 41.728471000000354,
+				"p99Ms": 41.728471000000354,
+				"passed": true,
+				"samples": [
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 21.434029999999893,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "d2c0766d-c978-40a0-a6a1-3e6115008dab",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 164,
+								"user": 8359
+							},
+							"durationMs": 19.67,
+							"eventLoopLagP95Ms": 3.18,
+							"memory": {
+								"arrayBuffers": 147898,
+								"external": 19733242,
+								"heapTotal": 35612672,
+								"heapUsed": 43741626,
+								"rss": 155766784
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "d2c0766d-c978-40a0-a6a1-3e6115008dab",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 2.9273210000101244,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 5.428078999990248
+								},
+								{
+									"durationMs": 8.748983000012231,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.347392999989097
+								},
+								{
+									"durationMs": 2.3846019999909913,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.238521999999648
+								},
+								{
+									"durationMs": 2.6208199999964563,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 11.795434999992722
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 29.41420100000005,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "6ee88c5b-4cf4-4625-8583-207edd66e550",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 1054,
+								"user": 10704
+							},
+							"durationMs": 23.73,
+							"eventLoopLagP95Ms": 3.18,
+							"memory": {
+								"arrayBuffers": 153415,
+								"external": 19739239,
+								"heapTotal": 35629056,
+								"heapUsed": 43741626,
+								"rss": 156684288
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "6ee88c5b-4cf4-4625-8583-207edd66e550",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 1.5921649999945657,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.738631999993231
+								},
+								{
+									"durationMs": 15.196146999995108,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 3.1761509999923874
+								},
+								{
+									"durationMs": 1.5941940000047907,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 18.513630999994348
+								},
+								{
+									"durationMs": 0.9464710000029299,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 20.247670999990078
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 23.300313000000187,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "df2d9262-118e-4ac8-94f5-8c098b9cce5e",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 1881,
+								"user": 6148
+							},
+							"durationMs": 19.95,
+							"eventLoopLagP95Ms": 3.18,
+							"memory": {
+								"arrayBuffers": 158932,
+								"external": 19745236,
+								"heapTotal": 35678208,
+								"heapUsed": 43741626,
+								"rss": 156815360
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "df2d9262-118e-4ac8-94f5-8c098b9cce5e",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 2.3649849999928847,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 7.713631000005989
+								},
+								{
+									"durationMs": 9.92119600001024,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 1.0284109999920474
+								},
+								{
+									"durationMs": 1.5642700000025798,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 11.08047099999385
+								},
+								{
+									"durationMs": 4.189211000004434,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 12.802249999993364
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 15.435311999999612,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "2ebf2f68-2cc4-43ae-af26-a20679c84ffd",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 102,
+								"user": 6487
+							},
+							"durationMs": 13.27,
+							"eventLoopLagP95Ms": 3.18,
+							"memory": {
+								"arrayBuffers": 164449,
+								"external": 19751233,
+								"heapTotal": 35678208,
+								"heapUsed": 43741626,
+								"rss": 156815360
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "2ebf2f68-2cc4-43ae-af26-a20679c84ffd",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 2.6018239999975776,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.962397000010242
+								},
+								{
+									"durationMs": 7.150640000007115,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 1.1458459999994375
+								},
+								{
+									"durationMs": 1.7281759999896167,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 8.465522000013152
+								},
+								{
+									"durationMs": 1.7982900000060908,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 10.417310000004363
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 0,
+						"bytes": 4739,
+						"cache": "HIT",
+						"connectionWaitMs": 0,
+						"durationMs": 41.728471000000354,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 0,
+						"requestId": "2adcce81-4f22-42eb-aeb8-bd019d0b3dfb",
+						"sqlDurationMs": 0,
+						"sqlElapsedMs": 0,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 2737,
+								"user": 3284
+							},
+							"durationMs": 36.01,
+							"eventLoopLagP95Ms": 3.18,
+							"memory": {
+								"arrayBuffers": 169966,
+								"external": 19757230,
+								"heapTotal": 35710976,
+								"heapUsed": 43741626,
+								"rss": 156815360
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "2adcce81-4f22-42eb-aeb8-bd019d0b3dfb",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 6.8568990000057966,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 10.582030999998096
+								},
+								{
+									"durationMs": 16.873279999999795,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 1.2571129999996629
+								},
+								{
+									"durationMs": 8.31522099999711,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 18.27143900000374
+								},
+								{
+									"durationMs": 4.357073000006494,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 26.73757199999818
+								}
+							],
+							"status": 200
+						}
+					}
+				],
+				"throughput": 37.47724924845755
+			},
+			"accounts:1:1:redis-cold": {
+				"p50Ms": 95.51130700000022,
+				"p95Ms": 144.8078700000001,
+				"p99Ms": 144.8078700000001,
+				"passed": true,
+				"samples": [
+					{
+						"authQueries": 2,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 0.9,
+						"durationMs": 144.8078700000001,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 7,
+						"requestId": "c7b167de-8ebd-438e-b795-7ed04a8d4f2c",
+						"sqlDurationMs": 91.36,
+						"sqlElapsedMs": 91.36,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 3668,
+								"user": 48224
+							},
+							"durationMs": 141.49,
+							"eventLoopLagP95Ms": 3.16,
+							"memory": {
+								"arrayBuffers": 41731,
+								"external": 19623715,
+								"heapTotal": 35153920,
+								"heapUsed": 43741626,
+								"rss": 153804800
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "c7b167de-8ebd-438e-b795-7ed04a8d4f2c",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 0.98829900000419,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 3.1719039999879897
+								},
+								{
+									"durationMs": 3.2500360000121873,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 8.036715999987791
+								},
+								{
+									"durationMs": 5.451963999992586,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 20.01032000000123
+								},
+								{
+									"durationMs": 1.138809999989462,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 27.444243999998434
+								},
+								{
+									"durationMs": 28.24295400000119,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.4603979999956209
+								},
+								{
+									"durationMs": 1.4224300000059884,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 30.597597999993013
+								},
+								{
+									"durationMs": 0.9440450000111014,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 32.27248799998779
+								},
+								{
+									"durationMs": 0.6273700000019744,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 33.31889099998807
+								},
+								{
+									"durationMs": 20.28712199999427,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 34.258923999994295
+								},
+								{
+									"durationMs": 5.341377000004286,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 63.111985999988974
+								},
+								{
+									"durationMs": 7.419284999996307,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 72.88524899999902
+								},
+								{
+									"durationMs": 1.8699750000087079,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 84.30733899999177
+								},
+								{
+									"durationMs": 47.71787400000903,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 86.89886199998728
+								},
+								{
+									"durationMs": 102.66586300000199,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 33.995845999990706
+								},
+								{
+									"durationMs": 1.6703229999984615,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 136.8724879999936
+								},
+								{
+									"durationMs": 1.5127330000104848,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 138.73670299998776
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 1.08,
+						"durationMs": 77.84687699999995,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "572ef667-d91b-4c19-9744-e9ab178d605d",
+						"sqlDurationMs": 52.69,
+						"sqlElapsedMs": 52.69,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 2927,
+								"user": 24029
+							},
+							"durationMs": 75.19,
+							"eventLoopLagP95Ms": 3.16,
+							"memory": {
+								"arrayBuffers": 64135,
+								"external": 19646599,
+								"heapTotal": 35268608,
+								"heapUsed": 43741626,
+								"rss": 154066944
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "572ef667-d91b-4c19-9744-e9ab178d605d",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 0.8583220000000438,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.802584999997634
+								},
+								{
+									"durationMs": 4.632025999992038,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 2.3914070000028005
+								},
+								{
+									"durationMs": 0.9388980000076117,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 7.179936999993515
+								},
+								{
+									"durationMs": 0.6789059999864548,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 8.340494000003673
+								},
+								{
+									"durationMs": 0.5037849999935133,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.066374000001815
+								},
+								{
+									"durationMs": 7.968257000000449,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 9.876216999997268
+								},
+								{
+									"durationMs": 2.9426669999957085,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 21.87829700000293
+								},
+								{
+									"durationMs": 6.600300000005518,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 25.280713999993168
+								},
+								{
+									"durationMs": 2.9264710000134073,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 35.12297299999045
+								},
+								{
+									"durationMs": 32.34682700000121,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 38.67989800000214
+								},
+								{
+									"durationMs": 61.83761699999741,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 9.6166649999941
+								},
+								{
+									"durationMs": 1.8763399999879766,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 71.60895300000266
+								},
+								{
+									"durationMs": 0.8905779999913648,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 73.65975099999923
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 0.26,
+						"durationMs": 95.51130700000022,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "44a75c00-7231-4d54-921e-d3942e7ab55b",
+						"sqlDurationMs": 69.67,
+						"sqlElapsedMs": 69.67,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 4685,
+								"user": 27812
+							},
+							"durationMs": 94.07,
+							"eventLoopLagP95Ms": 3.17,
+							"memory": {
+								"arrayBuffers": 86539,
+								"external": 19669483,
+								"heapTotal": 35317760,
+								"heapUsed": 43741626,
+								"rss": 154853376
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "44a75c00-7231-4d54-921e-d3942e7ab55b",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 1.1171370000083698,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 2.0343029999930877
+								},
+								{
+									"durationMs": 3.080928000010317,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.7389929999917513
+								},
+								{
+									"durationMs": 1.1579990000027465,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 3.9363719999964815
+								},
+								{
+									"durationMs": 0.6862210000108462,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 5.357500999991316
+								},
+								{
+									"durationMs": 0.7733189999999013,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 6.126888999991934
+								},
+								{
+									"durationMs": 7.139275999987149,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 7.214393000002019
+								},
+								{
+									"durationMs": 3.8556959999987157,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 20.9121279999963
+								},
+								{
+									"durationMs": 4.301322999992408,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 26.525355999998283
+								},
+								{
+									"durationMs": 6.882826000000932,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 33.2589169999992
+								},
+								{
+									"durationMs": 47.42973599999095,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 41.11797099999967
+								},
+								{
+									"durationMs": 81.86917799999355,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 6.9853279999952065
+								},
+								{
+									"durationMs": 2.4638879999984056,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 89.04242499999236
+								},
+								{
+									"durationMs": 1.6287259999953676,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 91.77972099999897
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 0.25,
+						"durationMs": 113.74523500000032,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "7a4a3728-51ee-46ba-beaa-15af92779022",
+						"sqlDurationMs": 76.18,
+						"sqlElapsedMs": 76.18,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 3701,
+								"user": 19328
+							},
+							"durationMs": 109.29,
+							"eventLoopLagP95Ms": 3.17,
+							"memory": {
+								"arrayBuffers": 108943,
+								"external": 19692367,
+								"heapTotal": 35399680,
+								"heapUsed": 43741626,
+								"rss": 155246592
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "7a4a3728-51ee-46ba-beaa-15af92779022",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 1.8395560000062687,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.67189800000051
+								},
+								{
+									"durationMs": 6.571117999992566,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.5934700000070734
+								},
+								{
+									"durationMs": 1.8475150000012945,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 7.314203999994788
+								},
+								{
+									"durationMs": 1.598452999998699,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.31264000000374
+								},
+								{
+									"durationMs": 2.0789459999941755,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 10.979478000008385
+								},
+								{
+									"durationMs": 12.971457999999984,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 15.552825999999186
+								},
+								{
+									"durationMs": 5.3714100000070175,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 31.66818599999533
+								},
+								{
+									"durationMs": 10.639171000002534,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 43.550147999994806
+								},
+								{
+									"durationMs": 6.763459000008879,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 58.26494599999569
+								},
+								{
+									"durationMs": 38.41596900000877,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 65.71536699999706
+								},
+								{
+									"durationMs": 91.23781799999415,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 13.136096000001999
+								},
+								{
+									"durationMs": 2.596887000006973,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 104.58390399999917
+								},
+								{
+									"durationMs": 1.2223550000053365,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 107.37277000000176
+								}
+							],
+							"status": 200
+						}
+					},
+					{
+						"authQueries": 0,
+						"businessQueries": 5,
+						"bytes": 4739,
+						"cache": "MISS",
+						"connectionWaitMs": 0.23,
+						"durationMs": 95.40024499999981,
+						"method": "GET",
+						"path": "/financial-accounts/",
+						"queries": 5,
+						"requestId": "1c61d5b6-5fcb-4b5d-9c58-d488767c73dd",
+						"sqlDurationMs": 63.16,
+						"sqlElapsedMs": 63.16,
+						"status": 200,
+						"telemetry": {
+							"bytes": 4739,
+							"completed": true,
+							"cpuMicros": {
+								"system": 3789,
+								"user": 26658
+							},
+							"durationMs": 91.16,
+							"eventLoopLagP95Ms": 3.18,
+							"memory": {
+								"arrayBuffers": 131347,
+								"external": 19715251,
+								"heapTotal": 35514368,
+								"heapUsed": 43741626,
+								"rss": 155246592
+							},
+							"method": "GET",
+							"pool": {
+								"idle": 1,
+								"total": 1,
+								"waiting": 0
+							},
+							"requestId": "1c61d5b6-5fcb-4b5d-9c58-d488767c73dd",
+							"route": "/financial-accounts/",
+							"spans": [
+								{
+									"durationMs": 0.8991839999944204,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 2.5165370000031544
+								},
+								{
+									"durationMs": 3.977859000005992,
+									"name": "auth",
+									"outcome": "ok",
+									"startMs": 0.25585899999714456
+								},
+								{
+									"durationMs": 0.833652000001166,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 4.961818999989191
+								},
+								{
+									"durationMs": 2.70169299999543,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 6.243279000002076
+								},
+								{
+									"durationMs": 0.584195000003092,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 9.023818999994546
+								},
+								{
+									"durationMs": 8.3807630000083,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 9.892362999991747
+								},
+								{
+									"durationMs": 1.8728320000082022,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 26.50687499999185
+								},
+								{
+									"durationMs": 11.076833999992232,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 30.02860099999816
+								},
+								{
+									"durationMs": 2.0859049999999115,
+									"name": "sql:SELECT",
+									"outcome": "ok",
+									"startMs": 43.27129099999729
+								},
+								{
+									"durationMs": 39.60221199999796,
+									"name": "sql:WITH",
+									"outcome": "ok",
+									"startMs": 46.27844300000288
+								},
+								{
+									"durationMs": 76.49121000000741,
+									"name": "loader",
+									"outcome": "ok",
+									"startMs": 9.649894999995013
+								},
+								{
+									"durationMs": 2.1519960000005085,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 86.40855300000112
+								},
+								{
+									"durationMs": 1.0927620000002207,
+									"name": "redis",
+									"outcome": "ok",
+									"startMs": 88.71000500000082
+								}
+							],
+							"status": 200
+						}
+					}
+				],
+				"throughput": 9.108643985093824
+			}
+		},
+		"selected": ["accounts"],
+		"selectedScenariosPassed": false,
+		"summaries": [
+			{
+				"load": 1,
+				"maxQueries": 7,
+				"mode": "redis-cold",
+				"name": "accounts",
+				"p95Ms": 144.8078700000001,
+				"passed": true,
+				"round": 1
+			},
+			{
+				"load": 1,
+				"maxQueries": 0,
+				"mode": "hot",
+				"name": "accounts",
+				"p95Ms": 41.728471000000354,
+				"passed": true,
+				"round": 1
+			},
+			{
+				"load": 1,
+				"maxQueries": 0,
+				"mode": "304",
+				"name": "accounts",
+				"p95Ms": 34.80693599999995,
+				"passed": true,
+				"round": 1
+			}
+		],
+		"worker": "stopped"
+	},
 	"limitations": [
 		"Single EXPLAIN ANALYZE per mode; not a p95 comparison.",
 		"jit-off used only as SET LOCAL inside a read-only diagnostic transaction.",
-		"Real HTTP capture and integration pending.",
-		"Global performance acceptance remains pending."
+		"Global performance acceptance remains pending.",
+		"Five samples, one user, ten transaction fixture; not the official 3-round/load/history matrix.",
+		"HTTP diagnostic ran while disposable integration tests were active; host load average about 23. No controlled wall-time speedup inferred.",
+		"Database clock is not frozen by the JavaScript Date proxy; SQL CURRENT_DATE still follows host date. Full fixed-clock acceptance remains pending."
 	],
 	"notes": [
 		"Materializing only the rules expression reduced JIT cost but outer joins still inflated its estimated evaluation count.",
 		"Account context is now materialized before outer joins; intermediate planner field is removed from account JSON.",
 		"Same dedicated fixture, unchanged global JIT settings; default planner no longer selects JIT for this query."
 	],
+	"officialClockRejection": {
+		"measuredGroups": 0,
+		"passed": false,
+		"results": {
+			"runner": {
+				"error": "PostgreSQL business date 2026-10-29 differs from application reference 2026-10-04; fixed-clock acceptance unavailable",
+				"passed": false
+			}
+		}
+	},
 	"passed": false,
-	"productionJitSettingChanged": false
+	"productionJitSettingChanged": false,
+	"responseComparison": {
+		"after": {
+			"bytes": 4739,
+			"durationMs": 347.22341800000004,
+			"phase": "after",
+			"queries": 7,
+			"requestId": "9f15b92c-a93d-4c57-bbc1-09e2b0862d17",
+			"sha256": "52c0662169db8047fd8f892396be78c51dcc7ef1fc73fb57652df5bf00bd9501",
+			"sqlDurationMs": 155.78
+		},
+		"before": {
+			"bytes": 4739,
+			"durationMs": 11731.733191,
+			"phase": "before",
+			"queries": 7,
+			"requestId": "724b87a3-24c9-48a7-8838-55d5ad762db9",
+			"sha256": "52c0662169db8047fd8f892396be78c51dcc7ef1fc73fb57652df5bf00bd9501",
+			"sqlDurationMs": 11457.78
+		}
+	},
+	"validation": {
+		"backendBuild": true,
+		"executor": {
+			"assertions": 142,
+			"files": 13,
+			"passed": true,
+			"tests": 34
+		},
+		"integration": {
+			"assertions": 1569,
+			"files": 23,
+			"passed": true,
+			"tests": 167
+		},
+		"openApiExport": true,
+		"sdkGeneration": true
+	}
 }
