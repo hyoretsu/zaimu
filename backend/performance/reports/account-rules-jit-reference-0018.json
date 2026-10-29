@@ -64,6 +64,22 @@
 		}
 	],
 	"complete": false,
+	"contextProjection": [
+		{
+			"cost": 231.75,
+			"executionMs": 2.764,
+			"mode": "default",
+			"planningMs": 7.427,
+			"rows": 3
+		},
+		{
+			"cost": 231.75,
+			"executionMs": 1.831,
+			"mode": "jit-off",
+			"planningMs": 3.539,
+			"rows": 3
+		}
+	],
 	"diagnostic": true,
 	"fixture": {
 		"accounts": 3,
@@ -75,6 +91,11 @@
 		"jit-off used only as SET LOCAL inside a read-only diagnostic transaction.",
 		"Real HTTP capture and integration pending.",
 		"Global performance acceptance remains pending."
+	],
+	"notes": [
+		"Materializing only the rules expression reduced JIT cost but outer joins still inflated its estimated evaluation count.",
+		"Account context is now materialized before outer joins; intermediate planner field is removed from account JSON.",
+		"Same dedicated fixture, unchanged global JIT settings; default planner no longer selects JIT for this query."
 	],
 	"passed": false,
 	"productionJitSettingChanged": false

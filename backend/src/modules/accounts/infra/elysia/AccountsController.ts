@@ -49,9 +49,9 @@ import {
 	queryRows,
 	withRawTransaction,
 } from "~/shared/infra/sql";
+import { financialAccountContextSql } from "../../application/financial-account-context-sql";
 import {
 	accountCardRules,
-	cardRuleValuesSql,
 	institutionCardRules,
 	rewardAccountForRules,
 } from "../../application/institution-card-rules";
@@ -205,17 +205,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					institution: { id: string; name: string } | null;
 					card: Record<string, unknown> | null;
 					rewards: Record<string, unknown> | null;
-				}>(
-					`
-SELECT to_jsonb(account) - 'balance' AS account, to_jsonb(institution) AS institution,
- to_jsonb(card) || ${cardRuleValuesSql("account")} AS card, to_jsonb(rewards) AS rewards
-FROM "FinancialAccount" account
-LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
-LEFT JOIN "CreditCard" card ON card."financialAccountId" = account."id"
-LEFT JOIN "RewardsAccount" rewards ON rewards."financialAccountId" = account."id"
-WHERE account."userId" = $1 ORDER BY account."name", account."id"`,
-					[userId],
-				);
+				}>(financialAccountContextSql, [userId]);
 				const policies = await getFinancialInstitutionYieldPolicies([
 					...new Set(rows.flatMap(row => (row.institution ? [row.institution.id] : []))),
 				]);

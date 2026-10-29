@@ -4,6 +4,7 @@ import { closeDatabase, getQueryMetrics, queryRaw, withQueryMetrics } from "sql"
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
+import { financialAccountContextSql } from "../application/financial-account-context-sql";
 import { listFinancialAccountOptions } from "../application/list-financial-account-options";
 
 const url = requireFixtureUrl("DATABASE_TEST_URL");
@@ -44,4 +45,19 @@ test("unfiltered options remain user-scoped and unknown owners receive no rows",
 		"visible",
 	]);
 	expect(await listFinancialAccountOptions("missing-owner")).toEqual([]);
+});
+
+test("full context resolves only owned accounts and never exposes internal planner columns", async () => {
+	await withQueryMetrics(async () => {
+		const rows = await queryRaw<{ account: { id: string; type: string }; card: unknown }>(
+			financialAccountContextSql,
+			["owner"],
+		);
+		expect(getQueryMetrics()?.queryCount).toBe(1);
+		expect(rows.map(row => row.account.id).sort()).toEqual(["cash", "hidden", "visible"]);
+		for (const row of rows) {
+			expect(row.account).not.toHaveProperty("resolved_card_rules");
+			expect(row.account).not.toHaveProperty("balance");
+		}
+	});
 });
