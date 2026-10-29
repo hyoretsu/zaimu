@@ -63,6 +63,10 @@ describe("writeNamespaces", () => {
 			expect(namespaces).toContain(namespace);
 	});
 
+	test("currency preference changes fence cached defaults and both dashboard views", () => {
+		expect(writeNamespaces("/currency-preferences/")).toEqual(["currencies:preferences", "dashboard"]);
+	});
+
 	test("ignores domains without declared cache dependencies", () => {
 		expect(writeNamespaces("/auth/sign-in")).toEqual([]);
 	});

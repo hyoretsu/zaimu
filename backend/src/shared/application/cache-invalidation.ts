@@ -22,6 +22,7 @@ export const syncCacheNamespaces: CacheNamespace[] = [
 	"categories:list",
 	"credit-cards:overview",
 	"credit-cards:statements",
+	"currencies:preferences",
 	"dashboard",
 	"debts:events",
 	"debts:invitations",
@@ -86,6 +87,7 @@ export const cacheInvalidationMatrix: Record<string, NamespaceResolver> = {
 		"imports:pending",
 		...detail("imports:detail")(event),
 	],
+	currencyPreference: () => ["currencies:preferences", "dashboard"],
 	debt: () => ["debts:events", "debts:invitations", "debts:overview", "dashboard", "transactions:list"],
 	financialAccount: () => [
 		"credit-cards:overview",

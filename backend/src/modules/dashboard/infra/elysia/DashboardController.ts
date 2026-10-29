@@ -40,12 +40,13 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 		"/",
 		async ({ query, request, set }) => {
 			const userId = await requireUserId(request);
-			const consolidatedCurrency = await defaultCurrency(userId, request.headers.get("X-Currency"));
+			const locationCurrency = request.headers.get("X-Currency");
 			const cached = await distributedCache.remember(
 				userId,
 				"dashboard",
-				{ ...query, currency: consolidatedCurrency },
+				{ ...query, locationCurrency, view: "currency-context-v2" },
 				async () => {
+					const consolidatedCurrency = await defaultCurrency(userId, locationCurrency);
 					const now = new Date();
 					const today = startOfDay(now);
 					const range = resolveDashboardRange(query.startDate, query.endDate, now);

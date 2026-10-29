@@ -12,6 +12,7 @@ export const cacheNamespaces = [
 	"categories:list",
 	"credit-cards:overview",
 	"credit-cards:statements",
+	"currencies:preferences",
 	"dashboard",
 	"debts:invitations",
 	"debts:events",
@@ -137,7 +138,9 @@ export class DistributedCache {
 		if (namespace.startsWith("transactions:detail:")) return ["transactions:detail", namespace];
 		if (namespace.startsWith("imports:detail:")) return ["imports:detail", namespace];
 		if (namespace.startsWith("credit-cards:") && namespace.endsWith(":statements"))
-			return namespace === "credit-cards:statements" ? [namespace] : ["credit-cards:statements", namespace];
+			return namespace === "credit-cards:statements"
+				? [namespace]
+				: ["credit-cards:statements", namespace];
 		return [namespace];
 	}
 	private async fenced(userId: string, namespace: CacheNamespace) {
@@ -261,11 +264,11 @@ export class DistributedCache {
 		let renewing = Promise.resolve();
 		const renewal = ownsLock
 			? setInterval(() => {
-					renewing = this.safely(() => this.cache.renewLock(lockKey, lockOwner, LOCK_LEASE_MS)).then(
-						valid => {
-							leaseValid = leaseValid && valid === true;
-						},
-					);
+					renewing = this.safely(() =>
+						this.cache.renewLock(lockKey, lockOwner, LOCK_LEASE_MS),
+					).then(valid => {
+						leaseValid = leaseValid && valid === true;
+					});
 				}, LOCK_LEASE_MS / 3)
 			: undefined;
 		const pending = (async () => {
@@ -273,7 +276,8 @@ export class DistributedCache {
 			const value = await measureOperation("loader", load);
 			const encoded = JSON.stringify(value);
 			const entry = { createdAt, etag: `"${hash(encoded)}"`, value };
-			if (leaseValid) await this.safely(() => this.cache.setRegistered(key, JSON.stringify(entry), guards));
+			if (leaseValid)
+				await this.safely(() => this.cache.setRegistered(key, JSON.stringify(entry), guards));
 			return entry;
 		})();
 		localCoalescing.set(key, pending);

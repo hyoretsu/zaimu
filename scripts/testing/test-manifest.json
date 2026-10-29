@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/currencies/tests/currency-default-cache.integration.test.ts",
 		"backend/src/modules/accounts/tests/account-options.integration.test.ts",
 		"backend/src/modules/account-transfers/tests/account-transfers.integration.test.ts",
 		"backend/src/modules/credit-card-imports/tests/import-purchase-taxes.integration.test.ts",
@@ -25,6 +26,7 @@
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],
 	"backend:unit": [
+		"backend/performance/invoice-approval.test.ts",
 		"backend/src/modules/batch/infra/elysia/BatchController.test.ts",
 		"backend/src/shared/application/financial-date.test.ts",
 		"backend/performance/clock.test.ts",

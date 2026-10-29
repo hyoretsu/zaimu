@@ -73,6 +73,7 @@ const aggregateForPath = (pathname: string) => {
 				categories: "category",
 				"credit-card-imports": "creditCardImport",
 				"credit-cards": "creditCard",
+				"currency-preferences": "currencyPreference",
 				debts: "debt",
 				"financial-account-yield-holidays": "financialAccount",
 				"financial-account-yields": "financialAccount",

@@ -10,18 +10,27 @@ export type DashboardComparisonReturn = typeof DashboardComparisonReturn.static;
 
 export const DashboardComparisonController = new Elysia().get(
 	"/comparison",
-	async ({ query, request, set, status }) => {
+	async ({ query, request, set }) => {
 		const userId = await requireUserId(request);
-		const currency = await defaultCurrency(userId, request.headers.get("X-Currency"));
+		const locationCurrency = request.headers.get("X-Currency");
 		const cached = await distributedCache.remember(
 			userId,
 			"dashboard",
-			{ resource: "comparison", ...query, currency },
-			(): Promise<DashboardComparisonReturn> => getDashboardComparison(userId, query, undefined, currency),
+			{ resource: "comparison", ...query, locationCurrency, view: "currency-context-v2" },
+			async (): Promise<DashboardComparisonReturn> =>
+				getDashboardComparison(
+					userId,
+					query,
+					undefined,
+					await defaultCurrency(userId, locationCurrency),
+				),
 		);
 		set.headers.etag = cached.etag;
 		set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
-		if (request.headers.get("if-none-match") === cached.etag) return status(304, null);
+		if (request.headers.get("if-none-match") === cached.etag) {
+			set.status = 304;
+			return null;
+		}
 		return cached.value;
 	},
 	{
