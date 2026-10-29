@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { type CreditCardImportItem, getImportTaxSources } from "@/lib/api";
+import { type CreditCardImportItem, getCreditCardImportsByIdTaxSources } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { useCacheIdentity } from "@/lib/query-cache";
 
@@ -27,7 +27,7 @@ export function ImportedTaxPurchaseSelect({
 				items.push(...page.items);
 				cursor = page.hasMore ? (page.nextCursor ?? undefined) : undefined;
 			} while (cursor);
-			const existing = await getImportTaxSources(importId);
+			const existing = await getCreditCardImportsByIdTaxSources(encodeURIComponent(importId));
 			return [
 				...existing.filter(
 					purchase => !items.some(item => item.reconciledCreditPurchaseId === purchase.id),

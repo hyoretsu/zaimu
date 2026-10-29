@@ -551,3 +551,5 @@ Próxima etapa: validar fallback de cache e persistência incremental contra reg
 
 - loadYieldAccounts consultava contas, históricos, perfis e políticas antes de carregar novamente esses mesmos dados para replay dos lotes tributários. Agora retorna contas enriquecidas do próprio input do replay, acrescentando somente snapshots de lotes. Catálogo tributário continua carregado antes do cálculo.
 - Regressão de integração compara contexto completo, histórico efetivo, país e lotes de duas contas do mesmo usuário; orçamento exige somente uma query adicional (catálogo tributário) sobre loader do replay. Lista vazia exige zero SQL. Validação em andamento após incorporar mudanças concorrentes de instituições.
+
+- Integração após mudanças concorrentes detectou wrapper getImportTaxSources sem operação OpenAPI correspondente. Endpoint já está exportado; seletor passa a usar getCreditCardImportsByIdTaxSources gerado, mantendo codificação do ID e mesma resposta. Wrapper manual duplicado removido. Contrato será verificado novamente antes de aceite.
