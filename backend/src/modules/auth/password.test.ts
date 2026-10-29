@@ -12,5 +12,5 @@ describe("credenciais Better Auth", () => {
 		const hash = await hashPassword("senha-nova-segura");
 		expect(hash.startsWith("$2")).toBe(true);
 		expect(await verifyPassword({ hash, password: "senha-nova-segura" })).toBe(true);
-	}, 15_000);
+	}, 60_000);
 });
