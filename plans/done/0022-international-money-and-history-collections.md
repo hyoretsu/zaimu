@@ -114,7 +114,6 @@ Use normal commit hooks for formatting/lint/types/backend unit coverage; scoped 
 
 - Formulários vazios de transações, recorrências e empréstimos acompanham preferência carregada posteriormente; seleção explícita e entrada monetária bloqueiam substituições, inclusive durante debounce. Testes persistentes cobrem cache de sete dias, deduplicação, falha do provedor, preferência/viagem e acesso mobile direto. Validação final em execução.
 
-
 ## Local completion - 2026-10-08
 
 All implementation stages above are complete in local source. Earlier pending notes are historical milestones, superseded by subsequent entries and this verification. No deployment or database rollout is included. User-owned migration artifacts and db reference remain untouched and uncommitted by this continuation.

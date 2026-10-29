@@ -49,9 +49,19 @@ On the user's machine add `-c commit.gpgsign=false`. Cloud sessions keep their p
 - Adjustments to something just delivered amend or rebase instead of adding noise.
 - Validation is hook-driven (`.githooks/pre-commit` → lint-staged → `scripts/validate-staged.ts`). Do not run format/lint/type-check as manual pre-commit steps; fix hook failures at the root cause and commit again. Never bypass with `--no-verify` or `LEFTHOOK=0`.
 
+## Agent changes
+
+Any change related to agents (instructions, skills, hooks or configuration) must support at least **Codex and Claude Code**. Keep shared behavior in agent-neutral sources and wire it into both agents; do not implement it for only one. Apply the corresponding change to the template at `/home/hyoretsu/Projects/ts-monorepo` and to the global instructions for both agents in the same task. In the template, put cross-project directives only in the root `AGENTS.md`, not in package-level guidelines. The template is the source of truth when shared rules diverge; preserve each project's actual domain and stack specifics.
+
 ## Plans
 
-Only large features executed in Plan mode need a plan in [`plans/`](plans/), named `NNNN-kebab-slug.md` with the next sequential number. Read it when resuming; after each completed step update progress and commit that update with the step's changes. `docs/` is product/domain knowledge, `plans/` is execution history.
+Only large features executed in Plan mode need a plan. `docs/` is product/domain knowledge; `plans/` is execution history organized by lifecycle:
+
+- `plans/`: only newly created or in-progress plans.
+- `plans/done/`: completed plans. Move the plan here when all steps are complete.
+- `plans/discarded/`: abandoned, rejected or superseded plans. Record why they were discarded and link a replacement when applicable; never mark them completed just to archive them.
+
+Name plans `NNNN-kebab-slug.md`, using the next sequential number across all three locations; never reuse an archived plan's number. Preserve the filename when moving a plan, update references and relative links, and commit the move with the corresponding completion or discard update. When resuming, read the existing plan wherever it is; if reopened, move it back to `plans/`. After each completed step, update progress and commit that update with the step's changes.
 
 ## Pre-PR / pre-merge
 

@@ -1,9 +1,11 @@
 # Taxas de referência e rendimentos event-driven
 
 ## Objetivo
+
 Persistir CDI e Selic diários, materializar rendimentos pós-fixados somente após a taxa existir e recuperar automaticamente atrasos, correções e falhas transitórias.
 
 ## Decisões
+
 - SGS 12 representa CDI e SGS 11 representa Selic; ambos retornam percentual diário.
 - Bootstrap consulta 01/01/2020-17/09/2026 em uma requisição por série.
 - Worker embutido usa fila PostgreSQL, lease, deduplicação e retry persistente.
@@ -12,6 +14,7 @@ Persistir CDI e Selic diários, materializar rendimentos pós-fixados somente ap
 - Configurações numéricas legadas tornam-se CDI; lançamentos existentes tornam-se overrides do usuário.
 
 ## Etapas
+
 - [x] Evoluir contrato SQL e migração compatível.
 - [x] Implementar cliente BCB, fila, scheduler e bootstrap.
 - [x] Materializar e recalcular rendimentos em resposta às taxas e mudanças retroativas.
@@ -25,7 +28,9 @@ Persistir CDI e Selic diários, materializar rendimentos pós-fixados somente ap
 - [x] Validar coleta, fanout e rollback em PostgreSQL descartável.
 
 ## Estado atual
+
 Implementação original concluída. Correção operacional validada após identificar rollback do lote por parâmetro de data sem cast e operações data-only ausentes no artefato da migração. A migração corretiva agora possui transição de contrato própria e entra na rota normal de deploy.
 
 ## Próximo passo
+
 Aplicar migrações somente no ambiente desejado durante a publicação.

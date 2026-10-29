@@ -10,14 +10,14 @@
 
 - Evoluir `GET /dashboard` com query TypeBox opcional `startDate`/`endDate` e `DashboardReturn` TypeBox explícito.
 - Retornar:
-  - totais do período: saldo inicial/final, entradas, saídas e resultado;
-  - contas `CHECKING` e `SAVINGS`, com saldo;
-  - cartões com limite disponível, fatura atual e indicador de exclusão;
-  - limite disponível total, ignorando cartões `excludeFromTotals`;
-  - próxima ocorrência de cada salário, assinatura, pagamento recorrente, cartão/fatura e empréstimo;
-  - todas as transações manuais futuras;
-  - pessoas com dívida não zerada, direção e saldo;
-  - 13 períodos comparativos: seis anteriores, selecionado e seis posteriores.
+    - totais do período: saldo inicial/final, entradas, saídas e resultado;
+    - contas `CHECKING` e `SAVINGS`, com saldo;
+    - cartões com limite disponível, fatura atual e indicador de exclusão;
+    - limite disponível total, ignorando cartões `excludeFromTotals`;
+    - próxima ocorrência de cada salário, assinatura, pagamento recorrente, cartão/fatura e empréstimo;
+    - todas as transações manuais futuras;
+    - pessoas com dívida não zerada, direção e saldo;
+    - 13 períodos comparativos: seis anteriores, selecionado e seis posteriores.
 - Usar intervalos contíguos com mesma duração inclusiva do filtro. Filtro aberto ou “Todas as datas” usa mês atual como intervalo-base do gráfico.
 - Para datas até hoje, usar valores concretos. Depois de hoje, combinar saldo atual com previsões, sem persistir ocorrências futuras.
 - Evitar dupla contagem: despesas cobradas em cartão entram no fluxo consolidado pela fatura; transferências entre contas próprias não alteram total.
