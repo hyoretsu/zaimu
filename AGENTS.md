@@ -76,6 +76,7 @@ Run type-check and build for affected packages before a PR or merge. Local valid
 - Unit tests sit next to the file under test: `Foo.ts` → `Foo.test.ts`.
 - Integration/E2E tests (several units, DB, cross-module) live in a `tests/` folder in the module. Never name it `__tests__` or any `__…__` form.
 - Backend runs on Bun: `bun:test` and `bun test`.
+- Ephemeral test databases: if `POSTGRES_URL` is set, create the disposable databases on that server (e.g. a uniquely named database dropped afterwards) instead of starting a local Postgres, to avoid overloading the server. If it is not set, start a local Postgres (container or local instance) for the run. Never reuse or write to existing databases on that server.
 
 ## i18n - Mandatory Rule
 
