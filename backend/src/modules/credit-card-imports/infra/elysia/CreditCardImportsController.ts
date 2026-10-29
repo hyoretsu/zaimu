@@ -1,4 +1,4 @@
-import { synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
+import { creditBookEntries, synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
 import { statementEntryKind } from "@zaimu/finance/credit-card";
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
 import { hasMatchingInstallmentSum } from "@zaimu/finance/credit-refund";
@@ -751,6 +751,43 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			return { success: true };
 		},
 		{ detail: { operationId: "deleteCreditCardImportsById" } },
+	)
+	.get(
+		"/:id/tax-sources",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const imported = await getImport(userId, params.id);
+			const book = await readCreditBook(userId, imported.creditCardId);
+			return creditBookEntries(book)
+				.filter(
+					row =>
+						!row.isRefund &&
+						!row.isStatementCharge &&
+						!row.isSettled &&
+						book.statements.some(
+							s =>
+								s.id === row.statementId &&
+								s.statementDate === dateKey(imported.statementDate) &&
+								s.dueDate === dateKey(imported.dueDate),
+						),
+				)
+				.flatMap(row =>
+					row.purchaseId
+						? [
+								{
+									description: row.description,
+									id: row.purchaseId,
+									installmentAmount: row.installmentAmount,
+								},
+							]
+						: [],
+				);
+		},
+		{
+			response: t.Array(
+				t.Object({ description: t.String(), id: t.String(), installmentAmount: t.Number() }),
+			),
+		},
 	)
 	.get(
 		"/:id/refund-sources",

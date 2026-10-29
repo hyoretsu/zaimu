@@ -472,7 +472,7 @@ Reembolsos registrados ou editados manualmente aceitam qualquer valor positivo v
 
 ## Impostos de compras na importação de faturas
 
-Compras importadas aceitam impostos discriminados, inclusive IOF sobre compras em BRL. Os valores informados no campo de impostos já integram o total revisado da compra. Um lançamento positivo à vista da mesma fatura pode ser associado à compra como imposto: seu valor integra apenas a parcela daquela fatura e o total da compra, sem gerar encargo de fatura nem duplicar o total. A associação é explícita; a proximidade entre datas não basta para vincular automaticamente. Preservar a identidade do lançamento incorporado para não duplicá-lo em reimportações, antes ou depois da aprovação.
+Compras importadas aceitam impostos discriminados, inclusive IOF sobre compras em BRL. Os valores informados no campo de impostos já integram o total revisado da compra. Um lançamento positivo à vista da mesma fatura pode ser associado à compra como imposto: seu valor integra apenas a parcela daquela fatura e o total da compra, sem gerar encargo de fatura nem duplicar o total. A compra de destino pode estar pendente na revisão ou já aprovada/cadastrada na mesma fatura. A associação é explícita; a proximidade entre datas não basta para vincular automaticamente. Preservar a identidade do lançamento incorporado para não duplicá-lo em reimportações, antes ou depois da aprovação.
 
 ## Associação de lançamentos a recorrências
 

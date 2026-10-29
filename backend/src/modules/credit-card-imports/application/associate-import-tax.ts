@@ -1,6 +1,10 @@
+import { creditBookEntries, moneyCents } from "@zaimu/finance/credit-book";
+import { currencyScale } from "@zaimu/finance/money";
+import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { associateImportTax, readImportTaxes } from "../domain/import-purchase-taxes";
+import { rememberImportIdentity } from "./import-identities";
 import { cleanupItemTags } from "./import-service";
 
 export async function associateImportedTax(
@@ -11,10 +15,12 @@ export async function associateImportedTax(
 	reviewed?: { name?: string; amount?: number },
 ) {
 	return withRawTransaction(async query => {
-		const [batch] = await query<{ status: string }>(
-			`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`,
-			[importId, userId],
-		);
+		const [batch] = await query<{
+			status: string;
+			creditCardId: string;
+			statementDate: Date;
+			dueDate: Date;
+		}>(`SELECT * FROM "CreditCardImport" WHERE "id"=$1 AND "userId"=$2 FOR UPDATE`, [importId, userId]);
 		if (batch?.status !== "PENDING") throw new HttpException("Importação pendente não encontrada", 409);
 		const items = await query<{
 			id: string;
@@ -33,6 +39,55 @@ export async function associateImportedTax(
 		]);
 		const tax = items.find(item => item.id === taxId);
 		const purchase = items.find(item => item.id === purchaseId);
+		if (tax && !purchase) {
+			if (
+				tax.installments !== 1 ||
+				Number(tax.installmentAmount) <= 0 ||
+				readImportTaxes(tax.taxes).length ||
+				(tax.metadataMissing as string[]).length
+			)
+				throw new HttpException("Selecione um lançamento positivo à vista sem impostos", 400);
+			await mutateCreditBook(userId, batch.creditCardId, book => {
+				const target = book.purchases.find(p => p.id === purchaseId);
+				const row = creditBookEntries(book).find(
+					row =>
+						row.purchaseId === purchaseId &&
+						!row.isRefund &&
+						!row.isStatementCharge &&
+						!row.isSettled &&
+						book.statements.some(
+							s =>
+								s.id === row.statementId &&
+								s.statementDate === batch.statementDate.toISOString().slice(0, 10) &&
+								s.dueDate === batch.dueDate.toISOString().slice(0, 10),
+						),
+				);
+				if (!target || !row || (target.fees?.length ?? 0) >= 20)
+					throw new HttpException("Selecione uma compra da mesma fatura", 400);
+				const name = (reviewed?.name ?? tax.description).trim().slice(0, 100);
+				const amount = reviewed?.amount ?? Number(tax.installmentAmount);
+				if (!name || !Number.isFinite(amount) || amount <= 0)
+					throw new HttpException("Informe um imposto válido", 400);
+				const cents = moneyCents(amount, 1, book.card.currency);
+				const amounts = [...target.installmentAmountsCents];
+				amounts[row.currentInstallment - 1]! += cents;
+				target.originalAmount ??= target.totalAmountCents / currencyScale(book.card.currency);
+				target.fees = [...(target.fees ?? []), { amount, name, type: "FIXED" }];
+				target.totalAmountCents += cents;
+				target.installmentAmountsCents = amounts;
+				for (const installment of book.installments.filter(
+					i => i.purchaseId === target.id && i.number === row.currentInstallment,
+				)) {
+					installment.amountCents += cents;
+					installment.hasImportedAmount = true;
+				}
+				target.updatedAt = new Date().toISOString();
+			});
+			await rememberImportIdentity(query, tax.externalId, purchaseId);
+			await cleanupItemTags([tax.id]);
+			await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [tax.id]);
+			return;
+		}
 		if (
 			!tax ||
 			!purchase ||

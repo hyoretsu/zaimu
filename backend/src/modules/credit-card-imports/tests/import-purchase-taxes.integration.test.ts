@@ -85,3 +85,87 @@ test("association persists tax and approval creates one purchase, no statement c
 		).rowCount,
 	).toBe(1);
 });
+
+test("tax can be linked after purchase approval without another purchase or charge", async () => {
+	const purchase = (
+		await client.query(`SELECT "id" FROM "CreditPurchaseRecord" WHERE "creditCardId"='import-tax-card'`)
+	).rows[0];
+	await client.query(`
+		INSERT INTO "CreditCardImport" ("id", "userId", "creditCardId", "provider", "fileName", "statementDate", "dueDate") VALUES ('approved-tax-batch', 'import-tax-user', 'import-tax-card', 'INTER', 'tax.pdf', '2026-06-10', '2026-06-20');
+		INSERT INTO "CreditCardImportItem" ("id", "creditCardImportId", "externalId", "purchaseDate", "description", "totalAmount", "installmentAmount", "isStatementCharge", "metadataMissing") VALUES ('approved-tax-source', 'approved-tax-batch', 'approved-tax-iof', '2026-06-08', 'IOF', 2, 2, true, '[]'::json);
+	`);
+	await expect(
+		associate("another-user", "approved-tax-batch", "approved-tax-source", purchase.id),
+	).rejects.toThrow();
+	await client.query(
+		`UPDATE "CreditCardImport" SET "statementDate"='2026-07-10', "dueDate"='2026-07-20' WHERE "id"='approved-tax-batch'`,
+	);
+	await expect(
+		associate("import-tax-user", "approved-tax-batch", "approved-tax-source", purchase.id),
+	).rejects.toThrow();
+	await client.query(
+		`UPDATE "CreditCardImport" SET "statementDate"='2026-06-10', "dueDate"='2026-06-20' WHERE "id"='approved-tax-batch'`,
+	);
+	await associate("import-tax-user", "approved-tax-batch", "approved-tax-source", purchase.id);
+	await expect(
+		associate("import-tax-user", "approved-tax-batch", "approved-tax-source", purchase.id),
+	).rejects.toThrow();
+	const purchases = (
+		await client.query(`SELECT * FROM "CreditPurchaseRecord" WHERE "creditCardId"='import-tax-card'`)
+	).rows;
+	expect(purchases).toHaveLength(1);
+	expect(Number(purchases[0].totalAmount)).toBe(56.62);
+	expect(Number(purchases[0].originalAmount)).toBe(52.77);
+	expect(purchases[0].fees).toEqual([
+		{ amount: 1.85, name: "IOF INTERNACIONAL", type: "FIXED" },
+		{ amount: 2, name: "IOF", type: "FIXED" },
+	]);
+	const installments = (
+		await client.query(`SELECT * FROM "CreditInstallmentRecord" WHERE "purchaseId"=$1`, [purchase.id])
+	).rows;
+	expect(installments).toHaveLength(1);
+	expect(Number(installments[0].amount)).toBe(56.62);
+	expect(
+		(
+			await client.query(
+				`SELECT * FROM "CreditPurchaseImportIdentity" WHERE "externalId"='approved-tax-iof' AND "purchaseId"=$1`,
+				[purchase.id],
+			)
+		).rowCount,
+	).toBe(1);
+	expect(
+		(await client.query(`SELECT * FROM "CreditCardImportItem" WHERE "id"='approved-tax-source'`))
+			.rowCount,
+	).toBe(0);
+});
+
+test("tax changes only the matching installment of an existing purchase", async () => {
+	const { mutateCreditBook, readCreditBook } =
+		await import("~/modules/creditCards/application/normalized-credit-book");
+	const { newBookPurchase } = await import("@zaimu/finance/credit-book");
+	const id = await mutateCreditBook(
+		"import-tax-user",
+		"import-tax-card",
+		book =>
+			newBookPurchase(book, {
+				description: "Compra parcelada",
+				installments: 3,
+				purchaseDate: "2026-05-05",
+				totalAmount: 90,
+			}).id,
+	);
+	await client.query(
+		`INSERT INTO "CreditCardImportItem" ("id", "creditCardImportId", "externalId", "purchaseDate", "description", "totalAmount", "installmentAmount", "isStatementCharge", "metadataMissing") VALUES ('installment-tax-source', 'approved-tax-batch', 'installment-tax-iof', '2026-06-08', 'IOF', 2, 2, true, '[]'::json)`,
+	);
+	await associate("import-tax-user", "approved-tax-batch", "installment-tax-source", id);
+	const book = await readCreditBook("import-tax-user", "import-tax-card");
+	const purchase = book.purchases.find(p => p.id === id)!;
+	expect(purchase.totalAmountCents).toBe(9200);
+	expect(purchase.installmentAmountsCents).toEqual([3000, 3200, 3000]);
+	expect(
+		book.installments
+			.filter(i => i.purchaseId === id)
+			.toSorted((a, b) => a.number - b.number)
+			.map(i => i.amountCents),
+	).toEqual([3000, 3200, 3000]);
+});

@@ -131,6 +131,7 @@ export function CreditCardImportReviewDialog({
 		invalidateQueryKeys(queryClient, [
 			queryKeys.creditCardImports.detail(identity!, targetImportId),
 			queryKeys.creditCardImports.pending(identity!),
+			queryKeys.creditCards.list(identity!),
 		]);
 	const refreshReview = async (targetImportId: string) => {
 		const updatedImport = await dataService.creditCardImports.get(targetImportId);
