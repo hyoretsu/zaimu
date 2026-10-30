@@ -1,8 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { LuFileUp, LuLandmark, LuPlus, LuScale, LuSettings2, LuWalletCards } from "react-icons/lu";
+import {
+	LuFileUp,
+	LuLandmark,
+	LuLightbulb,
+	LuPlus,
+	LuScale,
+	LuSettings2,
+	LuWalletCards,
+} from "react-icons/lu";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
 import { HiddenAccountsList } from "@/components/hidden-accounts";
+import { SuggestionHubDialog, type SuggestionType } from "@/components/institution-suggestions";
 import { PendingNotices } from "@/components/pending-notices";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -30,6 +39,7 @@ export function AccountsPage() {
 	const [isImportOpen, setIsImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [isDefaultsOpen, setIsDefaultsOpen] = useState(false);
+	const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
 	const [recoveredDefaults, setRecoveredDefaults] = useState<AccountDefaultsDraft | null>(null);
 	const identity = useCacheIdentity();
 	const defaultsPending = useModalRecoveryStore(state => !!state.pending[`${identity}:account-defaults`]);
@@ -149,6 +159,11 @@ export function AccountsPage() {
 						onClick: () => setIsBalanceAdjustmentsOpen(true),
 					},
 					{
+						icon: LuLightbulb,
+						label: "Sugerir à equipe",
+						onClick: () => setIsSuggestionOpen(true),
+					},
+					{
 						icon: LuPlus,
 						label: "Nova conta",
 						onClick: () => setIsCreateAccountOpen(true),
@@ -158,6 +173,13 @@ export function AccountsPage() {
 				description="Organize contas bancárias, dinheiro, investimentos e recompensas."
 				subtitle="Patrimônio"
 				title="Contas financeiras"
+			/>
+			<SuggestionHubDialog
+				onOpenChange={setIsSuggestionOpen}
+				open={isSuggestionOpen}
+				types={
+					["NEW_INSTITUTION", "PROFILE", "POLICY", "CARD_RULES", "MERGE"] satisfies SuggestionType[]
+				}
 			/>
 			<PendingNotices onReviewTransactionImport={setReviewingImportId} />
 			<ImportTransactionsDialog

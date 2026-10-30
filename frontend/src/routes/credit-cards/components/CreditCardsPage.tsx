@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
-import { LuCreditCard, LuFileUp, LuPlus, LuScale } from "react-icons/lu";
+import { LuCreditCard, LuFileUp, LuLightbulb, LuPlus, LuScale } from "react-icons/lu";
 import {
 	CreditCardImportReviewDialog,
 	ImportCreditCardStatementDialog,
 } from "@/components/credit-card-imports";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
 import { HiddenAccountsList } from "@/components/hidden-accounts";
+import { SuggestionHubDialog, type SuggestionType } from "@/components/institution-suggestions";
 import { PendingNotices } from "@/components/pending-notices";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -55,6 +56,7 @@ export function CreditCardsPage() {
 	const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
 	const [isCardAdjustmentsOpen, setIsCardAdjustmentsOpen] = useState(false);
+	const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const cards = useQuery({
 		enabled: hasAccess,
@@ -180,6 +182,11 @@ export function CreditCardsPage() {
 						onClick: () => setIsImportOpen(true),
 					},
 					{
+						icon: LuLightbulb,
+						label: "Sugerir à equipe",
+						onClick: () => setIsSuggestionOpen(true),
+					},
+					{
 						icon: LuPlus,
 						label: "Novo cartão",
 						onClick: () => setIsCreateCardOpen(true),
@@ -189,6 +196,11 @@ export function CreditCardsPage() {
 				description="Acompanhe limite, previsão de fatura e parcelamentos."
 				subtitle="Crédito"
 				title="Cartões e compras"
+			/>
+			<SuggestionHubDialog
+				onOpenChange={setIsSuggestionOpen}
+				open={isSuggestionOpen}
+				types={["CARD_RULES", "POLICY", "MERGE", "NEW_INSTITUTION"] satisfies SuggestionType[]}
 			/>
 			<PendingNotices onReviewCreditCardImport={setReviewingImportId} paymentSuggestions />
 			<section className="grid gap-4 sm:grid-cols-2">

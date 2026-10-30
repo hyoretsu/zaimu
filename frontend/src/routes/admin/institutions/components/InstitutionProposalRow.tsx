@@ -17,6 +17,7 @@ import { MergeProfileResolution, type ProfileResolution } from "./MergeProfileRe
 const labels: Record<string, string> = {
 	APPROVED: "Aprovada",
 	ASSOCIATED: "Associada",
+	CARD_RULES: "Regras de cartão",
 	INSTITUTION_UPDATE: "Alteração institucional",
 	NEW_INSTITUTION: "Nova instituição",
 	PENDING: "Pendente",
@@ -39,7 +40,9 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 	});
 	const current = institutions.data?.find(item => item.id === proposal.institutionId);
 	const stale =
-		proposal.baseVersion !== null && proposal.version !== null && proposal.baseVersion !== proposal.version;
+		proposal.baseVersion !== null &&
+		proposal.version !== null &&
+		proposal.baseVersion !== proposal.version;
 	const review = (action: PostFinancialInstitutionsReviewProposalsByIdMutationRequest["action"]) => {
 		const start = captureCacheMutation();
 		setPending(true);
@@ -74,8 +77,11 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 						<dt className="font-medium">{key}</dt>
 						<dd>
 							Atual:{" "}
-							{JSON.stringify(Object.entries(current ?? {}).find(([field]) => field === key)?.[1]) ??
-								"Sem valor"}{" "}
+							{JSON.stringify(
+								Object.entries(current ?? {}).find(
+									([field]) => field === (key === "rules" ? "creditCardRules" : key),
+								)?.[1],
+							) ?? "Sem valor"}{" "}
 							- Proposto: {JSON.stringify(value)}
 						</dd>
 					</div>
@@ -85,7 +91,7 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 			{proposal.status === "PENDING" && (
 				<>
 					{stale && (
-						<div className="rounded-xl border border-destructive p-3 text-sm">
+						<div className="border-destructive rounded-xl border p-3 text-sm">
 							Versão alterada após proposta. Confira diferenças antes da publicação.
 							<Button
 								className="mt-2"
@@ -134,7 +140,11 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 						/>
 					)}
 					<ActionGroup>
-						<Button disabled={pending || !reason.trim()} onClick={() => review("REJECT")} variant="outline">
+						<Button
+							disabled={pending || !reason.trim()}
+							onClick={() => review("REJECT")}
+							variant="outline"
+						>
 							<LuX />
 							Rejeitar
 						</Button>
