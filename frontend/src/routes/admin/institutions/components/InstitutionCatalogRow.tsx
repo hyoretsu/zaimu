@@ -3,6 +3,7 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { postFinancialInstitutionsByIdPolicies } from "@/lib/api";
 import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { InstitutionYieldDialog } from "@/routes/accounts/components/InstitutionYieldDialog";
+import { toPolicyProposalBody } from "@/routes/accounts/components/InstitutionYieldDialog/policy-proposal";
 import { showToast } from "@/stores";
 import { EditInstitutionCatalogDialog } from "./EditInstitutionCatalogDialog";
 import { InstitutionCardRulesDialog } from "./InstitutionCardRulesDialog";
@@ -47,21 +48,11 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 				<InstitutionYieldDialog
 					institution={institution}
 					onUpdate={(item, policy) => {
-						const { requestedEffectiveDate, profileId, yieldTaxIds, ...body } = policy;
-						if (!requestedEffectiveDate || !profileId)
-							return Promise.reject(new Error("Selecione perfil e data de vigência."));
-						return propose(item.id, {
-							...body,
-							countryCode: body.countryCode ?? undefined,
-							effectiveDate: requestedEffectiveDate,
-							effectiveUntil: body.effectiveUntil ?? undefined,
-							profileId,
-							rules: body.rules.map(rule => ({
-								...rule,
-								upToBalance: rule.upToBalance ?? null,
-							})),
-							yieldTaxIds: yieldTaxIds ?? undefined,
-						});
+						try {
+							return propose(item.id, toPolicyProposalBody(policy));
+						} catch (error) {
+							return Promise.reject(error);
+						}
 					}}
 				/>
 			</ActionGroup>
