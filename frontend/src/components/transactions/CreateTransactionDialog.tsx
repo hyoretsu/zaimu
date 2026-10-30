@@ -335,7 +335,6 @@ export function CreateTransactionDialog({
 									}))}
 									placeholder="Nenhum cartão selecionado"
 									searchable
-									sortOptions={false}
 									value={draft.paymentCreditCardId}
 								/>
 							) : null}

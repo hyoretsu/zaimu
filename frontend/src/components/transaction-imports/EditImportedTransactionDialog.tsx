@@ -148,9 +148,13 @@ export function EditImportedTransactionDialog({
 								includeYield
 								isHidden={draft.isHidden}
 								onAmountChange={amount =>
-									setDraft(current => (current ? { ...current, amount: Number(amount) } : current))
+									setDraft(current =>
+										current ? { ...current, amount: Number(amount) } : current,
+									)
 								}
-								onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
+								onDateChange={date =>
+									setDraft(current => (current ? { ...current, date } : current))
+								}
 								onDescriptionChange={setDescription}
 								onIsHiddenChange={isHidden =>
 									setDraft(current => (current ? { ...current, isHidden } : current))
@@ -158,8 +162,12 @@ export function EditImportedTransactionDialog({
 								onStoreNameChange={storeName =>
 									setDraft(current => (current ? { ...current, storeName } : current))
 								}
-								onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
-								onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
+								onTagIdsChange={tagIds =>
+									setDraft(current => (current ? { ...current, tagIds } : current))
+								}
+								onTimeChange={time =>
+									setDraft(current => (current ? { ...current, time } : current))
+								}
 								onTypeChange={type => {
 									if (type === "TRANSFER" || type === "YIELD") setIsDebt(false);
 									setDraft(current =>
@@ -167,7 +175,10 @@ export function EditImportedTransactionDialog({
 											? {
 													...current,
 													...getTransactionFormAccounts(current, type),
-													paymentCreditCardId: type === "EXPENSE" ? current.paymentCreditCardId : null,
+													paymentCreditCardId:
+														type === "EXPENSE"
+															? current.paymentCreditCardId
+															: null,
 													type,
 												}
 											: current,
@@ -199,11 +210,12 @@ export function EditImportedTransactionDialog({
 									placeholder="Nenhum cartão selecionado"
 									required={item.requiresPaymentCard}
 									searchable
-									sortOptions={false}
 									value={draft.paymentCreditCardId ?? ""}
 								/>
 							) : null}
-							{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !draft.paymentCreditCardId ? (
+							{draft.type !== "TRANSFER" &&
+							draft.type !== "YIELD" &&
+							!draft.paymentCreditCardId ? (
 								<div className="grid gap-3 rounded-2xl border p-3">
 									<CheckboxField
 										checkboxProps={{
@@ -227,7 +239,9 @@ export function EditImportedTransactionDialog({
 							) : null}
 							<CustomSelect
 								label={
-									draft.type === "INCOME" || draft.type === "YIELD" ? "Conta de destino" : "Conta de origem"
+									draft.type === "INCOME" || draft.type === "YIELD"
+										? "Conta de destino"
+										: "Conta de origem"
 								}
 								onValueChange={accountId =>
 									setDraft(current =>
@@ -251,11 +265,16 @@ export function EditImportedTransactionDialog({
 								<CustomSelect
 									label="Conta de destino"
 									onValueChange={destinationFinancialAccountId =>
-										setDraft(current => (current ? { ...current, destinationFinancialAccountId } : current))
+										setDraft(current =>
+											current ? { ...current, destinationFinancialAccountId } : current,
+										)
 									}
 									options={balanceDestinationAccounts
 										.filter(account => account.id !== draft.originFinancialAccountId)
-										.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
+										.map(account => ({
+											label: getFinancialAccountOptionLabel(account),
+											value: account.id,
+										}))}
 									placeholder="Selecione o destino"
 									required
 									searchable
@@ -273,7 +292,8 @@ export function EditImportedTransactionDialog({
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={
 							!draft.amount ||
-							(item.requiresPaymentCard && (draft.type !== "EXPENSE" || !draft.paymentCreditCardId)) ||
+							(item.requiresPaymentCard &&
+								(draft.type !== "EXPENSE" || !draft.paymentCreditCardId)) ||
 							!primaryAccountId ||
 							(isDebt && !calculateDebtSplit(draft.amount, debtSplit, currencyCode)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||

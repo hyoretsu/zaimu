@@ -290,7 +290,6 @@ export function EditTransactionForm({
 									options={paymentCardOptions}
 									placeholder="Nenhum cartão selecionado"
 									searchable
-									sortOptions={false}
 									value={draft.paymentCreditCardId}
 								/>
 							) : null}
