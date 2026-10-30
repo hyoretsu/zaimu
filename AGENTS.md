@@ -58,7 +58,7 @@ Any change related to agents (instructions, skills, hooks or configuration) must
 Only large features executed in Plan mode need a plan. `docs/` is product/domain knowledge; `plans/` is execution history organized by lifecycle:
 
 - `plans/`: only newly created or in-progress plans.
-- `plans/done/`: completed plans. Move the plan here when all steps are complete.
+- `plans/done/`: code-complete plans. Move the plan here as soon as all planned code is implemented; developer validation and approval are the developers’ responsibility and do not keep a plan open. Record any pending validation or approval explicitly in the archived plan without marking it as completed.
 - `plans/discarded/`: abandoned, rejected or superseded plans. Record why they were discarded and link a replacement when applicable; never mark them completed just to archive them.
 
 Name plans `NNNN-kebab-slug.md`, using the next sequential number across all three locations; never reuse an archived plan's number. Preserve the filename when moving a plan, update references and relative links, and commit the move with the corresponding completion or discard update. When resuming, read the existing plan wherever it is; if reopened, move it back to `plans/`. After each completed step, update progress and commit that update with the step's changes.
