@@ -7,6 +7,7 @@ import {
 	tagEntityType,
 	type TagSummary,
 } from "~/modules/categories/application/tag-assignments";
+import { isInvoicePayment } from "~/modules/credit-card-imports/domain/invoice-payment";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
 	getDebtSplitInput,
@@ -269,11 +270,38 @@ async function getImport(userId: string, importId: string) {
 	return transactionImport;
 }
 
+function getAccountTransactions(financialAccountId: string) {
+	return queryRows(
+		db.sql.public.Transaction.select(
+			"id",
+			"amount",
+			"createdAt",
+			"paymentCreditCardId",
+			"date",
+			"description",
+			"isHidden",
+			"storeName",
+			"time",
+			"type",
+			"originFinancialAccountId",
+			"destinationFinancialAccountId",
+		)
+			.where((fields, functions) =>
+				functions.or(
+					functions.eq(fields.originFinancialAccountId, financialAccountId),
+					functions.eq(fields.destinationFinancialAccountId, financialAccountId),
+				),
+			)
+			.build(),
+	);
+}
+
 async function getPotentialDuplicates(
 	financialAccountId: string,
 	items: Array<{
 		amount: number;
 		date: Date;
+		description?: string | null;
 		destinationFinancialAccountId: string | null;
 		externalId: string | null;
 		id: string;
@@ -283,29 +311,16 @@ async function getPotentialDuplicates(
 		type: ImportItemType;
 	}>,
 ) {
-	const [transactions, pendingItems] = await Promise.all([
-		queryRows(
-			db.sql.public.Transaction.select(
-				"id",
-				"amount",
-				"createdAt",
-				"paymentCreditCardId",
-				"date",
-				"description",
-				"isHidden",
-				"storeName",
-				"time",
-				"type",
-				"originFinancialAccountId",
-				"destinationFinancialAccountId",
-			)
-				.where((fields, functions) =>
-					functions.or(
-						functions.eq(fields.originFinancialAccountId, financialAccountId),
-						functions.eq(fields.destinationFinancialAccountId, financialAccountId),
-					),
-				)
-				.build(),
+	const [accountTransactions, cardPayments, pendingItems] = await Promise.all([
+		getAccountTransactions(financialAccountId),
+		// Invoice payments are usually paid from another account of the user (e.g. a dedicated savings pot).
+		queryRaw<Awaited<ReturnType<typeof getAccountTransactions>>[number]>(
+			`SELECT t."id", t."amount", t."createdAt", t."paymentCreditCardId", t."date", t."description", t."isHidden", t."storeName", t."time", t."type", t."originFinancialAccountId", t."destinationFinancialAccountId"
+			FROM "Transaction" t
+			JOIN "FinancialAccount" o ON o."id"=t."originFinancialAccountId"
+			WHERE t."paymentCreditCardId" IS NOT NULL AND t."originFinancialAccountId"<>$1
+			AND o."userId"=(SELECT "userId" FROM "FinancialAccount" WHERE "id"=$1)`,
+			[financialAccountId],
 		),
 		queryRows(
 			db.sql.public.TransactionImportItem.innerJoin(
@@ -343,6 +358,9 @@ async function getPotentialDuplicates(
 				.build(),
 		),
 	]);
+
+	const transactions = [...accountTransactions, ...cardPayments];
+	const cardPaymentIds = new Set(cardPayments.map(payment => payment.id));
 
 	const [transactionTags, importItemTags, externalReferences] = await Promise.all([
 		getTagsByEntity(
@@ -421,12 +439,16 @@ async function getPotentialDuplicates(
 	return new Map<string, PotentialDuplicates | null>(
 		items.map(item => {
 			if (item.isDuplicateIgnored || item.isReconciled) return [item.id, null] as const;
+			const isInvoice =
+				item.type === "EXPENSE" && !!item.description && isInvoicePayment(item.description);
 			const isSameAccount = (candidate: {
 				destinationFinancialAccountId: string | null;
+				id: string;
 				originFinancialAccountId: string | null;
 			}) =>
 				candidate.originFinancialAccountId === financialAccountId ||
-				candidate.destinationFinancialAccountId === financialAccountId;
+				candidate.destinationFinancialAccountId === financialAccountId ||
+				(isInvoice && cardPaymentIds.has(candidate.id));
 			const externalDuplicates = item.externalId
 				? candidateIndex
 						.external(item.externalId)
