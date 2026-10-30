@@ -1,9 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-	isRecurrenceAssociationCompatible,
-	type RecurrenceAssociationTarget,
-	validateRecurrenceAssociation,
-} from "@zaimu/finance/recurrence";
+import { type RecurrenceAssociationTarget, validateRecurrenceAssociation } from "@zaimu/finance/recurrence";
 import { useId, useState } from "react";
 import { LuLink } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -46,7 +42,7 @@ export default function AssociateRecurrenceDialog({
 		queryFn: () => dataService.recurrences.getAll(),
 		queryKey: queryKeys.recurring.all(identity!),
 	});
-	const recurrences = (query.data ?? []).filter(item => isRecurrenceAssociationCompatible(item, target));
+	const recurrences = query.data ?? [];
 	const selected = recurrences.find(item => item.id === recurrenceId);
 	const mutation = useMutation({
 		meta: {
@@ -158,7 +154,7 @@ export default function AssociateRecurrenceDialog({
 									</div>
 									{!recurrences.length && (
 										<p className="text-muted-foreground text-sm">
-											Nenhuma recorrência com movimentação e contas compatíveis.
+											Nenhuma recorrência cadastrada.
 										</p>
 									)}
 									<RecurrencePeriodField

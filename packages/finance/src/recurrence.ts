@@ -234,21 +234,6 @@ export interface RecurrenceAssociationTarget {
 	recurrenceId?: string | null;
 	recurrenceOccurrenceDate?: string | null;
 }
-export function isRecurrenceAssociationCompatible(
-	recurrence: RecurrenceDefinition,
-	target: RecurrenceAssociationTarget,
-) {
-	if (target.kind === "PURCHASE")
-		return recurrence.movement === "CARD_PURCHASE" && recurrence.creditCardId === target.creditCardId;
-	const movement = target.paymentCreditCardId ? "CARD_PAYMENT" : target.type;
-	return (
-		recurrence.movement === movement &&
-		(recurrence.originFinancialAccountId ?? null) === (target.originFinancialAccountId ?? null) &&
-		(recurrence.destinationFinancialAccountId ?? null) ===
-			(target.destinationFinancialAccountId ?? null) &&
-		(recurrence.creditCardId ?? null) === (target.paymentCreditCardId ?? null)
-	);
-}
 export function validateRecurrenceAssociation(
 	recurrence: RecurrenceDefinition,
 	target: RecurrenceAssociationTarget,
@@ -262,11 +247,11 @@ export function validateRecurrenceAssociation(
 				recurrencePeriodStart(recurrence.unit, date))
 	)
 		throw new Error("Este lançamento já pertence a outra ocorrência.");
-	if (!isRecurrenceAssociationCompatible(recurrence, target))
-		throw new Error("Selecione uma recorrência com movimentação e contas compatíveis.");
-	const period = recurrencePeriodRange(recurrence.unit, date);
-	if (date.length !== 10 || recurrenceDates(recurrence, period.from, period.through).length !== 1)
-		throw new Error("Selecione um período que pertença à agenda da recorrência.");
+	if (
+		!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+		new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date
+	)
+		throw new Error("Selecione uma data válida para a ocorrência.");
 }
 
 /** Calendar periods ignore changes to the day within the same month, week or year. */

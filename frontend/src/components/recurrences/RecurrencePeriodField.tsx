@@ -38,9 +38,6 @@ export function RecurrencePeriodField({
 	if (unit === "YEAR")
 		return (
 			<div className="space-y-2">
-				<span className="text-sm font-medium">
-					Ano da ocorrência <RequiredMark />
-				</span>
 				<CustomSelect
 					disabled={disabled}
 					label="Ano da ocorrência"

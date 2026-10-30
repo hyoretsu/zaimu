@@ -4,10 +4,21 @@ import {
 	validateRecurrenceAssociation,
 } from "@zaimu/finance/recurrence";
 import { HttpException } from "~/shared/errors";
-import { withRawTransaction } from "~/shared/infra/sql";
+import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import type { AssociateRecurrenceBody } from "../infra/elysia/RecurrenceDTO";
-import { getRecurrencePeriodOccurrence } from "./recurrence-period-occurrence";
 import { getStoredRecurrence } from "./recurrences";
+
+async function getOccurrenceOnDate(recurrenceId: string, date: string) {
+	const [occurrence] = await queryRaw<{
+		transactionId: string | null;
+		purchaseId: string | null;
+		deletedAt: unknown;
+	}>(
+		'SELECT "transactionId", "purchaseId", "deletedAt" FROM "RecurrenceOccurrence" WHERE "recurrenceId"=$1 AND "date"=$2::date',
+		[recurrenceId, date],
+	);
+	return occurrence;
+}
 
 /** Reserve the same key as materialization while keeping every existing financial reference. */
 export async function associateRecurrence(userId: string, id: string, input: AssociateRecurrenceBody) {
@@ -29,7 +40,8 @@ export async function associateRecurrence(userId: string, id: string, input: Ass
 		} catch (error) {
 			throw new HttpException((error as Error).message, 400);
 		}
-		const occurrence = await getRecurrencePeriodOccurrence(recurrence, input.date);
+		// Match the exact date: occurrences from a previous plan (e.g. monthly before switching to yearly) must not block this period.
+		const occurrence = await getOccurrenceOnDate(id, input.date);
 		const [reserved] = occurrence
 			? []
 			: await query(
@@ -37,7 +49,7 @@ export async function associateRecurrence(userId: string, id: string, input: Ass
 					[id, input.date, purchase ? null : row.id, purchase ? row.id : null],
 				);
 		if (!reserved) {
-			const existing = occurrence ?? (await getRecurrencePeriodOccurrence(recurrence, input.date));
+			const existing = occurrence ?? (await getOccurrenceOnDate(id, input.date));
 			if (
 				!existing ||
 				existing.deletedAt ||

@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 import {
-	isRecurrenceAssociationCompatible,
 	processedRecurrencePeriods,
 	type RecurrenceDefinition,
 	recurrencePeriodStart,
@@ -33,20 +32,10 @@ test("association accepts any day in a scheduled month and keeps primary identit
 	expect(() => validateRecurrenceAssociation(recurrence, target, "2026-02-28")).not.toThrow();
 	expect(target.id).toBe("existing");
 	expect(() => validateRecurrenceAssociation(recurrence, target, "2026-02-27")).not.toThrow();
-	expect(() => validateRecurrenceAssociation(recurrence, target, "2025-12-31")).toThrow("agenda");
+	expect(() => validateRecurrenceAssociation(recurrence, target, "2025-12-31")).not.toThrow();
 	expect(() => validateRecurrenceAssociation(recurrence, target, "2026-02-30")).toThrow();
 });
-test("association rejects mismatched rails, accounts and existing links", () => {
-	expect(isRecurrenceAssociationCompatible(recurrence, { ...target, type: "INCOME" })).toBe(false);
-	expect(
-		isRecurrenceAssociationCompatible(recurrence, { ...target, originFinancialAccountId: "other" }),
-	).toBe(false);
-	expect(isRecurrenceAssociationCompatible(recurrence, { ...target, paymentCreditCardId: "card" })).toBe(
-		false,
-	);
-	expect(
-		isRecurrenceAssociationCompatible(recurrence, { ...target, creditCardId: "card", kind: "PURCHASE" }),
-	).toBe(false);
+test("association rejects existing links to other occurrences", () => {
 	expect(() =>
 		validateRecurrenceAssociation(recurrence, { ...target, recurrenceId: "other" }, "2026-02-28"),
 	).toThrow("outra ocorrência");
@@ -58,34 +47,6 @@ test("association rejects mismatched rails, accounts and existing links", () => 
 		),
 	).toThrow("outra ocorrência");
 });
-test("card purchases, payments and transfers use their matching destinations", () => {
-	const purchase = { ...target, creditCardId: "card", kind: "PURCHASE" as const };
-	expect(
-		isRecurrenceAssociationCompatible(
-			{ ...recurrence, creditCardId: "card", movement: "CARD_PURCHASE" },
-			purchase,
-		),
-	).toBe(true);
-	expect(
-		isRecurrenceAssociationCompatible(
-			{ ...recurrence, creditCardId: "other", movement: "CARD_PURCHASE" },
-			purchase,
-		),
-	).toBe(false);
-	expect(
-		isRecurrenceAssociationCompatible(
-			{ ...recurrence, creditCardId: "card", movement: "CARD_PAYMENT" },
-			{ ...target, paymentCreditCardId: "card" },
-		),
-	).toBe(true);
-	expect(
-		isRecurrenceAssociationCompatible(
-			{ ...recurrence, destinationFinancialAccountId: "b", movement: "TRANSFER" },
-			{ ...target, destinationFinancialAccountId: "b", type: "TRANSFER" },
-		),
-	).toBe(true);
-});
-
 test("period identities ignore date changes and respect month, year and ISO week boundaries", () => {
 	expect(recurrencePeriodStart("MONTH", "2026-02-28")).toBe(recurrencePeriodStart("MONTH", "2026-02-01"));
 	expect(recurrencePeriodStart("YEAR", "2026-12-31")).toBe("2026-01-01");
@@ -102,7 +63,7 @@ test("period identities ignore date changes and respect month, year and ISO week
 			"2026-02-28",
 		),
 	).not.toThrow();
-	expect(() => validateRecurrenceAssociation({ ...recurrence, interval: 2 }, target, "2026-02-01")).toThrow(
-		"agenda",
-	);
+	expect(() =>
+		validateRecurrenceAssociation({ ...recurrence, interval: 2 }, target, "2026-02-01"),
+	).not.toThrow();
 });
