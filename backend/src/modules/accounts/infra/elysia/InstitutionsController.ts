@@ -193,6 +193,20 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			response: MutationReturn,
 		},
 	)
+	.post(
+		"/:id/card-rules-proposal",
+		async ({ params, body, request }) =>
+			proposeInstitution(await requireUserId(request), params.id, "CARD_RULES", {
+				profileId: body.profileId,
+				rules: body.rules,
+			}),
+		{
+			body: t.Object({ profileId: t.Optional(Id), rules: InstitutionCardRulesDTO }),
+			detail: { operationId: "postFinancialInstitutionsByIdCardRulesProposal" },
+			params: t.Object({ id: Id }),
+			response: MutationReturn,
+		},
+	)
 	.get(
 		"/:id/profiles",
 		async ({ params, request }) => {
@@ -211,7 +225,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.post(
 		"/:id/profiles",
 		async ({ params, body, request }) =>
-			proposeInstitution(await requireAdmin(request), params.id, "PROFILE", body),
+			proposeInstitution(await requireUserId(request), params.id, "PROFILE", body),
 		{
 			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1, pattern: "\\S" }) }),
 			detail: { operationId: "postFinancialInstitutionsByIdProfiles" },
@@ -243,7 +257,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.post(
 		"/:id/policies",
 		async ({ params, body, request }) =>
-			proposeInstitution(await requireAdmin(request), params.id, "POLICY", body, body.effectiveDate),
+			proposeInstitution(await requireUserId(request), params.id, "POLICY", body, body.effectiveDate),
 		{
 			body: t.Object({
 				countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),

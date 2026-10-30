@@ -34,38 +34,53 @@ export async function institutionCardRules(userId: string, institutionId: string
 	);
 	return row?.rules?.workingDueDate !== undefined ? row.rules : defaultCardRules;
 }
+export function assertInstitutionCardRules(rules: InstitutionCardRules | null) {
+	if (!rules?.cashback) return;
+	const reward = rules.cashback;
+	assertCashbackSettings(cardRuleValues(rules));
+	if ((reward.conversionPoints === null) !== (reward.conversionAmount === null))
+		throw new HttpException("Informe pontos e valor da conversão juntos", 400);
+	if (reward.kind === "CASHBACK" && reward.conversionPoints !== null)
+		throw new HttpException("Conversão é exclusiva para pontos", 400);
+}
+
+export type RawQuery = Parameters<Parameters<typeof withRawTransaction>[0]>[0];
+
+/** Writes rules inside the caller's transaction; the caller owns the institution lock and events. */
+export async function writeInstitutionCardRules(
+	query: RawQuery,
+	institutionId: string,
+	rules: InstitutionCardRules | null,
+	profileId?: string,
+) {
+	if (profileId) {
+		const [profile] = await query(
+			`UPDATE "FinancialInstitutionProfile" SET "creditCardRules"=$3::json,"updatedAt"=NOW() WHERE id=$1 AND "institutionId"=$2 RETURNING id`,
+			[profileId, institutionId, rules === null ? null : JSON.stringify(rules)],
+		);
+		if (!profile) throw new HttpException("Perfil não encontrado", 404);
+	} else
+		await query(`UPDATE "FinancialInstitution" SET "creditCardRules"=$2::json WHERE id=$1`, [
+			institutionId,
+			JSON.stringify(rules ?? defaultCardRules),
+		]);
+	await query(`UPDATE "FinancialInstitution" SET version=version+1,"updatedAt"=NOW() WHERE id=$1`, [
+		institutionId,
+	]);
+}
+
 export async function configureInstitutionCardRules(
 	institutionId: string,
 	rules: InstitutionCardRules | null,
 	profileId?: string,
 ) {
-	if (rules?.cashback) {
-		const reward = rules.cashback;
-		assertCashbackSettings(cardRuleValues(rules));
-		if ((reward.conversionPoints === null) !== (reward.conversionAmount === null))
-			throw new HttpException("Informe pontos e valor da conversão juntos", 400);
-		if (reward.kind === "CASHBACK" && reward.conversionPoints !== null)
-			throw new HttpException("Conversão é exclusiva para pontos", 400);
-	}
+	assertInstitutionCardRules(rules);
 	return withRawTransaction(async query => {
 		const [institution] = await query(`SELECT id FROM "FinancialInstitution" WHERE id=$1 FOR UPDATE`, [
 			institutionId,
 		]);
 		if (!institution) throw new HttpException("Instituição não encontrada", 404);
-		if (profileId) {
-			const [profile] = await query(
-				`UPDATE "FinancialInstitutionProfile" SET "creditCardRules"=$3::json,"updatedAt"=NOW() WHERE id=$1 AND "institutionId"=$2 RETURNING id`,
-				[profileId, institutionId, rules === null ? null : JSON.stringify(rules)],
-			);
-			if (!profile) throw new HttpException("Perfil não encontrado", 404);
-		} else
-			await query(`UPDATE "FinancialInstitution" SET "creditCardRules"=$2::json WHERE id=$1`, [
-				institutionId,
-				JSON.stringify(rules ?? defaultCardRules),
-			]);
-		await query(`UPDATE "FinancialInstitution" SET version=version+1,"updatedAt"=NOW() WHERE id=$1`, [
-			institutionId,
-		]);
+		await writeInstitutionCardRules(query, institutionId, rules, profileId);
 		const users = await query<{ userId: string }>(
 			`SELECT DISTINCT "userId" FROM "FinancialAccount" WHERE "institutionId"=$1`,
 			[institutionId],

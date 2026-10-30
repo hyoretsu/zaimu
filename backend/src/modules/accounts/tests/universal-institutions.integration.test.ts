@@ -71,6 +71,27 @@ describe("universal institution review and calendar coverage", () => {
 			"Já existe",
 		);
 	});
+	test("card rule suggestions stay pending until an admin approves them", async () => {
+		const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
+			name: "Card rules bank",
+		});
+		const rules = { ...defaultCardRules, workingDueDate: true };
+		const proposal = await proposeInstitution("admin", institution.institutionId, "CARD_RULES", {
+			rules,
+		});
+		expect(proposal.status).toBe("PENDING");
+		const read = () =>
+			queryRaw<{ creditCardRules: InstitutionCardRules | null; version: number }>(
+				`SELECT "creditCardRules","version" FROM "FinancialInstitution" WHERE "id"=$1`,
+				[institution.institutionId],
+			);
+		const [before] = await read();
+		expect(before?.creditCardRules?.workingDueDate).not.toBe(true);
+		await reviewInstitutionProposal("admin", proposal.id, "APPROVE");
+		const [after] = await read();
+		expect(after?.creditCardRules?.workingDueDate).toBe(true);
+		expect(after?.version).toBe((before?.version ?? 0) + 1);
+	});
 	test("new policies publish without currency and keep legacy scope intact", async () => {
 		const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
 			name: "Universal policy bank",

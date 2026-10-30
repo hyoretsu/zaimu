@@ -9,6 +9,11 @@ import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { assertFinancialInstitutionYieldPolicy } from "../domain/assert-financial-institution-yield-policy";
 import { assertInstitutionReview } from "../domain/assert-institution-review";
 import { normalizeFinancialInstitutionName } from "../domain/normalize-financial-institution-name";
+import {
+	assertInstitutionCardRules,
+	type RawQuery,
+	writeInstitutionCardRules,
+} from "./institution-card-rules";
 
 export async function visibleInstitution(userId: string, id: string) {
 	const [institution] = await queryRaw<{
@@ -27,6 +32,17 @@ export async function visibleInstitution(userId: string, id: string) {
 	return institution;
 }
 
+const MAX_PENDING_PROPOSALS_PER_USER = 20;
+
+async function assertPendingProposalLimit(query: RawQuery, userId: string) {
+	const [row] = await query<{ total: number }>(
+		`SELECT COUNT(*)::int AS total FROM "FinancialInstitutionProposal" WHERE "authorId"=$1 AND "status"='PENDING'`,
+		[userId],
+	);
+	if ((row?.total ?? 0) >= MAX_PENDING_PROPOSALS_PER_USER)
+		throw new HttpException("Aguarde a revisão das sugestões pendentes antes de enviar novas", 429);
+}
+
 export async function proposeInstitution(
 	userId: string,
 	institutionId: string | null,
@@ -40,7 +56,9 @@ export async function proposeInstitution(
 			throw new HttpException("Informe um nome com até 100 caracteres", 400);
 		payload = { ...payload, name };
 	}
+	if (kind === "CARD_RULES") assertInstitutionCardRules(payload.rules as never);
 	return withRawTransaction(async query => {
+		await assertPendingProposalLimit(query, userId);
 		let version: number | null = null;
 		if (institutionId) {
 			const original = await visibleInstitution(userId, institutionId);
@@ -304,6 +322,13 @@ export async function reviewInstitutionProposal(
 				await query(`UPDATE "FinancialInstitution" SET "version"="version"+1 WHERE "id"=$1`, [
 					institution.id,
 				]);
+			} else if (proposal.kind === "CARD_RULES") {
+				const { profileId, rules } = payload as {
+					profileId?: string;
+					rules: Parameters<typeof assertInstitutionCardRules>[0];
+				};
+				assertInstitutionCardRules(rules);
+				await writeInstitutionCardRules(query, institution.id, rules, profileId);
 			} else throw new HttpException("Tipo de proposta não suportado", 400);
 		} else if (proposal.kind === "NEW_INSTITUTION")
 			await query(`UPDATE "FinancialInstitution" SET "status"='REJECTED_PRIVATE' WHERE "id"=$1`, [
