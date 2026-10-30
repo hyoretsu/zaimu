@@ -116,6 +116,8 @@ Alterar ou remover a regra cria, por padrão, uma configuração válida a parti
 
 Cada conta com rendimento pode solicitar explicitamente recálculo de todo o histórico até hoje, usando a regra atualmente efetiva, outro perfil de rendimento da própria instituição ou uma regra personalizada. A escolha fica congelada somente para o histórico dessa conta; a configuração dos próximos dias permanece igual. Rendimentos manuais, ajustes e exclusões feitos pelo usuário são preservados. Visitante pode recalcular taxas fixas; regras ligadas a CDI ou Selic exigem histórico oficial disponível na conta conectada.
 
+Qualquer usuário pode sugerir à equipe, pelo botão "Sugerir à equipe" nas telas de contas e cartões, uma nova instituição, um novo perfil, uma política de rendimento, regras de cartão ou a associação de uma instituição própria a uma já aprovada. Toda sugestão fica pendente, sem efeito para ninguém, até um admin aprovar; a rejeição exige motivo e o autor é notificado do resultado. Cada usuário pode ter no máximo 20 sugestões pendentes. Sugestões de regras de cartão são aplicadas à instituição ou ao perfil escolhido somente na aprovação, e a aprovação exige confirmar a versão se a instituição mudou desde a sugestão.
+
 Países, associações moeda-país e feriados por país são globais e obtidos automaticamente das fontes oficiais. Não há tela administrativa de cadastro manual desses dados. O país da conta determina o calendário aplicável. Feriados bloqueiam rendimento automático e projetado naquela moeda; finais de semana continuam sem rendimento. Feriados pessoais antigos não são promovidos ao calendário global. Alterações administrativas recalculam rendimentos afetados.
 
 ## Taxas de compras no cartão
