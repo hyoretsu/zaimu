@@ -117,12 +117,12 @@ function DialogContent({
 				{showCloseButton && (
 					<DialogPrimitive.Close asChild data-slot="dialog-close">
 						<Button
+							aria-label="Fechar"
 							className="absolute top-4 right-4 cursor-pointer"
 							size="icon-sm"
 							variant="outline"
 						>
 							<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-							<span className="sr-only">Fechar</span>
 						</Button>
 					</DialogPrimitive.Close>
 				)}
@@ -143,9 +143,13 @@ function DialogHeader({ className, children, ...props }: ComponentProps<"div">) 
 			<div className="flex min-w-0 flex-1 flex-col gap-2 wrap-anywhere">{children}</div>
 			{showCloseButton && (
 				<DialogPrimitive.Close asChild data-slot="dialog-close">
-					<Button className="shrink-0 cursor-pointer" size="icon-sm" variant="outline">
+					<Button
+						aria-label="Fechar"
+						className="shrink-0 cursor-pointer"
+						size="icon-sm"
+						variant="outline"
+					>
 						<HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-						<span className="sr-only">Fechar</span>
 					</Button>
 				</DialogPrimitive.Close>
 			)}
