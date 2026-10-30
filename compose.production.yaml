@@ -1,6 +1,22 @@
+x-backend-image: &backend-image ${BACKEND_IMAGE:-ghcr.io/hyoretsu/zaimu_backend:latest}
+x-after-migrate: &after-migrate
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
 services:
+  migrate:
+    image: *backend-image
+    env_file: .env
+    networks:
+      - postgres
+    restart: "no"
+    working_dir: /app/packages/sql
+    command: ["bun", "run", "migrate:deploy"]
+
   backend:
-    image: ghcr.io/hyoretsu/zaimu_backend:latest
+    <<: *after-migrate
+    image: *backend-image
     env_file: .env
     networks:
       - postgres
@@ -24,7 +40,8 @@ services:
       caddy.reverse_proxy: "{{upstreams 3000}}"
 
   worker:
-    image: ghcr.io/hyoretsu/zaimu_backend:latest
+    <<: *after-migrate
+    image: *backend-image
     env_file: .env
     networks:
       - postgres

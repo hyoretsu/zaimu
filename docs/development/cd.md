@@ -4,7 +4,25 @@
 branches. `.github/workflows/apps.yml` builds apps on version tags (`v1.2.3`)
 or manual dispatch. Both use `.github/scripts/plan-cd.py` to emit explicit matrices.
 Library packages never become container targets. No workflow deploys containers
-to a server or runs database migrations.
+to a server or runs database migrations; production migrations run on the server
+through the `migrate` service in `compose.production.yaml` (see
+[Migrations on deploy](#migrations-on-deploy)).
+
+## Migrations on deploy
+
+`compose.production.yaml` defines a one-shot `migrate` service that uses the
+backend image and runs `bun run migrate:deploy` from `packages/sql`. The `backend`
+and `worker` services depend on it with `service_completed_successfully`, so they
+start only after migrations succeed; a failed migration aborts `docker compose up`
+and keeps the previous containers running. The command is whatever the SQL
+package's `migrate:deploy` script does, so the compose file does not depend on a
+specific migration tool. `BACKEND_IMAGE` overrides the backend image and defaults
+to the repository's `latest` image; pin it by digest for real deploys. Deploy with
+`docker compose -f compose.production.yaml pull && docker compose -f compose.production.yaml up -d`.
+
+Migrations run before the new backend starts, so the previous version briefly serves
+traffic against the new schema: keep migrations backward compatible (expand, then
+contract in a later release).
 
 ## Images
 
