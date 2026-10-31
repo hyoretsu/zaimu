@@ -62,3 +62,8 @@ export const CreateAccountTransferDTO = t.Object({
 	recipientEmail: t.String({ format: "email", maxLength: 254 }),
 });
 export type CreateAccountTransferDTO = typeof CreateAccountTransferDTO.static;
+
+export const RelatedTransferAccountsQuery = t.Object({
+	accountIds: t.String({ maxLength: 18499, minLength: 1 }),
+});
+export const RelatedTransferAccountReturn = t.Object({ id: t.String(), reasons: t.Array(t.String()) });

@@ -7,13 +7,26 @@ import {
 	respondAccountTransfer,
 } from "../application/account-transfers";
 import { detachedRewardHistory } from "../application/detached-reward-history";
+import { relatedTransferAccounts } from "../application/related-transfer-accounts";
 import {
 	AccountTransferPreviewReturn,
 	AccountTransferReturn,
 	CreateAccountTransferDTO,
+	RelatedTransferAccountReturn,
+	RelatedTransferAccountsQuery,
 } from "./AccountTransfersDTO";
 
 export const AccountTransfersController = new Elysia({ prefix: "/account-transfers" })
+	.get(
+		"/related-accounts",
+		async ({ request, query }) =>
+			relatedTransferAccounts(await requireUserId(request), query.accountIds.split(",")),
+		{
+			detail: { operationId: "getAccountTransfersRelatedAccounts", tags: ["Account transfers"] },
+			query: RelatedTransferAccountsQuery,
+			response: t.Array(RelatedTransferAccountReturn),
+		},
+	)
 	.get(
 		"/rewards/:accountId",
 		async ({ request, params, query }) =>

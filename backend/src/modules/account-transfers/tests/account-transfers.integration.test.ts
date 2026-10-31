@@ -14,6 +14,7 @@ import {
 	previewAccountTransfer,
 	respondAccountTransfer,
 } from "../application/account-transfers";
+import { relatedTransferAccounts } from "../application/related-transfer-accounts";
 
 const url = requireFixtureUrl("DATABASE_URL");
 const sender = "transfer-sender",
@@ -442,5 +443,31 @@ describe("account ownership transfers", () => {
 				`UPDATE "OpenFinanceBinding" SET "financialAccountId"='provider-account',"paused"=false WHERE "id"='provider-binding'`,
 			),
 		).rejects.toThrow();
+	});
+	test("lists only owned direct financial neighbours, including hidden accounts", async () => {
+		await account("related-source");
+		await account("related-history");
+		await account("related-card-account", sender, "CREDIT_CARD");
+		await account("related-unrelated");
+		await account("related-foreign", stranger);
+		await queryRaw(`UPDATE "FinancialAccount" SET "isHidden"=true WHERE "id"='related-history'`);
+		await queryRaw(
+			`INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay","paymentAccountId") VALUES ('related-card','related-card-account',1000,20,27,'related-source')`,
+		);
+		await queryRaw(
+			`INSERT INTO "Transaction" ("id","userId","amount","date","type","originFinancialAccountId","destinationFinancialAccountId") VALUES ('related-movement',$1,10,'2026-01-01','TRANSFER','related-source','related-history')`,
+			[sender],
+		);
+		expect(await relatedTransferAccounts(sender, ["related-source"])).toEqual([
+			{ id: "related-card-account", reasons: ["Pagamento de fatura"] },
+			{ id: "related-history", reasons: ["Histórico de transferências"] },
+		]);
+		expect(await relatedTransferAccounts(sender, ["related-source", "related-card-account"])).toEqual([
+			{ id: "related-history", reasons: ["Histórico de transferências"] },
+		]);
+		expect(await relatedTransferAccounts(sender, ["related-unrelated"])).toEqual([]);
+		await expect(relatedTransferAccounts(sender, ["related-foreign"])).rejects.toThrow(
+			"Conta não encontrada",
+		);
 	});
 });

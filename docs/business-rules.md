@@ -513,6 +513,8 @@ Dívidas, recebíveis, empréstimos e conexões com terceiros permanecem com seu
 
 Convite gera banner no aplicativo e tentativas independentes de e-mail e push para dispositivos habilitados. Remetente recebe resultado de aceite ou recusa. Ausência de configuração ou permissão push não bloqueia o convite. Notificações externas não contêm saldos nem nomes de contas; links exigem autenticação e revisão, sem executar aceite. Convites cancelados ou respondidos não geram novos avisos de pendência.
 
+No formulário de transferência, a conta de origem ou o conjunto da instituição ficam fixos. Só contas com vínculos financeiros diretos (pagamento de fatura, cashback, transferências, recorrências ou importações pendentes) aparecem como inclusões adicionais, com o motivo do vínculo. Na abertura geral, escolher primeiro a conta de origem. O aviso sobre efeitos da transferência permanece fixo no rodapé, fora da área rolável.
+
 ## Contratos de empréstimos e planejador de antecipação
 
 Novos contratos exigem instituição cadastrada. Credores legados permanecem preservados até associação explícita. Contratos PRICE, SAC e cronograma manual mantêm versões de condições e parcelas; pagamentos parciais, antecipações e estornos preservam histórico. Totais restantes somam parcelas reais. Renegociação e portabilidade vinculam origem e sucessor sem fabricar crédito recebido ou pagamento em conta. Crédito recebido exige criação ou vínculo explícito; um movimento não financia dois contratos.

@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { LuSend } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
 	DialogBody,
@@ -18,12 +18,14 @@ import { RequiredMark } from "@/components/ui/RequiredMark";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { useGetAccountTransfersRelatedAccounts } from "@/lib/api";
 import { ownershipTransfers } from "@/lib/api/account-transfers";
 import { dataService } from "@/lib/dataService";
 import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/auth";
+import { TransferAccountSelection } from "./components";
 
 export function AccountTransferDialog({
 	accountId,
@@ -34,11 +36,11 @@ export function AccountTransferDialog({
 	institutionId?: string;
 	iconOnly?: boolean;
 }) {
-	const formId = useId();
 	const [open, setOpen] = useState(false);
 	const [email, setEmail] = useState("");
 	const [localEmail, setLocalEmail] = useDebouncedInput(email, setEmail);
-	const [selection, setSelection] = useState<string[] | null>(null);
+	const [selection, setSelection] = useState<string[]>([]);
+	const [primaryId, setPrimaryId] = useState("");
 	const authenticated = useAuthStore(state => state.isAuthenticated);
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
@@ -47,25 +49,37 @@ export function AccountTransferDialog({
 		queryFn: () => dataService.accounts.getAllIncludingHidden(),
 		queryKey: [...queryKeys.accounts.list(identity!), "including-hidden"],
 	});
-	const selected =
-		selection ??
+	const baseIds =
 		accounts.data
 			?.filter(account =>
 				accountId
 					? account.id === accountId
 					: institutionId
 						? account.institutionId === institutionId
-						: false,
+						: account.id === primaryId,
 			)
-			.map(account => account.id) ??
-		[];
+			.map(account => account.id) ?? [];
+	const related = useGetAccountTransfersRelatedAccounts(
+		{ accountIds: baseIds.join(",") },
+		{
+			query: {
+				enabled: open && authenticated && baseIds.length > 0,
+				queryKey: ["identity", identity, "account-transfers", "related", ...baseIds.toSorted()],
+				retry: false,
+			},
+		},
+	);
+
+	const selected = [
+		...new Set([...baseIds, ...selection.filter(id => related.data?.some(account => account.id === id))]),
+	];
 	const mutation = useMutation({
 		mutationFn: ownershipTransfers.create,
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["identity", identity, "account-transfers"] });
 			toast.success("Convite enviado. Contas permanecem com você até o aceite.");
 			setOpen(false);
-			setSelection(null);
+			setSelection([]);
 			setEmail("");
 			setLocalEmail("");
 		},
@@ -76,7 +90,8 @@ export function AccountTransferDialog({
 				if (!mutation.isPending) {
 					setOpen(value);
 					if (value) {
-						setSelection(null);
+						setSelection([]);
+						setPrimaryId("");
 						mutation.reset();
 					}
 				}
@@ -128,7 +143,14 @@ export function AccountTransferDialog({
 							const recipientEmail = String(
 								new FormData(event.currentTarget).get("recipientEmail") ?? "",
 							).trim();
-							if (!recipientEmail || !selected.length) return;
+							if (
+								!recipientEmail ||
+								!baseIds.length ||
+								related.isPending ||
+								related.isError ||
+								related.isFetching
+							)
+								return;
 							mutation.mutate({ accountIds: selected, recipientEmail });
 						}}
 					>
@@ -149,53 +171,63 @@ export function AccountTransferDialog({
 										value={localEmail}
 									/>
 								</label>
-								<fieldset className="space-y-3">
-									<legend className="mb-2 font-semibold">
-										Contas <RequiredMark />
-									</legend>
-									{accounts.isPending ? (
-										<Skeleton className="h-32 w-full" />
-									) : accounts.isError ? (
-										<p role="alert">
-											Não foi possível carregar contas.{" "}
-											<Button
-												onClick={() => void accounts.refetch()}
-												type="button"
-												variant="outline"
-											>
-												Tentar novamente
-											</Button>
-										</p>
-									) : (
-										accounts.data?.map(account => (
-											<label
-												className="flex cursor-pointer items-center gap-3 rounded-xl border p-3"
-												htmlFor={`${formId}-${account.id}`}
-												key={account.id}
-											>
-												<Checkbox
-													checked={selected.includes(account.id)}
-													id={`${formId}-${account.id}`}
-													onCheckedChange={checked =>
-														setSelection(
-															checked
-																? [...selected, account.id]
-																: selected.filter(id => id !== account.id),
-														)
-													}
+								{accounts.isPending ? (
+									<Skeleton className="h-32 w-full" />
+								) : accounts.isError ? (
+									<div role="alert">
+										<p>Não foi possível carregar contas.</p>
+										<Button
+											onClick={() => void accounts.refetch()}
+											type="button"
+											variant="outline"
+										>
+											Tentar novamente
+										</Button>
+									</div>
+								) : (
+									<>
+										{!accountId && !institutionId && (
+											<div className="grid gap-2">
+												<CustomSelect
+													label="Conta que será transferida"
+													onValueChange={id => {
+														setPrimaryId(id);
+														setSelection([]);
+													}}
+													options={(accounts.data ?? []).map(account => ({
+														label: getFinancialAccountDisplayName(account),
+														value: account.id,
+													}))}
+													placeholder="Selecione uma conta"
+													required
+													searchable
+													value={primaryId}
 												/>
-												<span className="min-w-0 break-words">
-													{getFinancialAccountDisplayName(account)}
-													{account.isHidden ? " - Escondida" : ""}
-												</span>
-											</label>
-										))
-									)}
-								</fieldset>
-								<p className="text-muted-foreground text-sm">
-									Dívidas e empréstimos ficam com você. Vínculos com contas fora da seleção
-									serão separados; algumas recorrências serão pausadas. Convite não expira.
-								</p>
+											</div>
+										)}
+										{(accountId || institutionId) && !baseIds.length && (
+											<p role="alert">Conta selecionada não está disponível.</p>
+										)}
+										{baseIds.length > 0 && (
+											<TransferAccountSelection
+												accounts={accounts.data ?? []}
+												baseIds={baseIds}
+												error={related.isError}
+												loading={related.isPending}
+												onRetry={() => void related.refetch()}
+												onSelect={(id, checked) =>
+													setSelection(current =>
+														checked
+															? [...current, id]
+															: current.filter(value => value !== id),
+													)
+												}
+												related={related.data ?? []}
+												selected={selected}
+											/>
+										)}
+									</>
+								)}
 								{mutation.isError && (
 									<p className="text-destructive" role="alert">
 										{mutation.error.message}
@@ -204,6 +236,13 @@ export function AccountTransferDialog({
 							</div>
 						</DialogBody>
 						<DialogFooter>
+							<p
+								className="text-muted-foreground w-full border-t pt-3 text-sm"
+								data-transfer-effects
+							>
+								Dívidas e empréstimos ficam com você. Vínculos com contas fora da seleção
+								serão separados; algumas recorrências serão pausadas. Convite não expira.
+							</p>
 							<Button
 								disabled={mutation.isPending}
 								onClick={() => setOpen(false)}
@@ -213,7 +252,15 @@ export function AccountTransferDialog({
 								Descartar
 							</Button>
 							<Button
-								disabled={mutation.isPending || accounts.isPending || !selected.length}
+								disabled={
+									mutation.isPending ||
+									accounts.isPending ||
+									accounts.isError ||
+									!baseIds.length ||
+									related.isPending ||
+									related.isError ||
+									related.isFetching
+								}
 								type="submit"
 							>
 								{mutation.isPending ? "Enviando..." : "Enviar convite"}
