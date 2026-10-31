@@ -1,7 +1,25 @@
 import { Value } from "@sinclair/typebox/value";
 import Elysia from "elysia";
-import { BATCH_MAX_BYTES, isBatchAction } from "../../../../../../shared/batch-policy";
+import { BATCH_CONCURRENCY, BATCH_MAX_BYTES, isBatchAction } from "../../../../../../shared/batch-policy";
 import { BatchBody, BatchErrorReturn, BatchResult } from "../../dtos/BatchDTO";
+
+async function mapConcurrent<Item, Result>(
+	items: Item[],
+	limit: number,
+	run: (item: Item) => Promise<Result>,
+): Promise<Result[]> {
+	const results = new Array<Result>(items.length);
+	let next = 0;
+	await Promise.all(
+		Array.from({ length: Math.min(limit, items.length) }, async () => {
+			while (next < items.length) {
+				const index = next++;
+				results[index] = await run(items[index]!);
+			}
+		}),
+	);
+	return results;
+}
 
 /** Dispatch through the application's normal auth, validation and transaction hooks. */
 export function createBatchController(
@@ -52,9 +70,12 @@ export function createBatchController(
 						{ error: "Identificadores de ações devem ser únicos." },
 						{ status: 422 },
 					);
-				// Operations are independent (conflicting ones are never batched together): run concurrently.
-				const results: BatchResult["results"] = await Promise.all(
-					body.operations.map(async operation => {
+				// Operations are independent (conflicting ones are never batched together): run them
+				// concurrently, bounded so one batch cannot exhaust the DB pool.
+				const results: BatchResult["results"] = await mapConcurrent(
+					body.operations,
+					BATCH_CONCURRENCY,
+					async operation => {
 						if (!isBatchAction(operation.method, operation.path))
 							return {
 								data: { error: "Ação não permitida em lote." },
@@ -92,7 +113,7 @@ export function createBatchController(
 								status: 500,
 							};
 						}
-					}),
+					},
 				);
 				return Response.json({ results });
 			},

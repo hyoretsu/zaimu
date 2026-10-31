@@ -16,6 +16,8 @@ const routes: ReadonlyArray<readonly [string, RegExp]> = [
 ];
 
 export const BATCH_MAX_ACTIONS = 50;
+/** Operations executed at once per /batch request; keeps headroom in the DB pool (default 20). */
+export const BATCH_CONCURRENCY = 8;
 export const BATCH_MAX_BYTES = 1024 * 1024;
 export const BATCH_DEBOUNCE_MS = 300;
 export const BATCH_MAX_WAIT_MS = 1000;

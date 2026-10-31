@@ -103,6 +103,7 @@ export class ActionBatchQueue {
 				entry.reject(this.cancelled ?? entry.signal?.reason);
 				return false;
 			});
+			const chunks: Entry[][] = [];
 			while (active.length) {
 				const chunk: Entry[] = [];
 				while (active.length && chunk.length < BATCH_MAX_ACTIONS) {
@@ -119,29 +120,34 @@ export class ActionBatchQueue {
 					if (chunk.length && size > BATCH_MAX_BYTES) break;
 					chunk.push(active.shift()!);
 				}
-				if (!chunk.length) continue;
-				try {
-					if (this.cancelled) throw this.cancelled;
-					const results = await this.send(chunk.map(entry => entry.operation));
-					const byId = new Map(results.map(result => [result.id, result]));
-					if (
-						byId.size !== chunk.length ||
-						results.length !== chunk.length ||
-						chunk.some(entry => !byId.has(entry.operation.id))
-					)
-						throw new Error(
-							"Resposta de lote incompleta. Atualize os dados antes de tentar novamente.",
-						);
-					for (const entry of chunk) {
-						if (this.cancelled) entry.reject(this.cancelled);
-						else entry.resolve(byId.get(entry.operation.id)!);
-					}
-				} catch (error) {
-					for (const entry of chunk) entry.reject(error);
-				} finally {
-					for (const entry of chunk) entry.detach();
-				}
+				if (chunk.length) chunks.push(chunk);
 			}
+			// Chunks are independent requests: send them in parallel.
+			await Promise.all(
+				chunks.map(async chunk => {
+					try {
+						if (this.cancelled) throw this.cancelled;
+						const results = await this.send(chunk.map(entry => entry.operation));
+						const byId = new Map(results.map(result => [result.id, result]));
+						if (
+							byId.size !== chunk.length ||
+							results.length !== chunk.length ||
+							chunk.some(entry => !byId.has(entry.operation.id))
+						)
+							throw new Error(
+								"Resposta de lote incompleta. Atualize os dados antes de tentar novamente.",
+							);
+						for (const entry of chunk) {
+							if (this.cancelled) entry.reject(this.cancelled);
+							else entry.resolve(byId.get(entry.operation.id)!);
+						}
+					} catch (error) {
+						for (const entry of chunk) entry.reject(error);
+					} finally {
+						for (const entry of chunk) entry.detach();
+					}
+				}),
+			);
 		})();
 		this.inFlight.add(run);
 		void run.finally(() => this.inFlight.delete(run));
