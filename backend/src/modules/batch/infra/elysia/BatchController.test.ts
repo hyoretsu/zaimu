@@ -147,11 +147,12 @@ test("each child commits or rolls back independently and runs commit effects onl
 			const handle = async () => (await handler(req)) as unknown as Response;
 			if (new URL(req.url).pathname === "/batch") return handle();
 			return runMutationRequest(handle, async operation => {
-				const previous = [...persisted];
+				const id = new URL(req.url).pathname.split("/").pop()!;
 				try {
 					return await operation();
 				} catch (error) {
-					persisted.splice(0, persisted.length, ...previous);
+					// Roll back only this operation's write: children now run concurrently.
+					persisted.splice(persisted.lastIndexOf(id), 1);
 					throw error;
 				}
 			});
@@ -175,6 +176,6 @@ test("each child commits or rolls back independently and runs commit effects onl
 	expect(
 		((await response.json()) as BatchResult).results.map((result: { status: number }) => result.status),
 	).toEqual([200, 409, 200]);
-	expect(persisted).toEqual(["a", "b"]);
+	expect([...persisted].sort()).toEqual(["a", "b"]);
 	expect(effects).toEqual(["a", "b"]);
 });

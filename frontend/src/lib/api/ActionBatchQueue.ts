@@ -25,7 +25,7 @@ interface Entry {
 	detach: () => void;
 }
 
-/** One queue per identity + transport context. In-flight batches are serialized. */
+/** One queue per identity + transport context. Batches are sent concurrently; conflicting actions are never queued together. */
 export class ActionBatchQueue {
 	private pending: Entry[] = [];
 	private readonly paths = new Map<string, number>();
@@ -35,7 +35,7 @@ export class ActionBatchQueue {
 	>();
 	private debounce?: ReturnType<typeof setTimeout>;
 	private deadline?: ReturnType<typeof setTimeout>;
-	private tail: Promise<void> = Promise.resolve();
+	private readonly inFlight = new Set<Promise<void>>();
 	private cancelled: unknown;
 
 	constructor(
@@ -96,8 +96,7 @@ export class ActionBatchQueue {
 		this.debounce = this.deadline = undefined;
 		const entries = this.pending.splice(0);
 		if (!entries.length) return;
-		this.tail = this.tail.then(async () => {
-			// A previous send may have been running when these entries were flushed.
+		const run = (async () => {
 			const active = entries.filter(entry => {
 				if (!this.cancelled && !entry.signal?.aborted) return true;
 				entry.detach();
@@ -143,7 +142,9 @@ export class ActionBatchQueue {
 					for (const entry of chunk) entry.detach();
 				}
 			}
-		});
+		})();
+		this.inFlight.add(run);
+		void run.finally(() => this.inFlight.delete(run));
 	}
 
 	hasConflict(path: string): boolean {
@@ -152,7 +153,7 @@ export class ActionBatchQueue {
 
 	async drain(): Promise<void> {
 		this.flush();
-		await this.tail;
+		await Promise.all(this.inFlight);
 	}
 
 	cancel(error: unknown): void {

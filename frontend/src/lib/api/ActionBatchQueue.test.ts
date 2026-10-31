@@ -50,11 +50,12 @@ test("sends at deadline under continuous clicks", async () => {
 	await Promise.all(results);
 });
 
-test("splits by count and bytes and serializes in-flight batches", async () => {
+test("splits by count and bytes and sends in-flight batches concurrently", async () => {
 	const calls: BatchOperation[][] = [];
 	let active = 0;
+	let maxActive = 0;
 	const queue = new ActionBatchQueue(async operations => {
-		expect(active++).toBe(0);
+		maxActive = Math.max(maxActive, ++active);
 		calls.push(operations);
 		await sleep(1);
 		active--;
@@ -64,6 +65,7 @@ test("splits by count and bytes and serializes in-flight batches", async () => {
 	await queue.drain();
 	await Promise.all(pending);
 	expect(calls.map(call => call.length)).toEqual([50, 5]);
+	expect(maxActive).toBe(2);
 	calls.length = 0;
 	const large = [
 		queue.enqueue(operation("a", "x".repeat(600000))),
@@ -74,7 +76,7 @@ test("splits by count and bytes and serializes in-flight batches", async () => {
 	expect(calls.map(call => call.length)).toEqual([1, 1]);
 });
 
-test("cancels unsent operations, including flushed entries behind an active send", async () => {
+test("cancels unsent operations while another send is active", async () => {
 	let release!: () => void;
 	let calls = 0;
 	const queue = new ActionBatchQueue(async operations => {
@@ -88,7 +90,6 @@ test("cancels unsent operations, including flushed entries behind an active send
 	queue.flush();
 	await sleep(0);
 	const next = queue.enqueue(operation("b")).catch(error => error.message);
-	queue.flush();
 	queue.cancel(new Error("session changed"));
 	release();
 	await queue.drain();

@@ -52,48 +52,48 @@ export function createBatchController(
 						{ error: "Identificadores de ações devem ser únicos." },
 						{ status: 422 },
 					);
-				const results: BatchResult["results"] = [];
-				for (const operation of body.operations) {
-					if (!isBatchAction(operation.method, operation.path)) {
-						results.push({
-							data: { error: "Ação não permitida em lote." },
-							id: operation.id,
-							status: 400,
+				// Operations are independent (conflicting ones are never batched together): run concurrently.
+				const results: BatchResult["results"] = await Promise.all(
+					body.operations.map(async operation => {
+						if (!isBatchAction(operation.method, operation.path))
+							return {
+								data: { error: "Ação não permitida em lote." },
+								id: operation.id,
+								status: 400,
+							};
+						const headers = new Headers();
+						for (const name of [
+							"cookie",
+							"authorization",
+							"origin",
+							"x-currency",
+							"x-correlation-id",
+						])
+							if (request.headers.has(name)) headers.set(name, request.headers.get(name)!);
+						headers.set("content-type", "application/json");
+						const child = new Request(new URL(operation.path, request.url).toString(), {
+							body: operation.body === undefined ? undefined : JSON.stringify(operation.body),
+							headers,
+							method: operation.method,
 						});
-						continue;
-					}
-					const headers = new Headers();
-					for (const name of [
-						"cookie",
-						"authorization",
-						"origin",
-						"x-currency",
-						"x-correlation-id",
-					])
-						if (request.headers.has(name)) headers.set(name, request.headers.get(name)!);
-					headers.set("content-type", "application/json");
-					const child = new Request(new URL(operation.path, request.url).toString(), {
-						body: operation.body === undefined ? undefined : JSON.stringify(operation.body),
-						headers,
-						method: operation.method,
-					});
-					inheritSession(request, child);
-					try {
-						const response = await handle(child);
-						const text = await response.text();
-						results.push({
-							data: text ? JSON.parse(text) : null,
-							id: operation.id,
-							status: response.status,
-						});
-					} catch {
-						results.push({
-							data: { error: "Não foi possível concluir a ação." },
-							id: operation.id,
-							status: 500,
-						});
-					}
-				}
+						inheritSession(request, child);
+						try {
+							const response = await handle(child);
+							const text = await response.text();
+							return {
+								data: text ? JSON.parse(text) : null,
+								id: operation.id,
+								status: response.status,
+							};
+						} catch {
+							return {
+								data: { error: "Não foi possível concluir a ação." },
+								id: operation.id,
+								status: 500,
+							};
+						}
+					}),
+				);
 				return Response.json({ results });
 			},
 			{
