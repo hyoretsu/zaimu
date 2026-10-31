@@ -85,7 +85,7 @@ export async function loadCreditBook(
 		cardId,
 	]);
 	const payments = await query<Row>(
-		`SELECT "id", "amount", "paymentAmount", "bookingCurrency", "paymentCurrency", "date" FROM "Transaction" WHERE "paymentCreditCardId" = $1 AND "userId" = $2`,
+		`SELECT "id", "amount", "paymentAmount", "bookingCurrency", "conversionSource", "paymentCurrency", "date" FROM "Transaction" WHERE "paymentCreditCardId" = $1 AND "userId" = $2`,
 		[cardId, userId],
 	);
 	const tombstones = await query<{ id: string; entryKind: string }>(
@@ -136,6 +136,7 @@ export async function loadCreditBook(
 				{
 					amount: Number(row.amount),
 					bookingCurrency: row.bookingCurrency as string | null,
+					conversionSource: row.conversionSource as string | null,
 					paymentAmount: row.paymentAmount == null ? null : Number(row.paymentAmount),
 				},
 				card.currency,

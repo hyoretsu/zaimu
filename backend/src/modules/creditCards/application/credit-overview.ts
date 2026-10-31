@@ -109,7 +109,7 @@ JOIN "CreditCardStatement" statement ON statement."id" = charge."statementId"
 JOIN visible_cards card ON card."id" = statement."creditCardId"
 UNION ALL
 SELECT 'payment', jsonb_build_object(
-  'amount', payment."amount", 'paymentAmount', payment."paymentAmount", 'bookingCurrency', payment."bookingCurrency", 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
+  'amount', payment."amount", 'paymentAmount', payment."paymentAmount", 'bookingCurrency', payment."bookingCurrency", 'conversionSource', payment."conversionSource", 'creditCardId', payment."paymentCreditCardId", 'date', payment."date", 'id', payment."id"
 )
 FROM "Transaction" payment
 JOIN visible_cards card ON card."id" = payment."paymentCreditCardId"
@@ -155,11 +155,16 @@ export function replayOverviewStatements(
 				moneyCents(Number(amount), 1, card.currency),
 			),
 			installmentImportedNumbers: (row.importedNumbers as unknown[]).map(Number),
-			installmentStatementDates: (row.statementDates as Array<Record<string, unknown> | null>).map(dates =>
-				dates ? { dueDate: asDateKey(dates.dueDate), statementDate: asDateKey(dates.statementDate) } : null,
+			installmentStatementDates: (row.statementDates as Array<Record<string, unknown> | null>).map(
+				dates =>
+					dates
+						? { dueDate: asDateKey(dates.dueDate), statementDate: asDateKey(dates.statementDate) }
+						: null,
 			),
 			purchaseDate: asDateKey(row.purchaseDate),
-			recurrenceOccurrenceDate: row.recurrenceOccurrenceDate ? asDateKey(row.recurrenceOccurrenceDate) : null,
+			recurrenceOccurrenceDate: row.recurrenceOccurrenceDate
+				? asDateKey(row.recurrenceOccurrenceDate)
+				: null,
 			tagIds: [],
 			totalAmountCents: moneyCents(Number(row.totalAmount), 1, card.currency),
 			updatedAt: asTimestamp(row.updatedAt),
@@ -170,7 +175,9 @@ export function replayOverviewStatements(
 				currency: card.currency ?? "BRL",
 				dueDay: Number(card.dueDay),
 				id: card.id,
-				ignoreStatementsBefore: card.ignoreStatementsBefore ? asDateKey(card.ignoreStatementsBefore) : null,
+				ignoreStatementsBefore: card.ignoreStatementsBefore
+					? asDateKey(card.ignoreStatementsBefore)
+					: null,
 				installmentRemainderOnFirst: card.installmentRemainderOnFirst ?? false,
 				institutionId: card.institutionId,
 				refundPolicy: card.refundPolicy,
@@ -206,6 +213,7 @@ export function replayOverviewStatements(
 					{
 						amount: Number(row.amount),
 						bookingCurrency: row.bookingCurrency as string | null,
+						conversionSource: row.conversionSource as string | null,
 						paymentAmount: row.paymentAmount == null ? null : Number(row.paymentAmount),
 					},
 					card.currency,
@@ -216,7 +224,8 @@ export function replayOverviewStatements(
 			purchases,
 			refunds: (refundsByCard.get(card.id) ?? []).map(row => ({
 				amountCents: moneyCents(Number(row.amount), 1, card.currency),
-				canceledInstallmentNumbers: (row.canceledInstallmentNumbers as number[] | undefined) ?? undefined,
+				canceledInstallmentNumbers:
+					(row.canceledInstallmentNumbers as number[] | undefined) ?? undefined,
 				cancellationEligible: Boolean(row.cancellationEligible),
 				createdAt: asTimestamp(row.createdAt),
 				creditDate: asDateKey(row.creditDate),

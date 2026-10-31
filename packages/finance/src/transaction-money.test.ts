@@ -73,3 +73,31 @@ test("legacy same-currency payments settle corrected imports without carrying ph
 	expect(cardPaymentAmount({ ...payment, bookingCurrency: "USD" }, "BRL")).toBe(1434.35);
 	expect(cardPaymentAmount({ amount: 100 })).toBe(100);
 });
+test("points movements keep both sides even in the same currency", async () => {
+	const sides = await resolveTransactionMoneySides(
+		{
+			amount: 10000,
+			currency: "BRL",
+			destinationAmount: 85.5,
+			destinationCurrency: "BRL",
+			explicitSides: true,
+		},
+		async () => 1,
+	);
+	expect(sides.destinationAmount).toBe(85.5);
+	expect(sides.conversionSource).toBe("POINTS");
+	expect(
+		cardPaymentAmount(
+			{ amount: 10000, bookingCurrency: "BRL", conversionSource: "POINTS", paymentAmount: 85.5 },
+			"BRL",
+		),
+	).toBe(85.5);
+});
+test("points movements require the counterpart amount", async () => {
+	await expect(
+		resolveTransactionMoneySides(
+			{ amount: 10000, currency: "BRL", destinationCurrency: "BRL", explicitSides: true },
+			async () => 1,
+		),
+	).rejects.toThrow("Informe o valor equivalente");
+});

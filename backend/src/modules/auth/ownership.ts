@@ -160,3 +160,14 @@ export const assertTransactionOwnership = async (transactionId: string, userId: 
 
 	if (!transaction) throw new HttpException("Transação não encontrada", 404);
 };
+
+export const isPointsAccount = async (accountId?: null | string) => {
+	if (!accountId) return false;
+	const rewardsAccount = await queryFirst(
+		db.sql.public.RewardsAccount.select("kind")
+			.where((fields, functions) => functions.eq(fields.financialAccountId, accountId))
+			.limit(1)
+			.build(),
+	);
+	return rewardsAccount?.kind === "POINTS";
+};

@@ -719,7 +719,9 @@ export type DebtSplitSummaryReturn = typeof DebtSplitSummaryReturn.static;
 export const TransactionReturn = t.Object({
 	amount: t.Number(),
 	bookingCurrency: t.Optional(t.String()),
-	conversionSource: t.Optional(t.Union([t.Null(), t.Literal("MANUAL"), t.Literal("DAILY")])),
+	conversionSource: t.Optional(
+		t.Union([t.Null(), t.Literal("MANUAL"), t.Literal("DAILY"), t.Literal("POINTS")]),
+	),
 	createdAt: t.String(),
 	creditCardId: t.Optional(t.Nullable(t.String())),
 	creditCardName: t.Optional(t.Union([t.Null(), t.String()])),

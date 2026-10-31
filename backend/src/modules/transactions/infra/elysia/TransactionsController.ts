@@ -1,11 +1,12 @@
 import { convertFixedSplitAtDate } from "@zaimu/finance/money";
-import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
+import { resolveTransactionMoneySides, TransactionMoneyError } from "@zaimu/finance/transaction-money";
 import Elysia, { t } from "elysia";
 import {
 	assertBalanceAccountOwnership,
 	assertCreditCardOwnership,
 	assertDirectOwnership,
 	assertTransactionOwnership,
+	isPointsAccount,
 	requireUserId,
 } from "~/modules/auth";
 import {
@@ -17,10 +18,10 @@ import {
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import {
-	CurrencyDTO,
 	creditCardCurrency,
-	FinancialFeeDTO,
+	CurrencyDTO,
 	financialAccountCurrency,
+	FinancialFeeDTO,
 	resolveFinancialMoney,
 } from "~/modules/currencies/application/financial-money";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
@@ -95,6 +96,15 @@ async function refreshCardPayments(cardIds: string[]) {
 	await withTransaction(transaction => recalculateStatementPayments(transaction, cardIds));
 }
 
+async function resolveSides(...args: Parameters<typeof resolveTransactionMoneySides>) {
+	try {
+		return await resolveTransactionMoneySides(...args);
+	} catch (error) {
+		if (error instanceof TransactionMoneyError) throw new HttpException(error.message, 400);
+		throw error;
+	}
+}
+
 export const TransactionsController = new Elysia({ prefix: "/transactions" })
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
@@ -112,7 +122,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.where((fields, functions) => functions.in(fields.id, [params.id, params.counterpartId]))
 					.build(),
 			);
-			if (transactions.length !== 2) throw new HttpException("Sugestão de transferência não encontrada", 404);
+			if (transactions.length !== 2)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
 			const [left, right] = transactions;
 			if (
 				!areTransferSuggestionTimesCompatible(left, right) ||
@@ -130,7 +141,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!outgoingAccountId || !incomingAccountId || outgoingAccountId === incomingAccountId)
 				throw new HttpException("Sugestão de transferência não encontrada", 404);
 			const references = await queryRows(
-				db.sql.public.TransactionExternalReference.select("externalId", "financialAccountId", "transactionId")
+				db.sql.public.TransactionExternalReference.select(
+					"externalId",
+					"financialAccountId",
+					"transactionId",
+				)
 					.where((fields, functions) => functions.in(fields.transactionId, [left.id, right.id]))
 					.build(),
 			);
@@ -164,7 +179,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						.where((fields, functions) => functions.eq(fields.id, retained.id))
 						.build(),
 				);
-				const removedReferences = references.filter(reference => reference.transactionId === removed.id);
+				const removedReferences = references.filter(
+					reference => reference.transactionId === removed.id,
+				);
 				if (removedReferences.length)
 					await transaction.executeStatement(
 						transaction.db.sql.public.TransactionExternalReference.insert(
@@ -197,23 +214,31 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				async () => {
 					const [transactions, rejections] = await Promise.all([
 						queryRows(
-							db.sql.public.Transaction.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
-								functions.or(
-									functions.and(
-										functions.eq(fields.Transaction.type, "EXPENSE"),
-										functions.eq(fields.Transaction.originFinancialAccountId, fields.FinancialAccount.id),
-									),
-									functions.and(
-										functions.eq(fields.Transaction.type, "INCOME"),
-										functions.eq(
-											fields.Transaction.destinationFinancialAccountId,
-											fields.FinancialAccount.id,
+							db.sql.public.Transaction.innerJoin(
+								db.sql.public.FinancialAccount,
+								(fields, functions) =>
+									functions.or(
+										functions.and(
+											functions.eq(fields.Transaction.type, "EXPENSE"),
+											functions.eq(
+												fields.Transaction.originFinancialAccountId,
+												fields.FinancialAccount.id,
+											),
+										),
+										functions.and(
+											functions.eq(fields.Transaction.type, "INCOME"),
+											functions.eq(
+												fields.Transaction.destinationFinancialAccountId,
+												fields.FinancialAccount.id,
+											),
 										),
 									),
-								),
 							)
 								.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
-									functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+									functions.eq(
+										fields.FinancialAccount.institutionId,
+										fields.FinancialInstitution.id,
+									),
 								)
 								.select((fields, functions) => ({
 									accountName:
@@ -225,7 +250,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 									createdAt: fields.Transaction.createdAt,
 									date: fields.Transaction.date,
 									description: fields.Transaction.description,
-									destinationFinancialAccountId: fields.Transaction.destinationFinancialAccountId,
+									destinationFinancialAccountId:
+										fields.Transaction.destinationFinancialAccountId,
 									id: fields.Transaction.id,
 									isHidden: fields.Transaction.isHidden,
 									originFinancialAccountId: fields.Transaction.originFinancialAccountId,
@@ -236,7 +262,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.FinancialAccount.userId, userId),
-										functions.raw`${fields.Transaction.time} IS NOT NULL`.returns("pg/bool@1"),
+										functions.raw`${fields.Transaction.time} IS NOT NULL`.returns(
+											"pg/bool@1",
+										),
 									),
 								)
 								.build(),
@@ -251,12 +279,15 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						),
 					]);
 					const rejectedPairs = new Set(
-						rejections.map(rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`),
+						rejections.map(
+							rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`,
+						),
 					);
 					const candidates = transactions.map(transaction => ({
 						...transaction,
 						amount: Number(transaction.amount),
-						destinationAccountType: transaction.type === "INCOME" ? transaction.accountType : null,
+						destinationAccountType:
+							transaction.type === "INCOME" ? transaction.accountType : null,
 						destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
 						originAccountType: transaction.type === "EXPENSE" ? transaction.accountType : null,
 						originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
@@ -288,7 +319,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.where((fields, functions) => functions.in(fields.id, [params.id, params.counterpartId]))
 					.build(),
 			);
-			if (transactions.length !== 2) throw new HttpException("Sugestão de transferência não encontrada", 404);
+			if (transactions.length !== 2)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
 			const [left, right] = transactions;
 			if (
 				!areTransferSuggestionTimesCompatible(left, right) ||
@@ -389,7 +421,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						await financialAccountCurrency(
 							(transaction.type === "INCOME"
 								? transaction.destinationFinancialAccountId
-								: transaction.originFinancialAccountId) ?? transaction.destinationFinancialAccountId,
+								: transaction.originFinancialAccountId) ??
+								transaction.destinationFinancialAccountId,
 							transaction.bookingCurrency,
 						),
 					);
@@ -476,12 +509,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				else
 					await assertBalanceAccountOwnership(originFinancialAccountId, userId, {
 						allowCashback: (body.type ?? "EXPENSE") === "EXPENSE" || body.type === "TRANSFER",
+						allowPoints: (body.type ?? "EXPENSE") !== "INCOME",
 					});
 			}
 			if (body.destinationFinancialAccountId) {
 				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId, {
 					allowCashback: (body.type ?? "EXPENSE") === "INCOME",
-					allowPoints: (body.type ?? "EXPENSE") === "INCOME",
+					allowPoints: (body.type ?? "EXPENSE") === "INCOME" || body.type === "TRANSFER",
 				});
 			}
 			const hasExplicitTags = body.tagIds !== undefined;
@@ -530,7 +564,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				});
 				const concrete = await findExistingOccurrence();
 				if (!concrete)
-					throw new HttpException("Ocorrência indisponível, excluída ou pertencente ao cartão", 409);
+					throw new HttpException(
+						"Ocorrência indisponível, excluída ou pertencente ao cartão",
+						409,
+					);
 			}
 			const money = await resolveFinancialMoney({
 				amount: body.amount,
@@ -542,12 +579,17 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						? [{ amount: body.feeAmount, name: body.feeDescription ?? "Taxa", type: "FIXED" }]
 						: []),
 				targetCurrency: await financialAccountCurrency(
-					(body.type === "INCOME" ? body.destinationFinancialAccountId : originFinancialAccountId) ??
-						body.destinationFinancialAccountId,
+					(body.type === "INCOME"
+						? body.destinationFinancialAccountId
+						: originFinancialAccountId) ?? body.destinationFinancialAccountId,
 					body.currency ?? (await defaultCurrency(userId, request.headers.get("X-Currency"))),
 				),
 			});
-			const sides = await resolveTransactionMoneySides(
+			const explicitSides =
+				(await isPointsAccount(originFinancialAccountId)) ||
+				(Boolean(originFinancialAccountId) &&
+					(await isPointsAccount(body.destinationFinancialAccountId)));
+			const sides = await resolveSides(
 				{
 					amount: money.amount,
 					currency: money.bookingCurrency,
@@ -555,6 +597,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					destinationCurrency: body.destinationFinancialAccountId
 						? await financialAccountCurrency(body.destinationFinancialAccountId)
 						: null,
+					explicitSides,
 					paymentAmount: body.paymentAmount,
 					paymentCurrency: body.paymentCreditCardId
 						? await creditCardCurrency(body.paymentCreditCardId)
@@ -576,7 +619,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								currency: money.currency,
 								date: new Date(body.date),
 								description: body.description ?? undefined,
-								destinationAmount: sides.destinationAmount == null ? null : String(sides.destinationAmount),
+								destinationAmount:
+									sides.destinationAmount == null ? null : String(sides.destinationAmount),
 								destinationCurrency: sides.destinationCurrency,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
 								exchangeRate: String(money.exchangeRate),
@@ -584,7 +628,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								isHidden: body.isHidden ?? false,
 								originalAmount: String(money.originalAmount),
 								originFinancialAccountId,
-								paymentAmount: sides.paymentAmount == null ? null : String(sides.paymentAmount),
+								paymentAmount:
+									sides.paymentAmount == null ? null : String(sides.paymentAmount),
 								paymentCreditCardId: body.paymentCreditCardId,
 								paymentCurrency: sides.paymentCurrency,
 								recurrenceId: body.recurrenceId,
@@ -649,7 +694,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return {
 				...transaction,
 				amount: Number(transaction.amount),
-				debtSplit: await getDebtSplitReturn({ transactionId: transaction.id }, Number(transaction.amount)),
+				debtSplit: await getDebtSplitReturn(
+					{ transactionId: transaction.id },
+					Number(transaction.amount),
+				),
 				destinationAmount:
 					transaction.destinationAmount == null ? null : Number(transaction.destinationAmount),
 				paymentAmount: transaction.paymentAmount == null ? null : Number(transaction.paymentAmount),
@@ -678,7 +726,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				recurrenceOccurrenceDate: t.Optional(t.String()),
 				storeName: t.Optional(t.String({ maxLength: 200 })),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
+				time: t.Optional(
+					t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
+				),
 				type: t.Optional(TransactionType),
 			}),
 			detail: { operationId: "postTransactions", tags: ["Transactions"] },
@@ -717,11 +767,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (originFinancialAccountId)
 				await assertBalanceAccountOwnership(originFinancialAccountId, userId, {
 					allowCashback: transactionType === "EXPENSE" || transactionType === "TRANSFER",
+					allowPoints: transactionType !== "INCOME",
 				});
 			if (destinationFinancialAccountId)
 				await assertBalanceAccountOwnership(destinationFinancialAccountId, userId, {
 					allowCashback: transactionType === "INCOME",
-					allowPoints: transactionType === "INCOME",
+					allowPoints: transactionType === "INCOME" || transactionType === "TRANSFER",
 				});
 			if (
 				(existing.paymentCreditCardId || body.paymentCreditCardId) &&
@@ -756,12 +807,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							body.fees ??
 							(body.feeAmount !== undefined
 								? body.feeAmount
-									? [{ amount: body.feeAmount, name: body.feeDescription ?? "Taxa", type: "FIXED" }]
+									? [
+											{
+												amount: body.feeAmount,
+												name: body.feeDescription ?? "Taxa",
+												type: "FIXED",
+											},
+										]
 									: []
 								: (existing.fees as never)),
 						targetCurrency: await financialAccountCurrency(
-							(transactionType === "INCOME" ? destinationFinancialAccountId : originFinancialAccountId) ??
-								destinationFinancialAccountId,
+							(transactionType === "INCOME"
+								? destinationFinancialAccountId
+								: originFinancialAccountId) ?? destinationFinancialAccountId,
 							body.currency ??
 								existing.bookingCurrency ??
 								(await defaultCurrency(userId, request.headers.get("X-Currency"))),
@@ -769,14 +827,16 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					})
 				: undefined;
 			const paymentCreditCardId =
-				body.paymentCreditCardId !== undefined ? body.paymentCreditCardId : existing.paymentCreditCardId;
+				body.paymentCreditCardId !== undefined
+					? body.paymentCreditCardId
+					: existing.paymentCreditCardId;
 			const sidesChanged =
 				moneyChanged ||
 				body.destinationAmount !== undefined ||
 				body.paymentAmount !== undefined ||
 				body.paymentCreditCardId !== undefined;
 			const sides = sidesChanged
-				? await resolveTransactionMoneySides(
+				? await resolveSides(
 						{
 							amount: money?.amount ?? Number(existing.amount),
 							currency: money?.bookingCurrency ?? existing.bookingCurrency,
@@ -790,6 +850,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							destinationCurrency: destinationFinancialAccountId
 								? await financialAccountCurrency(destinationFinancialAccountId)
 								: null,
+							explicitSides:
+								(await isPointsAccount(originFinancialAccountId)) ||
+								(Boolean(originFinancialAccountId) &&
+									(await isPointsAccount(destinationFinancialAccountId))),
 							paymentAmount:
 								body.paymentAmount ??
 								(!moneyChanged && body.paymentCreditCardId === undefined
@@ -797,7 +861,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 										? undefined
 										: Number(existing.paymentAmount)
 									: undefined),
-							paymentCurrency: paymentCreditCardId ? await creditCardCurrency(paymentCreditCardId) : null,
+							paymentCurrency: paymentCreditCardId
+								? await creditCardCurrency(paymentCreditCardId)
+								: null,
 						},
 						(from, to) => ensureCurrencyRates(body.date ?? existing.date, from, to),
 					)
@@ -844,13 +910,16 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 
 			if (historyEntries.length > 0) {
-				await executeStatement(db.sql.public.TransactionHistory.insert(historyEntries as never).build());
+				await executeStatement(
+					db.sql.public.TransactionHistory.insert(historyEntries as never).build(),
+				);
 			}
 			const transaction = await queryFirst(
 				db.sql.public.Transaction.update({
 					...(sides && {
 						conversionSource: sides.conversionSource,
-						destinationAmount: sides.destinationAmount == null ? null : String(sides.destinationAmount),
+						destinationAmount:
+							sides.destinationAmount == null ? null : String(sides.destinationAmount),
 						destinationCurrency: sides.destinationCurrency,
 						paymentAmount: sides.paymentAmount == null ? null : String(sides.paymentAmount),
 						paymentCurrency: sides.paymentCurrency,
@@ -887,8 +956,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!transaction) throw new HttpException("Transaction not found", 404);
 			const changedCards = [
 				...new Set(
-					[existing.paymentCreditCardId, transaction.paymentCreditCardId].filter((id): id is string =>
-						Boolean(id),
+					[existing.paymentCreditCardId, transaction.paymentCreditCardId].filter(
+						(id): id is string => Boolean(id),
 					),
 				),
 			];
@@ -936,7 +1005,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			return {
 				...transaction,
 				amount: Number(transaction.amount),
-				debtSplit: await getDebtSplitReturn({ transactionId: transaction.id }, Number(transaction.amount)),
+				debtSplit: await getDebtSplitReturn(
+					{ transactionId: transaction.id },
+					Number(transaction.amount),
+				),
 				destinationAmount:
 					transaction.destinationAmount == null ? null : Number(transaction.destinationAmount),
 				paymentAmount: transaction.paymentAmount == null ? null : Number(transaction.paymentAmount),
@@ -952,7 +1024,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
 				destinationAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
-				destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				destinationFinancialAccountId: t.Optional(
+					t.Nullable(t.String({ maxLength: 36, minLength: 1 })),
+				),
 				feeAmount: t.Optional(t.Number({ minimum: 0 })),
 				feeDescription: t.Optional(t.String({ maxLength: 100 })),
 				fees: t.Optional(t.Array(FinancialFeeDTO, { maxItems: 20 })),
@@ -963,7 +1037,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				paymentCreditCardId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
+				time: t.Optional(
+					t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
+				),
 				type: t.Optional(TransactionType),
 			}),
 			detail: { operationId: "patchTransactionsById", tags: ["Transactions"] },
@@ -1000,7 +1076,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.build(),
 			);
 			if (existing.paymentCreditCardId) await refreshCardPayments([existing.paymentCreditCardId]);
-			for (const accountId of [existing.originFinancialAccountId, existing.destinationFinancialAccountId])
+			for (const accountId of [
+				existing.originFinancialAccountId,
+				existing.destinationFinancialAccountId,
+			])
 				if (accountId)
 					await enqueueAccountYieldRecalculation(
 						accountId,
@@ -1019,5 +1098,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 async function lockPaymentResources(cardId: string | null | undefined, accountId: string | null | undefined) {
 	if (cardId) await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [cardId]);
-	if (accountId) await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [accountId]);
+	if (accountId)
+		await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [accountId]);
 }

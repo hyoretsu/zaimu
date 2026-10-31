@@ -70,6 +70,7 @@ interface ChargeRow {
 }
 interface PaymentRow {
 	bookingCurrency: string | null;
+	conversionSource: string | null;
 	paymentAmount: number | string | null;
 	amount: number;
 	date: string;
@@ -125,7 +126,7 @@ export async function replayNormalizedCard(query: RawQuery, cardId: string) {
 			[cardId],
 		),
 		await query<PaymentRow>(
-			`SELECT "amount", "paymentAmount", "bookingCurrency", "date"::text AS "date" FROM "Transaction"
+			`SELECT "amount", "paymentAmount", "bookingCurrency", "conversionSource", "date"::text AS "date" FROM "Transaction"
 				 WHERE "paymentCreditCardId" = $1`,
 			[cardId],
 		),
