@@ -17,6 +17,7 @@ import {
 	remainingDebtSplitAmount,
 	selectDebtSplitRemainder,
 } from "@/lib/debt-split";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { DebtSplitParticipantRow } from "./DebtSplitParticipantRow";
 import type { DebtSplitEditorProps } from "./types";
@@ -29,7 +30,7 @@ export function DebtSplitEditor({
 	showParticipantDescriptions = true,
 	value,
 }: DebtSplitEditorProps) {
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode, "pt-BR");
 	const customized = useRef(false);
 	const identity = useCacheIdentity();
 	const ledger = useQuery({
@@ -69,7 +70,9 @@ export function DebtSplitEditor({
 		(value.mode === "FIXED"
 			? value.participants.reduce((sum, participant) => sum + participant.fixedAmount, 0)
 			: value.mode === "PERCENTAGE"
-				? (amount * value.participants.reduce((sum, participant) => sum + participant.percentage, 0)) / 100
+				? (amount *
+						value.participants.reduce((sum, participant) => sum + participant.percentage, 0)) /
+					100
 				: 0);
 	const remaining = remainingDebtSplitAmount(amount, distributed, preview?.ownerAmount ?? 0, currencyCode);
 	const updateOwner = (included: boolean) => {
@@ -82,7 +85,10 @@ export function DebtSplitEditor({
 		next: string | number,
 	) => {
 		if (field === "value") {
-			if (value.mode !== "SHARES" && value.participants[index].debtPersonId === value.remainderDebtPersonId)
+			if (
+				value.mode !== "SHARES" &&
+				value.participants[index].debtPersonId === value.remainderDebtPersonId
+			)
 				return;
 			customized.current = true;
 		}
@@ -105,7 +111,7 @@ export function DebtSplitEditor({
 		} as DebtSplitInput);
 	};
 	return (
-		<div className="grid min-w-0 max-w-full gap-4 rounded-2xl border p-3 [&>*]:min-w-0">
+		<div className="grid max-w-full min-w-0 gap-4 rounded-2xl border p-3 [&>*]:min-w-0">
 			<CustomSelect
 				label="Forma de divisão"
 				onValueChange={mode => {
@@ -179,12 +185,15 @@ export function DebtSplitEditor({
 					onRemainderRecipientChange={selected => {
 						if (value.mode === "SHARES") return;
 						customized.current = true;
-						onChange(selectDebtSplitRemainder(value, selected ? participant.debtPersonId : undefined));
+						onChange(
+							selectDebtSplitRemainder(value, selected ? participant.debtPersonId : undefined),
+						);
 					}}
 					onRemove={() => {
 						const participants = value.participants.filter((_, itemIndex) => itemIndex !== index);
 						const remainingRemainderDebtPersonId =
-							value.mode !== "SHARES" && value.remainderDebtPersonId === participant.debtPersonId
+							value.mode !== "SHARES" &&
+							value.remainderDebtPersonId === participant.debtPersonId
 								? undefined
 								: value.mode === "SHARES"
 									? undefined
@@ -196,7 +205,9 @@ export function DebtSplitEditor({
 										...(remainingRemainderDebtPersonId
 											? { remainderDebtPersonId: remainingRemainderDebtPersonId }
 											: { remainderDebtPersonId: undefined }),
-										participants: value.participants.filter((_, itemIndex) => itemIndex !== index),
+										participants: value.participants.filter(
+											(_, itemIndex) => itemIndex !== index,
+										),
 									} as DebtSplitInput)
 								: createEqualDebtSplit(
 										value.mode,
@@ -228,17 +239,20 @@ export function DebtSplitEditor({
 					<LuPlus /> Adicionar pessoa
 				</Button>
 			</ActionGroup>
-			<div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2 rounded-xl bg-muted/50 p-3 text-xs">
+			<div className="bg-muted/50 flex min-w-0 flex-wrap gap-x-4 gap-y-2 rounded-xl p-3 text-xs">
 				<span className="min-w-0 flex-[1_1_5rem]">
-					Distribuído<strong className="block break-words text-sm">{currency.format(distributed)}</strong>
+					Distribuído
+					<strong className="block text-sm break-words">{currency.format(distributed)}</strong>
 				</span>
 				<span className="min-w-0 flex-[1_1_5rem]">
 					Sua parte
-					<strong className="block break-words text-sm">{currency.format(preview?.ownerAmount ?? 0)}</strong>
+					<strong className="block text-sm break-words">
+						{currency.format(preview?.ownerAmount ?? 0)}
+					</strong>
 				</span>
 				<span className="min-w-0 flex-[1_1_5rem]">
 					Restante
-					<strong className="block break-words text-sm">{currency.format(remaining)}</strong>
+					<strong className="block text-sm break-words">{currency.format(remaining)}</strong>
 				</span>
 			</div>
 			{error ? <p className="text-destructive text-xs">{error}</p> : null}

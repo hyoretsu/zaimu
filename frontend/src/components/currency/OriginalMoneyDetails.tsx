@@ -1,3 +1,4 @@
+import { formatAsset } from "@zaimu/finance/asset-amount";
 import type { FinancialFee } from "@/lib/api";
 
 export function OriginalMoneyDetails({
@@ -13,17 +14,17 @@ export function OriginalMoneyDetails({
 }) {
 	if (originalAmount == null || !currency) return null;
 	if (currency === bookingCurrency && !fees?.some(fee => fee.amount > 0)) return null;
-	const format = new Intl.NumberFormat("pt-BR", { currency, style: "currency" });
+	const format = (value: number, asset = currency) => formatAsset(value, asset);
 	return (
 		<div className="text-muted-foreground text-xs">
-			<p>Valor original: {format.format(originalAmount)}</p>
+			<p>Valor original: {format(originalAmount)}</p>
 			{fees?.length ? (
 				<p>
 					Taxas:{" "}
 					{fees
 						.map(
 							fee =>
-								`${fee.name}: ${fee.type === "PERCENTAGE" ? `${new Intl.NumberFormat("pt-BR").format(fee.amount)}%` : format.format(fee.amount)}`,
+								`${fee.name}: ${fee.type === "PERCENTAGE" ? `${new Intl.NumberFormat("pt-BR").format(fee.amount)}%` : format(fee.amount, fee.assetCode ?? currency)}`,
 						)
 						.join(" + ")}
 				</p>

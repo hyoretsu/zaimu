@@ -577,6 +577,7 @@ export type CreditCardImportSummaryReturn = typeof CreditCardImportSummaryReturn
 
 export const FinancialFeeReturn = t.Object({
 	amount: t.Number(),
+	assetCode: t.Optional(t.String()),
 	name: t.String(),
 	type: t.Union([t.Literal("PERCENTAGE"), t.Literal("FIXED")]),
 });

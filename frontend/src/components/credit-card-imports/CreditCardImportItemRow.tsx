@@ -11,6 +11,7 @@ import {
 	hasFinancingSource,
 	hasFinancingTarget,
 } from "@/lib/financing-source-reference";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 function toTransaction(
 	item: CreditCardImportItem,
@@ -79,7 +80,7 @@ export function CreditCardImportItemRow({
 	const requiresOriginal = Boolean(anticipated);
 	const anticipatedAmount =
 		anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode, "pt-BR");
 
 	return (
 		<>

@@ -9,6 +9,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput } from "@/lib/api";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function DebtSplitParticipantRow({
 	personName,
@@ -45,7 +46,10 @@ export function DebtSplitParticipantRow({
 	isRemainderRecipient?: boolean;
 	showDescription: boolean;
 }) {
-	const [description, setDescription] = useDebouncedInput(participant.description ?? "", onDescriptionChange);
+	const [description, setDescription] = useDebouncedInput(
+		participant.description ?? "",
+		onDescriptionChange,
+	);
 	const numericValue = isRemainderRecipient
 		? amount === undefined
 			? ""
@@ -72,11 +76,9 @@ export function DebtSplitParticipantRow({
 							? `${numericValue}%`
 							: undefined,
 				amount !== undefined
-					? new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(amount)
+					? createCurrencyFormatter(currencyCode, "pt-BR").format(amount)
 					: mode === "FIXED"
-						? new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(
-								Number(numericValue),
-							)
+						? createCurrencyFormatter(currencyCode, "pt-BR").format(Number(numericValue))
 						: undefined,
 			]
 				.filter(Boolean)
@@ -144,9 +146,8 @@ export function DebtSplitParticipantRow({
 			) : null}
 			<div className="flex min-w-0 items-center justify-between gap-2">
 				{amount !== undefined ? (
-					<p className="min-w-0 text-muted-foreground text-xs">
-						Parcela:{" "}
-						{new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(amount)}
+					<p className="text-muted-foreground min-w-0 text-xs">
+						Parcela: {createCurrencyFormatter(currencyCode, "pt-BR").format(amount)}
 					</p>
 				) : null}
 				<ActionGroup className="ml-auto shrink-0">

@@ -11,6 +11,7 @@ import {
 import type { TransactionImportDuplicate, TransactionImportItem } from "@/lib/api";
 import { formatLocalTime } from "@/lib/date";
 import { formatDebtSplitNames } from "@/lib/debt-split";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import {
 	DuplicateCandidateList,
 	type DuplicateField,
@@ -59,9 +60,7 @@ function formatDate(value: unknown) {
 function formatDuplicateCandidate(candidate: TransactionImportDuplicate, currencyCode: string) {
 	const source = candidate.source === "TRANSACTION" ? "Existente" : "Importada";
 	const description = candidate.description ?? transactionTypeLabels[candidate.type];
-	const amount = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(
-		Number(candidate.amount),
-	);
+	const amount = createCurrencyFormatter(currencyCode, "pt-BR").format(Number(candidate.amount));
 	return `${source}: ${description} · ${amount} · ${formatDate(candidate.date)}`;
 }
 
@@ -88,7 +87,9 @@ export function DuplicateResolutionDialog({
 }) {
 	const [selectedDuplicateId, setSelectedDuplicateId] = useState<string | null>(null);
 	const duplicate =
-		item?.duplicates.find(candidate => candidate.id === selectedDuplicateId) ?? item?.duplicates[0] ?? null;
+		item?.duplicates.find(candidate => candidate.id === selectedDuplicateId) ??
+		item?.duplicates[0] ??
+		null;
 	const fields = getFields(duplicate?.type);
 	const [sources, setSources] = useState<DuplicateResolutionSources>(
 		() => Object.fromEntries(fields.map(field => [field.key, "imported"])) as Record<Field, Source>,
@@ -123,7 +124,8 @@ export function DuplicateResolutionDialog({
 			const debtSplit = selected as TransactionImportItem["debtSplit"];
 			return formatDebtSplitNames(debtSplit) ?? "Sem dívida";
 		}
-		if (field === "time") return formatLocalTime(selected ? String(selected) : undefined) ?? "Não informado";
+		if (field === "time")
+			return formatLocalTime(selected ? String(selected) : undefined) ?? "Não informado";
 		if (field === "originFinancialAccountId" || field === "destinationFinancialAccountId")
 			return selected ? (accountNames.get(String(selected)) ?? "Conta removida") : "Não informado";
 		if (field === "tagIds") {
@@ -153,8 +155,8 @@ export function DuplicateResolutionDialog({
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
-						Escolha a duplicata e selecione a origem de cada dado. A transação do extrato será atualizada e
-						permanecerá no extrato até sua aprovação.
+						Escolha a duplicata e selecione a origem de cada dado. A transação do extrato será
+						atualizada e permanecerá no extrato até sua aprovação.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
@@ -163,11 +165,18 @@ export function DuplicateResolutionDialog({
 							{item.duplicates.length > 1 ? (
 								<DuplicateCandidateList
 									candidates={item.duplicates}
-									formatCandidate={candidate => formatDuplicateCandidate(candidate, currencyOf(candidate))}
+									formatCandidate={candidate =>
+										formatDuplicateCandidate(candidate, currencyOf(candidate))
+									}
 									onSelect={candidate => {
 										setSelectedDuplicateId(candidate.id);
 										setSources(
-											Object.fromEntries(getFields(candidate.type).map(field => [field.key, "imported"])),
+											Object.fromEntries(
+												getFields(candidate.type).map(field => [
+													field.key,
+													"imported",
+												]),
+											),
 										);
 									}}
 									selectedId={duplicate.id}
@@ -177,7 +186,9 @@ export function DuplicateResolutionDialog({
 								fields={fields}
 								isSourceSelected={isSourceSelected}
 								onSelectAll={selectAllFrom}
-								onSelectField={(field, source) => setSources(current => ({ ...current, [field]: source }))}
+								onSelectField={(field, source) =>
+									setSources(current => ({ ...current, [field]: source }))
+								}
 								sources={sources}
 								value={value}
 							/>
