@@ -71,7 +71,7 @@ export function FinancialAccountCard({
 	const listName = getFinancialAccountTitle(account);
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
-		<article className="group bg-card shadow-card hover:border-primary/30 rounded-2xl border p-5 transition hover:-translate-y-0.5">
+		<article className="group bg-card shadow-card hover:border-primary/30 row-span-3 grid grid-rows-subgrid gap-y-0 rounded-2xl border p-5 transition hover:-translate-y-0.5">
 			<div className="flex min-h-16 items-start justify-between gap-4">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
 					<span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
@@ -197,48 +197,50 @@ export function FinancialAccountCard({
 					</>
 				)}
 			</div>
-			{account.type !== "CREDIT_CARD" &&
-			(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK") ? (
-				<Button
-					className="mt-4 w-full cursor-pointer"
-					onClick={() => setStatementOpen(true)}
-					size="sm"
-					variant="outline"
-				>
-					<LuReceiptText /> Extrato
-				</Button>
-			) : null}
-			{account.type !== "CREDIT_CARD" && account.type !== "REWARDS" ? (
-				<>
+			<div>
+				{account.type !== "CREDIT_CARD" &&
+				(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK") ? (
 					<Button
-						className="mt-2 w-full cursor-pointer"
-						onClick={() => setImportOpen(true)}
+						className="mt-4 w-full cursor-pointer"
+						onClick={() => setStatementOpen(true)}
 						size="sm"
 						variant="outline"
 					>
-						<LuFileUp /> Importar extrato
+						<LuReceiptText /> Extrato
 					</Button>
-					<ImportTransactionsDialog
-						defaultFinancialAccountId={account.id}
-						onImported={setReviewingImportId}
-						onOpenChange={setImportOpen}
-						open={importOpen}
+				) : null}
+				{account.type !== "CREDIT_CARD" && account.type !== "REWARDS" ? (
+					<>
+						<Button
+							className="mt-2 w-full cursor-pointer"
+							onClick={() => setImportOpen(true)}
+							size="sm"
+							variant="outline"
+						>
+							<LuFileUp /> Importar extrato
+						</Button>
+						<ImportTransactionsDialog
+							defaultFinancialAccountId={account.id}
+							onImported={setReviewingImportId}
+							onOpenChange={setImportOpen}
+							open={importOpen}
+						/>
+						<TransactionImportReviewDialog
+							importId={reviewingImportId}
+							onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
+							open={reviewingImportId !== null}
+						/>
+					</>
+				) : null}
+				{account.type !== "CREDIT_CARD" && <RecalculateAccountYieldDialog account={account} />}
+				{account.type !== "CREDIT_CARD" && (
+					<FinancialAccountStatementDialog
+						account={account}
+						onOpenChange={setStatementOpen}
+						open={statementOpen}
 					/>
-					<TransactionImportReviewDialog
-						importId={reviewingImportId}
-						onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
-						open={reviewingImportId !== null}
-					/>
-				</>
-			) : null}
-			{account.type !== "CREDIT_CARD" && <RecalculateAccountYieldDialog account={account} />}
-			{account.type !== "CREDIT_CARD" && (
-				<FinancialAccountStatementDialog
-					account={account}
-					onOpenChange={setStatementOpen}
-					open={statementOpen}
-				/>
-			)}
+				)}
+			</div>
 		</article>
 	);
 }
