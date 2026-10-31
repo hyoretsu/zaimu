@@ -5,19 +5,61 @@ export interface Money {
 }
 
 const precision = new Map<string, number>();
+/** Decimals of well-known crypto assets; `Asset.decimals` overrides them through `registerAssetDecimals`. */
+const cryptoDecimals = new Map<string, number>([
+	["AVAX", 18],
+	["BNB", 18],
+	["BTC", 8],
+	["DAI", 18],
+	["DOGE", 8],
+	["ETH", 18],
+	["LTC", 8],
+	["MATIC", 18],
+	["SOL", 9],
+	["USDC", 6],
+	["USDT", 6],
+	["XRP", 6],
+]);
+
 export function normalizeCurrency(value: string): string {
 	const currency = value.trim().toUpperCase();
-	if (!/^[A-Z]{3}$/.test(currency)) throw new RangeError("Código de moeda inválido");
+	if (!/^[A-Z0-9]{2,12}$/.test(currency)) throw new RangeError("Código de moeda inválido");
 	return currency;
+}
+
+/** Register the catalog precision of a non-ISO asset (e.g. from `Asset.decimals`). */
+export function registerAssetDecimals(code: string, decimals: number) {
+	if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18)
+		throw new RangeError("Casas decimais inválidas");
+	const normalized = normalizeCurrency(code);
+	cryptoDecimals.set(normalized, decimals);
+	precision.delete(normalized);
+}
+
+/** True for assets without an ISO 4217 denomination: registered crypto or any code that is not a 3-letter ISO currency. */
+export function isCryptoAsset(value: string): boolean {
+	const currency = normalizeCurrency(value);
+	if (cryptoDecimals.has(currency)) return true;
+	if (!/^[A-Z]{3}$/.test(currency)) return true;
+	try {
+		new Intl.NumberFormat("en", { currency, style: "currency" });
+		return !Intl.supportedValuesOf("currency").includes(currency);
+	} catch {
+		return true;
+	}
 }
 
 export function currencyDigits(value: string): number {
 	const currency = normalizeCurrency(value);
 	const cached = precision.get(currency);
 	if (cached !== undefined) return cached;
+	const registered = cryptoDecimals.get(currency);
 	const digits =
-		new Intl.NumberFormat("en", { currency, style: "currency" }).resolvedOptions()
-			.maximumFractionDigits ?? 2;
+		registered ??
+		(/^[A-Z]{3}$/.test(currency)
+			? (new Intl.NumberFormat("en", { currency, style: "currency" }).resolvedOptions()
+					.maximumFractionDigits ?? 2)
+			: 8);
 	precision.set(currency, digits);
 	return digits;
 }
