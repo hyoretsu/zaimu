@@ -316,6 +316,16 @@ Nome do orçamento é facultativo para todas as origens. Apagar e salvar persist
 
 A tela de orçamento prioriza listagem compacta do plano geral. Exceções mensais ficam no modal de ajustes. Disponibilidade do plano geral usa somente a base mensal das entradas recorrentes fixas ativas, como salários, menos despesas vigentes do plano geral, sem ajustes mensais ou compromissos avulsos. Frequências diferentes são normalizadas para uma base mensal. A página não possui seletor de mês; o mês e sua disponibilidade ficam no modal Ajustes por mês. Nesse modal, entradas extras realizadas ou agendadas ampliam a disponibilidade do mês, e despesas incluem plano, ajustes e compromissos conhecidos sem duplicação. Rendimentos realizados e projetados ficam fora de ambos os cálculos de orçamento; permanecem na projeção financeira do dashboard. Saldo acumulado anterior não amplia esse limite mensal. Valores seguem moeda e consolidação da comparação financeira; falha de previsão não vira disponibilidade zero.
 
+## Carteira multi-ativo
+
+Uma conta é um contêiner com um saldo por ativo (fiat e cripto), por exemplo EUR, USD e BRL numa conta estilo Wise, ou BTC, ETH e USDC numa carteira cripto. Ativos de moedas diferentes nunca são somados sem conversão: o total da conta é derivado na moeda preferida com a cotação da data correspondente e, sem cotação, mostra indisponibilidade.
+
+Cripto é registrada manualmente, sem sincronização on-chain. Valores cripto mantêm até 18 casas decimais; fiat segue a precisão da moeda. Ajustes de saldo valem por ativo.
+
+Taxas de rede (gas) são taxas da transação em seu próprio ativo, que pode diferir do ativo movimentado (gas em ETH num swap de USDC), e debitam a conta de origem separadamente. Valor de chegada é o valor recebido no ativo de destino, já líquido de taxas descontadas dele. Taxas e valor de chegada aparecem em seu ativo, com equivalente na moeda preferida quando houver cotação.
+
+Cartões, empréstimos, orçamentos e planejamentos continuam em moeda fiat. Rendimento automático vale só para ativos fiat.
+
 ## Exibição monetária e consolidação
 
 Todos os valores monetários acumulados são convertidos para a moeda preferida antes da soma e exibição, incluindo saldos, limites, faturas, dívidas, empréstimos, recorrências e orçamento. A preferência precisa estar carregada antes de consultar valores consolidados. Sem cotação necessária, mostrar indisponibilidade, nunca soma parcial ou zero artificial. Saldos diários usam cotação da data correspondente.
