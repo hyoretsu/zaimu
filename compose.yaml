@@ -1,13 +1,17 @@
 name: zaimu
 
 services:
-  app:
+  dev:
     image: oven/bun:latest
     user: "${UID:-1000}:${GID:-1000}"
     working_dir: /app
     init: true
+    environment:
+      BUN_INSTALL_CACHE_DIR: /bun-cache
+      HOME: /tmp
     volumes:
       - .:/app
+      - ${BUN_INSTALL_CACHE_DIR:-${HOME}/.bun/install/cache}:/bun-cache
     entrypoint: ["sh", "-ec"]
     command:
       - |
