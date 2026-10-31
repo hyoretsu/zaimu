@@ -20,3 +20,11 @@ test("zero fees preserve principal and invalid fee values cannot enter through s
 		"Taxa inválida",
 	);
 });
+test("gas fees paid in another asset are not added to the moved principal", () => {
+	const fees = [
+		{ amount: 1, name: "Rede", type: "FIXED" as const },
+		{ amount: 0.0021, assetCode: "ETH", name: "Gas", type: "FIXED" as const },
+	];
+	expect(calculateFinancialFees(100, fees, "USDC")).toBe(1);
+	expect(calculateFinancialFees(100, [{ ...fees[1], assetCode: "usdc" }], "USDC")).toBe(0.0021);
+});

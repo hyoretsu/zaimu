@@ -30,8 +30,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCardImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-
 import { eligibleRefundSources, matchingRefundSource } from "./refund-source-match";
 
 export function RefundImportReviewDialog({
@@ -79,7 +79,9 @@ export function RefundImportReviewDialog({
 	const [installments, setInstallments] = useDebouncedInput(
 		String(
 			initialData?.purchase?.installments ??
-				(cancellation ? (item.installments ?? Math.max(...cancellation.map(part => part.number))) : 1),
+				(cancellation
+					? (item.installments ?? Math.max(...cancellation.map(part => part.number)))
+					: 1),
 		),
 		() => undefined,
 	);
@@ -154,20 +156,20 @@ export function RefundImportReviewDialog({
 			? Boolean(selected && (cancellation || selected.refundableAmount >= amount))
 			: Boolean(
 					description.trim() &&
-						purchaseDate &&
-						purchaseDate <= item.purchaseDate.slice(0, 10) &&
-						correctedReconstructedTotal >= amount &&
-						Number.isInteger(count) &&
-						count >= (cancellation?.length ?? 1) &&
-						count <= 48,
+					purchaseDate &&
+					purchaseDate <= item.purchaseDate.slice(0, 10) &&
+					correctedReconstructedTotal >= amount &&
+					Number.isInteger(count) &&
+					count >= (cancellation?.length ?? 1) &&
+					count <= 48,
 				);
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode, "pt-BR");
 	const original = mode === "link" ? book.data?.purchases.find(p => p.id === sourceId) : undefined;
 	const firstRefund =
 		mode === "reconstruct" ||
 		Boolean(
 			sourceId.startsWith("pending:") ||
-				(original && !book.data?.refunds.some(r => r.purchaseId === original.id)),
+			(original && !book.data?.refunds.some(r => r.purchaseId === original.id)),
 		);
 	const originalTotal =
 		mode === "reconstruct"
@@ -180,10 +182,10 @@ export function RefundImportReviewDialog({
 				: original
 					? original.totalAmountCents / currencyScale(currencyCode)
 					: selected?.installmentAmountsCents && cancellation
-						? correctedRefundInstallments(item.description, selected.installmentAmountsCents).reduce(
-								(sum, value) => sum + value,
-								0,
-							) / currencyScale(currencyCode)
+						? correctedRefundInstallments(
+								item.description,
+								selected.installmentAmountsCents,
+							).reduce((sum, value) => sum + value, 0) / currencyScale(currencyCode)
 						: (selected?.totalAmount ?? reconstructedTotal);
 	const creditCycle = book.data
 		? purchaseStatementDates(book.data.card, item.purchaseDate.slice(0, 10)).statementDate
@@ -193,28 +195,28 @@ export function RefundImportReviewDialog({
 			? sourceId.startsWith("pending:")
 				? Boolean(
 						selected &&
-							selected.installments > 1 &&
-							book.data &&
-							purchaseStatementDates(
-								book.data.card,
-								installmentOccurrenceDate(selected.purchaseDate, selected.installments),
-							).statementDate > creditCycle!,
+						selected.installments > 1 &&
+						book.data &&
+						purchaseStatementDates(
+							book.data.card,
+							installmentOccurrenceDate(selected.purchaseDate, selected.installments),
+						).statementDate > creditCycle!,
 					)
 				: Boolean(
 						book.data &&
-							creditBookPlan(book.data).installments.some(
-								i =>
-									i.purchaseId === sourceId &&
-									!i.isSettled &&
-									creditBookPlan(book.data!).statements.find(s => s.id === i.statementId)!.statementDate >
-										creditCycle!,
-							),
+						creditBookPlan(book.data).installments.some(
+							i =>
+								i.purchaseId === sourceId &&
+								!i.isSettled &&
+								creditBookPlan(book.data!).statements.find(s => s.id === i.statementId)!
+									.statementDate > creditCycle!,
+						),
 					)
 			: Boolean(
 					book.data &&
-						count > 1 &&
-						purchaseStatementDates(book.data.card, installmentOccurrenceDate(purchaseDate, count))
-							.statementDate > creditCycle!,
+					count > 1 &&
+					purchaseStatementDates(book.data.card, installmentOccurrenceDate(purchaseDate, count))
+						.statementDate > creditCycle!,
 				);
 	const needsPolicy =
 		firstRefund &&
@@ -245,15 +247,17 @@ export function RefundImportReviewDialog({
 				<DialogHeader>
 					<DialogTitle>Revisar reembolso importado</DialogTitle>
 					<DialogDescription>
-						{currency.format(amount)} em {item.purchaseDate.slice(0, 10)}. Vincule a compra original ou revise
-						os dados para reconstruí-la.
+						{currency.format(amount)} em {item.purchaseDate.slice(0, 10)}. Vincule a compra
+						original ou revise os dados para reconstruí-la.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
 					{sources.isPending || book.isPending ? (
 						<Skeleton className="h-36 rounded-xl" />
 					) : sources.isError || book.isError ? (
-						<p className="text-destructive text-sm">Não foi possível carregar as compras do cartão.</p>
+						<p className="text-destructive text-sm">
+							Não foi possível carregar as compras do cartão.
+						</p>
 					) : (
 						<>
 							<CustomSelect
@@ -270,7 +274,8 @@ export function RefundImportReviewDialog({
 								<>
 									{suggested && !chosenSourceId ? (
 										<p className="text-muted-foreground text-sm">
-											Compra selecionada automaticamente. Confira ou escolha outra compra.
+											Compra selecionada automaticamente. Confira ou escolha outra
+											compra.
 										</p>
 									) : null}
 									<CustomSelect
@@ -286,7 +291,9 @@ export function RefundImportReviewDialog({
 										value={sourceId}
 									/>
 									{selected && selected.refundableAmount < amount ? (
-										<p className="text-destructive text-sm">Reembolso excede saldo disponível da compra.</p>
+										<p className="text-destructive text-sm">
+											Reembolso excede saldo disponível da compra.
+										</p>
 									) : null}
 								</>
 							) : (
@@ -339,7 +346,9 @@ export function RefundImportReviewDialog({
 										label="Total de parcelas"
 										name="refund-original-installments"
 										onChange={event =>
-											setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
+											setInstallments(
+												event.currentTarget.value.replace(/\D/g, "").slice(0, 2),
+											)
 										}
 										placeholder="Ex: 3"
 										required
@@ -361,7 +370,10 @@ export function RefundImportReviewDialog({
 									label="Parcelas futuras"
 									onValueChange={value => setPolicy(value as typeof policy)}
 									options={[
-										{ label: "Manter parcelas e creditar tudo", value: "KEEP_INSTALLMENTS" },
+										{
+											label: "Manter parcelas e creditar tudo",
+											value: "KEEP_INSTALLMENTS",
+										},
 										{
 											label: "Cancelar parcelas futuras e creditar a diferença",
 											value: "CANCEL_FUTURE_INSTALLMENTS",

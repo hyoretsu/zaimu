@@ -5,6 +5,7 @@ import { AssociateRecurrenceButton } from "@/components/recurrences";
 import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
 import { formatDebtSplitBadge } from "@/lib/debt-split";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { InstallmentPurchaseDetails } from "./InstallmentPurchaseDetails";
 import { type ItemAction, ItemActions } from "./ItemActions";
@@ -40,8 +41,7 @@ export function TransactionListItem({
 	transaction: Transaction;
 }) {
 	const currencyCode = transaction.bookingCurrency ?? "BRL";
-	const formatCurrency = (value: number) =>
-		new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(value);
+	const formatCurrency = (value: number) => createCurrencyFormatter(currencyCode, "pt-BR").format(value);
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
 	const amountPrefix =
 		Number(transaction.amount) === 0

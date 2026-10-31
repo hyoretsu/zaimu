@@ -8,6 +8,8 @@ import { calculateFinancialFees } from "./financial-fees";
 export const CurrencyDTO = t.String({ pattern: "^[A-Za-z]{3}$" });
 export const FinancialFeeDTO = t.Object({
 	amount: t.Number({ minimum: 0 }),
+	/** Asset the fee is paid in (e.g. gas in ETH); defaults to the transaction currency. */
+	assetCode: t.Optional(t.String({ pattern: "^[A-Za-z0-9]{2,12}$" })),
 	name: t.String({ maxLength: 100, minLength: 1 }),
 	type: t.Union([t.Literal("FIXED"), t.Literal("PERCENTAGE")]),
 });
@@ -42,8 +44,9 @@ export async function resolveFinancialMoney(
 	if (!Number.isFinite(input.amount) || input.amount <= 0)
 		throw new HttpException("Informe um valor maior que zero", 400);
 	toMinorUnits(input.amount, currency, 1);
-	for (const fee of fees) if (fee.type === "FIXED") toMinorUnits(fee.amount, currency);
-	const originalFeeAmount = calculateFinancialFees(input.amount, fees);
+	for (const fee of fees)
+		if (fee.type === "FIXED") toMinorUnits(fee.amount, (fee.assetCode ?? currency).toUpperCase());
+	const originalFeeAmount = calculateFinancialFees(input.amount, fees, currency);
 	const converted = await convert(
 		input.amount + originalFeeAmount,
 		input.date,

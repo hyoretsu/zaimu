@@ -1,4 +1,9 @@
+import { formatAsset } from "@zaimu/finance/asset-amount";
+import { isCryptoAsset } from "@zaimu/finance/money";
+
 export function createCurrencyFormatter(currency: string, locales: string | readonly string[]) {
+	if (isCryptoAsset(currency))
+		return { format: (value: number | string) => formatAsset(value, currency, { locale: locales }) };
 	const formatter = new Intl.NumberFormat(locales, { currency, style: "currency" });
 	return {
 		format(value: number) {

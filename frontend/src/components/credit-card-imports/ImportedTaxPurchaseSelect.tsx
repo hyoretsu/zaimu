@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { type CreditCardImportItem, getCreditCardImportsByIdTaxSources } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCacheIdentity } from "@/lib/query-cache";
 
 export function ImportedTaxPurchaseSelect({
@@ -57,7 +58,7 @@ export function ImportedTaxPurchaseSelect({
 				options={[
 					{ label: "Não associar", special: true, value: "" },
 					...(purchases.data ?? []).map(item => ({
-						label: `${item.description} - ${new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(item.installmentAmount)}`,
+						label: `${item.description} - ${createCurrencyFormatter(currencyCode, "pt-BR").format(item.installmentAmount)}`,
 						value: item.id,
 					})),
 				]}

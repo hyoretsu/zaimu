@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { formatLocalTime } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function FinancialAccountYieldStatementItem({
 	currencyCode = "BRL",
@@ -55,9 +56,7 @@ export function FinancialAccountYieldStatementItem({
 			<div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-4">
 				<p className="font-bold whitespace-nowrap text-emerald-600">
 					{amount > 0 ? "+" : ""}
-					{new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(
-						amount,
-					)}
+					{createCurrencyFormatter(currencyCode, "pt-BR").format(amount)}
 				</p>
 				<ActionGroup className="flex-nowrap">
 					<Tooltip>

@@ -1,3 +1,4 @@
+import { formatAsset } from "@zaimu/finance/asset-amount";
 import { roundMoney } from "@zaimu/finance/money";
 import { LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -37,7 +38,7 @@ export function FinancialFeeRow({
 	return (
 		<AutoCollapseSection
 			complete={Boolean(name.trim()) && fee.amount > 0}
-			summary={`${name} - ${new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(fee.amount)}`}
+			summary={`${name} - ${formatAsset(fee.amount, fee.assetCode ?? currencyCode)}`}
 			title="Taxa"
 		>
 			<CustomSelect
@@ -62,15 +63,40 @@ export function FinancialFeeRow({
 					value={name}
 				/>
 			) : null}
+			<FormField
+				id={`fee-asset-${index}`}
+				label="Ativo da taxa (opcional)"
+				maxLength={12}
+				name={`fee-asset-${index}`}
+				onChange={event => {
+					const assetCode = event.currentTarget.value
+						.trim()
+						.toUpperCase()
+						.replace(/[^A-Z0-9]/g, "");
+					onChange({
+						...fee,
+						assetCode: assetCode && assetCode !== currencyCode ? assetCode : undefined,
+					});
+				}}
+				placeholder={`${currencyCode}; use ETH para gas`}
+				type="text"
+				value={fee.assetCode ?? ""}
+			/>
 			<MoneyField
-				currencyCode={currencyCode}
+				currencyCode={fee.assetCode && fee.assetCode.length >= 2 ? fee.assetCode : currencyCode}
 				id={`fee-amount-${index}`}
 				label="Valor da taxa"
 				onValueChange={amount => onChange({ ...fee, amount: Number(amount) || 0 })}
 				value={String(fee.amount || "")}
 			/>
 			<ActionGroup>
-				<Button aria-label="Remover taxa" onClick={onRemove} size="icon" type="button" variant="outline">
+				<Button
+					aria-label="Remover taxa"
+					onClick={onRemove}
+					size="icon"
+					type="button"
+					variant="outline"
+				>
 					<LuTrash2 />
 				</Button>
 			</ActionGroup>
