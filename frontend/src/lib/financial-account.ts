@@ -558,11 +558,39 @@ export function compareFinancialAccountsByTitle(left: FinancialAccountLabel, rig
 }
 
 export function getTransactionSourceAccounts(accounts: FinancialAccount[]) {
-	return accounts.filter(
-		account =>
-			account.type !== "CREDIT_CARD" &&
-			(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK"),
-	);
+	return accounts.filter(account => account.type !== "CREDIT_CARD");
+}
+
+export function isPointsAccount(account?: Pick<FinancialAccount, "rewardsAccount" | "type"> | null) {
+	return account?.type === "REWARDS" && account.rewardsAccount?.kind === "POINTS";
+}
+
+/**
+ * Points have no fixed rate: the user informs both sides of every movement.
+ * `amount` is always the origin side; the counterpart goes to `paymentAmount` (card) or `destinationAmount`.
+ */
+export function getPointsConversion(input: {
+	destination?: Pick<FinancialAccount, "rewardsAccount" | "type"> | null;
+	hasCard: boolean;
+	origin?: Pick<FinancialAccount, "rewardsAccount" | "type"> | null;
+	type: string;
+}) {
+	const originPoints = input.type !== "INCOME" && isPointsAccount(input.origin);
+	const destinationPoints =
+		input.type === "TRANSFER" && !originPoints && isPointsAccount(input.destination);
+	return {
+		amountIsPoints: originPoints,
+		counterpart: originPoints
+			? input.hasCard
+				? ("payment" as const)
+				: input.type === "TRANSFER"
+					? ("destination" as const)
+					: null
+			: destinationPoints
+				? ("destination" as const)
+				: null,
+		counterpartIsPoints: destinationPoints,
+	};
 }
 
 export function getFinancialAccountTypeLabel(type: FinancialAccount["type"]) {

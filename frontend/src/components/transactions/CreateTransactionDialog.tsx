@@ -24,6 +24,7 @@ import { calculateDebtSplit } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
+	getPointsConversion,
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -37,6 +38,7 @@ const initialDraft = () => ({
 	amount: "",
 	currency: activeCurrency(),
 	date: getLocalDateKey(),
+	destinationAmount: "",
 	destinationFinancialAccountId: "",
 	fees: [] as FinancialFee[],
 	isHidden: false,
@@ -121,6 +123,10 @@ export function CreateTransactionDialog({
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
+	const transferDestinationAccounts =
+		accountsQuery.data
+			?.filter(account => account.type !== "CREDIT_CARD")
+			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 	const incomeDestinationAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
@@ -143,6 +149,14 @@ export function CreateTransactionDialog({
 			: draft.type === "TRANSFER"
 				? draft.originFinancialAccountId
 				: (account?.id ?? draft.originFinancialAccountId);
+	const pointsConversion = getPointsConversion({
+		destination: accountsQuery.data?.find(item => item.id === draft.destinationFinancialAccountId),
+		hasCard: Boolean(draft.paymentCreditCardId),
+		origin: accountsQuery.data?.find(item => item.id === (account?.id ?? draft.originFinancialAccountId)),
+		type: draft.type,
+	});
+	const counterpartValue =
+		pointsConversion.counterpart === "payment" ? draft.paymentAmount : draft.destinationAmount;
 	useEffect(() => {
 		if (!open) return;
 		const currency =
@@ -189,6 +203,10 @@ export function CreateTransactionDialog({
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : undefined,
 				description: description.trim() || undefined,
+				destinationAmount:
+					draft.type === "TRANSFER" && draft.destinationAmount
+						? Number(draft.destinationAmount)
+						: undefined,
 				destinationFinancialAccountId:
 					draft.type === "INCOME" || draft.type === "TRANSFER"
 						? destinationFinancialAccountId || undefined
@@ -252,6 +270,7 @@ export function CreateTransactionDialog({
 						<div className="grid min-w-0 grid-cols-1 gap-4 px-1 py-1 pr-3">
 							<TransactionDetailsFields
 								amount={draft.amount}
+								amountIsPoints={pointsConversion.amountIsPoints}
 								bookingCurrency={
 									account?.currency ??
 									accountsQuery.data?.find(
@@ -263,6 +282,16 @@ export function CreateTransactionDialog({
 									)?.currency ??
 									draft.currency
 								}
+								counterpart={pointsConversion.counterpart}
+								counterpartCurrency={
+									pointsConversion.counterpart === "payment"
+										? selectedStatement?.currency
+										: accountsQuery.data?.find(
+												item => item.id === draft.destinationFinancialAccountId,
+											)?.currency
+								}
+								counterpartIsPoints={pointsConversion.counterpartIsPoints}
+								counterpartValue={counterpartValue}
 								currencyCode={
 									draft.type === "YIELD"
 										? (account?.currency ?? draft.currency)
@@ -274,6 +303,13 @@ export function CreateTransactionDialog({
 								includeYield
 								isHidden={draft.isHidden}
 								onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
+								onCounterpartChange={value =>
+									setDraft(current =>
+										pointsConversion.counterpart === "payment"
+											? { ...current, paymentAmount: value }
+											: { ...current, destinationAmount: value },
+									)
+								}
 								onCurrencyChange={
 									draft.type !== "YIELD"
 										? currency => {
@@ -407,7 +443,7 @@ export function CreateTransactionDialog({
 									/>
 								)}
 							{draft.type === "TRANSFER" &&
-								(accountsQuery.isPending || balanceDestinationAccounts.length > 0) && (
+								(accountsQuery.isPending || transferDestinationAccounts.length > 0) && (
 									<CustomSelect
 										disabled={accountsQuery.isPending || accountsQuery.isError}
 										label="Conta de destino"
@@ -421,7 +457,7 @@ export function CreateTransactionDialog({
 														: current.originFinancialAccountId,
 											}))
 										}
-										options={balanceDestinationAccounts
+										options={transferDestinationAccounts
 											.filter(account => account.id !== draft.originFinancialAccountId)
 											.map(account => ({
 												label: getFinancialAccountOptionLabel(account),
@@ -452,6 +488,7 @@ export function CreateTransactionDialog({
 								fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0,
 							) ||
 							!primaryAccountId ||
+							(pointsConversion.counterpart !== null && !Number(counterpartValue)) ||
 							(isDebt &&
 								!calculateDebtSplit(Number(draft.amount), debtSplit, draft.currency)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId)

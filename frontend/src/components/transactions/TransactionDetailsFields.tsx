@@ -7,6 +7,7 @@ import { DateField } from "@/components/ui/DateField";
 import { FormField } from "@/components/ui/FormField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { NumericField } from "@/components/ui/NumericField";
 import { TimeField } from "@/components/ui/TimeField";
 import type { FinancialFee, Transaction } from "@/lib/api";
 import { TransactionConversionPreview } from "./TransactionConversionPreview";
@@ -15,6 +16,12 @@ type TransactionFormType = Transaction["type"] | "YIELD";
 
 export function TransactionDetailsFields({
 	amount,
+	amountIsPoints = false,
+	counterpart = null,
+	counterpartCurrency,
+	counterpartIsPoints = false,
+	counterpartValue = "",
+	onCounterpartChange,
 	paymentCurrency,
 	paymentAmount = "",
 	onPaymentAmountChange,
@@ -45,6 +52,12 @@ export function TransactionDetailsFields({
 	type,
 }: {
 	amount: string;
+	amountIsPoints?: boolean;
+	counterpart?: "destination" | "payment" | null;
+	counterpartCurrency?: string;
+	counterpartIsPoints?: boolean;
+	counterpartValue?: string;
+	onCounterpartChange?: (value: string) => void;
 	paymentCurrency?: string;
 	paymentAmount?: string;
 	onPaymentAmountChange?: (value: string) => void;
@@ -93,18 +106,55 @@ export function TransactionDetailsFields({
 			) : null}
 			<FormFieldRow>
 				{onCurrencyChange ? (
-					<CurrencySelect label="Moeda da transação" onValueChange={onCurrencyChange} value={currencyCode} />
+					<CurrencySelect
+						label="Moeda da transação"
+						onValueChange={onCurrencyChange}
+						value={currencyCode}
+					/>
 				) : null}
-				<MoneyField
-					currencyCode={currencyCode}
-					id="transaction-amount"
-					label="Valor"
-					onValueChange={onAmountChange}
-					required
-					value={amount}
-				/>
+				{amountIsPoints ? (
+					<NumericField
+						id="transaction-amount"
+						label="Pontos gastos"
+						onValueChange={onAmountChange}
+						placeholder="Ex: 10.000"
+						required
+						value={amount}
+					/>
+				) : (
+					<MoneyField
+						currencyCode={currencyCode}
+						id="transaction-amount"
+						label="Valor"
+						onValueChange={onAmountChange}
+						required
+						value={amount}
+					/>
+				)}
 			</FormFieldRow>
-			{paymentCurrency &&
+			{counterpart && onCounterpartChange ? (
+				counterpartIsPoints ? (
+					<NumericField
+						id="transaction-counterpart-amount"
+						label="Pontos recebidos"
+						onValueChange={onCounterpartChange}
+						placeholder="Ex: 10.000"
+						required
+						value={counterpartValue}
+					/>
+				) : (
+					<MoneyField
+						currencyCode={counterpartCurrency ?? currencyCode}
+						id="transaction-counterpart-amount"
+						label={counterpart === "payment" ? "Valor creditado na fatura" : "Valor recebido"}
+						onValueChange={onCounterpartChange}
+						required
+						value={counterpartValue}
+					/>
+				)
+			) : null}
+			{!counterpart &&
+				paymentCurrency &&
 				(currencyCode !== paymentCurrency || bookingCurrency !== paymentCurrency) &&
 				onPaymentAmountChange && (
 					<div className="space-y-2">
@@ -177,7 +227,7 @@ export function TransactionDetailsFields({
 						onCheckedChange: checked => onIsHiddenChange(checked === true),
 					}}
 				>
-					<span className="font-medium text-foreground-muted">Ocultar na lista do dia</span>
+					<span className="text-foreground-muted font-medium">Ocultar na lista do dia</span>
 				</CheckboxField>
 			) : null}
 			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}

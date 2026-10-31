@@ -91,7 +91,7 @@ describe("getFinancialAccountOptionLabel", () => {
 });
 
 describe("getTransactionSourceAccounts", () => {
-	test("includes cashback but excludes point and credit-card accounts", () => {
+	test("includes cashback and points but excludes credit-card accounts", () => {
 		const accounts = [
 			{ id: "cashback", rewardsAccount: { kind: "CASHBACK" }, type: "REWARDS" },
 			{ id: "points", rewardsAccount: { kind: "POINTS" }, type: "REWARDS" },
@@ -101,6 +101,7 @@ describe("getTransactionSourceAccounts", () => {
 
 		expect(getTransactionSourceAccounts(accounts).map(account => account.id)).toEqual([
 			"cashback",
+			"points",
 			"checking",
 		]);
 	});

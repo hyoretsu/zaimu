@@ -21,6 +21,7 @@ import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
+	getPointsConversion,
 	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -151,8 +152,16 @@ export function EditTransactionForm({
 	if (!transaction || !draft) return null;
 	const balanceDestinationAccounts =
 		accountsQuery.data
-			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+			?.filter(account => account.type !== "CREDIT_CARD")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
+	const pointsConversion = getPointsConversion({
+		destination: accountsQuery.data?.find(item => item.id === draft.destinationFinancialAccountId),
+		hasCard: Boolean(draft.paymentCreditCardId),
+		origin: accountsQuery.data?.find(item => item.id === draft.originFinancialAccountId),
+		type: draft.type,
+	});
+	const counterpartValue =
+		pointsConversion.counterpart === "payment" ? draft.paymentAmount : draft.destinationAmount;
 	const incomeDestinationAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
@@ -201,6 +210,7 @@ export function EditTransactionForm({
 						<div className="grid min-w-0 grid-cols-1 gap-4 px-1 py-1 pr-3">
 							<TransactionDetailsFields
 								amount={draft.amount}
+								amountIsPoints={pointsConversion.amountIsPoints}
 								bookingCurrency={
 									account?.currency ??
 									accountsQuery.data?.find(
@@ -212,6 +222,16 @@ export function EditTransactionForm({
 									)?.currency ??
 									draft.currency
 								}
+								counterpart={pointsConversion.counterpart}
+								counterpartCurrency={
+									pointsConversion.counterpart === "payment"
+										? (transaction.paymentCurrency ?? undefined)
+										: accountsQuery.data?.find(
+												item => item.id === draft.destinationFinancialAccountId,
+											)?.currency
+								}
+								counterpartIsPoints={pointsConversion.counterpartIsPoints}
+								counterpartValue={counterpartValue}
 								currencyCode={draft.currency}
 								date={draft.date}
 								description={description}
@@ -219,6 +239,15 @@ export function EditTransactionForm({
 								isHidden={draft.isHidden}
 								onAmountChange={amount =>
 									setDraft(current => (current ? { ...current, amount } : current))
+								}
+								onCounterpartChange={value =>
+									setDraft(
+										current =>
+											current &&
+											(pointsConversion.counterpart === "payment"
+												? { ...current, paymentAmount: value }
+												: { ...current, destinationAmount: value }),
+									)
 								}
 								onCurrencyChange={currency =>
 									setDraft(current => (current ? { ...current, currency } : current))
@@ -412,6 +441,7 @@ export function EditTransactionForm({
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={
 							!draft.amount ||
+							(pointsConversion.counterpart !== null && !Number(counterpartValue)) ||
 							draft.fees.some(
 								fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0,
 							) ||
