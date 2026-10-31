@@ -68,7 +68,7 @@ export function FinancialInstitutionGroup({
 						</p>
 					</div>
 				</div>
-				<ActionGroup className="sm:ml-auto">
+				<ActionGroup className="justify-start sm:ml-auto sm:justify-end">
 					{institution && (
 						<InstitutionActions institution={institution} onDelete={onDeleteInstitution} />
 					)}

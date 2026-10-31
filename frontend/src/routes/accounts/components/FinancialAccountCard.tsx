@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
 	LuBanknote,
 	LuCreditCard,
+	LuEllipsis,
 	LuEyeOff,
 	LuFileUp,
 	LuLandmark,
@@ -17,7 +18,7 @@ import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/compo
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import {
@@ -72,7 +73,7 @@ export function FinancialAccountCard({
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
 		<article className="group bg-card shadow-card hover:border-primary/30 row-span-3 grid grid-rows-subgrid gap-y-0 rounded-2xl border p-5 transition hover:-translate-y-0.5">
-			<div className="flex min-h-16 items-start justify-between gap-4">
+			<div className="flex min-h-16 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
 					<span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
 						<Icon className="size-5" />
@@ -86,22 +87,8 @@ export function FinancialAccountCard({
 						)}
 					</div>
 				</div>
-				<div className="flex shrink-0 flex-wrap justify-end gap-2">
+				<div className="flex shrink-0 items-center gap-2 self-end sm:self-start">
 					<AccountTransferDialog accountId={account.id} iconOnly />
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								aria-label={`Esconder ${displayName}`}
-								className="cursor-pointer"
-								onClick={onHide}
-								size="icon-sm"
-								variant="outline"
-							>
-								<LuEyeOff />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Esconder conta</TooltipContent>
-					</Tooltip>
 					<CreateFinancialAccountDialog
 						account={account}
 						contextual
@@ -112,15 +99,37 @@ export function FinancialAccountCard({
 						pending={false}
 						rewardAccounts={rewardAccounts}
 					/>
-					<ConfirmActionButton
-						aria-label={`Excluir ${displayName}`}
-						confirmation={`Excluir ${displayName} permanentemente?`}
-						onConfirm={onDelete}
-						size="icon-sm"
-						variant="destructive"
-					>
-						<LuTrash2 />
-					</ConfirmActionButton>
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								aria-label={`Mais ações de ${displayName}`}
+								className="cursor-pointer"
+								size="icon-sm"
+								variant="outline"
+							>
+								<LuEllipsis />
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent align="end" className="flex w-48 flex-col gap-2 p-2">
+							<Button
+								className="w-full cursor-pointer justify-start"
+								onClick={onHide}
+								size="sm"
+								variant="outline"
+							>
+								<LuEyeOff /> Esconder conta
+							</Button>
+							<ConfirmActionButton
+								className="w-full cursor-pointer justify-start"
+								confirmation={`Excluir ${displayName} permanentemente?`}
+								onConfirm={onDelete}
+								size="sm"
+								variant="destructive"
+							>
+								<LuTrash2 /> Excluir conta
+							</ConfirmActionButton>
+						</PopoverContent>
+					</Popover>
 				</div>
 			</div>
 			<div className="border-border/70 mt-6 border-t pt-4">
