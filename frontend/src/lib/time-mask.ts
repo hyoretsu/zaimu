@@ -55,13 +55,21 @@ export function parse12Hour(
 ) {
 	let digits = raw.replace(/\D/g, "").slice(0, 4);
 	if (deleting && digits === previousDigits) digits = digits.slice(0, -1);
+	const typedHours = Number(digits.slice(0, 2));
+	const is24Hour = digits.length >= 2 && typedHours >= 13 && typedHours <= 23;
 	if (digits.length >= 2) {
-		const hours = Math.min(Math.max(Number(digits.slice(0, 2)), 1), 12);
+		const hours = is24Hour ? typedHours - 12 : Math.min(Math.max(typedHours, 1), 12);
 		digits = `${String(hours).padStart(2, "0")}${digits.slice(2)}`;
 	}
 	if (digits.length === 4 && Number(digits.slice(2)) > 59) digits = `${digits.slice(0, 2)}59`;
 	// The displayed period is always in `raw`; only a newly typed letter can change it.
 	const typed = raw.replace(previousPeriod, "");
-	const period: DayPeriod = /p/i.test(typed) ? "PM" : /a/i.test(typed) ? "AM" : previousPeriod;
+	const period: DayPeriod = is24Hour
+		? "PM"
+		: /p/i.test(typed)
+			? "PM"
+			: /a/i.test(typed)
+				? "AM"
+				: previousPeriod;
 	return { digits, period };
 }
