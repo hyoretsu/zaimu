@@ -2,7 +2,6 @@ import { type SyntheticEvent, useEffect, useState } from "react";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { DebtPersonPicker, DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
-import { CheckboxField } from "@/components/ui/CheckboxField";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -80,7 +79,6 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const currency = selectedCurrency ?? initialValue?.currency ?? effectiveCurrency;
 	const [amount, setAmount] = useState("");
 	const [date, setDate] = useState(getLocalDateKey);
-	const [sendWithoutDate, setSendWithoutDate] = useState(false);
 	const [dueDate, setDueDate] = useState("");
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [personId, setPersonId] = useState("");
@@ -91,7 +89,6 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 		setAmount(String(initialValue.amount));
 		setCurrency(initialValue.currency);
 		setDate(initialValue.date?.slice(0, 10) ?? "");
-		setSendWithoutDate(!initialValue.date);
 		setDueDate(initialValue.dueDate?.slice(0, 10) ?? "");
 		setDescription(initialValue.description ?? "");
 		setPersonId(initialValue.personId);
@@ -102,7 +99,6 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 		setAmount(String(recovered.amount));
 		setCurrency(recovered.currency);
 		setDate(recovered.date ?? "");
-		setSendWithoutDate(!recovered.date);
 		setDueDate(recovered.dueDate ?? "");
 		setDescription(recovered.description ?? "");
 		setDebtSplit(recovered.debtSplit);
@@ -112,7 +108,6 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 		setAmount("");
 		setCurrency(null);
 		setDate(getLocalDateKey());
-		setSendWithoutDate(false);
 		setDueDate("");
 		setDescription("");
 		setPersonId("");
@@ -129,7 +124,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 		const fields = {
 			amount: parseMaskedMoney(String(form.get("debt-origin-amount") ?? "")),
 			currency,
-			date: sendWithoutDate ? null : date || undefined,
+			date: date || null,
 			description: String(form.get("debt-origin-description") ?? description).trim(),
 			dueDate: dueDate || undefined,
 			isOwedToMe,
@@ -227,12 +222,11 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 						<FormFieldRow>
 							<DateField
 								autoComplete="off"
-								disabled={sendWithoutDate}
 								id="debt-origin-date"
 								label="Data"
 								name="debt-origin-date"
 								onValueChange={setDate}
-								value={sendWithoutDate ? "" : date}
+								value={date}
 							/>
 							<DateField
 								autoComplete="off"
@@ -243,16 +237,6 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								value={dueDate}
 							/>
 						</FormFieldRow>
-						<CheckboxField
-							align="start"
-							checkboxProps={{
-								checked: sendWithoutDate,
-								id: "debt-without-date",
-								onCheckedChange: checked => setSendWithoutDate(checked === true),
-							}}
-						>
-							<span className="text-foreground-muted font-medium">Não incluir data</span>
-						</CheckboxField>
 						<FormField
 							autoComplete="off"
 							id="debt-origin-description"
