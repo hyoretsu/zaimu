@@ -24,7 +24,7 @@ process.env.DATABASE_URL = performanceDatabaseUrl;
 process.env.DATABASE_QUERY_TIMEOUT_MS ??= "180000";
 process.env.DATABASE_STATEMENT_TIMEOUT_MS ??= "180000";
 
-const migration = Bun.spawnSync(["bun", "x", "--no-install", "prisma-cli", "migrate"], {
+const migration = Bun.spawnSync(["bun", "scripts/migrate.ts"], {
 	cwd: new URL("../../packages/sql", import.meta.url).pathname,
 	env: process.env,
 	stderr: "inherit",

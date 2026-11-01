@@ -189,8 +189,14 @@
 		"backend/src/modules/loans/infra/elysia/LoanContractDTO.test.ts",
 		"backend/src/modules/reference-rates/domain/yield-scheduler-clock.test.ts"
 	],
-	"sql:e2e": ["packages/sql/tests/migrations.e2e.test.ts"],
+	"sql:e2e": [
+		"packages/sql/tests/migrations.e2e.test.ts",
+		"packages/sql/tests/prisma8-fresh-history.e2e.test.ts",
+		"packages/sql/tests/prisma8-native-successors.e2e.test.ts"
+	],
 	"sql:integration": [
+		"packages/sql/tests/prisma8-contract-parity.integration.test.ts",
+		"packages/sql/tests/prisma8-runtime.integration.test.ts",
 		"packages/sql/src/tests/query-metrics.test.ts",
 		"packages/sql/tests/application-upgrade-audit.test.ts",
 		"packages/sql/tests/card-payments-migration.test.ts",

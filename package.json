@@ -17,6 +17,7 @@
 		"dev:frontend": "bun -F frontend tauri dev",
 		"format": "bun fmt",
 		"prepare": "bun run ./prepare.ts || true",
+		"setup:historical-sql": "bun install --cwd packages/sql/compatibility/early-rc --frozen-lockfile",
 		"start": "turbo start",
 		"test": "bun run test:runner && bun run scripts/test-runner.ts backend all && bun run scripts/test-runner.ts sql all",
 		"test:unit": "bun run scripts/test-runner.ts backend unit && bun run scripts/test-runner.ts sql unit",
@@ -46,6 +47,10 @@
 		"turbo": "^2.10.12",
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.68.0"
+	},
+	"overrides": {
+		"@prisma/orm-toolchain": "8.0.0-rc.22",
+		"@prisma/orm-framework": "8.0.0-rc.22"
 	},
 	"patchedDependencies": {
 		"better-auth@1.7.1": "patches/better-auth@1.7.1.patch",

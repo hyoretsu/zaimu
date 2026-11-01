@@ -7,27 +7,26 @@
 	},
 	"scripts": {
 		"check-types": "bun check",
-		"contract:emit": "prisma-cli contract emit --output-path out/prisma",
-		"db:sign": "prisma-cli db sign",
-		"db:verify": "prisma-cli db verify",
+		"contract:emit": "prisma contract emit --output-path out/prisma",
+		"db:sign": "prisma db sign",
+		"db:verify": "prisma db verify",
 		"migrate:deploy": "bun scripts/migrate.ts",
-		"migration:check": "prisma-cli migration check",
-		"migration:plan": "prisma-cli migration plan",
-		"migration:status": "prisma-cli migration status",
+		"migration:check": "prisma migration check",
+		"migration:plan": "prisma migration plan",
+		"migration:status": "prisma migration status",
 		"test": "bun run ../../scripts/test-runner.ts sql all",
 		"test:unit": "bun run ../../scripts/test-runner.ts sql unit",
 		"test:integration": "bun run ../../scripts/test-runner.ts sql integration",
 		"test:e2e": "bun run ../../scripts/test-runner.ts sql e2e"
 	},
 	"dependencies": {
-		"@prisma/orm-postgres": "8.0.0-rc.5",
+		"@prisma/orm-postgres": "8.0.0-rc.22",
 		"dotenv": "^17.4.2",
 		"pg": "8.22.0"
 	},
 	"devDependencies": {
 		"@hyoretsu/configs": "^1.2.37",
-		"@prisma/cli": "8.0.0-rc.7",
-		"@prisma/cli-engine": "0.2.0",
+		"prisma": "8.0.0-rc.29",
 		"@types/node": "^25.9.6",
 		"@types/pg": "8.20.4",
 		"typescript": "^6.0.3"

@@ -1,4 +1,4 @@
-// use prisma-next
+// use prisma-8
 // Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
 
 namespace public {
@@ -12,8 +12,8 @@ namespace public {
     name VarChar(100)
     isDefault Boolean @default(false)
     @@unique([institutionId, name])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("FinancialInstitutionProfile")
   }
 
@@ -27,8 +27,8 @@ namespace public {
     institutionId VarChar(36)
     globalRulesFrom Date?
     @@unique([userId, institutionId])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("UserFinancialInstitution")
   }
 
@@ -41,8 +41,8 @@ namespace public {
     profileId VarChar(36)
     effectiveDate Date
     @@unique([linkId, effectiveDate])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("UserInstitutionProfileChange")
   }
 
@@ -63,11 +63,11 @@ namespace public {
     effectiveDate Date?
     reviewerId VarChar(36)?
     reason String?
-    reviewedAt Timestamp(3)?
+    reviewedAt TimestampJsDate(3)?
     @@index([status, createdAt])
     @@index([authorId])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("FinancialInstitutionProposal")
   }
 
@@ -81,8 +81,8 @@ namespace public {
     action VarChar(24)
     payload Json
     @@index([proposalId])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("InstitutionReviewAudit")
   }
 
@@ -92,10 +92,10 @@ namespace public {
     userId VarChar(36)
     type VarChar(40)
     payload Json
-    readAt Timestamp(3)?
+    readAt TimestampJsDate(3)?
     @@index([userId, readAt, createdAt])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("AppNotification")
   }
 
@@ -106,11 +106,11 @@ namespace public {
     status VarChar(24)
     source VarChar(32)
     sourceVersion VarChar(64)
-    generatedAt Timestamp(3)?
+    generatedAt TimestampJsDate(3)?
     confirmedBy VarChar(36)?
     @@id([countryCode, year])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("YieldCalendarCoverage")
   }
 
@@ -122,8 +122,8 @@ namespace public {
     name VarChar(100)?
     action VarChar(16)
     @@unique([countryCode, date])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("YieldCalendarOverride")
   }
 
@@ -137,17 +137,17 @@ namespace public {
     source VarChar(32)
     sourceVersion VarChar(64)
     @@index([currency, countryCode])
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@map("CurrencyCountryAssociation")
   }
 
   model OpenFinanceConfig {
     userId VarChar(36) @id(map: "OpenFinanceConfig_pkey")
     encryptedCredentials String?
-    lastQueriedAt Timestamp(3)?
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    lastQueriedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceConfig_userId_fkey", index: false)
     @@map("OpenFinanceConfig")
   }
@@ -158,8 +158,8 @@ namespace public {
     bankName String
     status String
     remoteAccounts Json
-    bankUpdatedAt Timestamp(3)?
-    createdAt Timestamp(3) @default(now())
+    bankUpdatedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceConnection_userId_fkey", index: false)
     bindings OpenFinanceBinding[]
     @@index([userId, itemId], map: "OpenFinanceConnection_user_item_key", unique: true)
@@ -184,10 +184,10 @@ namespace public {
     imported Int @default(0)
     linked Int @default(0)
     pending Int @default(0)
-    errors Json @default("[]")
-    startedAt Timestamp(3) @default(now())
-    finishedAt Timestamp(3)?
-    lockedUntil Timestamp(3)?
+    errors Json @default(json`"[]"`)
+    startedAt TimestampJsDate(3) @default(now())
+    finishedAt TimestampJsDate(3)?
+    lockedUntil TimestampJsDate(3)?
     workerToken VarChar(36)?
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceRun_userId_fkey", index: false)
     @@index([userId, startedAt], map: "OpenFinanceRun_user_started_idx")
@@ -205,7 +205,7 @@ namespace public {
     importId VarChar(36)?
     reviewItemId VarChar(36)?
     state String
-    updatedAt Timestamp(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceRecord_userId_fkey", index: false)
     identities OpenFinanceIdentity[]
     @@index([userId, remoteAccountId, identity], map: "OpenFinanceRecord_identity_key", unique: true)
@@ -226,6 +226,7 @@ namespace public {
     name VarChar(100)
     isActive Boolean @default(true)
     versions TaxDefinitionVersion[]
+    @@map("taxDefinition")
   }
 
   model TaxDefinitionVersion {
@@ -236,6 +237,7 @@ namespace public {
     brackets Json
     definition TaxDefinition @relation(fields: [taxDefinitionId], references: [id], onDelete: Restrict)
     @@unique([taxDefinitionId, effectiveDate])
+    @@map("taxDefinitionVersion")
   }
 
   model AccountTransfer {
@@ -244,9 +246,9 @@ namespace public {
     recipientId VarChar(36)
     status VarChar(16) @default("PENDING")
     summary Json
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
-    respondedAt Timestamp(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    respondedAt TimestampJsDate(3)?
     sender User @relation("TransferSender", fields: [senderId], references: [id], onDelete: Cascade, index: false)
     recipient User @relation("TransferRecipient", fields: [recipientId], references: [id], onDelete: Cascade, index: false)
     items AccountTransferItem[]
@@ -260,8 +262,8 @@ namespace public {
     id VarChar(36) @id
     transferId VarChar(36)
     accountId VarChar(36)
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     transfer AccountTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade, index: false)
     @@unique([transferId, accountId])
     @@index([accountId])
@@ -276,8 +278,8 @@ namespace public {
     yieldReferenceRate Numeric(7, 4)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldPeriod VarChar(8)?
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     account FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, index: false)
     @@index([financialAccountId, date])
     @@map("DetachedRewardCredit")
@@ -289,8 +291,8 @@ namespace public {
     entityType VarChar(40)
     entityId VarChar(36)
     kind VarChar(32)
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
     @@unique([entityType, entityId])
     @@index([userId])
@@ -304,8 +306,8 @@ namespace public {
     address String @unique
     credentials Json
     enabled Boolean @default(true)
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
     @@index([userId, enabled])
     @@map("PushDevice")
@@ -321,11 +323,11 @@ namespace public {
     destinationKey String
     status VarChar(16) @default("PENDING")
     attempts Int @default(0)
-    nextAttemptAt Timestamp(3) @default(now())
-    lockedUntil Timestamp(3)?
+    nextAttemptAt TimestampJsDate(3) @default(now())
+    lockedUntil TimestampJsDate(3)?
     lastError VarChar(500)?
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
     transfer AccountTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade, index: false)
     @@unique([transferId, event, destinationKey])
@@ -356,11 +358,11 @@ namespace public {
     openFinanceRuns OpenFinanceRun[]
     openFinanceRecords OpenFinanceRecord[]
     creditRefundReviews CreditRefundReview[]
-    id                VarChar(36)        @id(map: "User_pkey") @default(dbgenerated("cuid2()"))
+    id                VarChar(36)        @id(map: "User_pkey") @default(sql`cuid2()`)
     email             VarChar(320)
     name              VarChar(100)
-    createdAt         Timestamp(3)       @default(now())
-    updatedAt         Timestamp(3)       @default(now())
+    createdAt         TimestampJsDate(3)       @default(now())
+    updatedAt         TimestampJsDate(3)       @default(now())
     emailVerified     Boolean            @default(false)
     image             VarChar(2048)?
     monthlyBudgets    MonthlyBudget[]
@@ -403,17 +405,17 @@ namespace public {
     status VarChar(24) @default("LEGACY_PRIVATE")
     version Int @default(1)
     operatingCountryCodes VarChar(2)[] @default([])
-    accountCurrenciesByCountry Json @default(dbgenerated("'{}'::json"))
+    accountCurrenciesByCountry Json @default(sql`'{}'::json`)
     creditStatementClosingInclusive Boolean @default(false)
     creditInstallmentRemainderOnFirst Boolean @default(false)
     currency VarChar(3) @default("BRL")
 
-    id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(dbgenerated("cuid2()"))
+    id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(sql`cuid2()`)
     userId         VarChar(36)?
     name           VarChar(100)
     normalizedName VarChar(100)
-    createdAt      Timestamp(3)       @default(now())
-    updatedAt      Timestamp(3)       @default(now())
+    createdAt      TimestampJsDate(3)       @default(now())
+    updatedAt      TimestampJsDate(3)       @default(now())
     financialAccounts FinancialAccount[]
     yieldPolicies     FinancialInstitutionYieldPolicy[]
     creditRefundPolicy pg.enum(CreditRefundPolicy)?
@@ -432,14 +434,14 @@ namespace public {
     status VarChar(16) @default("APPROVED")
     currency VarChar(3)?
 
-    id                     VarChar(36)                              @id(map: "FinancialInstitutionYieldPolicy_pkey") @default(dbgenerated("cuid2()"))
+    id                     VarChar(36)                              @id(map: "FinancialInstitutionYieldPolicy_pkey") @default(sql`cuid2()`)
     financialInstitutionId VarChar(36)
     effectiveDate          Date
     yieldPeriod            pg.enum(FinancialAccountYieldPeriod)?
     yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxRate           Numeric(5, 2)?
-    createdAt              Timestamp(3)                             @default(now())
-    updatedAt              Timestamp(3)                             @default(now())
+    createdAt              TimestampJsDate(3)                             @default(now())
+    updatedAt              TimestampJsDate(3)                             @default(now())
     financialInstitution   FinancialInstitution                    @relation(fields: [financialInstitutionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitutionYieldPolicy_financialInstitutionId_fkey", index: false)
     rules                  FinancialInstitutionYieldRule[]
 
@@ -448,15 +450,15 @@ namespace public {
   }
 
   model FinancialInstitutionYieldRule {
-    id                       VarChar(36)                       @id(map: "FinancialInstitutionYieldRule_pkey") @default(dbgenerated("cuid2()"))
+    id                       VarChar(36)                       @id(map: "FinancialInstitutionYieldRule_pkey") @default(sql`cuid2()`)
     financialYieldPolicyId   VarChar(36)
     position                 SmallInt
     upToBalance              Numeric(20, 6)?
     yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
-    createdAt                Timestamp(3)                      @default(now())
-    updatedAt                Timestamp(3)                      @default(now())
+    createdAt                TimestampJsDate(3)                      @default(now())
+    updatedAt                TimestampJsDate(3)                      @default(now())
     financialYieldPolicy     FinancialInstitutionYieldPolicy   @relation(fields: [financialYieldPolicyId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitutionYieldRule_financialYieldPolicyId_fkey", index: false)
 
     @@index([financialYieldPolicyId, position], map: "FinancialInstitutionYieldRule_policyId_position_key", unique: true)
@@ -464,7 +466,7 @@ namespace public {
   }
 
   model AuthAccount {
-    id                    VarChar(36)   @id(map: "account_pkey") @default(dbgenerated("cuid2()"))
+    id                    VarChar(36)   @id(map: "account_pkey") @default(sql`cuid2()`)
     issuer                VarChar(320)
     accountId             VarChar(320)
     providerId            VarChar(100)
@@ -472,12 +474,12 @@ namespace public {
     accessToken           String?
     refreshToken          String?
     idToken               String?
-    accessTokenExpiresAt  Timestamp(3)?
-    refreshTokenExpiresAt Timestamp(3)?
+    accessTokenExpiresAt  TimestampJsDate(3)?
+    refreshTokenExpiresAt TimestampJsDate(3)?
     scope                 String?
     password              VarChar(255)?
-    createdAt             Timestamp(3)  @default(now())
-    updatedAt             Timestamp(3)  @default(now())
+    createdAt             TimestampJsDate(3)  @default(now())
+    updatedAt             TimestampJsDate(3)  @default(now())
     user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "account_userId_fkey")
 
     @@index([providerId, accountId], map: "account_providerId_accountId_key", unique: true)
@@ -487,14 +489,14 @@ namespace public {
   }
 
   model Category {
-    id                VarChar(36)        @id(map: "Category_pkey") @default(dbgenerated("cuid2()"))
+    id                VarChar(36)        @id(map: "Category_pkey") @default(sql`cuid2()`)
     userId            VarChar(36)
     name              VarChar(50)
     color             VarChar(7)?
     icon              VarChar(50)?
     parentId          VarChar(36)?
-    createdAt         Timestamp(3)       @default(now())
-    updatedAt         Timestamp(3)       @default(now())
+    createdAt         TimestampJsDate(3)       @default(now())
+    updatedAt         TimestampJsDate(3)       @default(now())
     monthlyBudgets    MonthlyBudget[]
     tagAssignments    TagAssignment[]
     parent            Category?          @relation(name: "Category_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Category_parentId_fkey", index: false)
@@ -507,7 +509,7 @@ namespace public {
   }
 
   model MonthlyBudget {
-    id VarChar(36) @id(map: "MonthlyBudget_pkey") @default(dbgenerated("cuid2()"))
+    id VarChar(36) @id(map: "MonthlyBudget_pkey") @default(sql`cuid2()`)
     userId VarChar(36)
     name VarChar(100)
     source VarChar(16)
@@ -517,9 +519,9 @@ namespace public {
     currency VarChar(3)
     startMonth VarChar(7)
     endMonth VarChar(7)?
-    deletedAt Timestamp(3)?
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    deletedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MonthlyBudget_userId_fkey", index: false)
     category Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "MonthlyBudget_categoryId_fkey", index: false)
     @@index([userId, startMonth], map: "MonthlyBudget_userId_startMonth_idx")
@@ -531,12 +533,12 @@ namespace public {
   }
 
   model Store {
-    id             VarChar(36)  @id(map: "Store_pkey") @default(dbgenerated("cuid2()"))
+    id             VarChar(36)  @id(map: "Store_pkey") @default(sql`cuid2()`)
     userId         VarChar(36)
     name           VarChar(200)
     normalizedName VarChar(200)
-    createdAt      Timestamp(3) @default(now())
-    updatedAt      Timestamp(3) @default(now())
+    createdAt      TimestampJsDate(3) @default(now())
+    updatedAt      TimestampJsDate(3) @default(now())
     user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Store_userId_fkey", index: false)
 
     @@index([userId, normalizedName], map: "Store_userId_normalizedName_key", unique: true)
@@ -544,12 +546,12 @@ namespace public {
   }
 
   model TagAssignment {
-    id         VarChar(36)  @id(map: "TagAssignment_pkey") @default(dbgenerated("cuid2()"))
+    id         VarChar(36)  @id(map: "TagAssignment_pkey") @default(sql`cuid2()`)
     categoryId VarChar(36)
     entityType VarChar(50)
     entityId   VarChar(36)
-    createdAt  Timestamp(3) @default(now())
-    updatedAt  Timestamp(3) @default(now())
+    createdAt  TimestampJsDate(3) @default(now())
+    updatedAt  TimestampJsDate(3) @default(now())
     category   Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TagAssignment_categoryId_fkey", index: false)
 
     @@index([categoryId, entityType, entityId], map: "TagAssignment_categoryId_entityType_entityId_key", unique: true)
@@ -566,14 +568,14 @@ namespace public {
     legacyInstitutionId VarChar(36)?
     countryCode VarChar(2)?
     currency VarChar(3) @default("BRL")
-    id                      VarChar(36)                   @id(map: "Account_pkey") @default(dbgenerated("cuid2()"))
+    id                      VarChar(36)                   @id(map: "Account_pkey") @default(sql`cuid2()`)
     userId                  VarChar(36)
     name                    VarChar(70)?
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
     isHidden                Boolean                      @default(false)
     isPrimary               Boolean                      @default(false)
     isDefaultForStatements  Boolean                      @default(false)
-    balance                 Numeric(20, 6)?               @default(dbgenerated("0"))
+    balance                 Numeric(20, 6)?               @default(sql`0`)
     institutionId           VarChar(36)?
     yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
@@ -581,8 +583,8 @@ namespace public {
     yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
-    createdAt               Timestamp(3)                  @default(now())
-    updatedAt               Timestamp(3)                  @default(now())
+    createdAt               TimestampJsDate(3)                  @default(now())
+    updatedAt               TimestampJsDate(3)                  @default(now())
     creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
     payerCreditCards        CreditCard[] @relation("CreditCard_paymentAccountId_fkey")
     cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
@@ -633,7 +635,7 @@ namespace public {
     @@map("YieldCalendarCurrency")
   }
   model YieldCalendarHoliday {
-    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    id VarChar(36) @id @default(sql`cuid2()`)
     countryCode VarChar(2)
     date Date
     name VarChar(100)
@@ -643,11 +645,11 @@ namespace public {
   }
 
   model FinancialAccountYieldHoliday {
-    id        VarChar(36)  @id(map: "FinancialAccountYieldHoliday_pkey") @default(dbgenerated("cuid2()"))
+    id        VarChar(36)  @id(map: "FinancialAccountYieldHoliday_pkey") @default(sql`cuid2()`)
     userId    VarChar(36)
     date      Date
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYieldHoliday_userId_fkey", index: false)
 
     @@index([userId, date], map: "FinancialAccountYieldHoliday_userId_date_key", unique: true)
@@ -657,13 +659,13 @@ namespace public {
   model BalanceAdjustment {
     currency VarChar(3) @default("BRL")
 
-    id                 VarChar(36) @id(map: "BalanceAdjustment_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(36) @id(map: "BalanceAdjustment_pkey") @default(sql`cuid2()`)
     userId             VarChar(36)
     financialAccountId VarChar(36)
     date               Date
     balance            Numeric(20, 6)
-    createdAt          Timestamp(3) @default(now())
-    updatedAt          Timestamp(3) @default(now())
+    createdAt          TimestampJsDate(3) @default(now())
+    updatedAt          TimestampJsDate(3) @default(now())
     user               User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_userId_fkey", index: false)
     financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_financialAccountId_fkey", index: false)
 
@@ -672,7 +674,7 @@ namespace public {
   }
 
   model FinancialAccountYieldRateHistory {
-    id                 VarChar(36)                         @id(map: "FinancialAccountYieldRateHistory_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(36)                         @id(map: "FinancialAccountYieldRateHistory_pkey") @default(sql`cuid2()`)
     financialAccountId VarChar(36)
     effectiveDate      Date
     yieldReferenceType       pg.enum(ReferenceRateType)?
@@ -681,8 +683,8 @@ namespace public {
     yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
-    createdAt          Timestamp(3)                        @default(now())
-    updatedAt          Timestamp(3)                        @default(now())
+    createdAt          TimestampJsDate(3)                        @default(now())
+    updatedAt          TimestampJsDate(3)                        @default(now())
     financialAccount   FinancialAccount                    @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYieldRateHistory_financialAccountId_fkey", index: false)
 
     @@index([financialAccountId, effectiveDate], map: "FinancialAccountYieldRateHistory_accountId_effectiveDate_key", unique: true)
@@ -692,18 +694,18 @@ namespace public {
   model FinancialAccountYield {
     currency VarChar(3) @default("BRL")
 
-    id                 VarChar(36)                       @id(map: "FinancialAccountYield_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(36)                       @id(map: "FinancialAccountYield_pkey") @default(sql`cuid2()`)
     financialAccountId VarChar(36)
     date               Date
-    time               Time(3)?
+    time               Time(precision: 3)?
     amount             Numeric(20, 8)?
     isHidden           Boolean                           @default(false)
     externalId         VarChar(200)?
     kind               pg.enum(FinancialAccountYieldKind)
     origin             pg.enum(FinancialAccountYieldOrigin) @default("USER")
     isExcluded         Boolean                           @default(false)
-    createdAt          Timestamp(3)                      @default(now())
-    updatedAt          Timestamp(3)                      @default(now())
+    createdAt          TimestampJsDate(3)                      @default(now())
+    updatedAt          TimestampJsDate(3)                      @default(now())
     financialAccount   FinancialAccount                  @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYield_financialAccountId_fkey", index: false)
 
     @@index([financialAccountId, date], map: "FinancialAccountYield_accountId_date_key", unique: true)
@@ -712,20 +714,20 @@ namespace public {
   }
 
   model FinancialHistoryCollection {
-    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    id VarChar(36) @id @default(sql`cuid2()`)
     deduplicationKey VarChar(200) @unique
     kind VarChar(20)
     startDate Date
     endDate Date
     series Json
-    createdAt Timestamptz(3) @default(now())
-    updatedAt Timestamptz(3) @default(now())
+    createdAt TimestamptzJsDate(3) @default(now())
+    updatedAt TimestamptzJsDate(3) @default(now())
     units FinancialHistoryCollectionUnit[]
     @@map("FinancialHistoryCollection")
   }
 
   model FinancialHistoryUnit {
-    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    id VarChar(36) @id @default(sql`cuid2()`)
     deduplicationKey VarChar(200) @unique
     kind VarChar(20)
     series VarChar(10)
@@ -734,13 +736,13 @@ namespace public {
     state VarChar(32) @default("PENDING")
     attempts Int @default(0)
     generation Int @default(0)
-    nextAttemptAt Timestamptz(3)?
+    nextAttemptAt TimestamptzJsDate(3)?
     leaseToken VarChar(36)?
-    lockedUntil Timestamptz(3)?
+    lockedUntil TimestamptzJsDate(3)?
     lastError VarChar(1000)?
-    completedAt Timestamptz(3)?
-    createdAt Timestamptz(3) @default(now())
-    updatedAt Timestamptz(3) @default(now())
+    completedAt TimestamptzJsDate(3)?
+    createdAt TimestamptzJsDate(3) @default(now())
+    updatedAt TimestamptzJsDate(3) @default(now())
     collections FinancialHistoryCollectionUnit[]
     @@index([state, nextAttemptAt, lockedUntil], map: "FinancialHistoryUnit_recovery_idx")
     @@index([kind, series, startDate, endDate], map: "FinancialHistoryUnit_coverage_idx")
@@ -761,7 +763,7 @@ namespace public {
     provider VarChar(40)
     slot Int
     leaseToken VarChar(36)?
-    lockedUntil Timestamptz(3)?
+    lockedUntil TimestamptzJsDate(3)?
     @@id([provider, slot])
     @@map("FinancialProviderSlot")
   }
@@ -770,19 +772,19 @@ namespace public {
     date Date
     baseCurrency VarChar(3)
     rates Json
-    fetchedAt Timestamptz(3) @default(now())
+    fetchedAt TimestamptzJsDate(3) @default(now())
 
     @@id([date, baseCurrency], map: "CurrencyRateSnapshot_pkey")
     @@map("CurrencyRateSnapshot")
   }
 
   model ReferenceRate {
-    id        VarChar(36)                  @id(map: "ReferenceRate_pkey") @default(dbgenerated("cuid2()"))
+    id        VarChar(36)                  @id(map: "ReferenceRate_pkey") @default(sql`cuid2()`)
     type      pg.enum(ReferenceRateType)
     date      Date
     value     Numeric(12, 8)
-    createdAt Timestamp(3)                 @default(now())
-    updatedAt Timestamp(3)                 @default(now())
+    createdAt TimestampJsDate(3)                 @default(now())
+    updatedAt TimestampJsDate(3)                 @default(now())
 
     @@index([type, date], map: "ReferenceRate_type_date_key", unique: true)
     @@map("ReferenceRate")
@@ -794,16 +796,16 @@ namespace public {
     aggregateType VarChar(80)
     aggregateId   VarChar(36)
     userIds       VarChar(36)[]
-    occurredAt    Timestamp(3)
+    occurredAt    TimestampJsDate(3)
     schemaVersion Int          @default(1)
     correlationId VarChar(36)
-    payload       Json         @default("{}")
+    payload       Json         @default(json`"{}"`)
     attempts      Int          @default(0)
-    lockedUntil   Timestamp(3)?
-    publishedAt   Timestamp(3)?
+    lockedUntil   TimestampJsDate(3)?
+    publishedAt   TimestampJsDate(3)?
     lastError     String?
-    createdAt     Timestamp(3) @default(now())
-    updatedAt     Timestamp(3) @default(now())
+    createdAt     TimestampJsDate(3) @default(now())
+    updatedAt     TimestampJsDate(3) @default(now())
     @@index([publishedAt, lockedUntil, occurredAt, id], map: "OutboxEvent_pending_idx")
     @@index([aggregateType, aggregateId, occurredAt], map: "OutboxEvent_aggregate_idx")
     @@map("OutboxEvent")
@@ -814,11 +816,11 @@ namespace public {
     consumer    VarChar(120)
     eventId     VarChar(36)
     attempts    Int          @default(0)
-    lockedUntil Timestamp(3)?
-    completedAt Timestamp(3)?
+    lockedUntil TimestampJsDate(3)?
+    completedAt TimestampJsDate(3)?
     lastError   String?
-    createdAt   Timestamp(3) @default(now())
-    updatedAt   Timestamp(3) @default(now())
+    createdAt   TimestampJsDate(3) @default(now())
+    updatedAt   TimestampJsDate(3) @default(now())
     @@id([consumer, eventId], map: "ConsumerReceipt_pkey")
     @@index([completedAt, createdAt], map: "ConsumerReceipt_cleanup_idx")
     @@map("ConsumerReceipt")
@@ -827,7 +829,7 @@ namespace public {
     calendarHistory Json?
     currency VarChar(3) @default("BRL")
     refundReviews CreditRefundReview[]
-    id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(dbgenerated("cuid2()"))
+    id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(sql`cuid2()`)
     financialAccountId   VarChar(36)
     creditLimit          Numeric(20, 6)
     securityDeposit      Numeric(20, 6)?
@@ -843,8 +845,8 @@ namespace public {
     cashbackYieldReferenceRate       Numeric(7, 4)?
     cashbackYieldReferencePercentage Numeric(7, 4)?
     cashbackYieldPeriod              pg.enum(CashbackYieldPeriod)?
-    createdAt            Timestamp(3)          @default(now())
-    updatedAt            Timestamp(3)          @default(now())
+    createdAt            TimestampJsDate(3)          @default(now())
+    updatedAt            TimestampJsDate(3)          @default(now())
     creditCardHistories  CreditCardHistory[]
     creditCardStatements CreditCardStatement[]
     normalizedPurchases CreditPurchaseRecord[]
@@ -868,26 +870,26 @@ namespace public {
   model RewardsAccount {
     conversionCurrency VarChar(3) @default("BRL")
 
-    id                    VarChar(36)                   @id(map: "RewardsAccount_pkey") @default(dbgenerated("cuid2()"))
+    id                    VarChar(36)                   @id(map: "RewardsAccount_pkey") @default(sql`cuid2()`)
     financialAccountId    VarChar(36)                   @unique(map: "RewardsAccount_financialAccountId_key")
     kind                  pg.enum(RewardsAccountKind)
     initialBalance        Numeric(18, 4)
     conversionPoints      Numeric(18, 4)?
     conversionAmount      Numeric(20, 6)?
-    createdAt             Timestamp(3)                  @default(now())
-    updatedAt             Timestamp(3)                  @default(now())
+    createdAt             TimestampJsDate(3)                  @default(now())
+    updatedAt             TimestampJsDate(3)                  @default(now())
     financialAccount      FinancialAccount              @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RewardsAccount_financialAccountId_fkey")
 
     @@map("RewardsAccount")
   }
 
   model CreditCardHistory {
-    id           VarChar(36)  @id(map: "CreditCardHistory_pkey") @default(dbgenerated("cuid2()"))
+    id           VarChar(36)  @id(map: "CreditCardHistory_pkey") @default(sql`cuid2()`)
     creditCardId VarChar(36)
     field        VarChar(50)
     oldValue     String?
     newValue     String?
-    changedAt    Timestamp(3) @default(now())
+    changedAt    TimestampJsDate(3) @default(now())
     creditCard   CreditCard   @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardHistory_creditCardId_fkey", index: false)
 
     @@map("CreditCardHistory")
@@ -896,17 +898,17 @@ namespace public {
   model CreditCardStatement {
     currency VarChar(3) @default("BRL")
 
-    id              VarChar(36)      @id(map: "CreditCardStatement_pkey") @default(dbgenerated("cuid2()"))
+    id              VarChar(36)      @id(map: "CreditCardStatement_pkey") @default(sql`cuid2()`)
     creditCardId    VarChar(36)
     statementDate   Date
     dueDate         Date
-    totalAmount     Numeric(20, 6)   @default(dbgenerated("0"))
+    totalAmount     Numeric(20, 6)   @default(sql`0`)
     manualTotalAmount Numeric(20, 6)?
-    paidAmount      Numeric(20, 6)   @default(dbgenerated("0"))
+    paidAmount      Numeric(20, 6)   @default(sql`0`)
     isPaid          Boolean          @default(false)
     isFullySynced   Boolean          @default(false)
-    createdAt       Timestamp(3)     @default(now())
-    updatedAt       Timestamp(3)     @default(now())
+    createdAt       TimestampJsDate(3)     @default(now())
+    updatedAt       TimestampJsDate(3)     @default(now())
     normalizedInstallments CreditInstallmentRecord[]
     normalizedRefunds CreditRefundRecord[]
     statementCharges CreditStatementCharge[]
@@ -923,7 +925,7 @@ namespace public {
     userId VarChar(36)
     creditCardId VarChar(36)
     entryKind VarChar(16)
-    deletedAt Timestamp(3) @default(now())
+    deletedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "CreditBookTombstone_userId_fkey", index: false)
     creditCard CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, map: "CreditBookTombstone_creditCardId_fkey", index: false)
     @@index([creditCardId], map: "CreditBookTombstone_creditCardId_idx")
@@ -937,14 +939,14 @@ namespace public {
     currency VarChar(3) @default("BRL")
     originalAmount Numeric(20, 6)?
     exchangeRate Numeric(24, 12)?
-    fees Json @default(dbgenerated("'[]'::json"))
+    fees Json @default(sql`'[]'::json`)
     id                   VarChar(36) @id(map: "CreditPurchaseRecord_pkey")
     userId               VarChar(36)
     creditCardId         VarChar(36)
     description          VarChar(500)
     storeName            VarChar(200)?
     purchaseDate         Date
-    time                 Time(3)?
+    time                 Time(precision: 3)?
     totalAmount          Numeric(20, 6)
     feeDescription       VarChar(100)?
     feeAmount            Numeric(20, 6)?
@@ -957,8 +959,8 @@ namespace public {
     recurrenceId       VarChar(36)?
     recurrenceOccurrenceDate Date?
     externalId           VarChar(200)?
-    createdAt            Timestamp(3) @default(now())
-    updatedAt            Timestamp(3) @default(now())
+    createdAt            TimestampJsDate(3) @default(now())
+    updatedAt            TimestampJsDate(3) @default(now())
     user                 User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_userId_fkey", index: false)
     creditCard           CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_creditCardId_fkey", index: false)
     importIdentities     CreditPurchaseImportIdentity[]
@@ -981,8 +983,8 @@ namespace public {
   model CreditPurchaseImportIdentity {
     externalId VarChar(200) @id(map: "CreditPurchaseImportIdentity_pkey")
     purchaseId VarChar(36)
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     purchase CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseImportIdentity_purchaseId_fkey", index: false)
 
     @@index([purchaseId], map: "CreditPurchaseImportIdentity_purchaseId_idx")
@@ -998,8 +1000,8 @@ namespace public {
     hasImportedAmount Boolean @default(false)
     statementDate     Date?
     dueDate           Date?
-    createdAt        Timestamp(3) @default(now())
-    updatedAt        Timestamp(3) @default(now())
+    createdAt        TimestampJsDate(3) @default(now())
+    updatedAt        TimestampJsDate(3) @default(now())
     purchase         CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentPlan_purchaseId_fkey", index: false)
 
     @@id([purchaseId, number], map: "CreditInstallmentPlan_pkey")
@@ -1020,8 +1022,8 @@ namespace public {
     isSettled             Boolean @default(false)
     settledByPurchase     CreditPurchaseRecord? @relation("SettledInstallments", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditInstallmentRecord_settledByPurchaseId_fkey", index: false)
     entryReference        CreditEntryReference? @relation("EntryInstallment")
-    createdAt             Timestamp(3) @default(now())
-    updatedAt             Timestamp(3) @default(now())
+    createdAt             TimestampJsDate(3) @default(now())
+    updatedAt             TimestampJsDate(3) @default(now())
     purchase              CreditPurchaseRecord @relation("PurchaseInstallments", fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_purchaseId_fkey", index: false)
     statement             CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_statementId_fkey", index: false)
 
@@ -1040,14 +1042,14 @@ namespace public {
     creditDate           Date
     amount               Numeric(20, 6)
     policy               pg.enum(CreditRefundPolicy)
-    time                 Time(3)?
+    time                 Time(precision: 3)?
     externalId           VarChar(200)? @unique(map: "CreditRefundRecord_externalId_key")
     entryReference       CreditEntryReference? @relation("EntryRefund")
     cancellationEligible Boolean @default(false)
     canceledInstallmentNumbers Json?
-    deletedAt            Timestamp(3)?
-    createdAt            Timestamp(3) @default(now())
-    updatedAt            Timestamp(3) @default(now())
+    deletedAt            TimestampJsDate(3)?
+    createdAt            TimestampJsDate(3) @default(now())
+    updatedAt            TimestampJsDate(3) @default(now())
     purchase             CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_purchaseId_fkey", index: false)
     statement            CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_statementId_fkey", index: false)
 
@@ -1065,14 +1067,14 @@ namespace public {
     description VarChar(500)
     amount      Numeric(20, 6)
     chargeDate  Date
-    time        Time(3)?
+    time        Time(precision: 3)?
     externalId  VarChar(200)? @unique(map: "CreditStatementCharge_externalId_key")
     settledByPurchaseId VarChar(36)?
     settledByPurchase CreditPurchaseRecord? @relation("SettledCharges", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditStatementCharge_settledByPurchaseId_fkey", index: false)
     entryReference CreditEntryReference? @relation("EntryCharge")
     isSettled   Boolean @default(false)
-    createdAt   Timestamp(3) @default(now())
-    updatedAt   Timestamp(3) @default(now())
+    createdAt   TimestampJsDate(3) @default(now())
+    updatedAt   TimestampJsDate(3) @default(now())
     statement   CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditStatementCharge_statementId_fkey", index: false)
 
 
@@ -1087,9 +1089,9 @@ namespace public {
     userId VarChar(36)
     creditCardId VarChar(36)
     original Json
-    approvedAt Timestamp(3)?
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    approvedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundReview_userId_fkey", index: false)
     creditCard CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundReview_creditCardId_fkey", index: false)
     reference CreditEntryReference @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundReview_id_fkey", index: false)
@@ -1119,26 +1121,26 @@ namespace public {
   }
 
   model CreditPurchaseHistory {
-    id               VarChar(36)    @id(map: "CreditPurchaseHistory_pkey") @default(dbgenerated("cuid2()"))
+    id               VarChar(36)    @id(map: "CreditPurchaseHistory_pkey") @default(sql`cuid2()`)
     creditPurchaseId VarChar(36)
     field            VarChar(50)
     oldValue         String?
     newValue         String?
-    changedAt        Timestamp(3)   @default(now())
+    changedAt        TimestampJsDate(3)   @default(now())
     creditPurchase   CreditEntryReference @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseHistory_creditPurchaseId_fkey", index: false)
 
     @@map("CreditPurchaseHistory")
   }
 
   model DebtPerson {
-    id             VarChar(36)  @id(map: "DebtPerson_pkey") @default(dbgenerated("cuid2()"))
+    id             VarChar(36)  @id(map: "DebtPerson_pkey") @default(sql`cuid2()`)
     userId         VarChar(36)
     name           VarChar(100)
     normalizedName VarChar(100)
     connectionId   VarChar(36)?
-    hiddenAt       Timestamp(3)?
-    createdAt      Timestamp(3) @default(now())
-    updatedAt      Timestamp(3) @default(now())
+    hiddenAt       TimestampJsDate(3)?
+    createdAt      TimestampJsDate(3) @default(now())
+    updatedAt      TimestampJsDate(3) @default(now())
     user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPerson_userId_fkey", index: false)
     connection     DebtConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtPerson_connectionId_fkey", index: false)
     debtEvents     DebtEvent[]
@@ -1152,13 +1154,13 @@ namespace public {
   }
 
   model DebtConnection {
-    id          VarChar(36)                    @id(map: "DebtConnection_pkey") @default(dbgenerated("cuid2()"))
+    id          VarChar(36)                    @id(map: "DebtConnection_pkey") @default(sql`cuid2()`)
     requesterId VarChar(36)
     recipientId VarChar(36)
     status      pg.enum(DebtConnectionStatus) @default("PENDING")
-    respondedAt Timestamp(3)?
-    createdAt   Timestamp(3)                   @default(now())
-    updatedAt   Timestamp(3)                   @default(now())
+    respondedAt TimestampJsDate(3)?
+    createdAt   TimestampJsDate(3)                   @default(now())
+    updatedAt   TimestampJsDate(3)                   @default(now())
     requester   User                           @relation(name: "DebtConnection_requesterId_fkey", fields: [requesterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtConnection_requesterId_fkey", index: false)
     recipient   User                           @relation(name: "DebtConnection_recipientId_fkey", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtConnection_recipientId_fkey", index: false)
     people      DebtPerson[]
@@ -1172,7 +1174,7 @@ namespace public {
   model DebtEvent {
     currency VarChar(3) @default("BRL")
 
-    id              VarChar(36)             @id(map: "DebtEvent_pkey") @default(dbgenerated("cuid2()"))
+    id              VarChar(36)             @id(map: "DebtEvent_pkey") @default(sql`cuid2()`)
     debtPersonId    VarChar(36)?
     connectionId    VarChar(36)?
     createdByUserId VarChar(36)
@@ -1182,9 +1184,9 @@ namespace public {
     date            Date?
     dueDate         Date?
     description     VarChar(1000)?
-    createdAt       Timestamp(3)            @default(now())
-    updatedAt       Timestamp(3)            @default(now())
-    deletedAt       Timestamp(3)?
+    createdAt       TimestampJsDate(3)            @default(now())
+    updatedAt       TimestampJsDate(3)            @default(now())
+    deletedAt       TimestampJsDate(3)?
     debtPerson      DebtPerson?             @relation(fields: [debtPersonId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_debtPersonId_fkey", index: false)
     connection      DebtConnection?         @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_connectionId_fkey", index: false)
     createdByUser   User                    @relation(fields: [createdByUserId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEvent_createdByUserId_fkey", index: false)
@@ -1199,12 +1201,12 @@ namespace public {
   }
 
   model DebtEventVisibility {
-    id        VarChar(36)  @id(map: "DebtEventVisibility_pkey") @default(dbgenerated("cuid2()"))
+    id        VarChar(36)  @id(map: "DebtEventVisibility_pkey") @default(sql`cuid2()`)
     eventId   VarChar(36)
     userId    VarChar(36)
-    hiddenAt  Timestamp(3)?
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    hiddenAt  TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     event     DebtEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEventVisibility_eventId_fkey", index: false)
     user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEventVisibility_userId_fkey", index: false)
 
@@ -1214,13 +1216,13 @@ namespace public {
   }
 
   model DebtTransactionLink {
-    id            VarChar(36)  @id(map: "DebtTransactionLink_pkey") @default(dbgenerated("cuid2()"))
+    id            VarChar(36)  @id(map: "DebtTransactionLink_pkey") @default(sql`cuid2()`)
     eventId       VarChar(36)
     transactionId VarChar(36)
     userId        VarChar(36)
     isCreator     Boolean      @default(false)
-    createdAt     Timestamp(3) @default(now())
-    updatedAt     Timestamp(3) @default(now())
+    createdAt     TimestampJsDate(3) @default(now())
+    updatedAt     TimestampJsDate(3) @default(now())
     event         DebtEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_eventId_fkey", index: false)
     transaction   Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_transactionId_fkey", index: false)
     user          User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_userId_fkey", index: false)
@@ -1231,13 +1233,13 @@ namespace public {
   }
 
   model DebtPurchaseLink {
-    id               VarChar(36)    @id(map: "DebtPurchaseLink_pkey") @default(dbgenerated("cuid2()"))
+    id               VarChar(36)    @id(map: "DebtPurchaseLink_pkey") @default(sql`cuid2()`)
     eventId          VarChar(36)
     creditPurchaseId VarChar(36)
     userId           VarChar(36)
     isCreator        Boolean        @default(false)
-    createdAt        Timestamp(3)   @default(now())
-    updatedAt        Timestamp(3)   @default(now())
+    createdAt        TimestampJsDate(3)   @default(now())
+    updatedAt        TimestampJsDate(3)   @default(now())
     event            DebtEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_eventId_fkey", index: false)
     creditPurchase   CreditEntryReference @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_creditPurchaseId_fkey", index: false)
     user             User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_userId_fkey", index: false)
@@ -1250,7 +1252,7 @@ namespace public {
   model DebtSplit {
     currency VarChar(3) @default("BRL")
 
-    id                 VarChar(36)             @id(map: "DebtSplit_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(36)             @id(map: "DebtSplit_pkey") @default(sql`cuid2()`)
     userId             VarChar(36)
     mode               pg.enum(DebtSplitMode)
     ownerIncluded      Boolean                 @default(false)
@@ -1261,8 +1263,8 @@ namespace public {
     creditCardImportItemId VarChar(36)?         @unique(map: "DebtSplit_creditCardImportItemId_key")
     creditPurchaseId   VarChar(36)?            @unique(map: "DebtSplit_creditPurchaseId_key")
     recurrenceId VarChar(36)?            @unique(map: "DebtSplit_recurrenceId_key")
-    createdAt          Timestamp(3)            @default(now())
-    updatedAt          Timestamp(3)            @default(now())
+    createdAt          TimestampJsDate(3)            @default(now())
+    updatedAt          TimestampJsDate(3)            @default(now())
     user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_userId_fkey", index: false)
     remainderDebtPerson DebtPerson?             @relation("DebtSplitRemainderPerson", fields: [remainderDebtPersonId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_remainderDebtPersonId_fkey", index: false)
     transaction        Transaction?            @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionId_fkey", index: false)
@@ -1278,7 +1280,7 @@ namespace public {
   }
 
   model DebtSplitParticipant {
-    id           VarChar(36) @id(map: "DebtSplitParticipant_pkey") @default(dbgenerated("cuid2()"))
+    id           VarChar(36) @id(map: "DebtSplitParticipant_pkey") @default(sql`cuid2()`)
     debtSplitId  VarChar(36)
     debtPersonId VarChar(36)
     sortOrder    SmallInt
@@ -1286,8 +1288,8 @@ namespace public {
     shares       SmallInt?
     percentage   Numeric(5, 2)?
     fixedAmount  Numeric(20, 6)?
-    createdAt    Timestamp(3) @default(now())
-    updatedAt    Timestamp(3) @default(now())
+    createdAt    TimestampJsDate(3) @default(now())
+    updatedAt    TimestampJsDate(3) @default(now())
     debtSplit    DebtSplit    @relation(fields: [debtSplitId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplitParticipant_debtSplitId_fkey", index: false)
     debtPerson   DebtPerson   @relation(fields: [debtPersonId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplitParticipant_debtPersonId_fkey", index: false)
 
@@ -1304,7 +1306,7 @@ namespace public {
     @@index([institutionId], map: "Loan_institutionId_idx")
     currency VarChar(3) @default("BRL")
 
-    id                VarChar(36)               @id(map: "Loan_pkey") @default(dbgenerated("cuid2()"))
+    id                VarChar(36)               @id(map: "Loan_pkey") @default(sql`cuid2()`)
     userId            VarChar(36)
     lender            VarChar(100)
     principalAmount   Numeric(20, 6)
@@ -1316,8 +1318,8 @@ namespace public {
     firstDueDate      Date
     description       VarChar(500)?
     amortization      pg.enum(AmortizationType) @default("PRICE")
-    createdAt         Timestamp(3)              @default(now())
-    updatedAt         Timestamp(3)              @default(now())
+    createdAt         TimestampJsDate(3)              @default(now())
+    updatedAt         TimestampJsDate(3)              @default(now())
     loanHistories     LoanHistory[]
     loanPayments      LoanPayment[]
     user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Loan_userId_fkey", index: false)
@@ -1327,25 +1329,25 @@ namespace public {
   }
 
   model LoanScenario {
-    id VarChar(36) @id @default(dbgenerated("cuid2()"))
+    id VarChar(36) @id @default(sql`cuid2()`)
     userId VarChar(36)
     name VarChar(150)
     parameters Json
     summary Json
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
     @@index([userId, updatedAt, id], map: "LoanScenario_userId_updatedAt_id_idx")
     @@map("LoanScenario")
   }
 
   model LoanHistory {
-    id        VarChar(36)  @id(map: "LoanHistory_pkey") @default(dbgenerated("cuid2()"))
+    id        VarChar(36)  @id(map: "LoanHistory_pkey") @default(sql`cuid2()`)
     loanId    VarChar(36)
     field     VarChar(50)
     oldValue  String?
     newValue  String?
-    changedAt Timestamp(3) @default(now())
+    changedAt TimestampJsDate(3) @default(now())
     loan      Loan         @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanHistory_loanId_fkey", index: false)
 
 		@@index([loanId, changedAt, id], map: "LoanHistory_loanId_changedAt_id_idx")
@@ -1357,7 +1359,7 @@ namespace public {
     accountAmount Numeric(20, 6)?
     accountCurrency VarChar(3)?
 
-    id                 VarChar(100)           @id(map: "LoanPayment_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(100)           @id(map: "LoanPayment_pkey") @default(sql`cuid2()`)
     loanId             VarChar(36)
     financialAccountId VarChar(36)?
     installmentNumber  SmallInt
@@ -1368,8 +1370,8 @@ namespace public {
     paidDate           Date?
     isAdvanced         Boolean               @default(false)
     advanceType        pg.enum(AdvanceType)?
-    createdAt          Timestamp(3)          @default(now())
-    updatedAt          Timestamp(3)          @default(now())
+    createdAt          TimestampJsDate(3)          @default(now())
+    updatedAt          TimestampJsDate(3)          @default(now())
     financialAccount   FinancialAccount?     @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "LoanPayment_accountId_fkey", index: false)
     loan               Loan                  @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanPayment_loanId_fkey", index: false)
 
@@ -1384,9 +1386,9 @@ namespace public {
     source VarChar(20)
     legacyId VarChar(36)
     recurrenceId VarChar(36)
-    deletedAt Timestamp(3)?
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    deletedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     @@id([userId, source, legacyId], map: "ApplicationUpgradeRecurrence_pkey")
     @@index([recurrenceId], map: "ApplicationUpgradeRecurrence_destination_idx")
     @@map("ApplicationUpgradeRecurrence")
@@ -1397,7 +1399,7 @@ namespace public {
     recordId VarChar(36)
     userId VarChar(36)?
     original Json
-    archivedAt Timestamp(3) @default(now())
+    archivedAt TimestampJsDate(3) @default(now())
     @@id([source, recordId], map: "ApplicationUpgradeArchive_pkey")
     @@index([userId], map: "ApplicationUpgradeArchive_user_idx")
     @@map("ApplicationUpgradeArchive")
@@ -1406,7 +1408,7 @@ namespace public {
   model Recurrence {
     currency VarChar(3) @default("BRL")
 
-    id VarChar(36) @id(map: "Recurrence_pkey") @default(dbgenerated("cuid2()"))
+    id VarChar(36) @id(map: "Recurrence_pkey") @default(sql`cuid2()`)
     userId VarChar(36)
     name VarChar(100)
     amount Numeric(20, 6)
@@ -1423,9 +1425,9 @@ namespace public {
     creditCardId VarChar(36)?
     storeName VarChar(200)?
     isActive Boolean @default(true)
-    materializedThrough Date @default(dbgenerated("(CURRENT_DATE - 1)"))
-    createdAt Timestamp(3) @default(now())
-    updatedAt Timestamp(3) @default(now())
+    materializedThrough Date @default(sql`(CURRENT_DATE - 1)`)
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Recurrence_userId_fkey", index: false)
     origin FinancialAccount? @relation("RecurrenceOrigin", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_origin_fkey", index: false)
     destination FinancialAccount? @relation("RecurrenceDestination", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_destination_fkey", index: false)
@@ -1440,12 +1442,12 @@ namespace public {
   }
 
   model RecurrenceHistory {
-    id VarChar(36) @id(map: "RecurrenceHistory_pkey") @default(dbgenerated("cuid2()"))
+    id VarChar(36) @id(map: "RecurrenceHistory_pkey") @default(sql`cuid2()`)
     recurrenceId VarChar(36)
     field VarChar(50)
     oldValue String?
     newValue String?
-    changedAt Timestamp(3) @default(now())
+    changedAt TimestampJsDate(3) @default(now())
     recurrence Recurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurrenceHistory_recurrence_fkey", index: false)
     @@index([recurrenceId, changedAt, id], map: "RecurrenceHistory_recurrence_date_idx")
     @@map("RecurrenceHistory")
@@ -1456,8 +1458,8 @@ namespace public {
     date Date
     transactionId VarChar(36)?
     purchaseId VarChar(36)?
-    deletedAt Timestamp(3)?
-    createdAt Timestamp(3) @default(now())
+    deletedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
     recurrence Recurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurrenceOccurrence_recurrence_fkey", index: false)
     @@id([recurrenceId, date], map: "RecurrenceOccurrence_pkey")
     @@map("RecurrenceOccurrence")
@@ -1468,11 +1470,11 @@ namespace public {
 
 
   model Session {
-    id        VarChar(36)    @id(map: "session_pkey") @default(dbgenerated("cuid2()"))
-    expiresAt Timestamp(3)
+    id        VarChar(36)    @id(map: "session_pkey") @default(sql`cuid2()`)
+    expiresAt TimestampJsDate(3)
     token     VarChar(512)
-    createdAt Timestamp(3)   @default(now())
-    updatedAt Timestamp(3)   @default(now())
+    createdAt TimestampJsDate(3)   @default(now())
+    updatedAt TimestampJsDate(3)   @default(now())
     ipAddress VarChar(64)?
     userAgent VarChar(1024)?
     userId    VarChar(36)
@@ -1496,12 +1498,12 @@ namespace public {
     currency VarChar(3) @default("BRL")
     originalAmount Numeric(20, 6)?
     exchangeRate Numeric(24, 12)?
-    fees Json @default(dbgenerated("'[]'::json"))
-    id                            VarChar(36)              @id(map: "Transaction_pkey") @default(dbgenerated("cuid2()"))
+    fees Json @default(sql`'[]'::json`)
+    id                            VarChar(36)              @id(map: "Transaction_pkey") @default(sql`cuid2()`)
     userId                        VarChar(36)
     amount                        Numeric(20, 6)
     date                          Date
-    time                          Time(3)?
+    time                          Time(precision: 3)?
     description                   VarChar(1000)?
     storeName                     VarChar(200)?
     isHidden                      Boolean                  @default(false)
@@ -1511,8 +1513,8 @@ namespace public {
     paymentCreditCardId         VarChar(36)?
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
-    createdAt                     Timestamp(3)             @default(now())
-    updatedAt                     Timestamp(3)             @default(now())
+    createdAt                     TimestampJsDate(3)             @default(now())
+    updatedAt                     TimestampJsDate(3)             @default(now())
     transactionHistories          TransactionHistory[]
     debtTransactionLinks          DebtTransactionLink[]
     debtSplit                     DebtSplit?
@@ -1535,12 +1537,12 @@ namespace public {
   }
 
   model TransactionExternalReference {
-    id                 VarChar(36)  @id(map: "TransactionExternalReference_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(36)  @id(map: "TransactionExternalReference_pkey") @default(sql`cuid2()`)
     transactionId      VarChar(36)
     financialAccountId VarChar(36)
     externalId         VarChar(200)
-    createdAt          Timestamp(3) @default(now())
-    updatedAt          Timestamp(3) @default(now())
+    createdAt          TimestampJsDate(3) @default(now())
+    updatedAt          TimestampJsDate(3) @default(now())
     transaction        Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionExternalReference_transactionId_fkey", index: false)
     financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionExternalReference_financialAccountId_fkey", index: false)
 
@@ -1552,7 +1554,7 @@ namespace public {
   model CreditCardImport {
     currency VarChar(3) @default("BRL")
 
-    id            VarChar(36)                   @id(map: "CreditCardImport_pkey") @default(dbgenerated("cuid2()"))
+    id            VarChar(36)                   @id(map: "CreditCardImport_pkey") @default(sql`cuid2()`)
     userId        VarChar(36)
     creditCardId  VarChar(36)
     provider      pg.enum(CreditCardImportProvider)
@@ -1561,8 +1563,8 @@ namespace public {
     statementDate Date
     reportedPreviousBalance Numeric(20, 6)?
     dueDate       Date
-    createdAt     Timestamp(3)                  @default(now())
-    updatedAt     Timestamp(3)                  @default(now())
+    createdAt     TimestampJsDate(3)                  @default(now())
+    updatedAt     TimestampJsDate(3)                  @default(now())
     user          User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImport_userId_fkey", index: false)
     creditCard    CreditCard                    @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImport_creditCardId_fkey", index: false)
     items         CreditCardImportItem[]
@@ -1575,11 +1577,11 @@ namespace public {
   model CreditCardImportItem {
     currency VarChar(3) @default("BRL")
 
-    id                 VarChar(36)     @id(map: "CreditCardImportItem_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(36)     @id(map: "CreditCardImportItem_pkey") @default(sql`cuid2()`)
     creditCardImportId VarChar(36)
     externalId         VarChar(200)
     purchaseDate       Date
-    time               Time(3)?
+    time               Time(precision: 3)?
     description        VarChar(500)
     storeName          VarChar(200)?
     totalAmount        Numeric(20, 6)
@@ -1588,13 +1590,13 @@ namespace public {
     installmentAmount  Numeric(20, 6)
     isStatementCharge  Boolean         @default(false)
     isSelected         Boolean         @default(true)
-    metadataMissing Json @default("[]")
+    metadataMissing Json @default(json`"[]"`)
     reconciledCreditPurchaseId VarChar(36)?
     refundReview Json?
-    taxSourceExternalIds Json @default(dbgenerated("'[]'::json"))
-    taxes Json @default(dbgenerated("'[]'::json"))
-    createdAt          Timestamp(3)    @default(now())
-    updatedAt          Timestamp(3)    @default(now())
+    taxSourceExternalIds Json @default(sql`'[]'::json`)
+    taxes Json @default(sql`'[]'::json`)
+    createdAt          TimestampJsDate(3)    @default(now())
+    updatedAt          TimestampJsDate(3)    @default(now())
     creditCardImport   CreditCardImport @relation(fields: [creditCardImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImportItem_importId_fkey", index: false)
     debtSplit          DebtSplit?
     reconciledCreditPurchase CreditEntryReference? @relation(name: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", fields: [reconciledCreditPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", index: false)
@@ -1607,7 +1609,7 @@ namespace public {
   model TransactionImport {
     currency VarChar(3) @default("BRL")
 
-    id                 VarChar(36)                         @id(map: "TransactionImport_pkey") @default(dbgenerated("cuid2()"))
+    id                 VarChar(36)                         @id(map: "TransactionImport_pkey") @default(sql`cuid2()`)
     userId             VarChar(36)
     financialAccountId VarChar(36)
     provider           pg.enum(TransactionImportProvider)
@@ -1615,8 +1617,8 @@ namespace public {
     fileName           VarChar(255)
     periodStart        Date?
     periodEnd          Date?
-    createdAt          Timestamp(3)                         @default(now())
-    updatedAt          Timestamp(3)                         @default(now())
+    createdAt          TimestampJsDate(3)                         @default(now())
+    updatedAt          TimestampJsDate(3)                         @default(now())
     user               User                                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImport_userId_fkey", index: false)
     financialAccount   FinancialAccount                     @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImport_financialAccountId_fkey", index: false)
     items              TransactionImportItem[]
@@ -1629,13 +1631,13 @@ namespace public {
   model TransactionImportItem {
     currency VarChar(3) @default("BRL")
 
-    id                  VarChar(36)              @id(map: "TransactionImportItem_pkey") @default(dbgenerated("cuid2()"))
+    id                  VarChar(36)              @id(map: "TransactionImportItem_pkey") @default(sql`cuid2()`)
     transactionImportId VarChar(36)
     externalId          VarChar(200)?
     transferCounterpartExternalId VarChar(200)?
     amount              Numeric(20, 6)
     date                Date
-    time                Time(3)?
+    time                Time(precision: 3)?
     description         VarChar(1000)?
     storeName           VarChar(200)?
     type                pg.enum(TransactionImportItemType)
@@ -1649,8 +1651,8 @@ namespace public {
     reconciledImportItemId VarChar(36)?
     isSelected          Boolean                  @default(true)
     balanceAfter        Numeric(20, 6)?
-    createdAt           Timestamp(3)             @default(now())
-    updatedAt           Timestamp(3)             @default(now())
+    createdAt           TimestampJsDate(3)             @default(now())
+    updatedAt           TimestampJsDate(3)             @default(now())
     transactionImport   TransactionImport         @relation(fields: [transactionImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportItem_importId_fkey", index: false)
     paymentCreditCard    CreditCard?      @relation(fields: [paymentCreditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_paymentCreditCardId_fkey", index: false)
     originFinancialAccount FinancialAccount?      @relation(name: "TransactionImportItem_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_originId_fkey", index: false)
@@ -1671,14 +1673,14 @@ namespace public {
   }
 
   model TransactionImportTransferSuggestionRejection {
-    id                         VarChar(36)  @id(map: "TransactionImportTransferSuggestionRejection_pkey") @default(dbgenerated("cuid2()"))
+    id                         VarChar(36)  @id(map: "TransactionImportTransferSuggestionRejection_pkey") @default(sql`cuid2()`)
     userId                     VarChar(36)
     outgoingFinancialAccountId VarChar(36)
     outgoingExternalId         VarChar(200)
     incomingFinancialAccountId VarChar(36)
     incomingExternalId         VarChar(200)
-    createdAt                  Timestamp(3) @default(now())
-    updatedAt                  Timestamp(3) @default(now())
+    createdAt                  TimestampJsDate(3) @default(now())
+    updatedAt                  TimestampJsDate(3) @default(now())
     user                       User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferSuggestionRejection_userId_fkey", index: false)
     outgoingFinancialAccount   FinancialAccount @relation(name: "TransactionImportTransferSuggestionRejection_outgoingAccountId_fkey", fields: [outgoingFinancialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferRejection_outgoing_fkey", index: false)
     incomingFinancialAccount   FinancialAccount @relation(name: "TransactionImportTransferSuggestionRejection_incomingAccountId_fkey", fields: [incomingFinancialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferRejection_incoming_fkey", index: false)
@@ -1688,12 +1690,12 @@ namespace public {
   }
 
   model TransactionTransferSuggestionRejection {
-    id                  VarChar(36)  @id(map: "TransactionTransferSuggestionRejection_pkey") @default(dbgenerated("cuid2()"))
+    id                  VarChar(36)  @id(map: "TransactionTransferSuggestionRejection_pkey") @default(sql`cuid2()`)
     userId              VarChar(36)
     firstTransactionId  VarChar(36)
     secondTransactionId VarChar(36)
-    createdAt           Timestamp(3) @default(now())
-    updatedAt           Timestamp(3) @default(now())
+    createdAt           TimestampJsDate(3) @default(now())
+    updatedAt           TimestampJsDate(3) @default(now())
     user                User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_userId_fkey", index: false)
     firstTransaction    Transaction  @relation(name: "TransactionTransferSuggestionRejection_firstTransactionId_fkey", fields: [firstTransactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_firstTransactionId_fkey", index: false)
     secondTransaction   Transaction  @relation(name: "TransactionTransferSuggestionRejection_secondTransactionId_fkey", fields: [secondTransactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_secondTransactionId_fkey", index: false)
@@ -1703,24 +1705,24 @@ namespace public {
   }
 
   model TransactionHistory {
-    id            VarChar(36)  @id(map: "TransactionHistory_pkey") @default(dbgenerated("cuid2()"))
+    id            VarChar(36)  @id(map: "TransactionHistory_pkey") @default(sql`cuid2()`)
     transactionId VarChar(36)
     field         VarChar(50)
     oldValue      String?
     newValue      String?
-    changedAt     Timestamp(3) @default(now())
+    changedAt     TimestampJsDate(3) @default(now())
     transaction   Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionHistory_transactionId_fkey", index: false)
 
     @@map("TransactionHistory")
   }
 
   model Verification {
-    id         VarChar(36)  @id(map: "verification_pkey") @default(dbgenerated("cuid2()"))
+    id         VarChar(36)  @id(map: "verification_pkey") @default(sql`cuid2()`)
     identifier VarChar(320)
     value      String
-    expiresAt  Timestamp(3)
-    createdAt  Timestamp(3) @default(now())
-    updatedAt  Timestamp(3) @default(now())
+    expiresAt  TimestampJsDate(3)
+    createdAt  TimestampJsDate(3) @default(now())
+    updatedAt  TimestampJsDate(3) @default(now())
 
     @@index([identifier], map: "verification_identifier_idx")
     @@map("verification")

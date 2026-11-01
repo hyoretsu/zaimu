@@ -130,6 +130,14 @@ default. Explicit per-request deadlines and cancellation remain supported. Never
 automatically retry mutations after transport failures: a missing response does
 not prove that the backend rolled back the operation.
 
+## Prisma 8 RC compatibility
+
+Application tooling pins `prisma` rc29 and `@prisma/orm-postgres` rc22 independently. Root overrides align the CLI's older transitive toolchain/framework with rc22: rc21 does not understand rc22 authoring type-choice descriptors. Contract generation uses the standard CLI without package source patches.
+
+Applied early-RC migration manifests, scripts, snapshots and refs are immutable. The standalone `packages/sql/compatibility/early-rc` package pins the historical CLI/runtime with its own lock solely for replay; it is not an application client. Install it with `bun install --frozen-lockfile` in that directory during setup, never from a migration at runtime. Disposable tests execute unchanged history in a temporary tree, require every provided data invariant, and then run latest `db verify --schema-only`. Latest format-marker adoption must fail closed unless physical schema verification and data assertions pass. The explicit migration wrapper replays historical state, verifies data/custom objects and the pinned native baseline before supported marker adoption, then applies native successors. New migrations are authored with the standard CLI under `packages/sql/migrations-native`; the baseline CREATE package is never applied by adoption. `packages/sql/compatibility/native-baseline` preserves the baseline authoring source and official emitted artifacts (CLI rc29, runtime/toolchain/framework rc22), enabling single-command old-to-current upgrades without installing an intermediate application. Docker includes both graphs and compatibility assets. Disposable E2E covers fresh/existing adoption, unknown-marker and schema-mismatch refusal, repeat deployment, intermediate native markers and historical-to-two-successor data preservation. Full application query adoption remains in progress under plan 0039.
+
+The native contract explicitly preserves JavaScript `Date` timestamp codecs, lowercase physical tax-table mappings and existing scalar JSON-string defaults. Do not silently turn JSON strings containing `[]` or `{}` into arrays or objects during emission upgrades.
+
 ## Development migration reload
 
 `docker compose up -d` runs migration monitoring inside the development container

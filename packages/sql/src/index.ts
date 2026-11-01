@@ -4,13 +4,13 @@ import type { ResultType } from "@prisma/orm-postgres/components/runtime";
 import type { SqlOrmPlan } from "@prisma/orm-postgres/relational-core";
 import { param } from "@prisma/orm-postgres/relational-core/expression";
 import postgres from "@prisma/orm-postgres/runtime";
-
+import { contractFromJson } from "@prisma/orm-postgres/static";
 import { getQueryMetrics, startOperation, startQuery } from "./query-metrics";
 
 export { and, or } from "@prisma/orm-postgres/orm-client";
 export * from "./query-metrics";
 
-import type { Numeric, Timestamp, Timestamptz } from "@prisma/orm-postgres/target/codec-types";
+import type { Numeric } from "@prisma/orm-postgres/target/codec-types";
 import type { PoolClient, QueryResultRow } from "pg";
 import { Pool, types } from "pg";
 import type { Contract } from "../out/prisma/contract";
@@ -19,17 +19,15 @@ import contractJson from "../out/prisma/contract.json" with { type: "json" };
 type NormalizeDatabaseValue<T> =
 	T extends Numeric<infer _Precision, infer _Scale>
 		? number
-		: T extends Timestamp<infer _Precision> | Timestamptz<infer _Precision>
+		: T extends Date
 			? Date
-			: T extends Date
-				? Date
-				: T extends string
-					? string
-					: T extends readonly (infer Item)[]
-						? NormalizeDatabaseValue<Item>[]
-						: T extends object
-							? { [Key in keyof T]: NormalizeDatabaseValue<T[Key]> }
-							: T;
+			: T extends string
+				? string
+				: T extends readonly (infer Item)[]
+					? NormalizeDatabaseValue<Item>[]
+					: T extends object
+						? { [Key in keyof T]: NormalizeDatabaseValue<T[Key]> }
+						: T;
 
 types.setTypeParser(types.builtins.NUMERIC, value => Number(value));
 
@@ -167,7 +165,8 @@ export const withRawTransaction = async <Result>(
 	}
 };
 
-export const db = postgres<Contract>({ contractJson, pg: transactionalPool });
+export const contract = contractFromJson<Contract>(contractJson);
+export const db = postgres({ contract, pg: transactionalPool });
 
 type QueryPlan = SqlOrmPlan<unknown>;
 type StatementPlan = Parameters<ReturnType<typeof db.runtime>["execute"]>[0];

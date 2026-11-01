@@ -1,31 +1,53 @@
-import { readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
+import { Client } from "pg";
+import { isGraphAncestor, isHistoricalAncestor, replayHistoricalGraph } from "./historical-replay";
 
 const root = resolve(import.meta.dir, "..");
 const require = createRequire(import.meta.url);
-const cli = join(dirname(require.resolve("@prisma/cli/package.json")), "dist/cli.js");
-const migrations = join(root, "migrations/app");
+const cli = join(dirname(require.resolve("prisma/package.json")), "dist/prisma.js");
 const contract = JSON.parse(await readFile(join(root, "out/prisma/contract.json"), "utf8"));
-const invariants = new Set<string>();
-for (const entry of await readdir(migrations, { withFileTypes: true })) {
-	if (!entry.isDirectory() || entry.name === "refs") continue;
-	const manifest = JSON.parse(await readFile(join(migrations, entry.name, "migration.json"), "utf8"));
-	for (const invariant of manifest.providedInvariants ?? []) invariants.add(invariant);
-}
-// The CLI's default app target omits data invariants. Require every versioned data migration.
-const reference = `deploy-${crypto.randomUUID().replaceAll("-", "")}`;
-const path = join(migrations, "refs", `${reference}.json`);
-await writeFile(
-	path,
-	JSON.stringify({ hash: contract.storage.storageHash, invariants: [...invariants].sort() }),
-);
+const formatBaseline = "f1e9933a7a2ab046fbdbbe4f7219a89cdb4f66db7796a06516f826ff2d6d36a3";
+const url = process.env.DATABASE_URL;
+if (!url) throw new Error("DATABASE_URL is required for the explicit migration action");
+const connection = new Client({ connectionString: url });
+await connection.connect();
+let current: string | undefined;
 try {
-	const child = Bun.spawn(
-		["bun", cli, "migrate", "--to", reference, "--advance-ref", "db", ...process.argv.slice(2)],
-		{ cwd: root, env: process.env, stderr: "inherit", stdout: "inherit" },
+	const present = await connection.query<{ marker: string | null }>(
+		"SELECT to_regclass('prisma_contract.marker')::text AS marker",
 	);
-	process.exitCode = await child.exited;
+	if (present.rows[0].marker)
+		current = (
+			await connection.query<{ core_hash: string }>(
+				"SELECT core_hash FROM prisma_contract.marker WHERE space='app'",
+			)
+		).rows[0]?.core_hash;
 } finally {
-	await unlink(path);
+	await connection.end();
 }
+const baselineConfig = join(root, "compatibility/native-baseline/prisma.config.ts");
+const run = async (...args: string[]) => {
+	const child = Bun.spawn(["bun", cli, ...args, "--db", url], {
+		cwd: root,
+		env: { ...process.env, DO_NOT_TRACK: "1", PRISMA_TELEMETRY_DISABLED: "1" },
+		stderr: "inherit",
+		stdout: "inherit",
+	});
+	if (await child.exited) throw new Error(`Prisma ${args.join(" ")} failed`);
+};
+const native =
+	current &&
+	(await isGraphAncestor(join(root, "migrations-native/app"), current, contract.storage.storageHash));
+if (current !== contract.storage.storageHash && current !== formatBaseline && !native) {
+	if (current && !(await isHistoricalAncestor(root, current)))
+		throw new Error("Unknown database marker; historical replay and adoption refused before mutation");
+	await replayHistoricalGraph(root, url);
+	await run("db", "verify", "--schema-only", "--config", baselineConfig);
+	await run("db", "sign", "--no-advance-ref", "--config", baselineConfig);
+}
+if (contract.storage.storageHash !== formatBaseline) await run("db", "migrate");
+await run("db", "verify");
+// Historical graph is deliberately immutable and is executed only by its pinned toolchain.
+// Native migrations live separately so latest tooling never parses historical snapshot formats.

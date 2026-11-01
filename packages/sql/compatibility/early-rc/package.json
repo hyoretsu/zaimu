@@ -1,0 +1,12 @@
+{
+	"name": "zaimu-prisma8-historical-replay",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@prisma/cli": "8.0.0-rc.7",
+		"@prisma/cli-engine": "0.2.0",
+		"@prisma/orm-postgres": "8.0.0-rc.5",
+		"dotenv": "17.4.2",
+		"pg": "8.22.0"
+	}
+}

@@ -1,0 +1,1860 @@
+// use prisma-8
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+
+namespace public {
+  model FinancialInstitutionProfile {
+    creditCardRules Json?
+    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    changes UserInstitutionProfileChange[]
+    policies FinancialInstitutionYieldPolicy[]
+    id VarChar(36) @id
+    institutionId VarChar(36)
+    name VarChar(100)
+    isDefault Boolean @default(false)
+    @@unique([institutionId, name])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("FinancialInstitutionProfile")
+  }
+
+  model UserFinancialInstitution {
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    changes UserInstitutionProfileChange[]
+    @@index([institutionId])
+    id VarChar(36) @id
+    userId VarChar(36)
+    institutionId VarChar(36)
+    globalRulesFrom Date?
+    @@unique([userId, institutionId])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("UserFinancialInstitution")
+  }
+
+  model UserInstitutionProfileChange {
+    link UserFinancialInstitution @relation(fields: [linkId], references: [id], onDelete: Cascade, index: false)
+    profile FinancialInstitutionProfile @relation(fields: [profileId], references: [id], onDelete: Restrict, index: false)
+    @@index([profileId])
+    id VarChar(36) @id
+    linkId VarChar(36)
+    profileId VarChar(36)
+    effectiveDate Date
+    @@unique([linkId, effectiveDate])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("UserInstitutionProfileChange")
+  }
+
+  model FinancialInstitutionProposal {
+    institution FinancialInstitution? @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    author User @relation("ProposalAuthor", fields: [authorId], references: [id], onDelete: Restrict, index: false)
+    reviewer User? @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: Restrict, index: false)
+    audits InstitutionReviewAudit[]
+    @@index([institutionId])
+    @@index([reviewerId])
+    id VarChar(36) @id
+    institutionId VarChar(36)?
+    authorId VarChar(36)
+    kind VarChar(24)
+    status VarChar(16) @default("PENDING")
+    baseVersion Int?
+    payload Json
+    effectiveDate Date?
+    reviewerId VarChar(36)?
+    reason String?
+    reviewedAt TimestampJsDate(3)?
+    @@index([status, createdAt])
+    @@index([authorId])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("FinancialInstitutionProposal")
+  }
+
+  model InstitutionReviewAudit {
+    proposal FinancialInstitutionProposal @relation(fields: [proposalId], references: [id], onDelete: Restrict, index: false)
+    reviewer User @relation(fields: [reviewerId], references: [id], onDelete: Restrict, index: false)
+    @@index([reviewerId])
+    id VarChar(36) @id
+    proposalId VarChar(36)
+    reviewerId VarChar(36)
+    action VarChar(24)
+    payload Json
+    @@index([proposalId])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("InstitutionReviewAudit")
+  }
+
+  model AppNotification {
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    id VarChar(36) @id
+    userId VarChar(36)
+    type VarChar(40)
+    payload Json
+    readAt TimestampJsDate(3)?
+    @@index([userId, readAt, createdAt])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("AppNotification")
+  }
+
+  model YieldCalendarCoverage {
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    countryCode VarChar(2)
+    year Int
+    status VarChar(24)
+    source VarChar(32)
+    sourceVersion VarChar(64)
+    generatedAt TimestampJsDate(3)?
+    confirmedBy VarChar(36)?
+    @@id([countryCode, year])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("YieldCalendarCoverage")
+  }
+
+  model YieldCalendarOverride {
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    id VarChar(36) @id
+    countryCode VarChar(2)
+    date Date
+    name VarChar(100)?
+    action VarChar(16)
+    @@unique([countryCode, date])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("YieldCalendarOverride")
+  }
+
+  model CurrencyCountryAssociation {
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    id VarChar(36) @id
+    countryCode VarChar(2)
+    currency VarChar(3)
+    effectiveFrom Date?
+    effectiveUntil Date?
+    source VarChar(32)
+    sourceVersion VarChar(64)
+    @@index([currency, countryCode])
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@map("CurrencyCountryAssociation")
+  }
+
+  model OpenFinanceConfig {
+    userId VarChar(36) @id(map: "OpenFinanceConfig_pkey")
+    encryptedCredentials String?
+    lastQueriedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceConfig_userId_fkey", index: false)
+    @@map("OpenFinanceConfig")
+  }
+  model OpenFinanceConnection {
+    id VarChar(36) @id(map: "OpenFinanceConnection_pkey")
+    userId VarChar(36)
+    itemId String
+    bankName String
+    status String
+    remoteAccounts Json
+    bankUpdatedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceConnection_userId_fkey", index: false)
+    bindings OpenFinanceBinding[]
+    @@index([userId, itemId], map: "OpenFinanceConnection_user_item_key", unique: true)
+    @@map("OpenFinanceConnection")
+  }
+  model OpenFinanceBinding {
+    id VarChar(36) @id(map: "OpenFinanceBinding_pkey")
+    connectionId VarChar(36)
+    remoteAccountId String
+    financialAccountId VarChar(36)?
+    creditCardId VarChar(36)?
+    paused Boolean @default(false)
+    connection OpenFinanceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceBinding_connectionId_fkey", index: false)
+    @@index([connectionId, remoteAccountId], map: "OpenFinanceBinding_connection_account_key", unique: true)
+    @@map("OpenFinanceBinding")
+  }
+  model OpenFinanceRun {
+    id VarChar(36) @id(map: "OpenFinanceRun_pkey")
+    userId VarChar(36)
+    status String
+    processed Int @default(0)
+    imported Int @default(0)
+    linked Int @default(0)
+    pending Int @default(0)
+    errors Json @default(json`"[]"`)
+    startedAt TimestampJsDate(3) @default(now())
+    finishedAt TimestampJsDate(3)?
+    lockedUntil TimestampJsDate(3)?
+    workerToken VarChar(36)?
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceRun_userId_fkey", index: false)
+    @@index([userId, startedAt], map: "OpenFinanceRun_user_started_idx")
+    @@map("OpenFinanceRun")
+  }
+  model OpenFinanceRecord {
+    id VarChar(36) @id(map: "OpenFinanceRecord_pkey")
+    userId VarChar(36)
+    remoteAccountId String
+    identity String
+    snapshot Json
+    appliedSnapshot Json?
+    localKind String?
+    localId VarChar(36)?
+    importId VarChar(36)?
+    reviewItemId VarChar(36)?
+    state String
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceRecord_userId_fkey", index: false)
+    identities OpenFinanceIdentity[]
+    @@index([userId, remoteAccountId, identity], map: "OpenFinanceRecord_identity_key", unique: true)
+    @@map("OpenFinanceRecord")
+  }
+  model OpenFinanceIdentity {
+    userId VarChar(36)
+    remoteAccountId String
+    externalId String
+    recordId VarChar(36)
+    record OpenFinanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "OpenFinanceIdentity_recordId_fkey", index: false)
+    @@id([userId, remoteAccountId, externalId], map: "OpenFinanceIdentity_pkey")
+    @@map("OpenFinanceIdentity")
+  }
+
+  model TaxDefinition {
+    id VarChar(36) @id
+    name VarChar(100)
+    isActive Boolean @default(true)
+    versions TaxDefinitionVersion[]
+    @@map("taxDefinition")
+  }
+
+  model TaxDefinitionVersion {
+    id VarChar(36) @id
+    taxDefinitionId VarChar(36)
+    effectiveDate Date
+    applicationOrder Int
+    brackets Json
+    definition TaxDefinition @relation(fields: [taxDefinitionId], references: [id], onDelete: Restrict)
+    @@unique([taxDefinitionId, effectiveDate])
+    @@map("taxDefinitionVersion")
+  }
+
+  model AccountTransfer {
+    id VarChar(36) @id
+    senderId VarChar(36)
+    recipientId VarChar(36)
+    status VarChar(16) @default("PENDING")
+    summary Json
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    respondedAt TimestampJsDate(3)?
+    sender User @relation("TransferSender", fields: [senderId], references: [id], onDelete: Cascade, index: false)
+    recipient User @relation("TransferRecipient", fields: [recipientId], references: [id], onDelete: Cascade, index: false)
+    items AccountTransferItem[]
+    deliveries NotificationDelivery[]
+    @@index([senderId, status, createdAt])
+    @@index([recipientId, status, createdAt])
+    @@map("AccountTransfer")
+  }
+
+  model AccountTransferItem {
+    id VarChar(36) @id
+    transferId VarChar(36)
+    accountId VarChar(36)
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    transfer AccountTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade, index: false)
+    @@unique([transferId, accountId])
+    @@index([accountId])
+    @@map("AccountTransferItem")
+  }
+
+  model DetachedRewardCredit {
+    id VarChar(36) @id
+    financialAccountId VarChar(36)
+    amount Numeric(20, 8)
+    date Date
+    yieldReferenceRate Numeric(7, 4)?
+    yieldReferencePercentage Numeric(7, 4)?
+    yieldPeriod VarChar(8)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    account FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, index: false)
+    @@index([financialAccountId, date])
+    @@map("DetachedRewardCredit")
+  }
+
+  model DetachedFinancialRecord {
+    id VarChar(36) @id
+    userId VarChar(36)
+    entityType VarChar(40)
+    entityId VarChar(36)
+    kind VarChar(32)
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    @@unique([entityType, entityId])
+    @@index([userId])
+    @@map("DetachedFinancialRecord")
+  }
+
+  model PushDevice {
+    id VarChar(36) @id
+    userId VarChar(36)
+    platform VarChar(12)
+    address String @unique
+    credentials Json
+    enabled Boolean @default(true)
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    @@index([userId, enabled])
+    @@map("PushDevice")
+  }
+
+  model NotificationDelivery {
+    id VarChar(36) @id
+    userId VarChar(36)
+    transferId VarChar(36)
+    event VarChar(16)
+    channel VarChar(12)
+    deviceId VarChar(36)?
+    destinationKey String
+    status VarChar(16) @default("PENDING")
+    attempts Int @default(0)
+    nextAttemptAt TimestampJsDate(3) @default(now())
+    lockedUntil TimestampJsDate(3)?
+    lastError VarChar(500)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    transfer AccountTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade, index: false)
+    @@unique([transferId, event, destinationKey])
+    @@index([userId])
+    @@index([status, nextAttemptAt])
+    @@map("NotificationDelivery")
+  }
+
+  model User {
+    sentAccountTransfers AccountTransfer[] @relation("TransferSender")
+    receivedAccountTransfers AccountTransfer[] @relation("TransferRecipient")
+    detachedFinancialRecords DetachedFinancialRecord[]
+    pushDevices PushDevice[]
+    notificationDeliveries NotificationDelivery[]
+    institutionLinks UserFinancialInstitution[]
+    institutionProposals FinancialInstitutionProposal[] @relation("ProposalAuthor")
+    reviewedInstitutionProposals FinancialInstitutionProposal[] @relation("ProposalReviewer")
+    institutionReviewAudits InstitutionReviewAudit[]
+    appNotifications AppNotification[]
+    role VarChar(10) @default("USER")
+    preferredCurrency VarChar(3)?
+    preferredCountry VarChar(2)?
+    preferredTimeZone VarChar(100)?
+    invoicePaymentTiming VarChar(12) @default("DUE_DATE")
+
+    openFinanceConfig OpenFinanceConfig?
+    openFinanceConnections OpenFinanceConnection[]
+    openFinanceRuns OpenFinanceRun[]
+    openFinanceRecords OpenFinanceRecord[]
+    creditRefundReviews CreditRefundReview[]
+    id                VarChar(36)        @id(map: "User_pkey") @default(sql`cuid2()`)
+    email             VarChar(320)
+    name              VarChar(100)
+    createdAt         TimestampJsDate(3)       @default(now())
+    updatedAt         TimestampJsDate(3)       @default(now())
+    emailVerified     Boolean            @default(false)
+    image             VarChar(2048)?
+    monthlyBudgets    MonthlyBudget[]
+    categories        Category[]
+    stores            Store[]
+    debtPeople        DebtPerson[]
+    debtEvents        DebtEvent[]
+    debtEventVisibilities DebtEventVisibility[]
+    debtTransactionLinks DebtTransactionLink[]
+    debtPurchaseLinks DebtPurchaseLink[]
+    debtSplits        DebtSplit[]
+    requestedDebtConnections DebtConnection[] @relation(name: "DebtConnection_requesterId_fkey")
+    receivedDebtConnections DebtConnection[] @relation(name: "DebtConnection_recipientId_fkey")
+    financialAccounts FinancialAccount[]
+    balanceAdjustments BalanceAdjustment[]
+    financialAccountYieldHolidays FinancialAccountYieldHoliday[]
+    financialInstitutions FinancialInstitution[]
+    loanScenarios LoanScenario[]
+    loans             Loan[]
+    recurrences       Recurrence[]
+    creditCardImports CreditCardImport[]
+    transactionImports TransactionImport[]
+    transactionImportTransferSuggestionRejections TransactionImportTransferSuggestionRejection[]
+    transactionTransferSuggestionRejections TransactionTransferSuggestionRejection[]
+    transactions      Transaction[]
+    creditBookTombstones CreditBookTombstone[]
+    authAccounts      AuthAccount[]
+    sessions          Session[]
+
+    @@index([email], map: "User_email_key", unique: true)
+    @@map("user")
+  }
+
+  model FinancialInstitution {
+    loans Loan[]
+    creditCardRules Json?
+    profiles FinancialInstitutionProfile[]
+    userLinks UserFinancialInstitution[]
+    proposals FinancialInstitutionProposal[]
+    status VarChar(24) @default("LEGACY_PRIVATE")
+    version Int @default(1)
+    operatingCountryCodes VarChar(2)[] @default([])
+    accountCurrenciesByCountry Json @default(sql`'{}'::json`)
+    creditStatementClosingInclusive Boolean @default(false)
+    creditInstallmentRemainderOnFirst Boolean @default(false)
+    currency VarChar(3) @default("BRL")
+
+    id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(sql`cuid2()`)
+    userId         VarChar(36)?
+    name           VarChar(100)
+    normalizedName VarChar(100)
+    createdAt      TimestampJsDate(3)       @default(now())
+    updatedAt      TimestampJsDate(3)       @default(now())
+    financialAccounts FinancialAccount[]
+    yieldPolicies     FinancialInstitutionYieldPolicy[]
+    creditRefundPolicy pg.enum(CreditRefundPolicy)?
+    user           User?              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitution_userId_fkey", index: false)
+
+    @@index([userId, normalizedName], map: "FinancialInstitution_userId_normalizedName_key", unique: true)
+    @@map("FinancialInstitution")
+  }
+
+  model FinancialInstitutionYieldPolicy {
+    profile FinancialInstitutionProfile? @relation(fields: [profileId], references: [id], onDelete: Restrict, index: false)
+    @@index([profileId, countryCode, currency, effectiveDate], map: "InstitutionPolicy_scope_date_idx")
+    profileId VarChar(36)?
+    countryCode VarChar(2)?
+    effectiveUntil Date?
+    status VarChar(16) @default("APPROVED")
+    currency VarChar(3)?
+
+    id                     VarChar(36)                              @id(map: "FinancialInstitutionYieldPolicy_pkey") @default(sql`cuid2()`)
+    financialInstitutionId VarChar(36)
+    effectiveDate          Date
+    yieldPeriod            pg.enum(FinancialAccountYieldPeriod)?
+    yieldTaxIds            VarChar(36)[] @default([])
+    yieldTaxRate           Numeric(5, 2)?
+    createdAt              TimestampJsDate(3)                             @default(now())
+    updatedAt              TimestampJsDate(3)                             @default(now())
+    financialInstitution   FinancialInstitution                    @relation(fields: [financialInstitutionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitutionYieldPolicy_financialInstitutionId_fkey", index: false)
+    rules                  FinancialInstitutionYieldRule[]
+
+    @@index([financialInstitutionId, effectiveDate], map: "FinancialInstitutionYieldPolicy_institutionId_effectiveDate_idx")
+    @@map("FinancialInstitutionYieldPolicy")
+  }
+
+  model FinancialInstitutionYieldRule {
+    id                       VarChar(36)                       @id(map: "FinancialInstitutionYieldRule_pkey") @default(sql`cuid2()`)
+    financialYieldPolicyId   VarChar(36)
+    position                 SmallInt
+    upToBalance              Numeric(20, 6)?
+    yieldReferenceType       pg.enum(ReferenceRateType)?
+    yieldReferencePercentage Numeric(7, 4)?
+    yieldFixedRate           Numeric(7, 4)?
+    createdAt                TimestampJsDate(3)                      @default(now())
+    updatedAt                TimestampJsDate(3)                      @default(now())
+    financialYieldPolicy     FinancialInstitutionYieldPolicy   @relation(fields: [financialYieldPolicyId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitutionYieldRule_financialYieldPolicyId_fkey", index: false)
+
+    @@index([financialYieldPolicyId, position], map: "FinancialInstitutionYieldRule_policyId_position_key", unique: true)
+    @@map("FinancialInstitutionYieldRule")
+  }
+
+  model AuthAccount {
+    id                    VarChar(36)   @id(map: "account_pkey") @default(sql`cuid2()`)
+    issuer                VarChar(320)
+    accountId             VarChar(320)
+    providerId            VarChar(100)
+    userId                VarChar(36)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  TimestampJsDate(3)?
+    refreshTokenExpiresAt TimestampJsDate(3)?
+    scope                 String?
+    password              VarChar(255)?
+    createdAt             TimestampJsDate(3)  @default(now())
+    updatedAt             TimestampJsDate(3)  @default(now())
+    user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "account_userId_fkey")
+
+    @@index([providerId, accountId], map: "account_providerId_accountId_key", unique: true)
+    @@index([issuer, accountId], map: "account_issuer_accountId_key", unique: true)
+    @@index([userId], map: "account_userId_idx")
+    @@map("account")
+  }
+
+  model Category {
+    id                VarChar(36)        @id(map: "Category_pkey") @default(sql`cuid2()`)
+    userId            VarChar(36)
+    name              VarChar(50)
+    color             VarChar(7)?
+    icon              VarChar(50)?
+    parentId          VarChar(36)?
+    createdAt         TimestampJsDate(3)       @default(now())
+    updatedAt         TimestampJsDate(3)       @default(now())
+    monthlyBudgets    MonthlyBudget[]
+    tagAssignments    TagAssignment[]
+    parent            Category?          @relation(name: "Category_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Category_parentId_fkey", index: false)
+    categories        Category[]         @relation(name: "Category_parentId_fkey")
+    user              User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Category_userId_fkey", index: false)
+
+    @@index([userId, name], map: "Category_userId_name_key", unique: true)
+
+    @@map("Category")
+  }
+
+  model MonthlyBudget {
+    id VarChar(36) @id(map: "MonthlyBudget_pkey") @default(sql`cuid2()`)
+    userId VarChar(36)
+    name VarChar(100)
+    source VarChar(16)
+    categoryId VarChar(36)?
+    parentBudgetId VarChar(36)?
+    amount Numeric(20, 6)
+    currency VarChar(3)
+    startMonth VarChar(7)
+    endMonth VarChar(7)?
+    deletedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "MonthlyBudget_userId_fkey", index: false)
+    category Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "MonthlyBudget_categoryId_fkey", index: false)
+    @@index([userId, startMonth], map: "MonthlyBudget_userId_startMonth_idx")
+    @@index([categoryId], map: "MonthlyBudget_categoryId_idx")
+    parent MonthlyBudget? @relation("BudgetHierarchy", fields: [parentBudgetId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "MonthlyBudget_parentBudgetId_fkey", index: false)
+    children MonthlyBudget[] @relation("BudgetHierarchy")
+    @@index([parentBudgetId], map: "MonthlyBudget_parentBudgetId_idx")
+    @@map("MonthlyBudget")
+  }
+
+  model Store {
+    id             VarChar(36)  @id(map: "Store_pkey") @default(sql`cuid2()`)
+    userId         VarChar(36)
+    name           VarChar(200)
+    normalizedName VarChar(200)
+    createdAt      TimestampJsDate(3) @default(now())
+    updatedAt      TimestampJsDate(3) @default(now())
+    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Store_userId_fkey", index: false)
+
+    @@index([userId, normalizedName], map: "Store_userId_normalizedName_key", unique: true)
+    @@map("Store")
+  }
+
+  model TagAssignment {
+    id         VarChar(36)  @id(map: "TagAssignment_pkey") @default(sql`cuid2()`)
+    categoryId VarChar(36)
+    entityType VarChar(50)
+    entityId   VarChar(36)
+    createdAt  TimestampJsDate(3) @default(now())
+    updatedAt  TimestampJsDate(3) @default(now())
+    category   Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TagAssignment_categoryId_fkey", index: false)
+
+    @@index([categoryId, entityType, entityId], map: "TagAssignment_categoryId_entityType_entityId_key", unique: true)
+    @@index([entityType, entityId], map: "TagAssignment_entityType_entityId_idx")
+
+    @@map("TagAssignment")
+  }
+
+  model FinancialAccount {
+    transferredProfileContext Json?
+    detachedRewardCredits DetachedRewardCredit[]
+    historicalYieldSettings Json?
+    legacyYieldCalendar Json?
+    legacyInstitutionId VarChar(36)?
+    countryCode VarChar(2)?
+    currency VarChar(3) @default("BRL")
+    id                      VarChar(36)                   @id(map: "Account_pkey") @default(sql`cuid2()`)
+    userId                  VarChar(36)
+    name                    VarChar(70)?
+    type                    pg.enum(FinancialAccountType) @default("CHECKING")
+    isHidden                Boolean                      @default(false)
+    isPrimary               Boolean                      @default(false)
+    isDefaultForStatements  Boolean                      @default(false)
+    balance                 Numeric(20, 6)?               @default(sql`0`)
+    institutionId           VarChar(36)?
+    yieldReferenceType       pg.enum(ReferenceRateType)?
+    yieldReferencePercentage Numeric(7, 4)?
+    yieldFixedRate           Numeric(7, 4)?
+    yieldTaxIds            VarChar(36)[] @default([])
+    yieldTaxRate             Numeric(5, 2)?
+    yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
+    createdAt               TimestampJsDate(3)                  @default(now())
+    updatedAt               TimestampJsDate(3)                  @default(now())
+    creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
+    payerCreditCards        CreditCard[] @relation("CreditCard_paymentAccountId_fkey")
+    cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
+    yields                  FinancialAccountYield[]
+    balanceAdjustments      BalanceAdjustment[]
+    yieldRateHistories      FinancialAccountYieldRateHistory[]
+    loanPayments            LoanPayment[]
+    purchaseCashback        CreditPurchaseRecord[] @relation("PurchaseCashback")
+    rewardsAccount          RewardsAccount?
+    recurrenceOrigins       Recurrence[] @relation("RecurrenceOrigin")
+    recurrenceDestinations  Recurrence[] @relation("RecurrenceDestination")
+    user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
+    institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
+    transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
+    transactionsTransaction Transaction[]                 @relation(name: "Transaction_originId_fkey")
+    transactionImports     TransactionImport[]
+    transactionExternalReferences TransactionExternalReference[]
+    importedTransactionItemsAsOrigin TransactionImportItem[] @relation(name: "TransactionImportItem_originId_fkey")
+    importedTransactionItemsAsDestination TransactionImportItem[] @relation(name: "TransactionImportItem_destinationId_fkey")
+    rejectedOutgoingTransferSuggestions TransactionImportTransferSuggestionRejection[] @relation(name: "TransactionImportTransferSuggestionRejection_outgoingAccountId_fkey")
+    rejectedIncomingTransferSuggestions TransactionImportTransferSuggestionRejection[] @relation(name: "TransactionImportTransferSuggestionRejection_incomingAccountId_fkey")
+
+    @@index([institutionId], map: "FinancialAccount_institutionId_idx")
+    @@index([userId, institutionId, name, type], map: "FinancialAccount_userId_institutionId_name_type_key", unique: true)
+
+    @@map("FinancialAccount")
+  }
+
+  model YieldCalendarCountry {
+    coverage YieldCalendarCoverage[]
+    overrides YieldCalendarOverride[]
+    associations CurrencyCountryAssociation[]
+    code VarChar(2) @id
+    currencies YieldCalendarCurrency[]
+    holidays YieldCalendarHoliday[]
+    @@map("YieldCalendarCountry")
+  }
+  model YieldCalendarCurrency {
+    source VarChar(32) @default("ADMIN")
+    sourceVersion VarChar(64)?
+    effectiveFrom Date?
+    effectiveUntil Date?
+    countryCode VarChar(2)
+    currency VarChar(3)
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, onUpdate: Cascade, index: false)
+    @@id([countryCode, currency])
+    @@index([currency])
+    @@map("YieldCalendarCurrency")
+  }
+  model YieldCalendarHoliday {
+    id VarChar(36) @id @default(sql`cuid2()`)
+    countryCode VarChar(2)
+    date Date
+    name VarChar(100)
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, onUpdate: Cascade, index: false)
+    @@index([countryCode, date], unique: true)
+    @@map("YieldCalendarHoliday")
+  }
+
+  model FinancialAccountYieldHoliday {
+    id        VarChar(36)  @id(map: "FinancialAccountYieldHoliday_pkey") @default(sql`cuid2()`)
+    userId    VarChar(36)
+    date      Date
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYieldHoliday_userId_fkey", index: false)
+
+    @@index([userId, date], map: "FinancialAccountYieldHoliday_userId_date_key", unique: true)
+    @@map("FinancialAccountYieldHoliday")
+  }
+
+  model BalanceAdjustment {
+    currency VarChar(3) @default("BRL")
+
+    id                 VarChar(36) @id(map: "BalanceAdjustment_pkey") @default(sql`cuid2()`)
+    userId             VarChar(36)
+    financialAccountId VarChar(36)
+    date               Date
+    balance            Numeric(20, 6)
+    createdAt          TimestampJsDate(3) @default(now())
+    updatedAt          TimestampJsDate(3) @default(now())
+    user               User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_userId_fkey", index: false)
+    financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_financialAccountId_fkey", index: false)
+
+    @@index([userId, financialAccountId, date], map: "BalanceAdjustment_userId_account_date_key", unique: true)
+    @@map("BalanceAdjustment")
+  }
+
+  model FinancialAccountYieldRateHistory {
+    id                 VarChar(36)                         @id(map: "FinancialAccountYieldRateHistory_pkey") @default(sql`cuid2()`)
+    financialAccountId VarChar(36)
+    effectiveDate      Date
+    yieldReferenceType       pg.enum(ReferenceRateType)?
+    yieldReferencePercentage Numeric(7, 4)?
+    yieldFixedRate           Numeric(7, 4)?
+    yieldTaxIds            VarChar(36)[] @default([])
+    yieldTaxRate             Numeric(5, 2)?
+    yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
+    createdAt          TimestampJsDate(3)                        @default(now())
+    updatedAt          TimestampJsDate(3)                        @default(now())
+    financialAccount   FinancialAccount                    @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYieldRateHistory_financialAccountId_fkey", index: false)
+
+    @@index([financialAccountId, effectiveDate], map: "FinancialAccountYieldRateHistory_accountId_effectiveDate_key", unique: true)
+    @@map("FinancialAccountYieldRateHistory")
+  }
+
+  model FinancialAccountYield {
+    currency VarChar(3) @default("BRL")
+
+    id                 VarChar(36)                       @id(map: "FinancialAccountYield_pkey") @default(sql`cuid2()`)
+    financialAccountId VarChar(36)
+    date               Date
+    time               Time(precision: 3)?
+    amount             Numeric(20, 8)?
+    isHidden           Boolean                           @default(false)
+    externalId         VarChar(200)?
+    kind               pg.enum(FinancialAccountYieldKind)
+    origin             pg.enum(FinancialAccountYieldOrigin) @default("USER")
+    isExcluded         Boolean                           @default(false)
+    createdAt          TimestampJsDate(3)                      @default(now())
+    updatedAt          TimestampJsDate(3)                      @default(now())
+    financialAccount   FinancialAccount                  @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYield_financialAccountId_fkey", index: false)
+
+    @@index([financialAccountId, date], map: "FinancialAccountYield_accountId_date_key", unique: true)
+    @@index([externalId], map: "FinancialAccountYield_externalId_idx")
+    @@map("FinancialAccountYield")
+  }
+
+  model FinancialHistoryCollection {
+    id VarChar(36) @id @default(sql`cuid2()`)
+    deduplicationKey VarChar(200) @unique
+    kind VarChar(20)
+    startDate Date
+    endDate Date
+    series Json
+    createdAt TimestamptzJsDate(3) @default(now())
+    updatedAt TimestamptzJsDate(3) @default(now())
+    units FinancialHistoryCollectionUnit[]
+    @@map("FinancialHistoryCollection")
+  }
+
+  model FinancialHistoryUnit {
+    id VarChar(36) @id @default(sql`cuid2()`)
+    deduplicationKey VarChar(200) @unique
+    kind VarChar(20)
+    series VarChar(10)
+    startDate Date
+    endDate Date
+    state VarChar(32) @default("PENDING")
+    attempts Int @default(0)
+    generation Int @default(0)
+    nextAttemptAt TimestamptzJsDate(3)?
+    leaseToken VarChar(36)?
+    lockedUntil TimestamptzJsDate(3)?
+    lastError VarChar(1000)?
+    completedAt TimestamptzJsDate(3)?
+    createdAt TimestamptzJsDate(3) @default(now())
+    updatedAt TimestamptzJsDate(3) @default(now())
+    collections FinancialHistoryCollectionUnit[]
+    @@index([state, nextAttemptAt, lockedUntil], map: "FinancialHistoryUnit_recovery_idx")
+    @@index([kind, series, startDate, endDate], map: "FinancialHistoryUnit_coverage_idx")
+    @@map("FinancialHistoryUnit")
+  }
+
+  model FinancialHistoryCollectionUnit {
+    collectionId VarChar(36)
+    unitId VarChar(36)
+    collection FinancialHistoryCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    unit FinancialHistoryUnit @relation(fields: [unitId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+    @@id([collectionId, unitId])
+    @@index([unitId], map: "FinancialHistoryCollectionUnit_unit_idx")
+    @@map("FinancialHistoryCollectionUnit")
+  }
+
+  model FinancialProviderSlot {
+    provider VarChar(40)
+    slot Int
+    leaseToken VarChar(36)?
+    lockedUntil TimestamptzJsDate(3)?
+    @@id([provider, slot])
+    @@map("FinancialProviderSlot")
+  }
+
+  model CurrencyRateSnapshot {
+    date Date
+    baseCurrency VarChar(3)
+    rates Json
+    fetchedAt TimestamptzJsDate(3) @default(now())
+
+    @@id([date, baseCurrency], map: "CurrencyRateSnapshot_pkey")
+    @@map("CurrencyRateSnapshot")
+  }
+
+  model ReferenceRate {
+    id        VarChar(36)                  @id(map: "ReferenceRate_pkey") @default(sql`cuid2()`)
+    type      pg.enum(ReferenceRateType)
+    date      Date
+    value     Numeric(12, 8)
+    createdAt TimestampJsDate(3)                 @default(now())
+    updatedAt TimestampJsDate(3)                 @default(now())
+
+    @@index([type, date], map: "ReferenceRate_type_date_key", unique: true)
+    @@map("ReferenceRate")
+  }
+
+  model OutboxEvent {
+    id            VarChar(36)  @id(map: "OutboxEvent_pkey")
+    eventType     VarChar(120)
+    aggregateType VarChar(80)
+    aggregateId   VarChar(36)
+    userIds       VarChar(36)[]
+    occurredAt    TimestampJsDate(3)
+    schemaVersion Int          @default(1)
+    correlationId VarChar(36)
+    payload       Json         @default(json`"{}"`)
+    attempts      Int          @default(0)
+    lockedUntil   TimestampJsDate(3)?
+    publishedAt   TimestampJsDate(3)?
+    lastError     String?
+    createdAt     TimestampJsDate(3) @default(now())
+    updatedAt     TimestampJsDate(3) @default(now())
+    @@index([publishedAt, lockedUntil, occurredAt, id], map: "OutboxEvent_pending_idx")
+    @@index([aggregateType, aggregateId, occurredAt], map: "OutboxEvent_aggregate_idx")
+    @@map("OutboxEvent")
+  }
+  model ConsumerReceipt {
+    leaseToken VarChar(36)?
+
+    consumer    VarChar(120)
+    eventId     VarChar(36)
+    attempts    Int          @default(0)
+    lockedUntil TimestampJsDate(3)?
+    completedAt TimestampJsDate(3)?
+    lastError   String?
+    createdAt   TimestampJsDate(3) @default(now())
+    updatedAt   TimestampJsDate(3) @default(now())
+    @@id([consumer, eventId], map: "ConsumerReceipt_pkey")
+    @@index([completedAt, createdAt], map: "ConsumerReceipt_cleanup_idx")
+    @@map("ConsumerReceipt")
+  }
+  model CreditCard {
+    calendarHistory Json?
+    currency VarChar(3) @default("BRL")
+    refundReviews CreditRefundReview[]
+    id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(sql`cuid2()`)
+    financialAccountId   VarChar(36)
+    creditLimit          Numeric(20, 6)
+    securityDeposit      Numeric(20, 6)?
+    excludeFromTotals    Boolean               @default(false)
+    paymentAccountId     VarChar(36)?
+    paymentSuggestionsEnabled Boolean           @default(true)
+    ignoreStatementsBefore Date?
+    statementDay         SmallInt
+    dueDay               SmallInt
+    workingDueDate       Boolean               @default(false)
+    cashbackRate         Numeric(5, 2)?
+    cashbackAccountId    VarChar(36)?
+    cashbackYieldReferenceRate       Numeric(7, 4)?
+    cashbackYieldReferencePercentage Numeric(7, 4)?
+    cashbackYieldPeriod              pg.enum(CashbackYieldPeriod)?
+    createdAt            TimestampJsDate(3)          @default(now())
+    updatedAt            TimestampJsDate(3)          @default(now())
+    creditCardHistories  CreditCardHistory[]
+    creditCardStatements CreditCardStatement[]
+    normalizedPurchases CreditPurchaseRecord[]
+    tombstones CreditBookTombstone[]
+    creditCardImports    CreditCardImport[]
+    payments Transaction[]
+    importedPayments TransactionImportItem[]
+    financialAccount     FinancialAccount      @relation(name: "CreditCard_accountId_fkey", fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
+    paymentAccount       FinancialAccount? @relation(name: "CreditCard_paymentAccountId_fkey", fields: [paymentAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_paymentAccountId_fkey", index: false)
+    cashbackAccount      FinancialAccount?     @relation(name: "CreditCard_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_cashbackAccountId_fkey", index: false)
+
+    recurrences Recurrence[]
+
+    @@index([financialAccountId], map: "CreditCard_accountId_key", unique: true)
+    @@index([paymentAccountId], map: "CreditCard_paymentAccountId_idx")
+    @@index([cashbackAccountId], map: "CreditCard_cashbackAccountId_idx")
+
+    @@map("CreditCard")
+  }
+
+  model RewardsAccount {
+    conversionCurrency VarChar(3) @default("BRL")
+
+    id                    VarChar(36)                   @id(map: "RewardsAccount_pkey") @default(sql`cuid2()`)
+    financialAccountId    VarChar(36)                   @unique(map: "RewardsAccount_financialAccountId_key")
+    kind                  pg.enum(RewardsAccountKind)
+    initialBalance        Numeric(18, 4)
+    conversionPoints      Numeric(18, 4)?
+    conversionAmount      Numeric(20, 6)?
+    createdAt             TimestampJsDate(3)                  @default(now())
+    updatedAt             TimestampJsDate(3)                  @default(now())
+    financialAccount      FinancialAccount              @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RewardsAccount_financialAccountId_fkey")
+
+    @@map("RewardsAccount")
+  }
+
+  model CreditCardHistory {
+    id           VarChar(36)  @id(map: "CreditCardHistory_pkey") @default(sql`cuid2()`)
+    creditCardId VarChar(36)
+    field        VarChar(50)
+    oldValue     String?
+    newValue     String?
+    changedAt    TimestampJsDate(3) @default(now())
+    creditCard   CreditCard   @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardHistory_creditCardId_fkey", index: false)
+
+    @@map("CreditCardHistory")
+  }
+
+  model CreditCardStatement {
+    currency VarChar(3) @default("BRL")
+
+    id              VarChar(36)      @id(map: "CreditCardStatement_pkey") @default(sql`cuid2()`)
+    creditCardId    VarChar(36)
+    statementDate   Date
+    dueDate         Date
+    totalAmount     Numeric(20, 6)   @default(sql`0`)
+    manualTotalAmount Numeric(20, 6)?
+    paidAmount      Numeric(20, 6)   @default(sql`0`)
+    isPaid          Boolean          @default(false)
+    isFullySynced   Boolean          @default(false)
+    createdAt       TimestampJsDate(3)     @default(now())
+    updatedAt       TimestampJsDate(3)     @default(now())
+    normalizedInstallments CreditInstallmentRecord[]
+    normalizedRefunds CreditRefundRecord[]
+    statementCharges CreditStatementCharge[]
+    creditCard      CreditCard       @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardStatement_creditCardId_fkey", index: false)
+
+    @@index([creditCardId, statementDate], map: "CreditCardStatement_creditCardId_statementDate_key", unique: true)
+
+    @@map("CreditCardStatement")
+  }
+
+  // Canonical purchases and their independent invoice occurrences.
+  model CreditBookTombstone {
+    id VarChar(36) @id(map: "CreditBookTombstone_pkey")
+    userId VarChar(36)
+    creditCardId VarChar(36)
+    entryKind VarChar(16)
+    deletedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "CreditBookTombstone_userId_fkey", index: false)
+    creditCard CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, map: "CreditBookTombstone_creditCardId_fkey", index: false)
+    @@index([creditCardId], map: "CreditBookTombstone_creditCardId_idx")
+    @@index([userId], map: "CreditBookTombstone_userId_idx")
+    @@map("CreditBookTombstone")
+  }
+
+  model CreditPurchaseRecord {
+    bookingCurrency VarChar(3) @default("BRL")
+
+    currency VarChar(3) @default("BRL")
+    originalAmount Numeric(20, 6)?
+    exchangeRate Numeric(24, 12)?
+    fees Json @default(sql`'[]'::json`)
+    id                   VarChar(36) @id(map: "CreditPurchaseRecord_pkey")
+    userId               VarChar(36)
+    creditCardId         VarChar(36)
+    description          VarChar(500)
+    storeName            VarChar(200)?
+    purchaseDate         Date
+    time                 Time(precision: 3)?
+    totalAmount          Numeric(20, 6)
+    feeDescription       VarChar(100)?
+    feeAmount            Numeric(20, 6)?
+    refinancingFeeAmount Numeric(20, 6)?
+    cashbackAccountId    VarChar(36)?
+    cashbackAmount       Numeric(18, 4)?
+    cashbackYieldReferenceRate       Numeric(7, 4)?
+    cashbackYieldReferencePercentage Numeric(7, 4)?
+    cashbackYieldPeriod              pg.enum(CashbackYieldPeriod)?
+    recurrenceId       VarChar(36)?
+    recurrenceOccurrenceDate Date?
+    externalId           VarChar(200)?
+    createdAt            TimestampJsDate(3) @default(now())
+    updatedAt            TimestampJsDate(3) @default(now())
+    user                 User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_userId_fkey", index: false)
+    creditCard           CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseRecord_creditCardId_fkey", index: false)
+    importIdentities     CreditPurchaseImportIdentity[]
+    installmentPlan      CreditInstallmentPlan[]
+    installments         CreditInstallmentRecord[] @relation("PurchaseInstallments")
+    refunds              CreditRefundRecord[]
+    entryReferences      CreditEntryReference[]
+    settledInstallments  CreditInstallmentRecord[] @relation("SettledInstallments")
+    settledCharges       CreditStatementCharge[] @relation("SettledCharges")
+    cashbackAccount      FinancialAccount? @relation("PurchaseCashback", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_cashbackAccountId_fkey", index: false)
+    recurrence         Recurrence? @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchaseRecord_recurrenceId_fkey", index: false)
+
+    @@index([userId, purchaseDate, createdAt, id], map: "CreditPurchaseRecord_userId_date_idx")
+    @@index([creditCardId, purchaseDate], map: "CreditPurchaseRecord_creditCardId_date_idx")
+    @@index([externalId], map: "CreditPurchaseRecord_externalId_key", unique: true)
+    @@index([recurrenceId, recurrenceOccurrenceDate], map: "CreditPurchaseRecord_recurrence_occurrence_key", unique: true)
+    @@map("CreditPurchaseRecord")
+  }
+
+  model CreditPurchaseImportIdentity {
+    externalId VarChar(200) @id(map: "CreditPurchaseImportIdentity_pkey")
+    purchaseId VarChar(36)
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    purchase CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseImportIdentity_purchaseId_fkey", index: false)
+
+    @@index([purchaseId], map: "CreditPurchaseImportIdentity_purchaseId_idx")
+    @@map("CreditPurchaseImportIdentity")
+  }
+
+  model CreditInstallmentPlan {
+    currency VarChar(3) @default("BRL")
+
+    purchaseId       VarChar(36)
+    number           SmallInt
+    amount           Numeric(20, 6)
+    hasImportedAmount Boolean @default(false)
+    statementDate     Date?
+    dueDate           Date?
+    createdAt        TimestampJsDate(3) @default(now())
+    updatedAt        TimestampJsDate(3) @default(now())
+    purchase         CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentPlan_purchaseId_fkey", index: false)
+
+    @@id([purchaseId, number], map: "CreditInstallmentPlan_pkey")
+    @@map("CreditInstallmentPlan")
+  }
+
+  model CreditInstallmentRecord {
+    currency VarChar(3) @default("BRL")
+
+    id                    VarChar(36) @id(map: "CreditInstallmentRecord_pkey")
+    purchaseId            VarChar(36)
+    statementId           VarChar(36)
+    number                SmallInt
+    amount                Numeric(20, 6)
+    occurrenceDate        Date
+    hasImportedAmount     Boolean @default(false)
+    settledByPurchaseId   VarChar(36)?
+    isSettled             Boolean @default(false)
+    settledByPurchase     CreditPurchaseRecord? @relation("SettledInstallments", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditInstallmentRecord_settledByPurchaseId_fkey", index: false)
+    entryReference        CreditEntryReference? @relation("EntryInstallment")
+    createdAt             TimestampJsDate(3) @default(now())
+    updatedAt             TimestampJsDate(3) @default(now())
+    purchase              CreditPurchaseRecord @relation("PurchaseInstallments", fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_purchaseId_fkey", index: false)
+    statement             CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditInstallmentRecord_statementId_fkey", index: false)
+
+
+    @@index([purchaseId, number], map: "CreditInstallmentRecord_purchase_number_key", unique: true)
+    @@index([statementId, occurrenceDate], map: "CreditInstallmentRecord_statement_date_idx")
+    @@map("CreditInstallmentRecord")
+  }
+
+  model CreditRefundRecord {
+    currency VarChar(3) @default("BRL")
+
+    id                   VarChar(36) @id(map: "CreditRefundRecord_pkey")
+    purchaseId           VarChar(36)
+    statementId          VarChar(36)
+    creditDate           Date
+    amount               Numeric(20, 6)
+    policy               pg.enum(CreditRefundPolicy)
+    time                 Time(precision: 3)?
+    externalId           VarChar(200)? @unique(map: "CreditRefundRecord_externalId_key")
+    entryReference       CreditEntryReference? @relation("EntryRefund")
+    cancellationEligible Boolean @default(false)
+    canceledInstallmentNumbers Json?
+    deletedAt            TimestampJsDate(3)?
+    createdAt            TimestampJsDate(3) @default(now())
+    updatedAt            TimestampJsDate(3) @default(now())
+    purchase             CreditPurchaseRecord @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_purchaseId_fkey", index: false)
+    statement            CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundRecord_statementId_fkey", index: false)
+
+
+    @@index([purchaseId, creditDate], map: "CreditRefundRecord_purchase_date_idx")
+    @@index([statementId, creditDate], map: "CreditRefundRecord_statement_date_idx")
+    @@map("CreditRefundRecord")
+  }
+
+  model CreditStatementCharge {
+    currency VarChar(3) @default("BRL")
+
+    id          VarChar(36) @id(map: "CreditStatementCharge_pkey")
+    statementId VarChar(36)
+    description VarChar(500)
+    amount      Numeric(20, 6)
+    chargeDate  Date
+    time        Time(precision: 3)?
+    externalId  VarChar(200)? @unique(map: "CreditStatementCharge_externalId_key")
+    settledByPurchaseId VarChar(36)?
+    settledByPurchase CreditPurchaseRecord? @relation("SettledCharges", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditStatementCharge_settledByPurchaseId_fkey", index: false)
+    entryReference CreditEntryReference? @relation("EntryCharge")
+    isSettled   Boolean @default(false)
+    createdAt   TimestampJsDate(3) @default(now())
+    updatedAt   TimestampJsDate(3) @default(now())
+    statement   CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditStatementCharge_statementId_fkey", index: false)
+
+
+    @@index([statementId, chargeDate], map: "CreditStatementCharge_statement_date_idx")
+    @@map("CreditStatementCharge")
+  }
+
+  // Migration provenance and unresolved imported credits. Never used as purchase metadata.
+  // Legacy reference IDs resolve through this record until the contract cutover remaps their FKs.
+  model CreditRefundReview {
+    id VarChar(36) @id(map: "CreditRefundReview_pkey")
+    userId VarChar(36)
+    creditCardId VarChar(36)
+    original Json
+    approvedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundReview_userId_fkey", index: false)
+    creditCard CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundReview_creditCardId_fkey", index: false)
+    reference CreditEntryReference @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditRefundReview_id_fkey", index: false)
+    @@index([userId, creditCardId, approvedAt], map: "CreditRefundReview_owner_card_pending_idx")
+    @@map("CreditRefundReview")
+  }
+
+  model CreditEntryReference {
+    refundReview CreditRefundReview?
+    id             VarChar(36) @id(map: "CreditEntryReference_pkey")
+    purchaseId     VarChar(36)?
+    installmentId  VarChar(36)? @unique(map: "CreditEntryReference_installmentId_key")
+    refundId       VarChar(36)? @unique(map: "CreditEntryReference_refundId_key")
+    chargeId       VarChar(36)? @unique(map: "CreditEntryReference_chargeId_key")
+    requiresRefundReview Boolean @default(false)
+    purchase       CreditPurchaseRecord? @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_purchaseId_fkey", index: false)
+    installment    CreditInstallmentRecord? @relation("EntryInstallment", fields: [installmentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_installmentId_fkey", index: false)
+    refund         CreditRefundRecord? @relation("EntryRefund", fields: [refundId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_refundId_fkey", index: false)
+    charge         CreditStatementCharge? @relation("EntryCharge", fields: [chargeId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditEntryReference_chargeId_fkey", index: false)
+    histories      CreditPurchaseHistory[]
+    debtLinks      DebtPurchaseLink[]
+    debtSplit      DebtSplit?
+    importItems    CreditCardImportItem[] @relation("CreditCardImportItem_reconciledCreditPurchaseId_fkey")
+
+    @@index([purchaseId], map: "CreditEntryReference_purchaseId_idx")
+    @@map("CreditEntryReference")
+  }
+
+  model CreditPurchaseHistory {
+    id               VarChar(36)    @id(map: "CreditPurchaseHistory_pkey") @default(sql`cuid2()`)
+    creditPurchaseId VarChar(36)
+    field            VarChar(50)
+    oldValue         String?
+    newValue         String?
+    changedAt        TimestampJsDate(3)   @default(now())
+    creditPurchase   CreditEntryReference @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseHistory_creditPurchaseId_fkey", index: false)
+
+    @@map("CreditPurchaseHistory")
+  }
+
+  model DebtPerson {
+    id             VarChar(36)  @id(map: "DebtPerson_pkey") @default(sql`cuid2()`)
+    userId         VarChar(36)
+    name           VarChar(100)
+    normalizedName VarChar(100)
+    connectionId   VarChar(36)?
+    hiddenAt       TimestampJsDate(3)?
+    createdAt      TimestampJsDate(3) @default(now())
+    updatedAt      TimestampJsDate(3) @default(now())
+    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPerson_userId_fkey", index: false)
+    connection     DebtConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtPerson_connectionId_fkey", index: false)
+    debtEvents     DebtEvent[]
+    debtSplitParticipants DebtSplitParticipant[]
+    debtSplitRemainders DebtSplit[] @relation("DebtSplitRemainderPerson")
+
+    @@index([userId, normalizedName], map: "DebtPerson_userId_normalizedName_key", unique: true)
+		@@index([userId, hiddenAt, name, id], map: "DebtPerson_userId_hiddenAt_name_id_idx")
+    @@index([connectionId], map: "DebtPerson_connectionId_idx")
+    @@map("DebtPerson")
+  }
+
+  model DebtConnection {
+    id          VarChar(36)                    @id(map: "DebtConnection_pkey") @default(sql`cuid2()`)
+    requesterId VarChar(36)
+    recipientId VarChar(36)
+    status      pg.enum(DebtConnectionStatus) @default("PENDING")
+    respondedAt TimestampJsDate(3)?
+    createdAt   TimestampJsDate(3)                   @default(now())
+    updatedAt   TimestampJsDate(3)                   @default(now())
+    requester   User                           @relation(name: "DebtConnection_requesterId_fkey", fields: [requesterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtConnection_requesterId_fkey", index: false)
+    recipient   User                           @relation(name: "DebtConnection_recipientId_fkey", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtConnection_recipientId_fkey", index: false)
+    people      DebtPerson[]
+    debtEvents  DebtEvent[]
+
+    @@index([requesterId, recipientId], map: "DebtConnection_requesterId_recipientId_key", unique: true)
+    @@index([recipientId, status], map: "DebtConnection_recipientId_status_idx")
+    @@map("DebtConnection")
+  }
+
+  model DebtEvent {
+    currency VarChar(3) @default("BRL")
+
+    id              VarChar(36)             @id(map: "DebtEvent_pkey") @default(sql`cuid2()`)
+    debtPersonId    VarChar(36)?
+    connectionId    VarChar(36)?
+    createdByUserId VarChar(36)
+    kind            pg.enum(DebtEventKind)  @default("ORIGIN")
+    amount          Numeric(20, 6)
+    effect          Numeric(20, 6)
+    date            Date?
+    dueDate         Date?
+    description     VarChar(1000)?
+    createdAt       TimestampJsDate(3)            @default(now())
+    updatedAt       TimestampJsDate(3)            @default(now())
+    deletedAt       TimestampJsDate(3)?
+    debtPerson      DebtPerson?             @relation(fields: [debtPersonId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_debtPersonId_fkey", index: false)
+    connection      DebtConnection?         @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_connectionId_fkey", index: false)
+    createdByUser   User                    @relation(fields: [createdByUserId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEvent_createdByUserId_fkey", index: false)
+    visibilities    DebtEventVisibility[]
+    transactionLinks DebtTransactionLink[]
+    purchaseLinks   DebtPurchaseLink[]
+
+		@@index([debtPersonId, date, id], map: "DebtEvent_debtPersonId_date_id_idx")
+		@@index([connectionId, date, id], map: "DebtEvent_connectionId_date_id_idx")
+    @@index([createdByUserId], map: "DebtEvent_createdByUserId_idx")
+    @@map("DebtEvent")
+  }
+
+  model DebtEventVisibility {
+    id        VarChar(36)  @id(map: "DebtEventVisibility_pkey") @default(sql`cuid2()`)
+    eventId   VarChar(36)
+    userId    VarChar(36)
+    hiddenAt  TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    event     DebtEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEventVisibility_eventId_fkey", index: false)
+    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEventVisibility_userId_fkey", index: false)
+
+    @@index([eventId, userId], map: "DebtEventVisibility_eventId_userId_key", unique: true)
+    @@index([userId, hiddenAt], map: "DebtEventVisibility_userId_hiddenAt_idx")
+    @@map("DebtEventVisibility")
+  }
+
+  model DebtTransactionLink {
+    id            VarChar(36)  @id(map: "DebtTransactionLink_pkey") @default(sql`cuid2()`)
+    eventId       VarChar(36)
+    transactionId VarChar(36)
+    userId        VarChar(36)
+    isCreator     Boolean      @default(false)
+    createdAt     TimestampJsDate(3) @default(now())
+    updatedAt     TimestampJsDate(3) @default(now())
+    event         DebtEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_eventId_fkey", index: false)
+    transaction   Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_transactionId_fkey", index: false)
+    user          User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_userId_fkey", index: false)
+
+    @@index([eventId, userId], map: "DebtTransactionLink_eventId_userId_key", unique: true)
+    @@index([transactionId], map: "DebtTransactionLink_transactionId_idx")
+    @@map("DebtTransactionLink")
+  }
+
+  model DebtPurchaseLink {
+    id               VarChar(36)    @id(map: "DebtPurchaseLink_pkey") @default(sql`cuid2()`)
+    eventId          VarChar(36)
+    creditPurchaseId VarChar(36)
+    userId           VarChar(36)
+    isCreator        Boolean        @default(false)
+    createdAt        TimestampJsDate(3)   @default(now())
+    updatedAt        TimestampJsDate(3)   @default(now())
+    event            DebtEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_eventId_fkey", index: false)
+    creditPurchase   CreditEntryReference @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_creditPurchaseId_fkey", index: false)
+    user             User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_userId_fkey", index: false)
+
+    @@index([eventId, userId], map: "DebtPurchaseLink_eventId_userId_key", unique: true)
+    @@index([creditPurchaseId], map: "DebtPurchaseLink_creditPurchaseId_idx")
+    @@map("DebtPurchaseLink")
+  }
+
+  model DebtSplit {
+    currency VarChar(3) @default("BRL")
+
+    id                 VarChar(36)             @id(map: "DebtSplit_pkey") @default(sql`cuid2()`)
+    userId             VarChar(36)
+    mode               pg.enum(DebtSplitMode)
+    ownerIncluded      Boolean                 @default(false)
+    ownerShares        SmallInt?
+    remainderDebtPersonId VarChar(36)?
+    transactionId      VarChar(36)?            @unique(map: "DebtSplit_transactionId_key")
+    transactionImportItemId VarChar(36)?        @unique(map: "DebtSplit_transactionImportItemId_key")
+    creditCardImportItemId VarChar(36)?         @unique(map: "DebtSplit_creditCardImportItemId_key")
+    creditPurchaseId   VarChar(36)?            @unique(map: "DebtSplit_creditPurchaseId_key")
+    recurrenceId VarChar(36)?            @unique(map: "DebtSplit_recurrenceId_key")
+    createdAt          TimestampJsDate(3)            @default(now())
+    updatedAt          TimestampJsDate(3)            @default(now())
+    user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_userId_fkey", index: false)
+    remainderDebtPerson DebtPerson?             @relation("DebtSplitRemainderPerson", fields: [remainderDebtPersonId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_remainderDebtPersonId_fkey", index: false)
+    transaction        Transaction?            @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionId_fkey", index: false)
+    transactionImportItem TransactionImportItem? @relation(fields: [transactionImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionImportItemId_fkey", index: false)
+    creditCardImportItem CreditCardImportItem?  @relation(fields: [creditCardImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditCardImportItemId_fkey", index: false)
+    creditPurchase     CreditEntryReference?         @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditPurchaseId_fkey", index: false)
+    recurrence   Recurrence?       @relation(fields: [recurrenceId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_recurrenceId_fkey", index: false)
+    participants       DebtSplitParticipant[]
+
+    @@index([userId], map: "DebtSplit_userId_idx")
+    @@index([remainderDebtPersonId], map: "DebtSplit_remainderDebtPersonId_idx")
+    @@map("DebtSplit")
+  }
+
+  model DebtSplitParticipant {
+    id           VarChar(36) @id(map: "DebtSplitParticipant_pkey") @default(sql`cuid2()`)
+    debtSplitId  VarChar(36)
+    debtPersonId VarChar(36)
+    sortOrder    SmallInt
+    description  VarChar(1000)?
+    shares       SmallInt?
+    percentage   Numeric(5, 2)?
+    fixedAmount  Numeric(20, 6)?
+    createdAt    TimestampJsDate(3) @default(now())
+    updatedAt    TimestampJsDate(3) @default(now())
+    debtSplit    DebtSplit    @relation(fields: [debtSplitId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplitParticipant_debtSplitId_fkey", index: false)
+    debtPerson   DebtPerson   @relation(fields: [debtPersonId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplitParticipant_debtPersonId_fkey", index: false)
+
+    @@index([debtSplitId, debtPersonId], map: "DebtSplitParticipant_debtSplitId_debtPersonId_key", unique: true)
+    @@index([debtSplitId, sortOrder], map: "DebtSplitParticipant_debtSplitId_sortOrder_key", unique: true)
+    @@index([debtPersonId], map: "DebtSplitParticipant_debtPersonId_idx")
+    @@map("DebtSplitParticipant")
+  }
+
+  model Loan {
+    institutionId VarChar(36)?
+    institution FinancialInstitution? @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    contractBook Json?
+    @@index([institutionId], map: "Loan_institutionId_idx")
+    currency VarChar(3) @default("BRL")
+
+    id                VarChar(36)               @id(map: "Loan_pkey") @default(sql`cuid2()`)
+    userId            VarChar(36)
+    lender            VarChar(100)
+    principalAmount   Numeric(20, 6)
+    interestRate      Numeric(5, 4)
+    totalInstallments SmallInt
+    installmentAmount Numeric(20, 6)
+    dueDay            SmallInt
+    startDate         Date
+    firstDueDate      Date
+    description       VarChar(500)?
+    amortization      pg.enum(AmortizationType) @default("PRICE")
+    createdAt         TimestampJsDate(3)              @default(now())
+    updatedAt         TimestampJsDate(3)              @default(now())
+    loanHistories     LoanHistory[]
+    loanPayments      LoanPayment[]
+    user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Loan_userId_fkey", index: false)
+
+		@@index([userId, startDate, id], map: "Loan_userId_startDate_id_idx")
+    @@map("Loan")
+  }
+
+  model LoanScenario {
+    id VarChar(36) @id @default(sql`cuid2()`)
+    userId VarChar(36)
+    name VarChar(150)
+    parameters Json
+    summary Json
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
+    @@index([userId, updatedAt, id], map: "LoanScenario_userId_updatedAt_id_idx")
+    @@map("LoanScenario")
+  }
+
+  model LoanHistory {
+    id        VarChar(36)  @id(map: "LoanHistory_pkey") @default(sql`cuid2()`)
+    loanId    VarChar(36)
+    field     VarChar(50)
+    oldValue  String?
+    newValue  String?
+    changedAt TimestampJsDate(3) @default(now())
+    loan      Loan         @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanHistory_loanId_fkey", index: false)
+
+		@@index([loanId, changedAt, id], map: "LoanHistory_loanId_changedAt_id_idx")
+    @@map("LoanHistory")
+  }
+
+  model LoanPayment {
+    currency VarChar(3) @default("BRL")
+    accountAmount Numeric(20, 6)?
+    accountCurrency VarChar(3)?
+
+    id                 VarChar(100)           @id(map: "LoanPayment_pkey") @default(sql`cuid2()`)
+    loanId             VarChar(36)
+    financialAccountId VarChar(36)?
+    installmentNumber  SmallInt
+    principalPaid      Numeric(20, 6)
+    interestPaid       Numeric(20, 6)
+    totalPaid          Numeric(20, 6)
+    dueDate            Date
+    paidDate           Date?
+    isAdvanced         Boolean               @default(false)
+    advanceType        pg.enum(AdvanceType)?
+    createdAt          TimestampJsDate(3)          @default(now())
+    updatedAt          TimestampJsDate(3)          @default(now())
+    financialAccount   FinancialAccount?     @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "LoanPayment_accountId_fkey", index: false)
+    loan               Loan                  @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanPayment_loanId_fkey", index: false)
+
+		@@index([loanId, paidDate], map: "LoanPayment_loanId_paidDate_idx")
+		@@index([loanId, installmentNumber], map: "LoanPayment_loanId_installmentNumber_key", unique: true)
+    @@map("LoanPayment")
+  }
+
+  // Upgrade-only provenance. Destination IDs survive deletion; deliberately no destination FK.
+  model ApplicationUpgradeRecurrence {
+    userId VarChar(36)
+    source VarChar(20)
+    legacyId VarChar(36)
+    recurrenceId VarChar(36)
+    deletedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    @@id([userId, source, legacyId], map: "ApplicationUpgradeRecurrence_pkey")
+    @@index([recurrenceId], map: "ApplicationUpgradeRecurrence_destination_idx")
+    @@map("ApplicationUpgradeRecurrence")
+  }
+
+  model ApplicationUpgradeArchive {
+    source VarChar(80)
+    recordId VarChar(36)
+    userId VarChar(36)?
+    original Json
+    archivedAt TimestampJsDate(3) @default(now())
+    @@id([source, recordId], map: "ApplicationUpgradeArchive_pkey")
+    @@index([userId], map: "ApplicationUpgradeArchive_user_idx")
+    @@map("ApplicationUpgradeArchive")
+  }
+
+  model Recurrence {
+    currency VarChar(3) @default("BRL")
+
+    id VarChar(36) @id(map: "Recurrence_pkey") @default(sql`cuid2()`)
+    userId VarChar(36)
+    name VarChar(100)
+    amount Numeric(20, 6)
+    installments SmallInt @default(1)
+    movement VarChar(20)
+    unit VarChar(5)
+    interval Int @default(1)
+    dayOfMonth SmallInt?
+    dayOfWeek SmallInt?
+    startDate Date
+    endDate Date?
+    originFinancialAccountId VarChar(36)?
+    destinationFinancialAccountId VarChar(36)?
+    creditCardId VarChar(36)?
+    storeName VarChar(200)?
+    isActive Boolean @default(true)
+    materializedThrough Date @default(sql`(CURRENT_DATE - 1)`)
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Recurrence_userId_fkey", index: false)
+    origin FinancialAccount? @relation("RecurrenceOrigin", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_origin_fkey", index: false)
+    destination FinancialAccount? @relation("RecurrenceDestination", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_destination_fkey", index: false)
+    creditCard CreditCard? @relation(fields: [creditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Recurrence_card_fkey", index: false)
+    histories RecurrenceHistory[]
+    occurrences RecurrenceOccurrence[]
+    transactions Transaction[]
+    purchases CreditPurchaseRecord[]
+    debtSplit DebtSplit?
+    @@index([userId, isActive, name, id], map: "Recurrence_user_active_name_idx")
+    @@map("Recurrence")
+  }
+
+  model RecurrenceHistory {
+    id VarChar(36) @id(map: "RecurrenceHistory_pkey") @default(sql`cuid2()`)
+    recurrenceId VarChar(36)
+    field VarChar(50)
+    oldValue String?
+    newValue String?
+    changedAt TimestampJsDate(3) @default(now())
+    recurrence Recurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurrenceHistory_recurrence_fkey", index: false)
+    @@index([recurrenceId, changedAt, id], map: "RecurrenceHistory_recurrence_date_idx")
+    @@map("RecurrenceHistory")
+  }
+
+  model RecurrenceOccurrence {
+    recurrenceId VarChar(36)
+    date Date
+    transactionId VarChar(36)?
+    purchaseId VarChar(36)?
+    deletedAt TimestampJsDate(3)?
+    createdAt TimestampJsDate(3) @default(now())
+    recurrence Recurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurrenceOccurrence_recurrence_fkey", index: false)
+    @@id([recurrenceId, date], map: "RecurrenceOccurrence_pkey")
+    @@map("RecurrenceOccurrence")
+  }
+
+
+
+
+
+  model Session {
+    id        VarChar(36)    @id(map: "session_pkey") @default(sql`cuid2()`)
+    expiresAt TimestampJsDate(3)
+    token     VarChar(512)
+    createdAt TimestampJsDate(3)   @default(now())
+    updatedAt TimestampJsDate(3)   @default(now())
+    ipAddress VarChar(64)?
+    userAgent VarChar(1024)?
+    userId    VarChar(36)
+    user      User           @relation(fields: [userId], references: [id], onDelete: Cascade, map: "session_userId_fkey")
+
+    @@index([token], map: "session_token_key", unique: true)
+    @@index([userId], map: "session_userId_idx")
+    @@map("session")
+  }
+
+
+
+  model Transaction {
+    bookingCurrency VarChar(3) @default("BRL")
+    destinationAmount Numeric(20, 6)?
+    destinationCurrency VarChar(3)?
+    paymentAmount Numeric(20, 6)?
+    paymentCurrency VarChar(3)?
+    conversionSource VarChar(20) @default("DAILY")
+
+    currency VarChar(3) @default("BRL")
+    originalAmount Numeric(20, 6)?
+    exchangeRate Numeric(24, 12)?
+    fees Json @default(sql`'[]'::json`)
+    id                            VarChar(36)              @id(map: "Transaction_pkey") @default(sql`cuid2()`)
+    userId                        VarChar(36)
+    amount                        Numeric(20, 6)
+    date                          Date
+    time                          Time(precision: 3)?
+    description                   VarChar(1000)?
+    storeName                     VarChar(200)?
+    isHidden                      Boolean                  @default(false)
+    type                          pg.enum(TransactionType) @default("EXPENSE")
+    recurrenceId                  VarChar(36)?
+    recurrenceOccurrenceDate      Date?
+    paymentCreditCardId         VarChar(36)?
+    originFinancialAccountId      VarChar(36)?
+    destinationFinancialAccountId VarChar(36)?
+    createdAt                     TimestampJsDate(3)             @default(now())
+    updatedAt                     TimestampJsDate(3)             @default(now())
+    transactionHistories          TransactionHistory[]
+    debtTransactionLinks          DebtTransactionLink[]
+    debtSplit                     DebtSplit?
+    paymentCreditCard             CreditCard?     @relation(fields: [paymentCreditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_paymentCreditCardId_fkey", index: false)
+    destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
+    originFinancialAccount        FinancialAccount?        @relation(name: "Transaction_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_originId_fkey", index: false)
+    recurrence                    Recurrence?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
+    user                          User                     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Transaction_userId_fkey", index: false)
+    externalReferences            TransactionExternalReference[]
+    reconciledImportItems         TransactionImportItem[] @relation(name: "TransactionImportItem_reconciledTransactionId_fkey")
+    firstTransferSuggestionRejections TransactionTransferSuggestionRejection[] @relation(name: "TransactionTransferSuggestionRejection_firstTransactionId_fkey")
+    secondTransferSuggestionRejections TransactionTransferSuggestionRejection[] @relation(name: "TransactionTransferSuggestionRejection_secondTransactionId_fkey")
+
+    @@index([recurrenceId, recurrenceOccurrenceDate], map: "Transaction_recurrenceId_occurrenceDate_key", unique: true)
+    @@index([paymentCreditCardId], map: "Transaction_paymentCreditCardId_idx")
+    @@index([userId, date, createdAt, id], map: "Transaction_userId_date_createdAt_id_idx")
+    @@index([userId, originFinancialAccountId, date, id], map: "Transaction_userId_origin_date_id_idx")
+    @@index([userId, destinationFinancialAccountId, date, id], map: "Transaction_userId_destination_date_id_idx")
+    @@map("Transaction")
+  }
+
+  model TransactionExternalReference {
+    id                 VarChar(36)  @id(map: "TransactionExternalReference_pkey") @default(sql`cuid2()`)
+    transactionId      VarChar(36)
+    financialAccountId VarChar(36)
+    externalId         VarChar(200)
+    createdAt          TimestampJsDate(3) @default(now())
+    updatedAt          TimestampJsDate(3) @default(now())
+    transaction        Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionExternalReference_transactionId_fkey", index: false)
+    financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionExternalReference_financialAccountId_fkey", index: false)
+
+    @@index([financialAccountId, externalId], map: "TransactionExternalReference_accountId_externalId_key", unique: true)
+    @@index([transactionId], map: "TransactionExternalReference_transactionId_idx")
+    @@map("TransactionExternalReference")
+  }
+
+  model CreditCardImport {
+    currency VarChar(3) @default("BRL")
+
+    id            VarChar(36)                   @id(map: "CreditCardImport_pkey") @default(sql`cuid2()`)
+    userId        VarChar(36)
+    creditCardId  VarChar(36)
+    provider      pg.enum(CreditCardImportProvider)
+    status        pg.enum(TransactionImportStatus) @default("PENDING")
+    fileName      VarChar(255)
+    statementDate Date
+    reportedPreviousBalance Numeric(20, 6)?
+    dueDate       Date
+    createdAt     TimestampJsDate(3)                  @default(now())
+    updatedAt     TimestampJsDate(3)                  @default(now())
+    user          User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImport_userId_fkey", index: false)
+    creditCard    CreditCard                    @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImport_creditCardId_fkey", index: false)
+    items         CreditCardImportItem[]
+
+    @@index([userId, status, createdAt], map: "CreditCardImport_userId_status_createdAt_idx")
+    @@index([creditCardId], map: "CreditCardImport_creditCardId_idx")
+    @@map("CreditCardImport")
+  }
+
+  model CreditCardImportItem {
+    currency VarChar(3) @default("BRL")
+
+    id                 VarChar(36)     @id(map: "CreditCardImportItem_pkey") @default(sql`cuid2()`)
+    creditCardImportId VarChar(36)
+    externalId         VarChar(200)
+    purchaseDate       Date
+    time               Time(precision: 3)?
+    description        VarChar(500)
+    storeName          VarChar(200)?
+    totalAmount        Numeric(20, 6)
+    installments       SmallInt        @default(1)
+    currentInstallment SmallInt        @default(1)
+    installmentAmount  Numeric(20, 6)
+    isStatementCharge  Boolean         @default(false)
+    isSelected         Boolean         @default(true)
+    metadataMissing Json @default(json`"[]"`)
+    reconciledCreditPurchaseId VarChar(36)?
+    refundReview Json?
+    taxSourceExternalIds Json @default(sql`'[]'::json`)
+    taxes Json @default(sql`'[]'::json`)
+    createdAt          TimestampJsDate(3)    @default(now())
+    updatedAt          TimestampJsDate(3)    @default(now())
+    creditCardImport   CreditCardImport @relation(fields: [creditCardImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardImportItem_importId_fkey", index: false)
+    debtSplit          DebtSplit?
+    reconciledCreditPurchase CreditEntryReference? @relation(name: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", fields: [reconciledCreditPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCardImportItem_reconciledCreditPurchaseId_fkey", index: false)
+
+    @@index([creditCardImportId, purchaseDate], map: "CreditCardImportItem_importId_purchaseDate_idx")
+    @@index([externalId], map: "CreditCardImportItem_externalId_idx")
+    @@map("CreditCardImportItem")
+  }
+
+  model TransactionImport {
+    currency VarChar(3) @default("BRL")
+
+    id                 VarChar(36)                         @id(map: "TransactionImport_pkey") @default(sql`cuid2()`)
+    userId             VarChar(36)
+    financialAccountId VarChar(36)
+    provider           pg.enum(TransactionImportProvider)
+    status             pg.enum(TransactionImportStatus)     @default("PENDING")
+    fileName           VarChar(255)
+    periodStart        Date?
+    periodEnd          Date?
+    createdAt          TimestampJsDate(3)                         @default(now())
+    updatedAt          TimestampJsDate(3)                         @default(now())
+    user               User                                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImport_userId_fkey", index: false)
+    financialAccount   FinancialAccount                     @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImport_financialAccountId_fkey", index: false)
+    items              TransactionImportItem[]
+
+    @@index([userId, status, createdAt], map: "TransactionImport_userId_status_createdAt_idx")
+    @@index([financialAccountId], map: "TransactionImport_financialAccountId_idx")
+    @@map("TransactionImport")
+  }
+
+  model TransactionImportItem {
+    currency VarChar(3) @default("BRL")
+
+    id                  VarChar(36)              @id(map: "TransactionImportItem_pkey") @default(sql`cuid2()`)
+    transactionImportId VarChar(36)
+    externalId          VarChar(200)?
+    transferCounterpartExternalId VarChar(200)?
+    amount              Numeric(20, 6)
+    date                Date
+    time                Time(precision: 3)?
+    description         VarChar(1000)?
+    storeName           VarChar(200)?
+    type                pg.enum(TransactionImportItemType)
+    paymentCreditCardId         VarChar(36)?
+    originFinancialAccountId      VarChar(36)?
+    destinationFinancialAccountId VarChar(36)?
+    isHidden            Boolean                  @default(false)
+    isDuplicateIgnored  Boolean                  @default(false)
+    isReconciled        Boolean                  @default(false)
+    reconciledTransactionId VarChar(36)?
+    reconciledImportItemId VarChar(36)?
+    isSelected          Boolean                  @default(true)
+    balanceAfter        Numeric(20, 6)?
+    createdAt           TimestampJsDate(3)             @default(now())
+    updatedAt           TimestampJsDate(3)             @default(now())
+    transactionImport   TransactionImport         @relation(fields: [transactionImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportItem_importId_fkey", index: false)
+    paymentCreditCard    CreditCard?      @relation(fields: [paymentCreditCardId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_paymentCreditCardId_fkey", index: false)
+    originFinancialAccount FinancialAccount?      @relation(name: "TransactionImportItem_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_originId_fkey", index: false)
+    destinationFinancialAccount FinancialAccount? @relation(name: "TransactionImportItem_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_destinationId_fkey", index: false)
+    reconciledTransaction Transaction? @relation(name: "TransactionImportItem_reconciledTransactionId_fkey", fields: [reconciledTransactionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "TransactionImportItem_reconciledTransactionId_fkey", index: false)
+    reconciledImportItem TransactionImportItem? @relation(name: "TransactionImportItem_reconciledImportItemId_fkey", fields: [reconciledImportItemId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "TransactionImportItem_reconciledImportItemId_fkey", index: false)
+    reconciledByImportItems TransactionImportItem[] @relation(name: "TransactionImportItem_reconciledImportItemId_fkey")
+    debtSplit           DebtSplit?
+
+    @@index([transactionImportId, date], map: "TransactionImportItem_importId_date_idx")
+    @@index([externalId], map: "TransactionImportItem_externalId_idx")
+    @@index([paymentCreditCardId], map: "TransactionImportItem_paymentCreditCardId_idx")
+    @@index([originFinancialAccountId], map: "TransactionImportItem_originId_idx")
+    @@index([destinationFinancialAccountId], map: "TransactionImportItem_destinationId_idx")
+    @@index([reconciledTransactionId], map: "TransactionImportItem_reconciledTransactionId_idx")
+    @@index([reconciledImportItemId], map: "TransactionImportItem_reconciledImportItemId_idx")
+    @@map("TransactionImportItem")
+  }
+
+  model TransactionImportTransferSuggestionRejection {
+    id                         VarChar(36)  @id(map: "TransactionImportTransferSuggestionRejection_pkey") @default(sql`cuid2()`)
+    userId                     VarChar(36)
+    outgoingFinancialAccountId VarChar(36)
+    outgoingExternalId         VarChar(200)
+    incomingFinancialAccountId VarChar(36)
+    incomingExternalId         VarChar(200)
+    createdAt                  TimestampJsDate(3) @default(now())
+    updatedAt                  TimestampJsDate(3) @default(now())
+    user                       User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferSuggestionRejection_userId_fkey", index: false)
+    outgoingFinancialAccount   FinancialAccount @relation(name: "TransactionImportTransferSuggestionRejection_outgoingAccountId_fkey", fields: [outgoingFinancialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferRejection_outgoing_fkey", index: false)
+    incomingFinancialAccount   FinancialAccount @relation(name: "TransactionImportTransferSuggestionRejection_incomingAccountId_fkey", fields: [incomingFinancialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferRejection_incoming_fkey", index: false)
+
+    @@index([userId, outgoingFinancialAccountId, outgoingExternalId, incomingFinancialAccountId, incomingExternalId], map: "TransactionImportTransferSuggestionRejection_pair_key", unique: true)
+    @@map("TransactionImportTransferSuggestionRejection")
+  }
+
+  model TransactionTransferSuggestionRejection {
+    id                  VarChar(36)  @id(map: "TransactionTransferSuggestionRejection_pkey") @default(sql`cuid2()`)
+    userId              VarChar(36)
+    firstTransactionId  VarChar(36)
+    secondTransactionId VarChar(36)
+    createdAt           TimestampJsDate(3) @default(now())
+    updatedAt           TimestampJsDate(3) @default(now())
+    user                User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_userId_fkey", index: false)
+    firstTransaction    Transaction  @relation(name: "TransactionTransferSuggestionRejection_firstTransactionId_fkey", fields: [firstTransactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_firstTransactionId_fkey", index: false)
+    secondTransaction   Transaction  @relation(name: "TransactionTransferSuggestionRejection_secondTransactionId_fkey", fields: [secondTransactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionTransferSuggestionRejection_secondTransactionId_fkey", index: false)
+
+    @@index([userId, firstTransactionId, secondTransactionId], map: "TransactionTransferSuggestionRejection_pair_key", unique: true)
+    @@map("TransactionTransferSuggestionRejection")
+  }
+
+  model TransactionHistory {
+    id            VarChar(36)  @id(map: "TransactionHistory_pkey") @default(sql`cuid2()`)
+    transactionId VarChar(36)
+    field         VarChar(50)
+    oldValue      String?
+    newValue      String?
+    changedAt     TimestampJsDate(3) @default(now())
+    transaction   Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionHistory_transactionId_fkey", index: false)
+
+    @@map("TransactionHistory")
+  }
+
+  model Verification {
+    id         VarChar(36)  @id(map: "verification_pkey") @default(sql`cuid2()`)
+    identifier VarChar(320)
+    value      String
+    expiresAt  TimestampJsDate(3)
+    createdAt  TimestampJsDate(3) @default(now())
+    updatedAt  TimestampJsDate(3) @default(now())
+
+    @@index([identifier], map: "verification_identifier_idx")
+    @@map("verification")
+  }
+
+  native_enum AdvanceType {
+    FRONT = "FRONT"
+    BACK = "BACK"
+  }
+
+  native_enum AmortizationType {
+    PRICE = "PRICE"
+    SAC = "SAC"
+  }
+
+  native_enum DebtConnectionStatus {
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    DECLINED = "DECLINED"
+  }
+
+  native_enum DebtEventKind {
+    ORIGIN = "ORIGIN"
+    TRANSACTION = "TRANSACTION"
+    PURCHASE = "PURCHASE"
+    MIGRATED_SETTLEMENT = "MIGRATED_SETTLEMENT"
+  }
+
+  native_enum DebtSplitMode {
+    SHARES = "SHARES"
+    PERCENTAGE = "PERCENTAGE"
+    FIXED = "FIXED"
+  }
+
+  native_enum CashbackYieldPeriod {
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+  }
+
+  native_enum FinancialAccountYieldPeriod {
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+  }
+
+  native_enum FinancialAccountYieldKind {
+    AUTOMATIC = "AUTOMATIC"
+    MANUAL = "MANUAL"
+  }
+
+  native_enum FinancialAccountYieldOrigin {
+    SYSTEM = "SYSTEM"
+    USER = "USER"
+  }
+
+  native_enum ReferenceRateType {
+    CDI = "CDI"
+    SELIC = "SELIC"
+    IPCA = "IPCA"
+    TR = "TR"
+  }
+
+  native_enum FinancialAccountType {
+    CHECKING = "CHECKING"
+    SAVINGS = "SAVINGS"
+    INVESTMENT = "INVESTMENT"
+    CASH = "CASH"
+    CREDIT_CARD = "CREDIT_CARD"
+    REWARDS = "REWARDS"
+  }
+
+  native_enum RewardsAccountKind {
+    POINTS = "POINTS"
+    CASHBACK = "CASHBACK"
+  }
+
+  native_enum PaymentMethod {
+    DEBIT = "DEBIT"
+    CREDIT = "CREDIT"
+    PIX = "PIX"
+    CASH = "CASH"
+    TRANSFER = "TRANSFER"
+    BOLETO = "BOLETO"
+  }
+
+  native_enum RecurrenceFrequency {
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    BIWEEKLY = "BIWEEKLY"
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+  }
+
+  native_enum TransactionType {
+    INCOME = "INCOME"
+    EXPENSE = "EXPENSE"
+    TRANSFER = "TRANSFER"
+  }
+
+  native_enum TransactionImportProvider {
+    MERCADO_PAGO = "MERCADO_PAGO"
+    NUBANK = "NUBANK"
+    GENERIC = "GENERIC"
+    BANCO_DO_BRASIL = "BANCO_DO_BRASIL"
+    INTER = "INTER"
+    PICPAY = "PICPAY"
+    MEUPLUGGY = "MEUPLUGGY"
+  }
+
+  native_enum CreditCardImportProvider {
+    MERCADO_PAGO = "MERCADO_PAGO"
+    BRADESCO = "BRADESCO"
+    INTER = "INTER"
+    NUBANK = "NUBANK"
+    PICPAY = "PICPAY"
+    MEUPLUGGY = "MEUPLUGGY"
+    WILL_BANK = "WILL_BANK"
+  }
+
+  native_enum CreditRefundPolicy {
+    KEEP_INSTALLMENTS = "KEEP_INSTALLMENTS"
+    CANCEL_FUTURE_INSTALLMENTS = "CANCEL_FUTURE_INSTALLMENTS"
+  }
+
+  native_enum TransactionImportItemType {
+    INCOME = "INCOME"
+    EXPENSE = "EXPENSE"
+    TRANSFER = "TRANSFER"
+    YIELD = "YIELD"
+  }
+
+  native_enum TransactionImportStatus {
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+  }
+}

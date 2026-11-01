@@ -17,6 +17,9 @@ COPY packages/sql/package.json packages/sql/package.json
 
 RUN bun i --offline --frozen-lockfile --linker=isolated
 
+COPY packages/sql/compatibility/early-rc/package.json packages/sql/compatibility/early-rc/bun.lock packages/sql/compatibility/early-rc/
+RUN cd packages/sql/compatibility/early-rc && bun install --frozen-lockfile
+
 FROM deps AS build
 
 WORKDIR /app
@@ -47,6 +50,9 @@ COPY --from=build /app/packages/sql/prisma.config.ts ./packages/sql/prisma.confi
 COPY --from=build /app/packages/sql/scripts ./packages/sql/scripts
 COPY --from=build /app/packages/sql/src/prisma ./packages/sql/src/prisma
 COPY --from=build /app/packages/sql/migrations ./packages/sql/migrations
+COPY --from=build /app/packages/sql/migrations-native ./packages/sql/migrations-native
+COPY --from=build /app/packages/sql/compatibility/native-baseline ./packages/sql/compatibility/native-baseline
+COPY --from=deps /app/packages/sql/compatibility/early-rc ./packages/sql/compatibility/early-rc
 
 WORKDIR /app/backend
 
