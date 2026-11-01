@@ -67,6 +67,7 @@ import {
 	getCreditCardsByIdRefundReviews,
 	getCreditCardsByIdStatementsByStatementId,
 	getCreditCardsPaymentSuggestions,
+	getCreditCardsStatementOwnerByStatementId,
 	getDebts,
 	getDebtsInvitations,
 	getFinancialAccounts,
@@ -1761,6 +1762,13 @@ export const dataService = {
 				purchases,
 				totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
 			} as CreditCardStatementDetail;
+		},
+
+		async getStatementOwner(statementId: string): Promise<string | null> {
+			if (!isGuestMode())
+				return (await getCreditCardsStatementOwnerByStatementId(statementId))?.creditCardId ?? null;
+			const statement = await localCreditCardStatements.getById(statementId);
+			return statement?.data.creditCardId ?? null;
 		},
 		async getStatementPage(
 			cardId: string,

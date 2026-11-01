@@ -91,6 +91,8 @@ import {
 	PaymentSuggestionReturn,
 } from "./PaymentSuggestionsDTO";
 
+const StatementOwnerReturn = t.Union([t.Object({ creditCardId: t.String() }), t.Null()]);
+
 const statementColumns = [
 	"id",
 	"creditCardId",
@@ -137,6 +139,25 @@ const UpdatePurchaseBody = t.Object({
 	totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 });
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
+	.get(
+		"/statement-owner/:statementId",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const [owner] = await queryRaw<{ creditCardId: string }>(
+				`SELECT statement."creditCardId" FROM "CreditCardStatement" statement
+     JOIN "CreditCard" card ON card.id=statement."creditCardId"
+     JOIN "FinancialAccount" account ON account.id=card."financialAccountId"
+     WHERE statement.id=$1 AND account."userId"=$2`,
+				[params.statementId, userId],
+			);
+			return owner ?? null;
+		},
+		{
+			detail: { operationId: "getCreditCardsStatementOwnerByStatementId" },
+			params: t.Object({ statementId: t.String({ maxLength: 200, minLength: 1 }) }),
+			response: StatementOwnerReturn,
+		},
+	)
 	.get(
 		"/payment-suggestions",
 		async ({ request, set }) => {

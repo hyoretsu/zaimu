@@ -322,6 +322,36 @@ describe("normalized refund transactions", () => {
 		expect(initial.status).toBe(200);
 		const initialBook = (await initial.json()) as CreditBookDTO;
 		expect(initialBook.purchases.length).toBeGreaterThan(0);
+		const statementId = initialBook.statements[0]!.id;
+		const ownerPath = `/credit-cards/statement-owner/${statementId}`;
+		expect((await request(ownerPath, "GET", undefined, false)).status).toBe(401);
+		expect(await (await request(ownerPath)).json()).toEqual({ creditCardId: context.cardId });
+		const ownershipQueries = new Map<string, number>();
+		activeQueries = ownershipQueries;
+		try {
+			expect(await (await request(ownerPath)).json()).toEqual({ creditCardId: context.cardId });
+		} finally {
+			activeQueries = undefined;
+		}
+		expect(
+			[...ownershipQueries]
+				.filter(([sql]) => sql.includes('FROM "CreditCardStatement"'))
+				.reduce((count, [, amount]) => count + amount, 0),
+		).toBe(1);
+		expect([...ownershipQueries.keys()].some(sql => sql.includes("CreditPurchaseRecord"))).toBe(false);
+		expect(await (await request("/credit-cards/statement-owner/missing")).json()).toBeNull();
+		await client.query(`INSERT INTO "user" (id,email,name) VALUES ('statement-other','statement-other@test.invalid','Other');
+   INSERT INTO "FinancialAccount" (id,"userId",name,type) VALUES ('statement-other-account','statement-other','Other','CREDIT_CARD');
+   INSERT INTO "CreditCard" (id,"financialAccountId","creditLimit","statementDay","dueDay") VALUES ('statement-other-card','statement-other-account',100,1,5);
+   INSERT INTO "CreditCardStatement" (id,"creditCardId","statementDate","dueDate") VALUES ('statement-other-invoice','statement-other-card','2026-10-01','2026-10-05')`);
+		try {
+			expect(
+				await (await request("/credit-cards/statement-owner/statement-other-invoice")).json(),
+			).toBeNull();
+		} finally {
+			await client.query(`DELETE FROM "user" WHERE id='statement-other'`);
+		}
+
 		const created = await request(`/credit-cards/${context.cardId}/purchases`, "POST", {
 			description: "HTTP compra",
 			installments: 2,

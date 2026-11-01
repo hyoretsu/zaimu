@@ -1,21 +1,24 @@
 import { expect, test } from "bun:test";
 import { findStatementCard } from "./statement-modal-context";
-
-test("statement-only links resolve the owning card without choosing the first card", async () => {
-	const loaded: string[] = [];
-	const card = await findStatementCard(["first", "second", "third"], "invoice", async id => {
-		loaded.push(id);
-		return id === "second" ? [{ id: "invoice" }] : [{ id: "other" }];
+for (const size of [1, 10, 10000])
+	test(`statement owner resolves with one lookup for ${size} cards`, async () => {
+		const cards = Array.from({ length: size }, (_, i) => `card-${i}`);
+		const calls: string[] = [];
+		expect(
+			await findStatementCard(cards, "invoice", async id => {
+				calls.push(id);
+				return cards.at(-1)!;
+			}),
+		).toBe(cards.at(-1)!);
+		expect(calls).toEqual(["invoice"]);
 	});
-	expect(card).toBe("second");
-	expect(loaded).toEqual(["first", "second"]);
+test("missing or unavailable card never opens unrelated card", async () => {
+	expect(await findStatementCard(["visible"], "invoice", async () => null)).toBeNull();
+	expect(await findStatementCard(["visible"], "invoice", async () => "hidden")).toBeNull();
 });
-test("missing statement never opens an unrelated card", async () => {
-	expect(await findStatementCard(["first", "second"], "missing", async () => [{ id: "other" }])).toBeNull();
-});
-test("failed ownership lookup remains an error instead of becoming not found", async () => {
+test("ownership failure remains retryable error", async () => {
 	await expect(
-		findStatementCard(["first"], "invoice", async () => {
+		findStatementCard(["card"], "invoice", async () => {
 			throw new Error("unavailable");
 		}),
 	).rejects.toThrow("unavailable");

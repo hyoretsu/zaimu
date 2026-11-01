@@ -72,11 +72,7 @@ export function CreditCardsPage() {
 			findStatementCard(
 				(cards.data ?? []).map(card => card.id),
 				requestedStatementId!,
-				cardId =>
-					queryClient.ensureQueryData({
-						queryFn: () => dataService.creditCards.getStatements(cardId),
-						queryKey: [...queryKeys.creditCardStatements.list(identity!, cardId), "browser"],
-					}),
+				statementId => dataService.creditCards.getStatementOwner(statementId),
 			),
 		queryKey: [
 			"identity",
