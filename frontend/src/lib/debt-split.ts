@@ -195,11 +195,10 @@ export function calculateDebtSplit(
 					item.fixedAmount < 0 ||
 					(item.fixedAmount === 0 && item.debtPersonId !== split.remainderDebtPersonId) ||
 					Math.abs(item.fixedAmount * scale - amounts[index]) > 1e-7,
-			) ||
-			sum > total
+			)
 		)
 			return null;
-		owner = total - sum;
+		owner = Math.max(0, total - sum);
 	}
 	const remainderIndex =
 		split.mode !== "SHARES" && split.remainderDebtPersonId
@@ -266,16 +265,6 @@ export function debtSplitError(amount: number, split: DebtSplitInput, currency =
 		);
 		return percentageTotal > 10_000
 			? "Os percentuais das pessoas não podem ultrapassar 100%."
-			: "Cada pessoa deve ter um valor positivo para a divisão.";
-	}
-	if (split.mode === "FIXED") {
-		const scale = currencyScale(currency);
-		const distributed = split.participants.reduce(
-			(sum, item) => sum + Math.round(item.fixedAmount * scale),
-			0,
-		);
-		return distributed > Math.round(amount * scale)
-			? "Os valores das pessoas não podem ultrapassar o total."
 			: "Cada pessoa deve ter um valor positivo para a divisão.";
 	}
 	return "Cada pessoa deve ter um valor positivo para a divisão.";

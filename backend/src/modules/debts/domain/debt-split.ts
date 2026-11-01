@@ -155,11 +155,9 @@ export function calculateDebtSplit(
 	)
 		throw new DebtSplitValidationError("Valores fixos devem ser positivos e respeitar a precisão da moeda");
 	const distributedCents = participantCents.reduce((sum, value) => sum + value, 0);
-	if (distributedCents > totalCents)
-		throw new DebtSplitValidationError("Os valores das pessoas não podem ultrapassar o total");
 	const { ownerCents, participantCents: allocatedParticipantCents } = assignRemainder(
 		participantCents,
-		totalCents - distributedCents,
+		Math.max(0, totalCents - distributedCents),
 		split.participants,
 		split.remainderDebtPersonId,
 	);
