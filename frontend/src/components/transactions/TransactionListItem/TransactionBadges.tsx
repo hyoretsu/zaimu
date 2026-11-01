@@ -62,6 +62,14 @@ export function TransactionBadges({
 					</AppBadge>
 				</li>
 			))}
+			{isSynced ? (
+				<li>
+					<AppBadge variant="outline">
+						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
+						<span>Sincronizada</span>
+					</AppBadge>
+				</li>
+			) : null}
 			{creditCardPayment ? (
 				<>
 					<li className="min-w-0">
@@ -88,14 +96,6 @@ export function TransactionBadges({
 						</li>
 					) : null}
 				</>
-			) : null}
-			{isSynced ? (
-				<li>
-					<AppBadge variant="outline">
-						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
-						<span>Sincronizada</span>
-					</AppBadge>
-				</li>
 			) : null}
 			{storeName ? (
 				<li className="min-w-0">
