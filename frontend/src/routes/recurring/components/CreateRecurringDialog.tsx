@@ -157,10 +157,19 @@ export function CreateRecurringDialog({
 			conflictKey: `recurrence:${recurrence?.id ?? recovery.savedId ?? "new"}`,
 			failureMessage: "Não foi possível salvar a recorrência.",
 			loadingMessage: recovery.completedWrite ? "Recompondo ocorrências..." : "Salvando recorrência...",
-			recovery: { entityId: recurrence?.id ?? recovery.savedId, kind: "recurrence-save", payload: recovery },
+			recovery: {
+				entityId: recurrence?.id ?? recovery.savedId,
+				kind: "recurrence-save",
+				payload: recovery,
+			},
 			recoveryId,
 			run: () =>
-				saveRecurrenceWithReplay(recovery, recurrence?.id, dataService.recurrences, getLocalDateKey()),
+				saveRecurrenceWithReplay(
+					recovery,
+					recurrence?.id,
+					dataService.recurrences,
+					getLocalDateKey(),
+				),
 			successMessage: recurrence ? "Recorrência atualizada." : "Recorrência criada.",
 		});
 	return (
@@ -168,7 +177,9 @@ export function CreateRecurringDialog({
 			<DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>{recurrence ? "Editar recorrência" : "Adicionar recorrência"}</DialogTitle>
-					<DialogDescription>Agende recebimentos, pagamentos, compras ou transferências.</DialogDescription>
+					<DialogDescription>
+						Agende recebimentos, pagamentos, compras ou transferências.
+					</DialogDescription>
 				</DialogHeader>
 				{accounts.isPending ? (
 					<DialogBody>
@@ -186,7 +197,10 @@ export function CreateRecurringDialog({
 					<form
 						className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
 						onInputCapture={event => {
-							if (event.target instanceof HTMLInputElement && event.target.name === "recurrence-amount")
+							if (
+								event.target instanceof HTMLInputElement &&
+								event.target.name === "recurrence-amount"
+							)
 								amountEntered.current = true;
 						}}
 						onSubmit={event => {
@@ -204,7 +218,9 @@ export function CreateRecurringDialog({
 									? Number(fields.get("recurrence-day") ?? draft.dayOfMonth)
 									: null,
 								dayOfWeek:
-									draft.unit === "WEEK" && draft.dayOfWeek !== "default" ? Number(draft.dayOfWeek) : null,
+									draft.unit === "WEEK" && draft.dayOfWeek !== "default"
+										? Number(draft.dayOfWeek)
+										: null,
 								debtSplit: debtAllowed && debtEnabled ? debtSplit : null,
 								destinationFinancialAccountId: ["INCOME", "TRANSFER"].includes(draft.movement)
 									? draft.destinationFinancialAccountId || null
@@ -218,7 +234,9 @@ export function CreateRecurringDialog({
 								isActive: recurrence?.isActive ?? true,
 								movement: draft.movement,
 								name: String(fields.get("recurrence-name") ?? draft.name).trim(),
-								originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(draft.movement)
+								originFinancialAccountId: ["EXPENSE", "TRANSFER", "CARD_PAYMENT"].includes(
+									draft.movement,
+								)
 									? draft.originFinancialAccountId || null
 									: null,
 								startDate: draft.startDate,
@@ -231,7 +249,9 @@ export function CreateRecurringDialog({
 									validateRecurrenceInput(input);
 								} catch (error) {
 									setValidationError(
-										error instanceof Error ? error.message : "Revise os campos obrigatórios.",
+										error instanceof Error
+											? error.message
+											: "Revise os campos obrigatórios.",
 									);
 									return;
 								}
@@ -241,7 +261,9 @@ export function CreateRecurringDialog({
 								...draft,
 								amount: String(amount),
 								dayOfMonth: String(fields.get("recurrence-day") ?? draft.dayOfMonth),
-								installments: String(fields.get("recurrence-installments") ?? draft.installments),
+								installments: String(
+									fields.get("recurrence-installments") ?? draft.installments,
+								),
 								interval: String(fields.get("recurrence-interval") ?? draft.interval),
 								name: String(fields.get("recurrence-name") ?? draft.name),
 							};
@@ -276,7 +298,11 @@ export function CreateRecurringDialog({
 									<CurrencySelect
 										label="Moeda da recorrência"
 										onValueChange={value =>
-											setDraft(current => ({ ...current, currency: value, currencyExplicit: true }))
+											setDraft(current => ({
+												...current,
+												currency: value,
+												currencyExplicit: true,
+											}))
 										}
 										value={draft.currency}
 									/>
@@ -284,7 +310,9 @@ export function CreateRecurringDialog({
 										currencyCode={draft.currency}
 										id="recurrence-amount"
 										label={
-											draft.movement === "CARD_PURCHASE" ? "Valor total por compra" : "Valor por ocorrência"
+											draft.movement === "CARD_PURCHASE"
+												? "Valor total por compra"
+												: "Valor por ocorrência"
 										}
 										name="recurrence-amount"
 										onValueChange={value => set("amount", value)}
@@ -305,7 +333,9 @@ export function CreateRecurringDialog({
 												originFinancialAccountId: "",
 											}))
 										}
-										options={Object.entries(movementLabels).map(([value, label]) => ({ label, value }))}
+										options={Object.entries(movementLabels)
+											.filter(([value]) => value !== "CARD_PAYMENT")
+											.map(([value, label]) => ({ label, value }))}
 										placeholder="Selecione movimentação"
 										required
 										value={draft.movement}
@@ -328,8 +358,8 @@ export function CreateRecurringDialog({
 											value={draft.installments}
 										/>
 										<p className="text-muted-foreground text-sm">
-											Cada ocorrência gera uma nova compra pelo valor total, dividida em parcelas mensais. Use
-											1 para pagamento à vista.
+											Cada ocorrência gera uma nova compra pelo valor total, dividida em
+											parcelas mensais. Use 1 para pagamento à vista.
 										</p>
 									</div>
 								)}
@@ -364,7 +394,9 @@ export function CreateRecurringDialog({
 							<Button onClick={() => onOpenChange(false)} type="button" variant="outline">
 								Descartar
 							</Button>
-							<Button type="submit">{completedWrite ? "Retomar recomposição" : "Salvar"}</Button>
+							<Button type="submit">
+								{completedWrite ? "Retomar recomposição" : "Salvar"}
+							</Button>
 						</DialogFooter>
 					</form>
 				)}

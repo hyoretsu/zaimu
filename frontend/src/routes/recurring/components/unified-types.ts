@@ -21,9 +21,9 @@ export interface UnifiedRecurringDraft {
 export const movementLabels: Record<RecurrenceMovement, string> = {
 	CARD_PAYMENT: "Pagamento do cartão",
 	CARD_PURCHASE: "Compra no cartão",
-	EXPENSE: "Saída de conta",
-	INCOME: "Entrada em conta",
-	TRANSFER: "Transferência entre contas",
+	EXPENSE: "Saída",
+	INCOME: "Entrada",
+	TRANSFER: "Transferência",
 };
 export const unitLabels: Record<RecurrenceUnit, string> = {
 	DAY: "dias",
