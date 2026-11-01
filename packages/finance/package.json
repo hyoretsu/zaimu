@@ -4,6 +4,7 @@
 	"type": "module",
 	"exports": {
 		"./asset-quote-provider": "./src/asset-quote-provider.ts",
+		"./asset-valuation": "./src/asset-valuation.ts",
 		"./asset-amount": "./src/asset-amount.ts",
 		"./institution-card-rules": "./src/institution-card-rules.ts",
 		"./comparison-periods": "./src/comparison-periods.ts",

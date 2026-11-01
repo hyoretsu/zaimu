@@ -58,3 +58,55 @@ plan; unavailable symbols can fail the whole request with HTTP 400. Historical
 fiat conversion is upstream and can reuse a preceding daily FX observation or
 return null. No delay/freshness SLA is assumed. Stocks, ETFs and FIIs are outside
 this implementation.
+
+## Exact valuation from injected snapshots
+
+`@zaimu/finance/asset-valuation` exports `createAssetValuationResolver`,
+`AssetQuoteSnapshots`, `AssetFxSnapshots`, `AssetFxRate`, `AssetValuationInput`,
+`AssetValuation` and `AssetValuationError`. The resolver has no database,
+provider calls, environment reads, cache, retries or writes.
+
+```ts
+const resolve = createAssetValuationResolver({
+	quotes: { getQuote: async (date, assetCode, quoteCurrency) => savedQuoteOrNull },
+	fx: { getRate: async (date, fromCurrency, toCurrency) => savedFxOrNull },
+});
+const value = await resolve({
+	date: "2026-01-01",
+	assetCode: "ETH",
+	quantity: "1.000000000000000001",
+	quoteCurrency: "USD",
+	preferredCurrency: "BRL",
+});
+```
+
+Each injected lookup must return the exact requested date and pair. Missing,
+wrong-day, wrong-pair or stale-source quotes fail; FX dates/pairs are also checked.
+`latest` is not accepted. No inversion, cross-rate search, preceding-day FX or
+current-quote fallback is performed by the resolver. Identical quote/preferred
+fiat currencies skip the FX lookup. A matching snapshot date cannot prove the
+provenance of upstream daily FX conversion: the brapi limitations above still apply.
+
+Quantities use `decimalToUnits`/`unitsToDecimal` from `asset-amount.ts`, with the
+catalog precision from `money.ts` (register custom asset precision before use).
+Quote prices and FX rates must be positive plain decimal strings with up to 20
+integer and 18 fractional digits. FX `rate` means destination fiat per one unit
+of source fiat. An adapter for legacy numeric FX must explicitly convert its input to plain decimal text and accept the same already-lost-precision limitation as numeric brapi prices.
+The resolver does not accept numeric quantities, prices or rates.
+
+Quantity x quote price x FX is computed entirely with BigInt coefficients and
+power-of-ten scales. No quantity goes through `Number`; only decimal-place counts
+and date metadata use numeric operations. There is no intermediate fiat rounding.
+The result exposes `exactAmount` as the full decimal product (up to 54 fractional
+places), `quantity` at asset precision and the quote/FX provenance. Signed and zero
+quantities are supported; prices and rates remain strictly positive.
+
+`amount` is rounded **once**, in the preferred fiat currency's minor units from
+`currencyDigits`, using **HALF_AWAY_FROM_ZERO** (also returned in `rounding`).
+Thus BRL `1.005` becomes `1.01`, `-1.005` becomes `-1.01`, JPY `2.5` becomes `3`.
+Zero has no negative sign. This is a per-position value: aggregating rounded
+positions can differ from rounding their exact aggregate. No aggregate is computed.
+Arithmetic is exact relative to supplied decimal strings; it cannot restore
+precision lost before those strings were produced.
+
+Tests: `bun test packages/finance/src/asset-valuation.test.ts`.
