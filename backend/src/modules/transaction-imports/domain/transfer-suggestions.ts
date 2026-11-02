@@ -32,7 +32,9 @@ export function transferSuggestionTimeSeconds(value: string | null | undefined) 
 	const match = value?.match(timePattern);
 	if (!match?.groups) return null;
 	return (
-		Number(match.groups.hours) * 3_600 + Number(match.groups.minutes) * 60 + Number(match.groups.seconds ?? 0)
+		Number(match.groups.hours) * 3_600 +
+		Number(match.groups.minutes) * 60 +
+		Number(match.groups.seconds ?? 0)
 	);
 }
 
@@ -76,7 +78,7 @@ export function getTransferSuggestions<Item extends TransferSuggestionItem>(
 ) {
 	return candidates.flatMap(candidate => {
 		if (candidate.id === item.id) return [];
-		if (item.source !== "IMPORT_ITEM" || candidate.source !== "TRANSACTION") return [];
+		if (item.source !== "IMPORT_ITEM") return [];
 		const pair = getTransferSuggestionPair(item, candidate);
 		if (!pair?.outgoing.externalId || !pair.incoming.externalId) return [];
 		return rejectedPairs.has(
