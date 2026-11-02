@@ -760,7 +760,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 			 GROUP BY import."id", import."fileName", import."createdAt"
-			 ORDER BY import."createdAt" DESC`,
+			 ORDER BY "pendingItemCount" ASC, import."createdAt" DESC`,
 						[userId],
 					),
 			);

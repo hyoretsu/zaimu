@@ -94,7 +94,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			 LEFT JOIN "CreditCardImportItem" item ON item."creditCardImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 			 GROUP BY import."id", import."fileName", import."createdAt"
-			 ORDER BY import."createdAt" DESC`,
+			 ORDER BY "pendingItemCount" ASC, import."createdAt" DESC`,
 						[userId],
 					),
 			);
