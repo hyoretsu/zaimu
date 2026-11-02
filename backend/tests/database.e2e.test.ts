@@ -100,7 +100,38 @@ suite("Prisma 8 SQL query builder", () => {
 
 	afterAll(async () => {
 		if (userIds.length > 0) {
-			// Institution proposals created by signup flows reference users without cascade.
+			// Profiles and proposals reference users/institutions with RESTRICT, so remove owned ones first.
+			const ownedInstitutions = await queryRows(
+				db.sql.public.FinancialInstitution.select("id")
+					.where((fields, functions) => functions.in(fields.userId, userIds))
+					.build(),
+			);
+			const ownedInstitutionIds = ownedInstitutions.map(row => row.id);
+			if (ownedInstitutionIds.length > 0) {
+				const ownedProfiles = await queryRows(
+					db.sql.public.FinancialInstitutionProfile.select("id")
+						.where((fields, functions) => functions.in(fields.institutionId, ownedInstitutionIds))
+						.build(),
+				);
+				const ownedProfileIds = ownedProfiles.map(row => row.id);
+				if (ownedProfileIds.length > 0) {
+					await executeStatement(
+						db.sql.public.UserInstitutionProfileChange.delete()
+							.where((fields, functions) => functions.in(fields.profileId, ownedProfileIds))
+							.build(),
+					);
+					await executeStatement(
+						db.sql.public.FinancialInstitutionYieldPolicy.delete()
+							.where((fields, functions) => functions.in(fields.profileId, ownedProfileIds))
+							.build(),
+					);
+					await executeStatement(
+						db.sql.public.FinancialInstitutionProfile.delete()
+							.where((fields, functions) => functions.in(fields.id, ownedProfileIds))
+							.build(),
+					);
+				}
+			}
 			await executeStatement(
 				db.sql.public.FinancialInstitutionProposal.delete()
 					.where((fields, functions) => functions.in(fields.authorId, userIds))
@@ -604,23 +635,25 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(((await repeatedLinkedPurchaseResponse.json()) as Array<{ id: string }>)[0]?.id).toBe(
 			initialSubscriptionPurchase?.id,
 		);
-		// Relative to today, the first forecast statement may only carry earlier balances forward;
-		// the projected subscription charge lands in whichever forecast statement its cycle belongs to.
-		const forecastStatements = (
-			(await subscriptionStatementsResponse.json()) as {
-				items: Array<{ id: string; isForecast?: boolean }>;
-			}
-		).items.filter(statement => statement.isForecast);
-		expect(forecastStatements.length).toBeGreaterThan(0);
+		// The statement listing never shows statements that exist only because of recurring forecasts,
+		// so open the forecast statements of the next cycles directly by their deterministic ids.
+		// Only "found" (200) or "not a projected statement" (404) are acceptable; anything else fails.
 		const forecastPurchases: Array<{ id: string; storeName: string }> = [];
-		for (const forecast of forecastStatements) {
+		const horizon = new Date();
+		for (let offset = 0; offset <= 3; offset++) {
+			const statementDate = new Date(
+				Date.UTC(horizon.getUTCFullYear(), horizon.getUTCMonth() + offset, 10),
+			)
+				.toISOString()
+				.slice(0, 10);
 			const forecastResponse = await jsonRequest(
-				`/credit-cards/${creditCardAccount.creditCard.id}/statements/${forecast.id}`,
+				`/credit-cards/${creditCardAccount.creditCard.id}/statements/forecast-${creditCardAccount.creditCard.id}-${statementDate}`,
 				"GET",
 				undefined,
 				owner.cookie,
 			);
-			expect(forecastResponse.status).toBe(200);
+			expect([200, 404]).toContain(forecastResponse.status);
+			if (forecastResponse.status !== 200) continue;
 			forecastPurchases.push(
 				...(
 					(await forecastResponse.json()) as { purchases: Array<{ id: string; storeName: string }> }
@@ -1534,6 +1567,7 @@ suite("Prisma 8 SQL query builder", () => {
 			"POST",
 			{
 				creditCard: { creditLimit: 1000, dueDay: 20, statementDay: 10 },
+				currency: "USD",
 				name: `Cartão dívida ${crypto.randomUUID()}`,
 				type: "CREDIT_CARD",
 			},
