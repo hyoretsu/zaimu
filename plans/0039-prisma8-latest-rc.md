@@ -30,6 +30,23 @@ Frozen disposable SQL E2E validation completed successfully: existing migration 
 
 The scoped infrastructure commit was attempted through hooks and refused by backend dependent type checking (182 errors in 34 files); SQL/scripts checks passed. Existing bounded domain owners are repairing latest builder, numeric and date boundaries without API widening or cast suppression. No implementation commit exists yet. A concrete card/import inventory still lists 78 ordinary literals, 32 PostgreSQL/bulk candidates requiring capability review and 9 absent-contract CreditEntry-view queries; no blanket raw exception is accepted.
 
+## Execution results (continuation)
+
+Commits after the infrastructure commit: `34381ec0` (sql json decode + auth adapter), `e6aa5633` (accounts/yield), `20bff6a2` (transfers/transactions), `20c7d47a` (cards/imports), `9479eb01` (debts/loans/remaining), `66d88f7a` (notifications). All passed the repository hooks.
+
+- Currency default cache test: root cause was the runtime sending `set_config(DateStyle/lc_monetary)` once per physical connection plus a one-time `verifyMarker` probe. The test now warms the runtime (`defaultCurrency("currency-warmup")`) in `beforeAll`; the expectation (1 physical query) is unchanged. Justification: those queries are per-connection/per-process setup, not per-read cost.
+- Real regression found and fixed by executing the suite: `CreditCardImportItem.metadataMissing` is a historical `json` column whose migration default is the JSON string `"[]"`. The previous runtime parsed twice; the new one parses once and returned the string `"[]"`, so every default-metadata item looked incomplete and bulk approval silently approved nothing. `packages/sql/src/index.ts` now unwraps strings that parse to arrays/objects for `pg/json`/`pg/jsonb` projected columns (historical migrations untouched).
+- Transactions API: date-only columns serialize again as UTC-midnight instants in create/update/detail responses (`withDateInstants`).
+- Better Auth adapter: ORM collection `skip/take` renamed to `offset/limit`.
+
+Disposable `bun run scripts/test-runner.ts backend integration`: passes (exit 0) after the fixes above. Disposable `backend e2e`: `backend/tests/database.e2e.test.ts` FAILS, identically to the pre-migration baseline. Evidence: a throwaway worktree of 6ccf868d run through the same runner failed at the same three points (account creation 400 `Selecione o pais da conta` because the test user has no preferredCountry; forecast statement purchases at line 591; debt invitation preview at line 1323; plus a user-delete FK cleanup error). The test user fixture now sets `preferredCountry: "BR"`; remaining failures are pre-existing and hide later assertions, so e2e coverage beyond line 591/1323 is NOT validated. A prior uncommitted diff of this test file was discarded by mistake during this session (git checkout) and could not be recovered; the test was re-edited minimally (preferredCountry fixture, `recurrenceOccurrenceDate` is now a string).
+
+## Raw SQL kept on purpose / deferred
+
+- Kept raw (PG capability): outbox `FOR UPDATE SKIP LOCKED` CTE and notification delivery claim CTE, advisory locks (`pg_advisory_xact_lock`), `CreditEntry` view reads, `ON CONFLICT` upserts, interval arithmetic on `now()`.
+- DebtsController event page and invitation summary remain original raw SQL (COALESCE(source_transaction.time, refund.time, purchase.time), per-event CASE descriptions, viewer-relative effect, hiddenAt IS NULL, stable name,id ordering, recordId join). Not converted: a faithful builder translation was not completed.
+- ~499 raw call sites remain across the backend (largest: account-transfers/move-financial-history 43, open-finance sync/process-record/configuration, credit-card-imports/import-service 24, sync/SyncController 21, transaction-imports controller 14, monthly-budgets 13, accounts/institutions controllers). Not converted in this pass.
+
 ## Validation outstanding
 
-Runtime probe, package installation/generation, domain conversion and disposable integration checks are pending. This plan must not be archived until implementation is code-complete.
+Plan is NOT code-complete; do not archive. Outstanding: remaining raw SQL conversion by domain, faithful conversion (or documented retention) of the two debt queries, full-review of financial query semantic drift (a read-only reviewer was run; see parent report), the pre-existing e2e failures, SQL-package suites after the json decode change, and the pre-merge type-check/build gate.
