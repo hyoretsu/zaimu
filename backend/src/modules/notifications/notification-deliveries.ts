@@ -1,5 +1,5 @@
 import { sendEmail } from "~/modules/auth/email";
-import { db, executeStatement, queryRaw, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 import {
 	PushConfigurationMissing,
 	PushDestinationExpired,
@@ -53,24 +53,44 @@ export async function deliverNotifications(adapters = { sendEmail, sendPush }) {
 					url,
 				});
 			else {
-				const [device] = await queryRaw<
-					PushTarget & Record<string, unknown> & { userId: string; enabled: boolean }
-				>(`SELECT * FROM "PushDevice" WHERE "id"=$1`, [delivery.deviceId]);
+				const device = delivery.deviceId
+					? await queryFirst(
+							db.sql.public.PushDevice.select(
+								"userId",
+								"enabled",
+								"platform",
+								"address",
+								"credentials",
+							)
+								.where((f, fn) => fn.eq(f.id, delivery.deviceId!))
+								.limit(1)
+								.build(),
+						)
+					: undefined;
 				if (!device?.enabled || device.userId !== delivery.userId) {
 					await complete(delivery.id, "SKIPPED");
 					continue;
 				}
-				await adapters.sendPush(device, { body, tag: `transfer:${delivery.transferId}`, title, url });
+				await adapters.sendPush(device as PushTarget, {
+					body,
+					tag: `transfer:${delivery.transferId}`,
+					title,
+					url,
+				});
 			}
 			await complete(delivery.id, "SENT");
 		} catch (error) {
 			if (error instanceof PushDestinationExpired) {
-				await queryRaw(`UPDATE "PushDevice" SET "enabled"=false WHERE "id"=$1 AND "userId"=$2`, [
-					delivery.deviceId,
-					delivery.userId,
-				]);
+				await executeStatement(
+					db.sql.public.PushDevice.update({ enabled: false })
+						.where((f, fn) =>
+							fn.and(fn.eq(f.id, delivery.deviceId!), fn.eq(f.userId, delivery.userId)),
+						)
+						.build(),
+				);
 				await complete(delivery.id, "SKIPPED");
 			} else
+				// Retry delay uses the database clock; kept raw (interval arithmetic on now()).
 				await queryRaw(
 					`UPDATE "NotificationDelivery" SET "lockedUntil"=NULL,"nextAttemptAt"=now()+($2*interval '1 second'),"lastError"=$3,"updatedAt"=now() WHERE "id"=$1`,
 					[
