@@ -18,7 +18,7 @@ import {
 } from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, param, queryFirst, queryRows } from "~/shared/infra/sql";
 import { requirePendingInvitationRecipient } from "./debt-invitation";
 import { normalizeDebtLedgerPerson } from "./debt-ledger-person";
 import {
@@ -393,11 +393,10 @@ export async function getInvitationPreview(
 			.orderBy("id", { direction: "asc" })
 			.build(),
 	);
-	// Aggregate per creator in PostgreSQL, then apply the viewer-relative sign per event creator in integer
-	// minor units (equivalent to SUM(CASE WHEN createdByUserId = viewer THEN effect ELSE -effect END)).
+	// Signed numeric(20,6) SUM computed exactly in PostgreSQL, as in the original query.
 	const totals = people.length
 		? await queryRows(
-				db.sql.public.DebtEvent.select("debtPersonId", "currency", "createdByUserId")
+				db.sql.public.DebtEvent.select("debtPersonId", "currency")
 					.where((fields, functions) =>
 						functions.and(
 							functions.in(
@@ -408,25 +407,28 @@ export async function getInvitationPreview(
 						),
 					)
 					.select((fields, functions) => ({
-						balance: functions.sum(fields.effect),
+						balance: functions.sum(
+							functions.raw`CASE WHEN ${fields.createdByUserId} = ${param(viewerId, { codecId: "sql/varchar@1" })} THEN ${fields.effect} ELSE -${fields.effect} END`.returns(
+								"pg/numeric@1",
+							),
+						),
 						eventCount: functions.count(fields.id),
 					}))
-					.groupBy("debtPersonId", "currency", "createdByUserId")
+					.groupBy("debtPersonId", "currency")
 					.build(),
 			)
 		: [];
 	const rows = people.flatMap(candidate => {
 		const byCurrency = new Map<string, { balance: number; eventCount: number }>();
 		for (const total of totals.filter(entry => entry.debtPersonId === candidate.id)) {
-			const entry = byCurrency.get(total.currency) ?? { balance: 0, eventCount: 0 };
-			const units = toMinorUnits(Number(total.balance), total.currency, -Number.MAX_SAFE_INTEGER);
-			entry.balance += total.createdByUserId === viewerId ? units : -units;
-			entry.eventCount += Number(total.eventCount);
-			byCurrency.set(total.currency, entry);
+			byCurrency.set(total.currency, {
+				balance: Number(total.balance ?? 0),
+				eventCount: Number(total.eventCount),
+			});
 		}
 		if (!byCurrency.size) byCurrency.set("BRL", { balance: 0, eventCount: 0 });
 		return [...byCurrency].map(([currency, entry]) => ({
-			balance: fromMinorUnits(entry.balance, currency),
+			balance: entry.balance,
 			currency,
 			eventCount: entry.eventCount,
 			id: candidate.id,

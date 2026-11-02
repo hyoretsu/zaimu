@@ -126,4 +126,34 @@ describe("debt event page and invitation summary", () => {
 			items: [],
 		});
 	});
+
+	test("invitation summary keeps exact numeric(20,6) sums without currency rounding", async () => {
+		const client = new Client({ connectionString: url });
+		await client.connect();
+		await client.query(
+			`INSERT INTO "DebtEvent" ("id","debtPersonId","connectionId","createdByUserId","kind","amount","effect","currency","date","description","deletedAt") VALUES
+			 ('sub1','person','connection','a','ORIGIN',0.004,0.004,'BRL','2026-03-06','sub',NULL),
+			 ('sub2','person','connection','a','ORIGIN',0.004,0.004,'BRL','2026-03-06','sub',NULL),
+			 ('sub3','person','connection','b','ORIGIN',0.004,0.004,'BRL','2026-03-06','sub',NULL),
+			 ('big1','person','connection','a','ORIGIN',9999999999999.123457,9999999999999.123457,'BRL','2026-03-06','big',NULL),
+			 ('big2','person','connection','b','ORIGIN',9999999999999.123456,9999999999999.123456,'BRL','2026-03-06','big',NULL)`,
+		);
+		try {
+			const viewer = await getInvitationPreview("connection", "a", "b", undefined, 50);
+			// SQL oracle: SUM(CASE WHEN creator = viewer THEN effect ELSE -effect END) in numeric(20,6):
+			// -195 - 0.008 + 0.004 + (-9999999999999.123457 + 9999999999999.123456) = -195.004001.
+			const oracle = await client.query<{ balance: string }>(
+				`SELECT SUM(CASE WHEN "createdByUserId"='b' THEN "effect" ELSE -"effect" END)::text AS balance FROM "DebtEvent" WHERE "debtPersonId"='person' AND "deletedAt" IS NULL`,
+			);
+			expect(oracle.rows[0]?.balance).toBe("-195.004001");
+			expect(viewer.balance).toBe(Number(oracle.rows[0]?.balance));
+			expect(viewer.balances).toEqual([{ amount: Number(oracle.rows[0]?.balance), currency: "BRL" }]);
+			expect(viewer.eventCount).toBe(11);
+			const creator = await getInvitationPreview("connection", "a", "a", undefined, 50);
+			expect(creator.balance).toBe(195.004001);
+		} finally {
+			await client.query(`DELETE FROM "DebtEvent" WHERE "id" IN ('sub1','sub2','sub3','big1','big2')`);
+			await client.end();
+		}
+	});
 });
