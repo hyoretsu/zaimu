@@ -100,6 +100,8 @@ export async function prepareSchema(
 			JSON.stringify({ hash: initial, invariants: [] }),
 		);
 	const environment = { ...env, DATABASE_URL: url, DO_NOT_TRACK: "1", PRISMA_TELEMETRY_DISABLED: "1" };
+	// Same knob the runner documents for setup commands; the loop below shadows the global `process`.
+	const commandTimeoutMs = Number(Bun.env.TEST_COMMAND_TIMEOUT_MS ?? 120000);
 	const invariants = new Set<string>();
 	for (const entry of await readdir(join(copy, "migrations/app"), { withFileTypes: true })) {
 		if (!entry.isDirectory() || entry.name === "refs") continue;
@@ -123,7 +125,7 @@ export async function prepareSchema(
 			env: environment,
 			stderr: "inherit",
 			stdout: "inherit",
-			timeout: 120000,
+			timeout: commandTimeoutMs,
 		});
 		onChild?.(process);
 		const code = await process.exited;
