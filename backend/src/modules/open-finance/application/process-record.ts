@@ -220,7 +220,7 @@ async function applyRemote(
 			);
 			await enqueueAccountYieldRecalculation(
 				binding.financialAccountId!,
-				new Date(`${input.date}T00:00:00`),
+				new Date(`${remote.date}T00:00:00`),
 				`open-finance:${localId}:${crypto.randomUUID()}`,
 			);
 			if (old?.paymentCreditCardId)
@@ -240,7 +240,7 @@ async function applyRemote(
 		if (input.type !== "YIELD")
 			await enqueueAccountYieldRecalculation(
 				binding.financialAccountId!,
-				new Date(`${input.date}T00:00:00`),
+				new Date(`${remote.date}T00:00:00`),
 				`open-finance:${id}`,
 			);
 		if (input.type === "YIELD") {
