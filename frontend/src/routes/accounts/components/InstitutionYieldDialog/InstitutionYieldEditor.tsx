@@ -80,7 +80,9 @@ export function InstitutionYieldEditor({
 						currency,
 					);
 					setProfile(nextProfile);
+					setEditingStart(undefined);
 					setDate(nextPolicy?.effectiveDate.slice(0, 10) ?? today);
+					setUntil(nextPolicy?.effectiveUntil ? policyDay(nextPolicy.effectiveUntil) : "");
 				}}
 				options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
 				placeholder="Ex: Padrão"
@@ -93,12 +95,18 @@ export function InstitutionYieldEditor({
 				onCreated={async name => {
 					setRequestedProfileName(name);
 					setProfile(undefined);
+					setEditingStart(undefined);
+					setUntil("");
 					await profiles.refetch();
 				}}
 			/>
 			<CustomSelect
 				label="País aplicável"
-				onValueChange={value => setCountry(!value || value === "__all__" ? undefined : value)}
+				onValueChange={value => {
+					setCountry(!value || value === "__all__" ? undefined : value);
+					setEditingStart(undefined);
+					setUntil("");
+				}}
 				options={[
 					{ label: "Todos os países", special: true, value: "__all__" },
 					...(institution.operatingCountryCodes ?? []).map(value => ({
