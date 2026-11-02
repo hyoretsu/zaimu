@@ -3,6 +3,8 @@
 	"backend:integration": [
 		"backend/src/modules/currencies/tests/currency-default-cache.integration.test.ts",
 		"backend/src/modules/accounts/tests/account-options.integration.test.ts",
+		"backend/src/modules/accounts/tests/balance-adjustments.integration.test.ts",
+		"backend/src/modules/monthly-budgets/tests/monthly-budgets.integration.test.ts",
 		"backend/src/modules/account-transfers/tests/account-transfers.integration.test.ts",
 		"backend/src/modules/credit-card-imports/tests/import-purchase-taxes.integration.test.ts",
 		"backend/src/modules/recurring/tests/time-zone-materialization.test.ts",
@@ -23,6 +25,7 @@
 		"backend/src/shared/infra/cache/RedisCache.test.ts",
 		"backend/src/shared/tests/pdf-worker.test.ts",
 		"backend/src/modules/debts/tests/debt-event-page.integration.test.ts",
+		"backend/src/modules/stores/tests/stores-list.integration.test.ts",
 		"backend/src/modules/loans/tests/loan-contracts.integration.test.ts",
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],

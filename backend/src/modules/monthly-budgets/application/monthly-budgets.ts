@@ -1,15 +1,7 @@
 import { validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { HttpException } from "~/shared/errors";
-import {
-	db,
-	executeStatement,
-	numeric,
-	queryFirst,
-	queryRaw,
-	queryRows,
-	withRawTransaction,
-} from "~/shared/infra/sql";
+import { db, numeric, param, queryFirst, queryRaw, queryRows, withRawTransaction } from "~/shared/infra/sql";
 import type { MonthlyBudgetBody, MonthlyBudgetReturn, SyncMonthlyBudget } from "../infra/MonthlyBudgetsDTO";
 import { validateMonthlyBudgetFields } from "./validate-monthly-budget";
 
@@ -63,8 +55,9 @@ export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: str
 	await lockUserBudgets(userId);
 	if (body.source !== "CUSTOM") {
 		const name = body.name.trim();
-		const candidates = await queryRows(
-			db.sql.public.MonthlyBudget.select("id", "startMonth", "endMonth")
+		const newEnd = body.endMonth ?? null;
+		const overlap = await queryFirst(
+			db.sql.public.MonthlyBudget.select("id")
 				.where((f, fn) =>
 					fn.and(
 						fn.eq(f.userId, userId),
@@ -73,20 +66,18 @@ export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: str
 						fn.eq(f.currency, body.currency),
 						fn.eq(f.categoryId, body.categoryId ?? null),
 						...(id ? [fn.ne(f.id, id)] : []),
-						...(["CUSTOM", "RESERVE", "UNCATEGORIZED"].includes(body.source)
-							? []
-							: [fn.eq(f.name, name)]),
+						// RESERVE and UNCATEGORIZED budgets only collide when the name matches; other sources ignore it.
+						...(body.source === "RESERVE" || body.source === "UNCATEGORIZED"
+							? [fn.eq(f.name, name)]
+							: []),
+						newEnd === body.startMonth
+							? fn.eq(f.endMonth, f.startMonth)
+							: fn.or(fn.eq(f.endMonth, null), fn.ne(f.endMonth, f.startMonth)),
+						fn.lte(f.startMonth, newEnd ?? "9999-12"),
+						fn.or(fn.eq(f.endMonth, null), fn.gte(f.endMonth, body.startMonth)),
 					),
 				)
 				.build(),
-		);
-		const newEnd = body.endMonth ?? null;
-		const newSingle = newEnd === body.startMonth;
-		const overlap = candidates.find(
-			row =>
-				(row.endMonth !== null && row.endMonth === row.startMonth) === newSingle &&
-				row.startMonth <= (newEnd ?? "9999-12") &&
-				(row.endMonth ?? "9999-12") >= body.startMonth,
 		);
 		if (overlap) throw new HttpException("Já existe planejamento desta origem no período", 409);
 	}
@@ -130,32 +121,39 @@ async function saveMonthlyBudgetInTransaction(userId: string, body: MonthlyBudge
 		source: body.source,
 		startMonth: body.startMonth,
 	};
-	let row: unknown;
-	if (id) {
-		const where = (f: { userId: unknown; id: unknown; deletedAt: unknown }, fn: any) =>
-			fn.and(fn.eq(f.userId, userId), fn.eq(f.id, id), fn.eq(f.deletedAt, null));
-		const [updated] = await queryRows(
-			db.sql.public.MonthlyBudget.update(values)
-				.where(where as never)
-				.returning("id")
-				.build(),
-		);
-		// The update builder cannot mix plain values with DB-clock expressions, so stamp updatedAt in a second statement.
-		if (updated)
-			[row] = await queryRows(
-				db.sql.public.MonthlyBudget.update((_f, fn) => ({
-					updatedAt: fn.raw`clock_timestamp()`.returns("pg/timestamp-date@1"),
-				}))
-					.where(where as never)
+	const [row] = id
+		? await queryRows(
+				db.sql.public.MonthlyBudget.update((_f, fn) => {
+					const varchar = (value: string | null) =>
+						fn.raw`${param(value, { codecId: "sql/varchar@1" })}`.returns({
+							codecId: "sql/varchar@1",
+							nullable: value === null,
+						});
+					return {
+						amount: fn.raw`${param(values.amount, { codecId: "pg/numeric@1" })}`.returns(
+							"pg/numeric@1",
+						),
+						categoryId: varchar(values.categoryId),
+						currency: varchar(values.currency),
+						endMonth: varchar(values.endMonth),
+						name: varchar(values.name),
+						parentBudgetId: varchar(values.parentBudgetId),
+						source: varchar(values.source),
+						startMonth: varchar(values.startMonth),
+						updatedAt: fn.raw`clock_timestamp()`.returns("pg/timestamp-date@1"),
+					};
+				})
+					.where((f, fn) =>
+						fn.and(fn.eq(f.userId, userId), fn.eq(f.id, id), fn.eq(f.deletedAt, null)),
+					)
+					.returning(...columns)
+					.build(),
+			)
+		: await queryRows(
+				db.sql.public.MonthlyBudget.insert([{ ...values, userId }])
 					.returning(...columns)
 					.build(),
 			);
-	} else
-		[row] = await queryRows(
-			db.sql.public.MonthlyBudget.insert([{ ...values, userId }])
-				.returning(...columns)
-				.build(),
-		);
 	if (!row) throw new HttpException("Planejamento não encontrado", 404);
 	return serialize(row as unknown as BudgetRow);
 }
@@ -164,38 +162,11 @@ export async function deleteMonthlyBudget(userId: string, id: string) {
 }
 async function deleteMonthlyBudgetInTransaction(userId: string, id: string) {
 	await lockUserBudgets(userId);
-	// Recursive CTEs are unsupported by the builder: walk the hierarchy level by level (descendants are
-	// followed through already-deleted nodes, as the original recursion did) under the same advisory lock.
-	const root = await queryFirst(
-		db.sql.public.MonthlyBudget.select("id")
-			.where((f, fn) => fn.and(fn.eq(f.id, id), fn.eq(f.userId, userId), fn.eq(f.deletedAt, null)))
-			.build(),
+	// Recursive CTE (walks through already-deleted nodes) has no builder equivalent; kept as one statement.
+	const rows = await queryRaw<{ id: string }>(
+		'WITH RECURSIVE descendants AS (SELECT "id" FROM "MonthlyBudget" WHERE "id"=$1 AND "userId"=$2 AND "deletedAt" IS NULL UNION SELECT child."id" FROM "MonthlyBudget" child JOIN descendants parent ON child."parentBudgetId"=parent."id" WHERE child."userId"=$2) UPDATE "MonthlyBudget" SET "deletedAt"=clock_timestamp(),"updatedAt"=clock_timestamp() WHERE "id" IN (SELECT "id" FROM descendants) AND "userId"=$2 AND "deletedAt" IS NULL RETURNING "id"',
+		[id, userId],
 	);
-	const ids = new Set<string>(root ? [root.id] : []);
-	let frontier = [...ids];
-	while (frontier.length) {
-		const parents = frontier;
-		const children = await queryRows(
-			db.sql.public.MonthlyBudget.select("id")
-				.where((f, fn) => fn.and(fn.in(f.parentBudgetId, parents), fn.eq(f.userId, userId)))
-				.build(),
-		);
-		frontier = children.map(child => child.id).filter(childId => !ids.has(childId));
-		for (const childId of frontier) ids.add(childId);
-	}
-	const rows = ids.size
-		? await queryRows(
-				db.sql.public.MonthlyBudget.update((_f, fn) => ({
-					deletedAt: fn.raw`clock_timestamp()`.returns("pg/timestamp-date@1"),
-					updatedAt: fn.raw`clock_timestamp()`.returns("pg/timestamp-date@1"),
-				}))
-					.where((f, fn) =>
-						fn.and(fn.in(f.id, [...ids]), fn.eq(f.userId, userId), fn.eq(f.deletedAt, null)),
-					)
-					.returning("id")
-					.build(),
-			)
-		: [];
 	if (!rows.length) throw new HttpException("Planejamento não encontrado", 404);
 	return { success: true };
 }
@@ -214,29 +185,20 @@ export async function syncMonthlyBudget(userId: string, entity: typeof SyncMonth
 		throw new HttpException("Planejamento alterado em outro dispositivo", 409);
 	if (entity.deletedAt) {
 		if (existing) await deleteMonthlyBudget(userId, entity.id);
-		else {
-			await executeStatement(
-				db.sql.public.MonthlyBudget.insert([
-					{
-						amount: numeric<20, 6>(entity.amount),
-						currency: entity.currency,
-						endMonth: entity.endMonth,
-						id: entity.id,
-						name: entity.name,
-						source: entity.source === "TAG" ? "CUSTOM" : entity.source,
-						startMonth: entity.startMonth,
-						userId,
-					},
-				]).build(),
+		else
+			await queryRaw(
+				'INSERT INTO "MonthlyBudget" ("id","userId","name","source","categoryId","amount","currency","startMonth","endMonth","deletedAt") VALUES ($1,$2,$3,$4,NULL,$5,$6,$7,$8,clock_timestamp())',
+				[
+					entity.id,
+					userId,
+					entity.name,
+					entity.source === "TAG" ? "CUSTOM" : entity.source,
+					entity.amount,
+					entity.currency,
+					entity.startMonth,
+					entity.endMonth,
+				],
 			);
-			await executeStatement(
-				db.sql.public.MonthlyBudget.update((_f, fn) => ({
-					deletedAt: fn.raw`clock_timestamp()`.returns("pg/timestamp-date@1"),
-				}))
-					.where((f, fn) => fn.eq(f.id, entity.id))
-					.build(),
-			);
-		}
 		return;
 	}
 	if (existing) {
