@@ -1,6 +1,14 @@
 import { afterAll, expect, test } from "bun:test";
 import { requireFixtureUrl } from "../../../scripts/testing/fixture";
-import { closeDatabase, db, queryFirst, queryRaw, withRawTransaction, withTransaction } from "../src";
+import {
+	closeDatabase,
+	db,
+	executeStatement,
+	queryFirst,
+	queryRaw,
+	withRawTransaction,
+	withTransaction,
+} from "../src";
 
 requireFixtureUrl("DATABASE_TEST_URL");
 afterAll(closeDatabase);
@@ -110,4 +118,46 @@ test("legacy double-encoded json defaults are decoded only for known columns", a
 			throw new Error("rollback legacy json");
 		}),
 	).rejects.toThrow("rollback legacy json");
+});
+
+test("builder sends explicit undefined as NULL while omitted insert keys use column defaults", async () => {
+	const id = crypto.randomUUID();
+	const email = `${id}@example.test`;
+	// An omitted key falls back to the column default; an explicit undefined must be coalesced by the caller.
+	await executeStatement(db.sql.public.user.insert([{ email, id, name: "omitted default" }]).build());
+	expect((await queryRaw<{ role: string }>('SELECT "role" FROM "user" WHERE "id"=$1', [id]))[0]?.role).toBe(
+		"USER",
+	);
+	await queryRaw('INSERT INTO "user" ("id","name","email") VALUES ($1,$2,$3)', [
+		crypto.randomUUID(),
+		"raw default",
+		`${crypto.randomUUID()}@example.test`,
+	]);
+	await expect(
+		executeStatement(
+			db.sql.public.user
+				.insert([
+					{
+						email: `${crypto.randomUUID()}@example.test`,
+						id: crypto.randomUUID(),
+						name: "n",
+						role: undefined,
+					},
+				])
+				.build(),
+		),
+	).rejects.toThrow(/role|not-null/i);
+	await queryRaw('UPDATE "user" SET "image"=$2 WHERE "id"=$1', [id, "https://example.test/a.png"]);
+	await executeStatement(
+		db.sql.public.user
+			.update({ image: undefined, name: "undefined image" })
+			.where((user, ops) => ops.eq(user.id, id))
+			.build(),
+	);
+	const [row] = await queryRaw<{ image: null | string; name: string }>(
+		'SELECT "image","name" FROM "user" WHERE "id"=$1',
+		[id],
+	);
+	// Unchanged from the early RC runtime: an undefined update field clears the column; omit the key to preserve it.
+	expect(row).toEqual({ image: null, name: "undefined image" });
 });
