@@ -54,7 +54,7 @@ test("production wrapper continues through two officially planned native success
 			[id, "native preserved", `${id}@example.test`],
 		);
 		const source = join(copy, "src/prisma/contract.prisma");
-		let origin = "f1e9933a7a2ab046fbdbbe4f7219a89cdb4f66db7796a06516f826ff2d6d36a3";
+		let origin = "0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29";
 		for (const field of ["nativeProbeOne", "nativeProbeTwo"]) {
 			const original = await readFile(source, "utf8");
 			await writeFile(

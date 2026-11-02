@@ -78,14 +78,18 @@ export function selectDebtSplitRemainder(
 		return {
 			...split,
 			participants: split.participants.map(participant =>
-				participant.debtPersonId === remainderDebtPersonId ? { ...participant, percentage: 0 } : participant,
+				participant.debtPersonId === remainderDebtPersonId
+					? { ...participant, percentage: 0 }
+					: participant,
 			),
 			remainderDebtPersonId,
 		};
 	return {
 		...split,
 		participants: split.participants.map(participant =>
-			participant.debtPersonId === remainderDebtPersonId ? { ...participant, fixedAmount: 0 } : participant,
+			participant.debtPersonId === remainderDebtPersonId
+				? { ...participant, fixedAmount: 0 }
+				: participant,
 		),
 		remainderDebtPersonId,
 	};
@@ -98,7 +102,9 @@ export function addDebtSplitParticipant(split: DebtSplitInput): DebtSplitInput {
 			participants: [...split.participants, { debtPersonId: "", shares: 1 }],
 		};
 	const participant =
-		split.mode === "PERCENTAGE" ? { debtPersonId: "", percentage: 0 } : { debtPersonId: "", fixedAmount: 0 };
+		split.mode === "PERCENTAGE"
+			? { debtPersonId: "", percentage: 0 }
+			: { debtPersonId: "", fixedAmount: 0 };
 	return { ...split, participants: [...split.participants, participant] } as DebtSplitInput;
 }
 
@@ -107,7 +113,8 @@ export function formatDebtSplitBadge(
 	formatAmount: (amount: number) => string,
 ) {
 	if (!split) return undefined;
-	if (split.participants.length === 1 && split.ownerAmount === 0) return split.participants[0].debtPersonName;
+	if (split.participants.length === 1 && split.ownerAmount === 0)
+		return split.participants[0].debtPersonName;
 	return split.participants
 		.toSorted((left, right) => compareDebtPersonNames(left.debtPersonName, right.debtPersonName))
 		.map(item => `${item.debtPersonName}: ${formatAmount(item.amount)}`)
@@ -167,7 +174,8 @@ export function calculateDebtSplit(
 			const order = values
 				.map((value, index) => ({ index, remainder: (total * value) % denominator }))
 				.toSorted((left, right) => right.remainder - left.remainder || left.index - right.index);
-			for (let index = 0; remainder > 0; index++, remainder--) amounts[order[index % order.length].index]++;
+			for (let index = 0; remainder > 0; index++, remainder--)
+				amounts[order[index % order.length].index]++;
 		} else owner = remainder;
 	} else if (split.mode === "PERCENTAGE") {
 		const values = split.participants.map(item => Math.round(item.percentage * 100));
@@ -195,11 +203,10 @@ export function calculateDebtSplit(
 					item.fixedAmount < 0 ||
 					(item.fixedAmount === 0 && item.debtPersonId !== split.remainderDebtPersonId) ||
 					Math.abs(item.fixedAmount * scale - amounts[index]) > 1e-7,
-			) ||
-			sum > total
+			)
 		)
 			return null;
-		owner = total - sum;
+		owner = Math.max(0, total - sum);
 	}
 	const remainderIndex =
 		split.mode !== "SHARES" && split.remainderDebtPersonId
@@ -247,7 +254,8 @@ export function debtSplitError(amount: number, split: DebtSplitInput, currency =
 		(split.mode === "PERCENTAGE" &&
 			split.participants.some(
 				item =>
-					item.percentage < 0 || (item.percentage === 0 && item.debtPersonId !== split.remainderDebtPersonId),
+					item.percentage < 0 ||
+					(item.percentage === 0 && item.debtPersonId !== split.remainderDebtPersonId),
 			)) ||
 		(split.mode === "FIXED" &&
 			split.participants.some(
@@ -266,16 +274,6 @@ export function debtSplitError(amount: number, split: DebtSplitInput, currency =
 		);
 		return percentageTotal > 10_000
 			? "Os percentuais das pessoas não podem ultrapassar 100%."
-			: "Cada pessoa deve ter um valor positivo para a divisão.";
-	}
-	if (split.mode === "FIXED") {
-		const scale = currencyScale(currency);
-		const distributed = split.participants.reduce(
-			(sum, item) => sum + Math.round(item.fixedAmount * scale),
-			0,
-		);
-		return distributed > Math.round(amount * scale)
-			? "Os valores das pessoas não podem ultrapassar o total."
 			: "Cada pessoa deve ter um valor positivo para a divisão.";
 	}
 	return "Cada pessoa deve ter um valor positivo para a divisão.";

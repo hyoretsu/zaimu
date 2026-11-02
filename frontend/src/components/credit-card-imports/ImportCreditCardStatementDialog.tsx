@@ -22,7 +22,6 @@ import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { statementLabel } from "@/lib/statement-label";
 import { showToast } from "@/stores";
-
 import {
 	getCreditCardImportInstitution,
 	getCreditCardImportProvider,
@@ -49,7 +48,9 @@ export function ImportCreditCardStatementDialog({
 		queryFn: () => dataService.creditCards.getStatements(creditCardId),
 		queryKey: [...queryKeys.creditCardStatements.list(identity!, creditCardId), "import-target"],
 	});
-	const [file, setFile] = useState<File | null>(null);
+	const [files, setFiles] = useState<File[]>([]);
+	const [fileErrors, setFileErrors] = useState<string[]>([]);
+	const [progress, setProgress] = useState({ completed: 0, total: 0 });
 	const [password, setPassword] = useState("");
 	const [institutionId, setInstitutionId] = useState("");
 	const accounts = useQuery({
@@ -78,7 +79,8 @@ export function ImportCreditCardStatementDialog({
 		if (!open) return;
 		setCreditCardId("");
 		setStatementId("new");
-		setFile(null);
+		setFiles([]);
+		setFileErrors([]);
 		setPassword("");
 		setInstitutionId("");
 	}, [open]);
@@ -89,14 +91,16 @@ export function ImportCreditCardStatementDialog({
 			if (!creditCardId) throw new Error("Selecione o cartão que receberá as compras.");
 			if (
 				!selectedCard ||
-				getCreditCardImportProvider(getCreditCardImportInstitution(selectedCard, accountList)) !== provider
+				getCreditCardImportProvider(getCreditCardImportInstitution(selectedCard, accountList)) !==
+					provider
 			) {
 				throw new Error("Selecione um cartão da instituição da fatura.");
 			}
-			if (!file) throw new Error("Selecione uma fatura em PDF.");
-			return dataService.creditCardImports.create({
+			if (!files.length) throw new Error("Selecione uma fatura em PDF.");
+			return dataService.creditCardImports.createBatch({
 				creditCardId,
-				file,
+				files,
+				onProgress: setProgress,
 				password: password || undefined,
 				provider,
 				statementId: statementId === "new" ? undefined : statementId,
@@ -104,28 +108,43 @@ export function ImportCreditCardStatementDialog({
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
-			if (!result.creditCardImport) {
-				showToast("Fatura sincronizada por completo.", "positive");
-				onOpenChange(false);
-				return;
-			}
+			const failures = result.results.filter(item => !item.success);
+			setFileErrors(failures.map(item => `${item.index + 1}. ${item.fileName}: ${item.error}`));
+			setFiles(current =>
+				current.filter((file, index) =>
+					failures.some(item => item.index === index && item.fileName === file.name),
+				),
+			);
 			await queryClient.invalidateQueries({
 				queryKey: queryKeys.creditCardImports.pending(identity!),
 				refetchType: "active",
 			});
+			if (failures.length) {
+				showToast(
+					`${result.results.length - failures.length} arquivo(s) importado(s). Tente novamente apenas os arquivos com erro.`,
+					"negative",
+				);
+				return;
+			}
 			onOpenChange(false);
-			onImported(result.creditCardImport.id);
+			const imported = result.results.find(item => item.importId);
+			if (imported?.importId) onImported(imported.importId);
 			showToast(
-				result.ignoredCount
-					? `${result.ignoredCount} ${result.ignoredCount === 1 ? "compra já importada foi ignorada" : "compras já importadas foram ignoradas"}.`
-					: "Fatura importada para revisão.",
+				imported
+					? "Importação concluída. Revise cada arquivo antes de aprovar."
+					: "Arquivos sincronizados por completo.",
 				"positive",
 			);
 		},
 	});
 
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
+		<Dialog
+			onOpenChange={value => {
+				if (!createImport.isPending) onOpenChange(value);
+			}}
+			open={open}
+		>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Importar fatura</DialogTitle>
@@ -136,6 +155,7 @@ export function ImportCreditCardStatementDialog({
 				<DialogBody>
 					<div className="grid gap-4">
 						<CustomSelect
+							disabled={createImport.isPending}
 							isLoading={institutions.isPending || accounts.isPending}
 							label="Instituição"
 							onValueChange={value => {
@@ -154,6 +174,7 @@ export function ImportCreditCardStatementDialog({
 							value={institutionId}
 						/>
 						<CustomSelect
+							disabled={createImport.isPending}
 							isLoading={accounts.isPending || institutions.isPending}
 							label="Cartão que receberá as compras"
 							onValueChange={selectCard}
@@ -167,25 +188,48 @@ export function ImportCreditCardStatementDialog({
 							value={creditCardId}
 						/>
 						<CustomSelect
+							disabled={createImport.isPending}
 							isLoading={!!creditCardId && statements.isPending}
 							label="Destino do calendário"
 							onValueChange={setStatementId}
 							options={[
-								{ label: "Identificar pelas datas ou criar nova fatura", special: true, value: "new" },
+								{
+									label: "Identificar pelas datas ou criar nova fatura",
+									special: true,
+									value: "new",
+								},
 								...(statements.data ?? [])
 									.filter(item => !item.isForecast)
-									.map(item => ({ label: statementLabel(item, statements.data ?? []), value: item.id })),
+									.map(item => ({
+										label: statementLabel(item, statements.data ?? []),
+										value: item.id,
+									})),
 							]}
 							placeholder="Ex: Outubro/2024 - vence 08/10"
 							searchable
 							value={statementId}
 						/>
+						{createImport.isPending && (
+							<p className="text-muted-foreground text-sm" role="status">
+								Processando arquivos: {progress.completed} de {progress.total || files.length}
+								. Aguarde os jobs de importação.
+							</p>
+						)}
 						<StatementFilePicker
-							file={file}
+							disabled={createImport.isPending}
+							files={files}
 							inputId="credit-card-import-file"
 							label="Fatura em PDF"
-							onFileChange={setFile}
+							onFilesChange={value => {
+								setFiles(value);
+								setFileErrors([]);
+							}}
 						/>
+						{fileErrors.map((error, index) => (
+							<p className="text-destructive text-sm" key={index} role="alert">
+								{error}
+							</p>
+						))}
 						{passwordConfiguration ? (
 							<div className="grid gap-2">
 								<Label htmlFor="credit-card-import-password">Senha do PDF</Label>
@@ -204,7 +248,12 @@ export function ImportCreditCardStatementDialog({
 					</div>
 				</DialogBody>
 				<DialogFooter>
-					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
+					<Button
+						className="cursor-pointer"
+						disabled={createImport.isPending}
+						onClick={() => onOpenChange(false)}
+						variant="outline"
+					>
 						Descartar
 					</Button>
 					<Button
@@ -212,7 +261,7 @@ export function ImportCreditCardStatementDialog({
 						disabled={
 							!provider ||
 							!selectedCard ||
-							!file ||
+							!files.length ||
 							accounts.isPending ||
 							institutions.isPending ||
 							createImport.isPending

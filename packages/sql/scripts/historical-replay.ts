@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "pg";
 
-export const historicalHead = "1ce00365762f398d639512abcc6b130d22364beea5f36452debb2fdb137caa62";
+export const historicalHead = "5f6b4cd90770cc8d161af5e9a6dec4e91e58593d2bb41e6abed6efc78ff6c2c7";
 
 export async function isHistoricalAncestor(root: string, hash: string) {
 	return isGraphAncestor(join(root, "migrations/app"), hash, historicalHead);

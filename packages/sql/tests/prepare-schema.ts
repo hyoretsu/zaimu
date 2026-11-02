@@ -78,7 +78,7 @@ export async function prepareSchema(
 		throw new Error("Install frozen historical replay dependencies before running disposable tests");
 	await cp(join(historicalRoot, "prisma.config.ts"), join(copy, "prisma.config.ts"));
 	await symlink(historicalModules, join(copy, "node_modules"), "dir");
-	const head = "1ce00365762f398d639512abcc6b130d22364beea5f36452debb2fdb137caa62";
+	const head = "5f6b4cd90770cc8d161af5e9a6dec4e91e58593d2bb41e6abed6efc78ff6c2c7";
 	await mkdir(join(copy, "out/prisma"), { recursive: true });
 	for (const name of ["contract.json", "contract.d.ts"])
 		await cp(join(copy, "migrations/snapshots", head, name), join(copy, "out/prisma", name));

@@ -264,6 +264,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				effectiveDate: DateDTO,
 				effectiveUntil: t.Optional(DateDTO),
 				profileId: Id,
+				replacesEffectiveDate: t.Optional(DateDTO),
 				rules: t.Array(
 					t.Object({
 						upToBalance: t.Nullable(t.Number({ exclusiveMinimum: 0 })),

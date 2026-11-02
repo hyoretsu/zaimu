@@ -111,17 +111,22 @@ export function calculateDebtSplit(
 	}
 
 	if (split.mode === "PERCENTAGE") {
-		const percentageUnits = split.participants.map(participant => Math.round(participant.percentage * 100));
+		const percentageUnits = split.participants.map(participant =>
+			Math.round(participant.percentage * 100),
+		);
 		if (
 			split.participants.some(
 				(participant, index) =>
 					!Number.isFinite(participant.percentage) ||
 					participant.percentage < 0 ||
-					(participant.percentage === 0 && participant.debtPersonId !== split.remainderDebtPersonId) ||
+					(participant.percentage === 0 &&
+						participant.debtPersonId !== split.remainderDebtPersonId) ||
 					Math.abs(participant.percentage * 100 - percentageUnits[index]) > 1e-7,
 			)
 		)
-			throw new DebtSplitValidationError("Percentuais devem ser positivos e ter até duas casas decimais");
+			throw new DebtSplitValidationError(
+				"Percentuais devem ser positivos e ter até duas casas decimais",
+			);
 		const percentageTotal = percentageUnits.reduce((sum, value) => sum + value, 0);
 		if (percentageTotal > 10_000)
 			throw new DebtSplitValidationError("Os percentuais das pessoas não podem ultrapassar 100%");
@@ -153,13 +158,13 @@ export function calculateDebtSplit(
 				Math.abs(participant.fixedAmount * scale - participantCents[index]) > 1e-7,
 		)
 	)
-		throw new DebtSplitValidationError("Valores fixos devem ser positivos e respeitar a precisão da moeda");
+		throw new DebtSplitValidationError(
+			"Valores fixos devem ser positivos e respeitar a precisão da moeda",
+		);
 	const distributedCents = participantCents.reduce((sum, value) => sum + value, 0);
-	if (distributedCents > totalCents)
-		throw new DebtSplitValidationError("Os valores das pessoas não podem ultrapassar o total");
 	const { ownerCents, participantCents: allocatedParticipantCents } = assignRemainder(
 		participantCents,
-		totalCents - distributedCents,
+		Math.max(0, totalCents - distributedCents),
 		split.participants,
 		split.remainderDebtPersonId,
 	);

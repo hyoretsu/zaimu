@@ -121,7 +121,8 @@ export function EditCreditPurchaseDialog({
 			: purchase.totalAmount - (purchase.feeAmount ?? 0));
 	const isRefinancing = Boolean(original?.refinancedFromPurchaseId ?? purchase.refinancedFromPurchaseId);
 	const hasRefinancing =
-		isRefinancing || Boolean((original?.refinancingPurchaseIds ?? purchase.refinancingPurchaseIds)?.length);
+		isRefinancing ||
+		Boolean((original?.refinancingPurchaseIds ?? purchase.refinancingPurchaseIds)?.length);
 	const cardLocked =
 		hasRefinancing ||
 		isSynced ||
@@ -158,6 +159,7 @@ export function EditCreditPurchaseDialog({
 	const amountEdited = useRef(false);
 	const dateEdited = useRef(false);
 	const [time, setTime] = useState(purchase.time ?? "");
+	const timeEdited = useRef(false);
 	const [tagIds, setTagIds] = useState(() => purchase.tags?.map(tag => tag.id) ?? purchase.tagIds ?? []);
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
 	const [validationError, setValidationError] = useState<string | null>(null);
@@ -171,8 +173,17 @@ export function EditCreditPurchaseDialog({
 			currency: purchase.bookingCurrency ?? "BRL",
 		});
 		setIsDebt(Boolean(original?.debtSplit ?? purchase.debtSplit));
+	}, [open, original?.debtSplit, purchase.debtSplit, purchase.storeName]);
+
+	useEffect(() => {
+		if (!open) return;
+		timeEdited.current = false;
 		setTime(purchase.time ?? "");
-	}, [open, original?.debtSplit, purchase.debtSplit, purchase.storeName, purchase.time]);
+	}, [open, purchase.id]);
+
+	useEffect(() => {
+		if (open && original && !purchase.parentId && !timeEdited.current) setTime(original.time ?? "");
+	}, [open, original, purchase.id, purchase.parentId]);
 	useEffect(() => {
 		if (open && original && !purchase.parentId) {
 			if (!amountEdited.current)
@@ -196,7 +207,8 @@ export function EditCreditPurchaseDialog({
 					<DialogHeader>
 						<DialogTitle>Editar valor da parcela</DialogTitle>
 						<DialogDescription>
-							Altera somente esta parcela. O total da compra será recalculado pela soma das parcelas.
+							Altera somente esta parcela. O total da compra será recalculado pela soma das
+							parcelas.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogBody>
@@ -211,12 +223,18 @@ export function EditCreditPurchaseDialog({
 						/>
 					</DialogBody>
 					<DialogFooter>
-						<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
+						<Button
+							className="cursor-pointer"
+							onClick={() => onOpenChange(false)}
+							variant="outline"
+						>
 							Descartar
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={pending || isSynced || !Number.isFinite(Number(amount)) || Number(amount) <= 0}
+							disabled={
+								pending || isSynced || !Number.isFinite(Number(amount)) || Number(amount) <= 0
+							}
 							onClick={() =>
 								runDialogSave(
 									onSubmit({ installmentAmount: Number(amount) }),
@@ -247,7 +265,9 @@ export function EditCreditPurchaseDialog({
 								))}
 							</div>
 						) : (
-							<p className="text-destructive text-sm">Não foi possível carregar a compra original.</p>
+							<p className="text-destructive text-sm">
+								Não foi possível carregar a compra original.
+							</p>
 						)}
 					</DialogBody>
 					<DialogFooter>
@@ -326,7 +346,9 @@ export function EditCreditPurchaseDialog({
 							</p>
 						) : null}
 						{canonical.isError ? (
-							<p className="text-destructive text-sm">Não foi possível verificar a troca de cartão.</p>
+							<p className="text-destructive text-sm">
+								Não foi possível verificar a troca de cartão.
+							</p>
 						) : null}
 						<FormFieldRow>
 							{!purchase.isStatementCharge && sourceCardId ? (
@@ -363,7 +385,11 @@ export function EditCreditPurchaseDialog({
 							value={description}
 						/>
 						<FormFieldRow>
-							<CurrencySelect disabled={isSynced} onValueChange={setCurrencyCode} value={currencyCode} />
+							<CurrencySelect
+								disabled={isSynced}
+								onValueChange={setCurrencyCode}
+								value={currencyCode}
+							/>
 							<MoneyField
 								aria-describedby={isFullySynced ? "purchase-amount-confirmed" : undefined}
 								currencyCode={currencyCode}
@@ -406,7 +432,9 @@ export function EditCreditPurchaseDialog({
 								inputMode="numeric"
 								label="Parcelas"
 								name="credit-purchase-installments"
-								onChange={event => setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
+								onChange={event =>
+									setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
+								}
 								placeholder="Ex: 12"
 								required
 								type="text"
@@ -415,7 +443,11 @@ export function EditCreditPurchaseDialog({
 							<FormFieldRow>
 								<DateField
 									autoComplete="off"
-									description={isSynced ? "Compras sincronizadas não permitem alterar a data." : undefined}
+									description={
+										isSynced
+											? "Compras sincronizadas não permitem alterar a data."
+											: undefined
+									}
 									disabled={isSynced}
 									id="credit-purchase-date"
 									label="Data da compra"
@@ -431,18 +463,21 @@ export function EditCreditPurchaseDialog({
 									id="credit-purchase-time"
 									label="Horário"
 									name="credit-purchase-time"
-									onValueChange={setTime}
+									onValueChange={value => {
+										timeEdited.current = true;
+										setTime(value);
+									}}
 									placeholder="Ex: 14:30"
 									value={time}
 								/>
 							</FormFieldRow>
 						</div>
 						{totalAmount > 0 ? (
-							<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
+							<div className="border-primary/15 bg-primary/5 rounded-xl border p-3 text-sm">
 								<strong>Valor original: {currency.format(totalAmount)}</strong>
 
 								{installments > 1 ? (
-									<p className="mt-1 text-muted-foreground">
+									<p className="text-muted-foreground mt-1">
 										{installments}x de {currency.format(installmentAmount)}.
 									</p>
 								) : null}
@@ -466,7 +501,12 @@ export function EditCreditPurchaseDialog({
 								<DebtSplitEditor
 									amount={totalAmount * (purchase.exchangeRate ?? 1)}
 									currencyCode={purchase.bookingCurrency ?? "BRL"}
-									onChange={value => setDebtSplit({ ...value, currency: purchase.bookingCurrency ?? "BRL" })}
+									onChange={value =>
+										setDebtSplit({
+											...value,
+											currency: purchase.bookingCurrency ?? "BRL",
+										})
+									}
 									value={debtSplit}
 								/>
 							) : null}

@@ -34,7 +34,7 @@ import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
-const initialDraft = () => ({
+const initialDraft = (account?: FinancialAccount) => ({
 	amount: "",
 	currency: activeCurrency(),
 	date: getLocalDateKey(),
@@ -48,7 +48,7 @@ const initialDraft = () => ({
 	storeName: "",
 	tagIds: [] as string[],
 	time: getCurrentLocalTime(),
-	type: "EXPENSE" as Transaction["type"] | "YIELD",
+	type: (account && account.type !== "CHECKING" ? "TRANSFER" : "EXPENSE") as Transaction["type"] | "YIELD",
 });
 
 interface CreateTransactionInput {
@@ -69,7 +69,7 @@ export function CreateTransactionDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const [draft, setDraft] = useState(initialDraft);
+	const [draft, setDraft] = useState(() => initialDraft(account));
 	const primaryInitialized = useRef(false);
 	const currencyExplicit = useRef(false);
 	const effectiveCurrency = useCurrencyStore(state => state.currency);
@@ -171,7 +171,7 @@ export function CreateTransactionDialog({
 	}, [open, account?.currency, accountsQuery.data, primaryAccountId, effectiveCurrency]);
 	const reset = () => {
 		currencyExplicit.current = false;
-		setDraft(initialDraft());
+		setDraft(initialDraft(account));
 		setDescription("");
 		setIsDebt(false);
 		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });

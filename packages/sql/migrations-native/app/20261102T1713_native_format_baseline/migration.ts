@@ -9,8 +9,8 @@ import {
 	primaryKey,
 	sql,
 } from "@prisma/orm-postgres/migration";
-import type { Contract as End } from "../../snapshots/f1e9933a7a2ab046fbdbbe4f7219a89cdb4f66db7796a06516f826ff2d6d36a3/contract";
-import endContract from "../../snapshots/f1e9933a7a2ab046fbdbbe4f7219a89cdb4f66db7796a06516f826ff2d6d36a3/contract.json" with { type: "json" };
+import type { Contract as End } from "../../snapshots/0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29/contract";
+import endContract from "../../snapshots/0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29/contract.json" with { type: "json" };
 
 export default class M extends Migration<never, End> {
 	override readonly endContractJson = endContract;
@@ -2293,6 +2293,63 @@ export default class M extends Migration<never, End> {
 				constraints: [primaryKey(["provider", "slot"])],
 				schema: "public",
 				table: "FinancialProviderSlot",
+			}),
+			this.createTable({
+				columns: [
+					col("batchId", "character varying(36)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 36 } },
+						notNull: true,
+					}),
+					col("createdAt", "timestamp(3)", {
+						codecRef: { codecId: "pg/timestamp-date@1", typeParams: { precision: 3 } },
+						default: fn(sql`now()`),
+						notNull: true,
+					}),
+					col("error", "text", { codecRef: { codecId: "pg/text@1" } }),
+					col("fileBytes", "text", { codecRef: { codecId: "pg/text@1" } }),
+					col("fileName", "text", { codecRef: { codecId: "pg/text@1" }, notNull: true }),
+					col("fileType", "text", { codecRef: { codecId: "pg/text@1" }, notNull: true }),
+					col("finishedAt", "timestamp(3)", {
+						codecRef: { codecId: "pg/timestamp-date@1", typeParams: { precision: 3 } },
+					}),
+					col("id", "character varying(36)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 36 } },
+						notNull: true,
+					}),
+					col("ignoredCount", "int4", {
+						codecRef: { codecId: "pg/int4@1" },
+						default: lit(0),
+						notNull: true,
+					}),
+					col("importId", "character varying(36)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 36 } },
+					}),
+					col("kind", "text", { codecRef: { codecId: "pg/text@1" }, notNull: true }),
+					col("lockedUntil", "timestamp(3)", {
+						codecRef: { codecId: "pg/timestamp-date@1", typeParams: { precision: 3 } },
+					}),
+					col("ordinal", "int4", { codecRef: { codecId: "pg/int4@1" }, notNull: true }),
+					col("password", "text", { codecRef: { codecId: "pg/text@1" } }),
+					col("provider", "text", { codecRef: { codecId: "pg/text@1" }, notNull: true }),
+					col("scopeId", "character varying(36)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 36 } },
+						notNull: true,
+					}),
+					col("statementId", "character varying(36)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 36 } },
+					}),
+					col("status", "text", { codecRef: { codecId: "pg/text@1" }, notNull: true }),
+					col("userId", "character varying(36)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 36 } },
+						notNull: true,
+					}),
+					col("workerToken", "character varying(36)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 36 } },
+					}),
+				],
+				constraints: [primaryKey(["id"], { name: "ImportFileJob_pkey" })],
+				schema: "public",
+				table: "ImportFileJob",
 			}),
 			this.createTable({
 				columns: [
@@ -4594,6 +4651,24 @@ export default class M extends Migration<never, End> {
 				index: "FinancialInstitutionYieldRule_policyId_position_key",
 				schema: "public",
 				table: "FinancialInstitutionYieldRule",
+			}),
+			this.createIndex({
+				columns: ["userId", "batchId", "ordinal"],
+				index: "ImportFileJob_batch_idx",
+				schema: "public",
+				table: "ImportFileJob",
+			}),
+			this.createIndex({
+				columns: ["status", "lockedUntil"],
+				index: "ImportFileJob_recovery_idx",
+				schema: "public",
+				table: "ImportFileJob",
+			}),
+			this.createIndex({
+				columns: ["kind", "scopeId", "status", "createdAt"],
+				index: "ImportFileJob_scope_idx",
+				schema: "public",
+				table: "ImportFileJob",
 			}),
 			this.createIndex({
 				columns: ["proposalId"],

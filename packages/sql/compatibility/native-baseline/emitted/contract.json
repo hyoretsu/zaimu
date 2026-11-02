@@ -8493,6 +8493,247 @@
 							"table": "FinancialProviderSlot"
 						}
 					},
+					"ImportFileJob": {
+						"fields": {
+							"batchId": {
+								"nullable": false,
+								"type": {
+									"codecId": "sql/varchar@1",
+									"kind": "scalar",
+									"typeParams": {
+										"length": 36
+									}
+								}
+							},
+							"createdAt": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/timestamp-date@1",
+									"kind": "scalar",
+									"typeParams": {
+										"precision": 3
+									}
+								}
+							},
+							"error": {
+								"nullable": true,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"fileBytes": {
+								"nullable": true,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"fileName": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"fileType": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"finishedAt": {
+								"nullable": true,
+								"type": {
+									"codecId": "pg/timestamp-date@1",
+									"kind": "scalar",
+									"typeParams": {
+										"precision": 3
+									}
+								}
+							},
+							"id": {
+								"nullable": false,
+								"type": {
+									"codecId": "sql/varchar@1",
+									"kind": "scalar",
+									"typeParams": {
+										"length": 36
+									}
+								}
+							},
+							"ignoredCount": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/int4@1",
+									"kind": "scalar"
+								}
+							},
+							"importId": {
+								"nullable": true,
+								"type": {
+									"codecId": "sql/varchar@1",
+									"kind": "scalar",
+									"typeParams": {
+										"length": 36
+									}
+								}
+							},
+							"kind": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"lockedUntil": {
+								"nullable": true,
+								"type": {
+									"codecId": "pg/timestamp-date@1",
+									"kind": "scalar",
+									"typeParams": {
+										"precision": 3
+									}
+								}
+							},
+							"ordinal": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/int4@1",
+									"kind": "scalar"
+								}
+							},
+							"password": {
+								"nullable": true,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"provider": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"scopeId": {
+								"nullable": false,
+								"type": {
+									"codecId": "sql/varchar@1",
+									"kind": "scalar",
+									"typeParams": {
+										"length": 36
+									}
+								}
+							},
+							"statementId": {
+								"nullable": true,
+								"type": {
+									"codecId": "sql/varchar@1",
+									"kind": "scalar",
+									"typeParams": {
+										"length": 36
+									}
+								}
+							},
+							"status": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/text@1",
+									"kind": "scalar"
+								}
+							},
+							"userId": {
+								"nullable": false,
+								"type": {
+									"codecId": "sql/varchar@1",
+									"kind": "scalar",
+									"typeParams": {
+										"length": 36
+									}
+								}
+							},
+							"workerToken": {
+								"nullable": true,
+								"type": {
+									"codecId": "sql/varchar@1",
+									"kind": "scalar",
+									"typeParams": {
+										"length": 36
+									}
+								}
+							}
+						},
+						"relations": {},
+						"storage": {
+							"fields": {
+								"batchId": {
+									"column": "batchId"
+								},
+								"createdAt": {
+									"column": "createdAt"
+								},
+								"error": {
+									"column": "error"
+								},
+								"fileBytes": {
+									"column": "fileBytes"
+								},
+								"fileName": {
+									"column": "fileName"
+								},
+								"fileType": {
+									"column": "fileType"
+								},
+								"finishedAt": {
+									"column": "finishedAt"
+								},
+								"id": {
+									"column": "id"
+								},
+								"ignoredCount": {
+									"column": "ignoredCount"
+								},
+								"importId": {
+									"column": "importId"
+								},
+								"kind": {
+									"column": "kind"
+								},
+								"lockedUntil": {
+									"column": "lockedUntil"
+								},
+								"ordinal": {
+									"column": "ordinal"
+								},
+								"password": {
+									"column": "password"
+								},
+								"provider": {
+									"column": "provider"
+								},
+								"scopeId": {
+									"column": "scopeId"
+								},
+								"statementId": {
+									"column": "statementId"
+								},
+								"status": {
+									"column": "status"
+								},
+								"userId": {
+									"column": "userId"
+								},
+								"workerToken": {
+									"column": "workerToken"
+								}
+							},
+							"namespaceId": "public",
+							"table": "ImportFileJob"
+						}
+					},
 					"InstitutionReviewAudit": {
 						"fields": {
 							"action": {
@@ -15242,6 +15483,10 @@
 		},
 		"FinancialProviderSlot": {
 			"model": "FinancialProviderSlot",
+			"namespace": "public"
+		},
+		"ImportFileJob": {
+			"model": "ImportFileJob",
 			"namespace": "public"
 		},
 		"InstitutionReviewAudit": {
@@ -22310,6 +22555,171 @@
 							},
 							"uniques": []
 						},
+						"ImportFileJob": {
+							"columns": {
+								"batchId": {
+									"codecId": "sql/varchar@1",
+									"dataType": "pg/varchar",
+									"nullable": false,
+									"typeParams": {
+										"length": 36
+									}
+								},
+								"createdAt": {
+									"codecId": "pg/timestamp-date@1",
+									"dataType": "pg/timestamp",
+									"default": {
+										"expression": "now()",
+										"kind": "function"
+									},
+									"nullable": false,
+									"typeParams": {
+										"precision": 3
+									}
+								},
+								"error": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": true
+								},
+								"fileBytes": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": true
+								},
+								"fileName": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": false
+								},
+								"fileType": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": false
+								},
+								"finishedAt": {
+									"codecId": "pg/timestamp-date@1",
+									"dataType": "pg/timestamp",
+									"nullable": true,
+									"typeParams": {
+										"precision": 3
+									}
+								},
+								"id": {
+									"codecId": "sql/varchar@1",
+									"dataType": "pg/varchar",
+									"nullable": false,
+									"typeParams": {
+										"length": 36
+									}
+								},
+								"ignoredCount": {
+									"codecId": "pg/int4@1",
+									"dataType": "pg/int4",
+									"default": {
+										"kind": "literal",
+										"value": 0
+									},
+									"nullable": false
+								},
+								"importId": {
+									"codecId": "sql/varchar@1",
+									"dataType": "pg/varchar",
+									"nullable": true,
+									"typeParams": {
+										"length": 36
+									}
+								},
+								"kind": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": false
+								},
+								"lockedUntil": {
+									"codecId": "pg/timestamp-date@1",
+									"dataType": "pg/timestamp",
+									"nullable": true,
+									"typeParams": {
+										"precision": 3
+									}
+								},
+								"ordinal": {
+									"codecId": "pg/int4@1",
+									"dataType": "pg/int4",
+									"nullable": false
+								},
+								"password": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": true
+								},
+								"provider": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": false
+								},
+								"scopeId": {
+									"codecId": "sql/varchar@1",
+									"dataType": "pg/varchar",
+									"nullable": false,
+									"typeParams": {
+										"length": 36
+									}
+								},
+								"statementId": {
+									"codecId": "sql/varchar@1",
+									"dataType": "pg/varchar",
+									"nullable": true,
+									"typeParams": {
+										"length": 36
+									}
+								},
+								"status": {
+									"codecId": "pg/text@1",
+									"dataType": "pg/text",
+									"nullable": false
+								},
+								"userId": {
+									"codecId": "sql/varchar@1",
+									"dataType": "pg/varchar",
+									"nullable": false,
+									"typeParams": {
+										"length": 36
+									}
+								},
+								"workerToken": {
+									"codecId": "sql/varchar@1",
+									"dataType": "pg/varchar",
+									"nullable": true,
+									"typeParams": {
+										"length": 36
+									}
+								}
+							},
+							"foreignKeys": [],
+							"indexes": [
+								{
+									"columns": ["userId", "batchId", "ordinal"],
+									"name": "ImportFileJob_batch_idx",
+									"unique": false
+								},
+								{
+									"columns": ["status", "lockedUntil"],
+									"name": "ImportFileJob_recovery_idx",
+									"unique": false
+								},
+								{
+									"columns": ["kind", "scopeId", "status", "createdAt"],
+									"name": "ImportFileJob_scope_idx",
+									"unique": false
+								}
+							],
+							"primaryKey": {
+								"columns": ["id"],
+								"name": "ImportFileJob_pkey"
+							},
+							"uniques": []
+						},
 						"InstitutionReviewAudit": {
 							"columns": {
 								"action": {
@@ -27402,7 +27812,7 @@
 				"kind": "postgres-schema"
 			}
 		},
-		"storageHash": "f1e9933a7a2ab046fbdbbe4f7219a89cdb4f66db7796a06516f826ff2d6d36a3"
+		"storageHash": "0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29"
 	},
 	"target": "postgres",
 	"targetFamily": "sql"

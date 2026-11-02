@@ -25,7 +25,11 @@ import { getStoredRecurrence } from "~/modules/recurring/application/recurrences
 import { ApproveImportItemBody } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
 import { enqueueUserYieldRecalculations } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
-import { createTransactionBatch } from "~/modules/transaction-imports/application/import-batches";
+import { enqueueImportBatch, getImportBatch } from "~/modules/transaction-imports/application/jobs";
+import {
+	BatchUploadAccepted,
+	BatchUploadReturn,
+} from "~/modules/transaction-imports/infra/elysia/BatchUploadDTO";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
@@ -53,14 +57,11 @@ import {
 	removeImportItem,
 	validateItemAccounts,
 } from "../../application/import-service";
-import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
-import { filterZeroValueTransactions } from "../../domain/filter-zero-value-transactions";
+import { CreateTransactionImportBody, createUploadedTransactionImport } from "../../application/upload";
 import {
 	matchesDuplicateTransactionShape,
 	uniqueTransactionMatches,
 } from "../../domain/import-reconciliation";
-import { assignStableExternalIds, statementImportId } from "../../domain/statement-identity";
-import { parseStatementPdf } from "../../domain/statement-parser";
 import {
 	getTransferSuggestions,
 	type TransferSuggestion,
@@ -748,6 +749,8 @@ async function getImportReturn(
 	};
 }
 
+const { file: _fileSchema, ...batchUploadProperties } = CreateTransactionImportBody.properties;
+
 export const TransactionImportsController = new Elysia({ prefix: "/transaction-imports" })
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
@@ -769,7 +772,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 			 GROUP BY import."id", import."fileName", import."createdAt"
-			 ORDER BY import."createdAt" DESC`,
+			 ORDER BY "pendingItemCount" ASC, import."createdAt" DESC`,
 						[userId],
 					),
 			);
@@ -810,141 +813,47 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			}),
 		},
 	)
+	.get(
+		"/batch/:batchId",
+		async ({ params, request }) => getImportBatch(await requireUserId(request), params.batchId),
+		{
+			detail: { operationId: "getTransactionImportsBatchByBatchId" },
+			params: t.Object({ batchId: t.String({ maxLength: 36, minLength: 1 }) }),
+			response: BatchUploadReturn,
+		},
+	)
+	.post(
+		"/batch",
+		async ({ body, request }) => {
+			const userId = await requireUserId(request);
+			await assertBalanceAccountOwnership(body.financialAccountId, userId);
+			return enqueueImportBatch(userId, "account", body.financialAccountId, body.files, {
+				provider: body.provider,
+			});
+		},
+		{
+			body: t.Object({ ...batchUploadProperties, files: t.Files({ minItems: 1 }) }),
+			detail: { operationId: "postTransactionImportsBatch" },
+			parse: "multipart/form-data",
+			response: BatchUploadAccepted,
+		},
+	)
+
 	.post(
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			await assertBalanceAccountOwnership(body.financialAccountId, userId);
-			if (body.file.type !== "application/pdf" && !body.file.name.toLowerCase().endsWith(".pdf"))
-				throw new HttpException("Envie um arquivo PDF", 400);
-			const fileBytes = new Uint8Array(await body.file.arrayBuffer());
-			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
-				throw new HttpException("Envie um PDF válido", 400);
-			const statement = await parseStatementPdf(fileBytes.buffer, body.provider);
-			const statementTransactions = assignStableExternalIds(
-				filterZeroValueTransactions(statement.transactions),
-				{
-					financialAccountId: body.financialAccountId,
-					provider: statement.provider,
-					userId,
-				},
-			);
-			const importId = statementImportId(
-				userId,
-				body.financialAccountId,
-				statement.provider,
-				statementTransactions.map(item => item.externalId),
-			);
-			return withRawTransaction(async query => {
-				await query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
-					`statement-import:${userId}:${body.financialAccountId}`,
-				]);
-				const imported = await query<{ id: string; status: string }>(
-					'SELECT "id", "status" FROM "TransactionImport" WHERE "id"=$1',
-					[importId],
-				);
-				if (imported[0])
-					return {
-						ignoredCount: imported[0].status === "PENDING" ? 0 : statementTransactions.length,
-						transactionImport:
-							imported[0].status === "PENDING"
-								? await getImportReturn(userId, imported[0].id)
-								: null,
-					};
-
-				const [existingTransactions, existingYields] = await Promise.all([
-					queryRaw<{ externalId: string | null }>(
-						`SELECT "externalId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-						[
-							body.financialAccountId,
-							statementTransactions.map(transaction => transaction.externalId),
-						],
-					),
-					queryRaw<{ externalId: string | null }>(
-						`SELECT "externalId" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-						[
-							body.financialAccountId,
-							statementTransactions.map(transaction => transaction.externalId),
-						],
-					),
-				]);
-				const existingExternalIds = new Set(
-					[...existingTransactions, ...existingYields].flatMap(transaction =>
-						transaction.externalId ? [transaction.externalId] : [],
-					),
-				);
-				const transactions = filterExistingTransactions(statementTransactions, existingExternalIds);
-				const ignoredCount = statementTransactions.length - transactions.length;
-				if (transactions.length === 0) return { ignoredCount, transactionImport: null };
-				const pending = await queryRaw<{ id: string }>(
-					`SELECT b."id" FROM "TransactionImport" b
-				 WHERE b."userId"=$1 AND b."financialAccountId"=$2 AND b."provider"=$3 AND b."status"='PENDING'
-				 AND EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id")
-				 AND NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND (i."externalId" IS NULL OR NOT (i."externalId"=ANY($4::varchar[]))))
-				 AND NOT EXISTS (SELECT 1 FROM unnest($4::varchar[]) e WHERE NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND i."externalId"=e))
-				 ORDER BY b."createdAt" LIMIT 1`,
-					[
-						userId,
-						body.financialAccountId,
-						statement.provider,
-						transactions.map(item => item.externalId),
-					],
-				);
-				const existing = pending[0];
-				if (existing)
-					return { ignoredCount, transactionImport: await getImportReturn(userId, existing.id) };
-
-				const transactionImport = await createTransactionBatch({
-					fileName: body.file.name.slice(0, 255),
-					financialAccountId: body.financialAccountId,
-					id: importId,
-					periodEnd: statement.periodEnd ? new Date(statement.periodEnd) : undefined,
-					periodStart: statement.periodStart ? new Date(statement.periodStart) : undefined,
-					provider: statement.provider,
-					userId,
-				});
-				if (!transactionImport) throw new HttpException("Não foi possível criar a importação", 500);
-				await executeStatement(
-					db.sql.public.TransactionImportItem.insert(
-						transactions.map(transaction => ({
-							amount: numeric(transaction.amount),
-							balanceAfter:
-								transaction.balanceAfter === undefined
-									? undefined
-									: numeric(transaction.balanceAfter),
-							date: transaction.date,
-							description: transaction.description,
-							destinationFinancialAccountId:
-								transaction.type === "INCOME" || transaction.type === "YIELD"
-									? body.financialAccountId
-									: undefined,
-							externalId: transaction.externalId,
-							originFinancialAccountId:
-								transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
-							time: transaction.time,
-							transactionImportId: transactionImport.id,
-							type: transaction.type as ImportItemType,
-						})),
-					).build(),
-				);
-				return {
-					ignoredCount,
-					transactionImport: await getImportReturn(userId, transactionImport.id),
-				};
-			});
+			const result = await createUploadedTransactionImport(userId, body);
+			return {
+				...result,
+				transactionImport: result.transactionImport
+					? await getImportReturn(userId, result.transactionImport.id)
+					: null,
+			};
 		},
 		{
-			body: t.Object({
-				file: t.File(),
-				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
-				provider: t.Union([
-					t.Literal("MERCADO_PAGO"),
-					t.Literal("NUBANK"),
-					t.Literal("BANCO_DO_BRASIL"),
-					t.Literal("INTER"),
-					t.Literal("PICPAY"),
-				]),
-			}),
+			body: CreateTransactionImportBody,
 			detail: { operationId: "postTransactionImports" },
 			parse: "multipart/form-data",
 		},

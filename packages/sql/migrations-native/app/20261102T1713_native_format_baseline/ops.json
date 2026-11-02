@@ -2523,6 +2523,49 @@
 	{
 		"execute": [
 			{
+				"description": "create table \"ImportFileJob\"",
+				"params": [],
+				"sql": "CREATE TABLE \"public\".\"ImportFileJob\" (\n  \"batchId\" character varying(36) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"error\" text,\n  \"fileBytes\" text,\n  \"fileName\" text NOT NULL,\n  \"fileType\" text NOT NULL,\n  \"finishedAt\" timestamp(3),\n  \"id\" character varying(36) NOT NULL,\n  \"ignoredCount\" int4 DEFAULT 0 NOT NULL,\n  \"importId\" character varying(36),\n  \"kind\" text NOT NULL,\n  \"lockedUntil\" timestamp(3),\n  \"ordinal\" int4 NOT NULL,\n  \"password\" text,\n  \"provider\" text NOT NULL,\n  \"scopeId\" character varying(36) NOT NULL,\n  \"statementId\" character varying(36),\n  \"status\" text NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  \"workerToken\" character varying(36),\n  CONSTRAINT \"ImportFileJob_pkey\" PRIMARY KEY (\"id\")\n)"
+			}
+		],
+		"id": "table.ImportFileJob",
+		"label": "Create table \"ImportFileJob\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify table \"ImportFileJob\" exists",
+				"expectation": {
+					"expects": "present",
+					"object": "table \"ImportFileJob\""
+				},
+				"params": ["\"public\".\"ImportFileJob\"", "r", "p"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure table \"ImportFileJob\" does not exist",
+				"expectation": {
+					"expects": "absent",
+					"object": "table \"ImportFileJob\""
+				},
+				"params": ["\"public\".\"ImportFileJob\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"summary": "Creates table \"ImportFileJob\"",
+		"target": {
+			"details": {
+				"name": "ImportFileJob",
+				"objectType": "table",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
 				"description": "create table \"InstitutionReviewAudit\"",
 				"params": [],
 				"sql": "CREATE TABLE \"public\".\"InstitutionReviewAudit\" (\n  \"action\" character varying(24) NOT NULL,\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"id\" character varying(36) NOT NULL,\n  \"payload\" json NOT NULL,\n  \"proposalId\" character varying(36) NOT NULL,\n  \"reviewerId\" character varying(36) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  PRIMARY KEY (\"id\")\n)"
@@ -8620,6 +8663,144 @@
 				"objectType": "index",
 				"schema": "public",
 				"table": "FinancialInstitutionYieldRule"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ImportFileJob_batch_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"ImportFileJob_batch_idx\" ON \"public\".\"ImportFileJob\" (\"userId\", \"batchId\", \"ordinal\")"
+			}
+		],
+		"id": "index.ImportFileJob.ImportFileJob_batch_idx",
+		"label": "Create index \"ImportFileJob_batch_idx\" on \"ImportFileJob\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ImportFileJob_batch_idx\" exists on \"ImportFileJob\" with the planned definition",
+				"params": [
+					"\"public\".\"ImportFileJob_batch_idx\"",
+					"i",
+					"I",
+					"\"public\".\"ImportFileJob\"",
+					"btree",
+					"[\"userId\",\"batchId\",\"ordinal\"]"
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ImportFileJob_batch_idx\" does not exist",
+				"expectation": {
+					"expects": "absent",
+					"object": "index \"ImportFileJob_batch_idx\""
+				},
+				"params": ["\"public\".\"ImportFileJob_batch_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ImportFileJob_batch_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ImportFileJob"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ImportFileJob_recovery_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"ImportFileJob_recovery_idx\" ON \"public\".\"ImportFileJob\" (\"status\", \"lockedUntil\")"
+			}
+		],
+		"id": "index.ImportFileJob.ImportFileJob_recovery_idx",
+		"label": "Create index \"ImportFileJob_recovery_idx\" on \"ImportFileJob\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ImportFileJob_recovery_idx\" exists on \"ImportFileJob\" with the planned definition",
+				"params": [
+					"\"public\".\"ImportFileJob_recovery_idx\"",
+					"i",
+					"I",
+					"\"public\".\"ImportFileJob\"",
+					"btree",
+					"[\"status\",\"lockedUntil\"]"
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ImportFileJob_recovery_idx\" does not exist",
+				"expectation": {
+					"expects": "absent",
+					"object": "index \"ImportFileJob_recovery_idx\""
+				},
+				"params": ["\"public\".\"ImportFileJob_recovery_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ImportFileJob_recovery_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ImportFileJob"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "create index \"ImportFileJob_scope_idx\"",
+				"params": [],
+				"sql": "CREATE INDEX \"ImportFileJob_scope_idx\" ON \"public\".\"ImportFileJob\" (\"kind\", \"scopeId\", \"status\", \"createdAt\")"
+			}
+		],
+		"id": "index.ImportFileJob.ImportFileJob_scope_idx",
+		"label": "Create index \"ImportFileJob_scope_idx\" on \"ImportFileJob\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify index \"ImportFileJob_scope_idx\" exists on \"ImportFileJob\" with the planned definition",
+				"params": [
+					"\"public\".\"ImportFileJob_scope_idx\"",
+					"i",
+					"I",
+					"\"public\".\"ImportFileJob\"",
+					"btree",
+					"[\"kind\",\"scopeId\",\"status\",\"createdAt\"]"
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure index \"ImportFileJob_scope_idx\" does not exist",
+				"expectation": {
+					"expects": "absent",
+					"object": "index \"ImportFileJob_scope_idx\""
+				},
+				"params": ["\"public\".\"ImportFileJob_scope_idx\""],
+				"sql": "SELECT (to_regclass($1)) IS NULL AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "ImportFileJob_scope_idx",
+				"objectType": "index",
+				"schema": "public",
+				"table": "ImportFileJob"
 			},
 			"id": "postgres"
 		}

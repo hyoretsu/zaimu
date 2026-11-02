@@ -8,7 +8,7 @@ const root = resolve(import.meta.dir, "..");
 const require = createRequire(import.meta.url);
 const cli = join(dirname(require.resolve("prisma/package.json")), "dist/prisma.js");
 const contract = JSON.parse(await readFile(join(root, "out/prisma/contract.json"), "utf8"));
-const formatBaseline = "f1e9933a7a2ab046fbdbbe4f7219a89cdb4f66db7796a06516f826ff2d6d36a3";
+const formatBaseline = "0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29";
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is required for the explicit migration action");
 const connection = new Client({ connectionString: url });

@@ -168,6 +168,13 @@ external/noncanonical paths and client-supplied operation credentials.
 Import row approvals use `completionGroup` in the shared background action runner.
 Keep row locks until grouped refresh finishes, aggregate final feedback, and retain
 individual failure recovery. Closing a dialog must not discard its queued actions.
+PDF statement and invoice imports use dedicated multipart `/transaction-imports/batch` and
+`/credit-card-imports/batch` endpoints, not the JSON action queue. Each selected file
+is durably queued with its own outcome; workers bound processing concurrency and
+serialize imports per destination. Upload acceptance is not completion: the frontend
+polls owner-scoped job status and retries only failed files. There is no selection
+count limit; ordinary multipart byte limits still apply.
+
 Guest actions keep local persistence and never use the backend batch endpoint.
 
 ## Mobile keyboard avoidance

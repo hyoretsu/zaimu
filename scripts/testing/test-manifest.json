@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/transaction-imports/tests/import-file-leases.integration.test.ts",
 		"backend/src/modules/currencies/tests/currency-default-cache.integration.test.ts",
 		"backend/src/modules/accounts/tests/account-options.integration.test.ts",
 		"backend/src/modules/accounts/tests/balance-adjustments.integration.test.ts",
@@ -63,6 +64,7 @@
 		"backend/src/modules/accounts/domain/calculate-financial-account-yields.test.ts",
 		"backend/src/modules/accounts/domain/daily-balance-summary.test.ts",
 		"backend/src/modules/accounts/domain/normalize-financial-institution-name.test.ts",
+		"backend/src/modules/accounts/domain/resolve-yield-policy-timeline.test.ts",
 		"backend/src/modules/accounts/infra/dto/institution-countries.test.ts",
 		"backend/src/modules/accounts/infra/dto/institution-name.test.ts",
 		"backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.test.ts",

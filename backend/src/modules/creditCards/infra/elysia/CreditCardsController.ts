@@ -478,12 +478,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const cached = await distributedCache.remember(
 				userId,
 				"credit-cards:overview",
-				{ domain: "purchase-edit", format: 3, ...params },
+				{ domain: "purchase-edit", format: 4, ...params },
 				async () => {
 					const rows = await queryRaw<{
 						id: string;
 						totalAmount: number;
 						purchaseDate: Date;
+						time: string | null;
 						externalId: string | null;
 						feeAmount: number | null;
 						currency: string;
@@ -498,7 +499,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						`
 				SELECT (SELECT i."purchaseId" FROM "CreditInstallmentRecord" i WHERE i."settledByPurchaseId"=p."id" LIMIT 1) AS "refinancedFromPurchaseId",
 COALESCE((SELECT jsonb_agg(DISTINCT i."settledByPurchaseId") FROM "CreditInstallmentRecord" i WHERE i."purchaseId"=p."id" AND i."settledByPurchaseId" IS NOT NULL), '[]'::jsonb) AS "refinancingPurchaseIds",
-p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", p."feeAmount", p."currency", p."originalAmount", p."exchangeRate", p."fees",
+p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."externalId", p."feeAmount", p."currency", p."originalAmount", p."exchangeRate", p."fees",
 				COALESCE((SELECT jsonb_agg(plan."number" ORDER BY plan."number") FROM "CreditInstallmentPlan" plan WHERE plan."purchaseId"=p."id" AND plan."hasImportedAmount"), '[]'::jsonb) AS "installmentImportedNumbers"
 				FROM "CreditPurchaseRecord" p WHERE p."id"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
 						[params.purchaseId, params.id, userId],
@@ -521,6 +522,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 						purchaseDate: row.purchaseDate.toISOString().slice(0, 10),
 						refinancedFromPurchaseId: row.refinancedFromPurchaseId,
 						refinancingPurchaseIds: row.refinancingPurchaseIds,
+						time: row.time,
 						totalAmountCents: moneyCents(Number(row.totalAmount), 1, row.bookingCurrency),
 					};
 				},

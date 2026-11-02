@@ -27,7 +27,8 @@ export function PendingCreditCardImportsDialog({
 				<DialogHeader>
 					<DialogTitle>Selecionar fatura para revisão</DialogTitle>
 					<DialogDescription>
-						Escolha uma fatura. As importadas mais recentemente aparecem primeiro.
+						Escolha uma fatura. As com menos compras restantes aparecem primeiro; em caso de
+						empate, as mais recentes.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
@@ -35,7 +36,7 @@ export function PendingCreditCardImportsDialog({
 						<div className="min-w-0 space-y-2">
 							{imports.map(creditCardImport => (
 								<Button
-									className="h-auto w-full min-w-0 max-w-full cursor-pointer justify-start gap-3 overflow-hidden whitespace-normal px-4 py-3 text-left"
+									className="h-auto w-full max-w-full min-w-0 cursor-pointer justify-start gap-3 overflow-hidden px-4 py-3 text-left whitespace-normal"
 									key={creditCardImport.id}
 									onClick={() => {
 										onOpenChange(false);
@@ -45,10 +46,14 @@ export function PendingCreditCardImportsDialog({
 								>
 									<LuFileSearch className="mt-0.5 size-5 shrink-0 text-amber-700" />
 									<span className="w-0 min-w-0 flex-1 space-y-1 overflow-hidden">
-										<span className="block truncate font-semibold">{creditCardImport.fileName}</span>
-										<span className="block truncate text-muted-foreground text-xs">
+										<span className="block truncate font-semibold">
+											{creditCardImport.fileName}
+										</span>
+										<span className="text-muted-foreground block truncate text-xs">
 											{creditCardImport.pendingItemCount}{" "}
-											{creditCardImport.pendingItemCount === 1 ? "compra restante" : "compras restantes"}
+											{creditCardImport.pendingItemCount === 1
+												? "compra restante"
+												: "compras restantes"}
 										</span>
 									</span>
 								</Button>

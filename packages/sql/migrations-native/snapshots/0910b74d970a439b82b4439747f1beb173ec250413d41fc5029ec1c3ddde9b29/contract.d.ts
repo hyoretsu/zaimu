@@ -21,7 +21,7 @@ import type {
 } from "@prisma/orm-postgres/target/codec-types";
 import type { QueryOperationTypes as PgTargetQueryOps } from "@prisma/orm-postgres/target/operation-types";
 
-export type StorageHash = StorageHashBase<"f1e9933a7a2ab046fbdbbe4f7219a89cdb4f66db7796a06516f826ff2d6d36a3">;
+export type StorageHash = StorageHashBase<"0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
 
@@ -1495,6 +1495,29 @@ export namespace Models {
 		slot: FieldOutputTypes["public"]["FinancialProviderSlot"]["slot"];
 		readonly [RelationKeys]?: never;
 	};
+	export type public_ImportFileJob = {
+		batchId: FieldOutputTypes["public"]["ImportFileJob"]["batchId"];
+		createdAt: FieldOutputTypes["public"]["ImportFileJob"]["createdAt"];
+		error: FieldOutputTypes["public"]["ImportFileJob"]["error"];
+		fileBytes: FieldOutputTypes["public"]["ImportFileJob"]["fileBytes"];
+		fileName: FieldOutputTypes["public"]["ImportFileJob"]["fileName"];
+		fileType: FieldOutputTypes["public"]["ImportFileJob"]["fileType"];
+		finishedAt: FieldOutputTypes["public"]["ImportFileJob"]["finishedAt"];
+		id: FieldOutputTypes["public"]["ImportFileJob"]["id"];
+		ignoredCount: FieldOutputTypes["public"]["ImportFileJob"]["ignoredCount"];
+		importId: FieldOutputTypes["public"]["ImportFileJob"]["importId"];
+		kind: FieldOutputTypes["public"]["ImportFileJob"]["kind"];
+		lockedUntil: FieldOutputTypes["public"]["ImportFileJob"]["lockedUntil"];
+		ordinal: FieldOutputTypes["public"]["ImportFileJob"]["ordinal"];
+		password: FieldOutputTypes["public"]["ImportFileJob"]["password"];
+		provider: FieldOutputTypes["public"]["ImportFileJob"]["provider"];
+		scopeId: FieldOutputTypes["public"]["ImportFileJob"]["scopeId"];
+		statementId: FieldOutputTypes["public"]["ImportFileJob"]["statementId"];
+		status: FieldOutputTypes["public"]["ImportFileJob"]["status"];
+		userId: FieldOutputTypes["public"]["ImportFileJob"]["userId"];
+		workerToken: FieldOutputTypes["public"]["ImportFileJob"]["workerToken"];
+		readonly [RelationKeys]?: never;
+	};
 	export type public_InstitutionReviewAudit = {
 		action: FieldOutputTypes["public"]["InstitutionReviewAudit"]["action"];
 		createdAt: FieldOutputTypes["public"]["InstitutionReviewAudit"]["createdAt"];
@@ -2239,6 +2262,7 @@ export declare const models: {
 		FinancialInstitutionYieldPolicy: Models.public_FinancialInstitutionYieldPolicy;
 		FinancialInstitutionYieldRule: Models.public_FinancialInstitutionYieldRule;
 		FinancialProviderSlot: Models.public_FinancialProviderSlot;
+		ImportFileJob: Models.public_ImportFileJob;
 		InstitutionReviewAudit: Models.public_InstitutionReviewAudit;
 		Loan: Models.public_Loan;
 		LoanHistory: Models.public_LoanHistory;
@@ -8381,6 +8405,171 @@ type ContractBase = Omit<
 							indexes: readonly [];
 							foreignKeys: readonly [];
 						};
+						readonly ImportFileJob: {
+							columns: {
+								readonly batchId: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+									readonly many: false;
+								};
+								readonly createdAt: {
+									readonly dataType: "pg/timestamp";
+									readonly codecId: "pg/timestamp-date@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "function";
+										readonly expression: "now()";
+									};
+									readonly typeParams: { readonly precision: 3 };
+									readonly many: false;
+								};
+								readonly error: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: true;
+									readonly many: false;
+								};
+								readonly fileBytes: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: true;
+									readonly many: false;
+								};
+								readonly fileName: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: false;
+									readonly many: false;
+								};
+								readonly fileType: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: false;
+									readonly many: false;
+								};
+								readonly finishedAt: {
+									readonly dataType: "pg/timestamp";
+									readonly codecId: "pg/timestamp-date@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly precision: 3 };
+									readonly many: false;
+								};
+								readonly id: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+									readonly many: false;
+								};
+								readonly ignoredCount: {
+									readonly dataType: "pg/int4";
+									readonly codecId: "pg/int4@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"pg/int4@1", 0>;
+									};
+									readonly many: false;
+								};
+								readonly importId: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly length: 36 };
+									readonly many: false;
+								};
+								readonly kind: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: false;
+									readonly many: false;
+								};
+								readonly lockedUntil: {
+									readonly dataType: "pg/timestamp";
+									readonly codecId: "pg/timestamp-date@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly precision: 3 };
+									readonly many: false;
+								};
+								readonly ordinal: {
+									readonly dataType: "pg/int4";
+									readonly codecId: "pg/int4@1";
+									readonly nullable: false;
+									readonly many: false;
+								};
+								readonly password: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: true;
+									readonly many: false;
+								};
+								readonly provider: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: false;
+									readonly many: false;
+								};
+								readonly scopeId: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+									readonly many: false;
+								};
+								readonly statementId: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly length: 36 };
+									readonly many: false;
+								};
+								readonly status: {
+									readonly dataType: "pg/text";
+									readonly codecId: "pg/text@1";
+									readonly nullable: false;
+									readonly many: false;
+								};
+								readonly userId: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: false;
+									readonly typeParams: { readonly length: 36 };
+									readonly many: false;
+								};
+								readonly workerToken: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly length: 36 };
+									readonly many: false;
+								};
+							};
+							primaryKey: {
+								readonly columns: readonly ["id"];
+								readonly name: "ImportFileJob_pkey";
+							};
+							uniques: readonly [];
+							indexes: readonly [
+								{
+									readonly name: "ImportFileJob_batch_idx";
+									readonly columns: readonly ["userId", "batchId", "ordinal"];
+									readonly unique: false;
+								},
+								{
+									readonly name: "ImportFileJob_recovery_idx";
+									readonly columns: readonly ["status", "lockedUntil"];
+									readonly unique: false;
+								},
+								{
+									readonly name: "ImportFileJob_scope_idx";
+									readonly columns: readonly ["kind", "scopeId", "status", "createdAt"];
+									readonly unique: false;
+								},
+							];
+							foreignKeys: readonly [];
+						};
 						readonly InstitutionReviewAudit: {
 							columns: {
 								readonly action: {
@@ -13241,6 +13430,10 @@ type ContractBase = Omit<
 		readonly FinancialProviderSlot: {
 			readonly namespace: "public" & NamespaceId;
 			readonly model: "FinancialProviderSlot";
+		};
+		readonly ImportFileJob: {
+			readonly namespace: "public" & NamespaceId;
+			readonly model: "ImportFileJob";
 		};
 		readonly InstitutionReviewAudit: {
 			readonly namespace: "public" & NamespaceId;
@@ -19906,6 +20099,157 @@ type ContractBase = Omit<
 								readonly lockedUntil: { readonly column: "lockedUntil" };
 								readonly provider: { readonly column: "provider" };
 								readonly slot: { readonly column: "slot" };
+							};
+						};
+					};
+					readonly ImportFileJob: {
+						readonly fields: {
+							readonly batchId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly createdAt: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp-date@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly error: {
+								readonly nullable: true;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly fileBytes: {
+								readonly nullable: true;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly fileName: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly fileType: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly finishedAt: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp-date@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly id: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly ignoredCount: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/int4@1" };
+							};
+							readonly importId: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly kind: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly lockedUntil: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/timestamp-date@1";
+									readonly typeParams: { readonly precision: 3 };
+								};
+							};
+							readonly ordinal: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/int4@1" };
+							};
+							readonly password: {
+								readonly nullable: true;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly provider: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly scopeId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly statementId: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly status: {
+								readonly nullable: false;
+								readonly type: { readonly kind: "scalar"; readonly codecId: "pg/text@1" };
+							};
+							readonly userId: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+							readonly workerToken: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 36 };
+								};
+							};
+						};
+						readonly relations: Record<string, never>;
+						readonly storage: {
+							readonly table: "ImportFileJob";
+							readonly namespaceId: "public";
+							readonly fields: {
+								readonly batchId: { readonly column: "batchId" };
+								readonly createdAt: { readonly column: "createdAt" };
+								readonly error: { readonly column: "error" };
+								readonly fileBytes: { readonly column: "fileBytes" };
+								readonly fileName: { readonly column: "fileName" };
+								readonly fileType: { readonly column: "fileType" };
+								readonly finishedAt: { readonly column: "finishedAt" };
+								readonly id: { readonly column: "id" };
+								readonly ignoredCount: { readonly column: "ignoredCount" };
+								readonly importId: { readonly column: "importId" };
+								readonly kind: { readonly column: "kind" };
+								readonly lockedUntil: { readonly column: "lockedUntil" };
+								readonly ordinal: { readonly column: "ordinal" };
+								readonly password: { readonly column: "password" };
+								readonly provider: { readonly column: "provider" };
+								readonly scopeId: { readonly column: "scopeId" };
+								readonly statementId: { readonly column: "statementId" };
+								readonly status: { readonly column: "status" };
+								readonly userId: { readonly column: "userId" };
+								readonly workerToken: { readonly column: "workerToken" };
 							};
 						};
 					};

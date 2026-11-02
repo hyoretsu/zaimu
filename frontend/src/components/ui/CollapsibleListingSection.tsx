@@ -7,6 +7,7 @@ import { ScrollArea } from "./ScrollArea";
 
 export function CollapsibleListingSection({
 	children,
+	containedScroll = true,
 	description,
 	summary,
 	title,
@@ -14,6 +15,7 @@ export function CollapsibleListingSection({
 	viewKey,
 }: {
 	children: ReactNode;
+	containedScroll?: boolean;
 	description?: string;
 	summary?: ReactNode;
 	title: string;
@@ -60,9 +62,13 @@ export function CollapsibleListingSection({
 			<div hidden={!expanded} id={contentId}>
 				<div className="grid min-h-0 min-w-0 gap-4">
 					{toolbar}
-					<ScrollArea className="h-[min(24rem,50dvh)] min-h-0 min-w-0" type="always">
-						<div className="space-y-3 pr-3">{children}</div>
-					</ScrollArea>
+					{containedScroll ? (
+						<ScrollArea className="h-[min(24rem,50dvh)] min-h-0 min-w-0" type="always">
+							<div className="space-y-3 pr-3">{children}</div>
+						</ScrollArea>
+					) : (
+						<div className="space-y-3">{children}</div>
+					)}
 				</div>
 			</div>
 		</section>

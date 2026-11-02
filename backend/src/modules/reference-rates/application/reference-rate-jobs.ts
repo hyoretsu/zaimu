@@ -88,6 +88,18 @@ export async function enqueueReferenceRateFetch(
 		startDate: dateKey(startDate),
 	});
 }
+/** Yield needs balance, which only comes from transactions, loan payments or balance adjustments. */
+export async function accountFirstBalanceDate(accountId: string) {
+	const [row] = await queryRaw<{ date: Date | null }>(
+		`SELECT MIN("date") AS "date" FROM (
+			SELECT "date" FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1
+			UNION ALL SELECT "date" FROM "BalanceAdjustment" WHERE "financialAccountId"=$1
+			UNION ALL SELECT "paidDate" FROM "LoanPayment" WHERE "financialAccountId"=$1
+		) movement`,
+		[accountId],
+	);
+	return row?.date ?? null;
+}
 export async function enqueueAccountYieldRecalculation(
 	accountId: string,
 	fromDate: Date,
@@ -256,7 +268,9 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
 	const account = await loadYieldAccount(job.financialAccountId);
 	if (!account) return;
-	const fromDate = startOfDay(job.fromDate > account.createdAt ? job.fromDate : account.createdAt);
+	const firstBalance = await accountFirstBalanceDate(account.id);
+	if (!firstBalance) return;
+	const fromDate = startOfDay(job.fromDate > firstBalance ? job.fromDate : firstBalance);
 	const endDate = startOfDay(job.endDate ?? yieldSchedulerClock().date);
 	if (fromDate > endDate) return;
 	const years = Array.from(
