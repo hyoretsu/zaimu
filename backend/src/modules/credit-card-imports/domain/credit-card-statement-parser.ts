@@ -8,6 +8,10 @@ import {
 	selectCreditCardStatementLayout,
 } from "./credit-card-statement-layout";
 import { parseInterCreditCardStatementText } from "./inter-credit-card";
+import {
+	isInterGlobalStatementText,
+	parseInterGlobalCreditCardStatementText,
+} from "./inter-global-credit-card";
 import { parseMercadoPagoCreditCardStatementText } from "./mercado-pago-credit-card";
 import { normalizeMercadoPagoText } from "./mercado-pago-text";
 import { parseNubankCreditCardStatementText } from "./nubank-credit-card";
@@ -42,7 +46,18 @@ const creditCardStatementLayouts: readonly CreditCardStatementLayout[] = [
 		parse: parseBradescardCreditCardStatementText,
 		provider: "BRADESCO",
 	},
-	{ id: "inter", matches: () => true, parse: parseInterCreditCardStatementText, provider: "INTER" },
+	{
+		id: "inter-global-usd",
+		matches: isInterGlobalStatementText,
+		parse: parseInterGlobalCreditCardStatementText,
+		provider: "INTER",
+	},
+	{
+		id: "inter",
+		matches: text => !isInterGlobalStatementText(text),
+		parse: parseInterCreditCardStatementText,
+		provider: "INTER",
+	},
 	{
 		id: "mercado-pago",
 		matches: () => true,

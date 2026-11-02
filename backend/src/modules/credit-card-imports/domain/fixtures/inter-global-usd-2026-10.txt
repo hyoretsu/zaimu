@@ -1,0 +1,89 @@
+Page: 1 of 4
+Resumo da conta
+Olá, CLIENTE EXEMPLO! Sua fatura Global chegou!
+Total da sua fatura
+$ 8.48
+Este é o valor que você precisa pagar nesse mês.
+Data de vencimento
+10/11/2026
+Pagamento mínimo
+$ 8.48
+
+-- 1 of 4 --
+
+Page: 2 of 4
+Fatura Cartão de Crédito CLIENTE EXEMPLO - Final cartão - * 5553
+-	Período de cobrança: 10/01/2026 10/31/2026
+Informações da Fatura
+Total da sua fatura
+$8.48
+Data de vencimento
+10 de novembro
+/2026
+Pagamento mínimo
+$8.48
+Aviso sobre pagamento em atraso:
+Em caso de ausência de pagamento, pagamento abaixo do valor mínimo da fatura e
+pagamento em atraso, será realizado o débito automático na sua Conta Cayman. Isso
+pode fazer com que sua Conta Cayman fique com saldo negativo, e pode inferir em outras
+cobranças. Confira seu Contrato de Conta Cayman e Cartão Global para mais detalhes.
+Aviso sobre o pagamento mínimo:
+O pagamento mínimo é o que você precisa pagar nesse mês para evitar a realização de
+débito automático na sua Conta Cayman. Em caso de pagamento mínimo da fatura, será
+cobrado juros rotativos de 6% ao mês sobre o saldo devedor.
+Pague e gerencie sua conta no seu aplicativo Inter
+Resumo da conta
+Saldo anterior $0.00
+- Pagamentos $0.00
+- Outros créditos $0.00
+- Saldo Diferido $0.00
++ Compras $8.48
++ Juros Cobrados $0.00
++ Taxa Cobrada $0.00
+Novo saldo $8.48
+Limite de Crédito $200.00
+Limite de Crédito Disponível $191.52
+
+-- 2 of 4 --
+
+Page: 3 of 4
+Despesas da fatura CLIENTE EXEMPLO - Final cartão - * 5553
+-	Período de cobrança: 10/01/2026 10/31/2026
+- -	CLIENTE EXEMPLO Final cartão *5553
+Data do lançamento Data da transação Descrição Valor(USD)
+Pagamentos, créditos e estornos
+Nenhuma transação disponível para o cartão terminando em * 5553
+Compras
+10/09/2026 10/07/2026 STEAMGAMES.COM 4259522
+BELLEVUE WAUSA $8.48
+Taxas
+Nenhuma transação disponível para o cartão terminando em * 5553
+Juros Cobrados
+Nenhuma transação disponível para o cartão terminando em * 5553
+
+-- 3 of 4 --
+
+Page: 4 of 4
+Totais de 2026 até o momento
+Total de taxas cobradas em 2026
+$0.00
+Total de juros cobrados em 2026
+$0.00
+Encargos financeiros
+Encargos Taxas Saldo sujeito a juros Juros cobrados
+Encargos rotativos 6.0% a. m. $0.00 $0.00
+Fale com a gente:
+Capitais e regiões metropolitanas:
+3003 4070
+Demais localidades:
+0800 940 0007
+SAC:
+0800 940 9999
+Ouvidoria:
+0800 940 7772
+Fale com a gente pelo chat, no
+nosso Super App, ou acesse:
+www.bancointer.com.br
+
+-- 4 of 4 --
+
