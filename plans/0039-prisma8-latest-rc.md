@@ -56,3 +56,24 @@ Plan is NOT code-complete; do not archive. Outstanding: remaining ordinary raw S
 Frozen verification at `acf98baf` finished: SQL integration, SQL E2E and backend integration each exited 0. Backend E2E exited 1 (2 pass, 3 fail, 118 assertions): forecast purchases are empty, shared-debt invitation balance differs, and cleanup violates FinancialInstitutionProposal_authorId_fkey. A previous verifier reports matching baseline failures; their actual causes are not yet established, and assertions after failing points remain unvalidated. Logs are `/tmp/zaimu-verify-{sql-integration,sql-e2e,backend-integration,backend-e2e}.log`.
 
 Bounded parallel work resumed using Sonnet 5.5 at low effort: E2E fixture investigation, monthly-budget conversion, remaining store-query conversion, and read-only JSON/invitation numeric review. No integration into original Zaimu main or remote action has occurred.
+
+## 2026-11-02 status after the second continuation
+
+Still NOT code-complete; do not archive and do not integrate until the conversion scope below is decided.
+
+Verified on committed source (runner exit codes read from the runner itself, with test names checked in the logs):
+
+- SQL integration, SQL E2E and backend integration pass. Backend integration includes the new regression suites for stores, categories, monthly budgets, balance adjustments, debt event page and taxes.
+- Backend E2E: 3 of 4 tests pass. The remaining failure is the refund debt link (`database.e2e.test.ts`, "expected one `DebtPurchaseLink` after deleting a refund, received none"). It reproduces unchanged on the pre-migration commit `6ccf868d` with the same fixture corrections, so it is pre-existing, not caused by this migration. Business rules say refund deletion preserves history, so it is likely a product defect. Not fixed here.
+- The native-successor E2E test takes about 140 to 200 seconds against a 300 second limit and timed out once under heavy machine load. It is a flakiness risk, not a defect.
+
+Builder behavior established (installed `@prisma/orm-postgres` 8.0.0-rc.22):
+
+- The typed builder has no `ON CONFLICT`, no insert-time expressions, no recursive CTE or CTE-driven update, no advisory locks, no `COLLATE` and no `strpos`. Statements needing these keep raw SQL, or use typed `functions.raw` expressions for the narrow capability (stores and categories catalogs).
+- An explicit `undefined` is sent as NULL on insert and on update; an omitted key uses the column default. Pinned by a runtime test. Two NOT NULL columns (`yieldTaxIds`) were broken by this and fixed. Update behavior is identical in the early RC runtime, so it is not a regression.
+
+Conversion progress: monthly budgets, stores, categories, balance adjustments, debt event page, invitation summary and four of five tax statements are converted. A scripted scan (approximate, it matches call expressions rather than parsing) found about 575 remaining raw statements in `backend/src`, of which about 250 contain no PostgreSQL-specific construct and are conversion candidates. Largest groups of candidates: `accounts/application/universal-institutions.ts`, `creditCards/application/normalized-credit-book.ts`, `sync/SyncController.ts`, `recurring/application/recurrences.ts`, `yield-calendar/YieldCalendarController.ts`, `credit-card-imports/application/import-service.ts` and the Open Finance modules. Flagged statements are not automatically exempt (`now()` and `ANY()` are expressible); each needs its own check.
+
+Test infrastructure: `prepare-schema.ts` now honors `TEST_COMMAND_TIMEOUT_MS`. The runner has no file filter and `--changed` can select zero tests and still pass, so validation requires full runs without `--changed`.
+
+Still outstanding: the conversion above, financial semantic review of unread chunks, the pre-merge type-check and build for affected packages (not yet run), and integration into the original `main` (nothing is integrated or pushed).
