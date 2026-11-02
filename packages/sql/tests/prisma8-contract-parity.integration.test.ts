@@ -40,7 +40,7 @@ test("latest native contract preserves all historical head physical storage", as
 	);
 	const latest = JSON.parse(await readFile(join(root, "out/prisma/contract.json"), "utf8"));
 	const tables = latest.storage.namespaces.public.entries.table;
-	expect(Object.keys(tables)).toHaveLength(90);
+	expect(Object.keys(tables)).toHaveLength(91);
 	expect(tables.taxDefinition).toBeDefined();
 	expect(tables.taxDefinitionVersion).toBeDefined();
 	expect(tables.OpenFinanceRun.columns.errors.default.value).toBe("[]");

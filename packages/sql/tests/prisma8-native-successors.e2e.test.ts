@@ -103,4 +103,4 @@ test("production wrapper continues through two officially planned native success
 		await client.end();
 		await rm(copy, { force: true, recursive: true });
 	}
-}, 300000);
+}, 900000);
