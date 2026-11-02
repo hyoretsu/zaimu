@@ -99,6 +99,12 @@ suite("Prisma 8 SQL query builder", () => {
 	});
 
 	afterAll(async () => {
+		if (userIds.length > 0) {
+			// Institution proposals created by signup flows reference users without cascade.
+			await db.orm.public.FinancialInstitutionProposal.where(fields =>
+				fields.authorId.in(userIds as never),
+			).deleteAndCount();
+		}
 		if (userIds.length > 0)
 			await db.orm.public.User.where(fields => fields.id.in(userIds as never)).deleteAndCount();
 		await closeDatabase();
@@ -596,26 +602,30 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(((await repeatedLinkedPurchaseResponse.json()) as Array<{ id: string }>)[0]?.id).toBe(
 			initialSubscriptionPurchase?.id,
 		);
-		const futureStatement = (
+		// Relative to today, the first forecast statement may only carry earlier balances forward;
+		// the projected subscription charge lands in whichever forecast statement its cycle belongs to.
+		const forecastStatements = (
 			(await subscriptionStatementsResponse.json()) as {
 				items: Array<{ id: string; isForecast?: boolean }>;
 			}
-		).items.find(statement => statement.isForecast);
-		expect(futureStatement).toBeDefined();
-		const futureStatementResponse = await jsonRequest(
-			`/credit-cards/${creditCardAccount.creditCard.id}/statements/${futureStatement!.id}`,
-			"GET",
-			undefined,
-			owner.cookie,
-		);
-		expect(futureStatementResponse.status).toBe(200);
-		expect(
-			(
-				(await futureStatementResponse.json()) as {
-					purchases: Array<{ id: string; storeName: string }>;
-				}
-			).purchases,
-		).toEqual(
+		).items.filter(statement => statement.isForecast);
+		expect(forecastStatements.length).toBeGreaterThan(0);
+		const forecastPurchases: Array<{ id: string; storeName: string }> = [];
+		for (const forecast of forecastStatements) {
+			const forecastResponse = await jsonRequest(
+				`/credit-cards/${creditCardAccount.creditCard.id}/statements/${forecast.id}`,
+				"GET",
+				undefined,
+				owner.cookie,
+			);
+			expect(forecastResponse.status).toBe(200);
+			forecastPurchases.push(
+				...(
+					(await forecastResponse.json()) as { purchases: Array<{ id: string; storeName: string }> }
+				).purchases,
+			);
+		}
+		expect(forecastPurchases).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					isForecast: true,
@@ -1336,7 +1346,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const previewAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: "Conta do preview pendente", type: "CHECKING" },
+			{ currency: "USD", name: "Conta do preview pendente", type: "CHECKING" },
 			owner.cookie,
 		);
 		expect(previewAccountResponse.status).toBe(200);
@@ -1418,7 +1428,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const peerAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: `Conta dívida ${crypto.randomUUID()}`, type: "CHECKING" },
+			{ currency: "USD", name: `Conta dívida ${crypto.randomUUID()}`, type: "CHECKING" },
 			peer.cookie,
 		);
 		const peerAccount = (await peerAccountResponse.json()) as { id: string };
@@ -1459,7 +1469,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const ownerAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: `Conta pareada ${crypto.randomUUID()}`, type: "CHECKING" },
+			{ currency: "USD", name: `Conta pareada ${crypto.randomUUID()}`, type: "CHECKING" },
 			owner.cookie,
 		);
 		const ownerAccount = (await ownerAccountResponse.json()) as { id: string };
