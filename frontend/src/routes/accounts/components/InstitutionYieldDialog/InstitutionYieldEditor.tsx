@@ -17,7 +17,7 @@ import { useCurrencyStore } from "@/stores/currency";
 import { CreateInstitutionProfileDialog } from "./CreateInstitutionProfileDialog";
 import { InstitutionYieldPolicyForm } from "./InstitutionYieldPolicyForm";
 import { InstitutionYieldTimeline } from "./InstitutionYieldTimeline";
-import { selectEditablePolicy } from "./policy-selection";
+import { policyDay, policyTimeline, selectEditablePolicy } from "./policy-selection";
 
 export function InstitutionYieldEditor({
 	institution,
@@ -37,6 +37,9 @@ export function InstitutionYieldEditor({
 		institution.operatingCountryCodes?.length === 1 ? institution.operatingCountryCodes[0] : undefined,
 	);
 	const [effectiveDate, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
+	const [effectiveUntil, setUntil] = useState("");
+	// Start date of the existing period being edited; unset while a new period is created.
+	const [editingStart, setEditingStart] = useState<string>();
 	const identity = useCacheIdentity();
 	const preferredCurrency = useCurrencyStore(state => state.currency);
 	const currencies = useCurrencyStore(state => state.currencies);
@@ -53,13 +56,14 @@ export function InstitutionYieldEditor({
 		profileId ??
 		profiles.data?.find(profile => profile.name === requestedProfileName)?.id ??
 		profiles.data?.find(profile => profile.isDefault)?.id;
-	const policy = selectEditablePolicy(
-		policies.data ?? [],
-		selectedProfile,
-		countryCode,
-		effectiveDate,
-		currency,
-	);
+	const timeline = policyTimeline(policies.data ?? [], selectedProfile, countryCode, currency);
+	const editedPolicy = editingStart
+		? timeline.find(item => policyDay(item.effectiveDate) === editingStart)
+		: undefined;
+	const replacesEffectiveDate = editedPolicy ? editingStart : undefined;
+	const policy =
+		editedPolicy ??
+		selectEditablePolicy(policies.data ?? [], selectedProfile, countryCode, effectiveDate, currency);
 	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const controls = (
 		<>
@@ -114,11 +118,30 @@ export function InstitutionYieldEditor({
 				required
 				value={effectiveDate}
 			/>
+			<DateField
+				description="Em branco, vale até a próxima mudança."
+				id="policy-effective-until"
+				label="Vigente até"
+				min={effectiveDate}
+				name="policy-effective-until"
+				onValueChange={setUntil}
+				value={effectiveUntil}
+			/>
 			<InstitutionYieldTimeline
 				countryCode={countryCode}
 				currency={currency}
+				onNew={() => {
+					setEditingStart(undefined);
+					setUntil("");
+				}}
+				onSelect={item => {
+					setEditingStart(policyDay(item.effectiveDate));
+					setDate(policyDay(item.effectiveDate));
+					setUntil(item.effectiveUntil ? policyDay(item.effectiveUntil) : "");
+				}}
 				policies={policies.data ?? []}
 				profileId={selectedProfile}
+				selectedStart={replacesEffectiveDate}
 			/>
 			<p className="text-muted-foreground text-sm">
 				Proposta entra em vigor somente após aprovação administrativa.
@@ -162,17 +185,20 @@ export function InstitutionYieldEditor({
 			<InstitutionYieldPolicyForm
 				controls={controls}
 				currency={currency}
-				key={`${selectedProfile}:${countryCode}`}
+				key={`${selectedProfile}:${countryCode}:${replacesEffectiveDate ?? ""}`}
 				onDiscard={onClose}
 				onSave={async body => {
 					if (!selectedProfile || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
 						throw new Error("Selecione perfil e data de vigência.");
 					}
+					if (effectiveUntil && effectiveUntil <= effectiveDate)
+						throw new Error("O fim da vigência deve ser posterior ao início.");
 					await onUpdate(institution, {
 						...body,
 						countryCode,
-						effectiveUntil: policy?.effectiveUntil ?? undefined,
+						effectiveUntil: effectiveUntil || undefined,
 						profileId: selectedProfile,
+						replacesEffectiveDate,
 						requestedEffectiveDate: effectiveDate,
 					});
 					await policies.refetch();
