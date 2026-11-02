@@ -339,7 +339,10 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							);
 						else
 							await executeStatement(
-								db.sql.public.FinancialAccount.insert([{ ...values, id, userId }]).build(),
+								// The builder writes an explicit `undefined` as NULL; yieldTaxIds is NOT NULL with a `[]` default.
+								db.sql.public.FinancialAccount.insert([
+									{ ...values, id, userId, yieldTaxIds: values.yieldTaxIds ?? [] },
+								]).build(),
 							);
 						await saveAccountDefaults(
 							userId,
