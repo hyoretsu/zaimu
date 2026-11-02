@@ -655,6 +655,39 @@ describe("normalized refund transactions", () => {
 			);
 		});
 
+		const withBulkDiagnostics = async <T>(scenario: string, run: () => Promise<T>) => {
+			const { getQueryMetrics, withQueryMetrics } = await import("sql");
+			return withQueryMetrics(async () => {
+				const shapes = new Map<string, number>();
+				activeQueries = shapes;
+				// Bun does not cancel the test body on timeout, so report before it fires and again when it settles.
+				const report = (phase: string) => {
+					const metrics = getQueryMetrics();
+					if (!metrics) return;
+					console.info(
+						JSON.stringify({
+							connectionWaitMs: metrics.connectionWaitMs,
+							elapsedMs: Math.round(performance.now() - metrics.startedAt),
+							phase,
+							queries: metrics.queryCount,
+							scenario,
+							spans: metrics.spans.length,
+							sqlDurationMs: metrics.sqlDurationMs,
+							sqlShapes: [...shapes].sort((a, b) => b[1] - a[1]).slice(0, 8),
+						}),
+					);
+				};
+				const timer = setTimeout(() => report("before-timeout"), 25_000);
+				try {
+					return await run();
+				} finally {
+					clearTimeout(timer);
+					activeQueries = undefined;
+					report("settled");
+				}
+			});
+		};
+
 		test("final write failure rolls back all 1000 purchases and leaves a retryable import", async () => {
 			const { approveItems } = await import("../../credit-card-imports/application/import-service");
 			// Fail only at final approval, after purchases and review effects have been written.
@@ -665,24 +698,26 @@ describe("normalized refund transactions", () => {
 				`CREATE TRIGGER reject_large_import BEFORE UPDATE ON "CreditCardImport" FOR EACH ROW EXECUTE FUNCTION reject_large_import()`,
 			);
 			try {
-				await expect(approveItems(context.userId, importId)).rejects.toThrow(
-					"forced bulk approval failure",
-				);
-				expect(
-					(
-						await client.query(
-							`SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId" LIKE 'large-external-%'`,
-						)
-					).rows,
-				).toHaveLength(0);
-				expect(
-					(
-						await client.query(
-							`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
-							[importId],
-						)
-					).rows,
-				).toHaveLength(1000);
+				await withBulkDiagnostics("rollback1000", async () => {
+					await expect(approveItems(context.userId, importId)).rejects.toThrow(
+						"forced bulk approval failure",
+					);
+					expect(
+						(
+							await client.query(
+								`SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId" LIKE 'large-external-%'`,
+							)
+						).rows,
+					).toHaveLength(0);
+					expect(
+						(
+							await client.query(
+								`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
+								[importId],
+							)
+						).rows,
+					).toHaveLength(1000);
+				});
 			} finally {
 				await client.query(`DROP TRIGGER reject_large_import ON "CreditCardImport"`);
 				await client.query("DROP FUNCTION reject_large_import()");
@@ -691,32 +726,11 @@ describe("normalized refund transactions", () => {
 
 		test("retry persists the same 1000 purchases in one batch", async () => {
 			const { approveItems } = await import("../../credit-card-imports/application/import-service");
-			const { getQueryMetrics, withQueryMetrics } = await import("sql");
-			await withQueryMetrics(async () => {
-				const queryShapes = new Map<string, number>();
-				activeQueries = queryShapes;
-				try {
-					expect(await approveItems(context.userId, importId)).toEqual({ created: 1000 });
-				} finally {
-					activeQueries = undefined;
-					if (getQueryMetrics()!.queryCount >= 200)
-						console.info(
-							JSON.stringify({
-								sqlShapes: [...queryShapes].sort((a, b) => b[1] - a[1]).slice(0, 12),
-							}),
-						);
-				}
+			const { getQueryMetrics } = await import("sql");
+			await withBulkDiagnostics("approve1000", async () => {
+				expect(await approveItems(context.userId, importId)).toEqual({ created: 1000 });
 				const metrics = getQueryMetrics()!;
 				const spans = metrics.spans;
-				console.info(
-					JSON.stringify({
-						connectionWaitMs: metrics.connectionWaitMs,
-						durationMs: performance.now() - metrics.startedAt,
-						queries: metrics.queryCount,
-						scenario: "approve1000",
-						sqlDurationMs: metrics.sqlDurationMs,
-					}),
-				);
 				expect(metrics.queryCount).toBeLessThan(200);
 				// Batch persistence, fully-synced marker and statement payment reconciliation.
 				expect(spans.filter(span => span.name === "credit-book:persist").length).toBeLessThanOrEqual(
