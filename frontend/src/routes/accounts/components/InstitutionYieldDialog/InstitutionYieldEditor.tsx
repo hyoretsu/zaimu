@@ -37,6 +37,8 @@ export function InstitutionYieldEditor({
 		institution.operatingCountryCodes?.length === 1 ? institution.operatingCountryCodes[0] : undefined,
 	);
 	const [effectiveDate, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
+	// Resolve the source period independently of the draft's editable start date.
+	const [sourceDate, setSourceDate] = useState(effectiveDate);
 	const [effectiveUntil, setUntil] = useState("");
 	// Start date of the existing period being edited; unset while a new period is created.
 	const [editingStart, setEditingStart] = useState<string>();
@@ -63,7 +65,7 @@ export function InstitutionYieldEditor({
 	const replacesEffectiveDate = editedPolicy ? editingStart : undefined;
 	const policy =
 		editedPolicy ??
-		selectEditablePolicy(policies.data ?? [], selectedProfile, countryCode, effectiveDate, currency);
+		selectEditablePolicy(policies.data ?? [], selectedProfile, countryCode, sourceDate, currency);
 	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const controls = (
 		<>
@@ -81,6 +83,7 @@ export function InstitutionYieldEditor({
 					);
 					setProfile(nextProfile);
 					setEditingStart(undefined);
+					setSourceDate(new Date().toLocaleDateString("sv-SE"));
 					setDate(nextPolicy?.effectiveDate.slice(0, 10) ?? today);
 					setUntil(nextPolicy?.effectiveUntil ? policyDay(nextPolicy.effectiveUntil) : "");
 				}}
@@ -96,6 +99,7 @@ export function InstitutionYieldEditor({
 					setRequestedProfileName(name);
 					setProfile(undefined);
 					setEditingStart(undefined);
+					setSourceDate(new Date().toLocaleDateString("sv-SE"));
 					setUntil("");
 					await profiles.refetch();
 				}}
@@ -105,6 +109,7 @@ export function InstitutionYieldEditor({
 				onValueChange={value => {
 					setCountry(!value || value === "__all__" ? undefined : value);
 					setEditingStart(undefined);
+					setSourceDate(new Date().toLocaleDateString("sv-SE"));
 					setUntil("");
 				}}
 				options={[
@@ -140,6 +145,7 @@ export function InstitutionYieldEditor({
 				currency={currency}
 				onNew={() => {
 					setEditingStart(undefined);
+					setSourceDate(effectiveDate);
 					setUntil("");
 				}}
 				onSelect={item => {
