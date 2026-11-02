@@ -1,6 +1,7 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/transaction-imports/tests/import-file-leases.integration.test.ts",
 		"backend/src/modules/currencies/tests/currency-default-cache.integration.test.ts",
 		"backend/src/modules/accounts/tests/account-options.integration.test.ts",
 		"backend/src/modules/account-transfers/tests/account-transfers.integration.test.ts",

@@ -3,6 +3,7 @@ import { brokerExchange, brokerQueue } from "../service-namespace";
 
 export const queueNames = [
 	"open-finance-sync",
+	"import-file",
 	"cache-invalidation",
 	"schedule-materialization",
 	"reference-rate-fetch",
@@ -39,7 +40,9 @@ export async function declareBrokerTopology(channel: ConfirmChannel) {
 			},
 			durable: true,
 		});
-		const exchange = brokerExchange(routingKey === "cache-invalidation" ? "zaimu.events" : "zaimu.commands");
+		const exchange = brokerExchange(
+			routingKey === "cache-invalidation" ? "zaimu.events" : "zaimu.commands",
+		);
 		await channel.bindQueue(queue, exchange, routingKey);
 		if (routingKey === "cache-invalidation") await channel.bindQueue(queue, exchange, "domain.#");
 	}

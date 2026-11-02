@@ -1,26 +1,46 @@
-import type { ChangeEvent } from "react";
+import { useState } from "react";
 import { LuFileUp } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
 import { inputControlClassName } from "@/components/ui/input-styles";
 import { Label } from "@/components/ui/Label";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 
 export function StatementFilePicker({
-	file,
+	files,
 	inputId = "transaction-import-file",
 	label = "Extrato em PDF",
-	onFileChange,
+	onFilesChange,
+	disabled = false,
 }: {
-	file: File | null;
+	files: File[];
 	inputId?: string;
 	label?: string;
-	onFileChange: (file: File | null) => void;
+	onFilesChange: (files: File[]) => void;
+	disabled?: boolean;
 }) {
-	const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-		onFileChange(event.currentTarget.files?.[0] ?? null);
+	const [error, setError] = useState("");
+	const addFiles = (selected: File[]) => {
+		if (disabled) return;
+		if (
+			selected.some(
+				file => file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"),
+			)
+		) {
+			setError("Selecione apenas arquivos PDF.");
+			return;
+		}
+		setError("");
+		onFilesChange([...files, ...selected]);
 	};
-
 	return (
-		<div className="grid content-start gap-2">
+		<div
+			className="focus-within:ring-ring grid content-start gap-2 focus-within:ring-2"
+			onDragOver={event => event.preventDefault()}
+			onDrop={event => {
+				event.preventDefault();
+				addFiles(Array.from(event.dataTransfer.files));
+			}}
+		>
 			<Label asChild id={`${inputId}-label`}>
 				<span>
 					{label} <RequiredMark />
@@ -31,24 +51,47 @@ export function StatementFilePicker({
 				aria-describedby={`${inputId}-description`}
 				aria-labelledby={`${inputId}-label`}
 				className="sr-only"
+				disabled={disabled}
 				id={inputId}
+				multiple
 				name="statement"
-				onChange={handleFileChange}
-				required
+				onChange={event => {
+					addFiles(Array.from(event.currentTarget.files ?? []));
+					event.currentTarget.value = "";
+				}}
 				type="file"
 			/>
 			<Label
-				className={`${inputControlClassName} cursor-pointer gap-2 transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-input/50`}
+				className={`${inputControlClassName} hover:bg-input/50 cursor-pointer gap-2`}
 				htmlFor={inputId}
 			>
 				<LuFileUp className="shrink-0" />
-				<span aria-live="polite" className="min-w-0 flex-1 truncate">
-					{file?.name ?? "Selecionar arquivo"}
-				</span>
+				<span>Selecionar arquivos ou arrastar PDFs</span>
 			</Label>
+			<ul className="grid gap-1">
+				{files.map((file, index) => (
+					<li className="flex min-w-0 items-center gap-2" key={`${file.name}-${index}`}>
+						<span className="min-w-0 flex-1 truncate">{file.name}</span>
+						<Button
+							aria-label={`Remover ${file.name}`}
+							disabled={disabled}
+							onClick={() => onFilesChange(files.filter((_, position) => position !== index))}
+							type="button"
+							variant="ghost"
+						>
+							Remover
+						</Button>
+					</li>
+				))}
+			</ul>
 			<p className="text-muted-foreground text-xs" id={`${inputId}-description`}>
-				Apenas arquivos PDF.
+				Cada PDF gera uma importação independente.
 			</p>
+			{error && (
+				<p className="text-destructive text-sm" role="alert">
+					{error}
+				</p>
+			)}
 		</div>
 	);
 }

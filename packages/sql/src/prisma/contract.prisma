@@ -176,6 +176,32 @@ namespace public {
     @@index([connectionId, remoteAccountId], map: "OpenFinanceBinding_connection_account_key", unique: true)
     @@map("OpenFinanceBinding")
   }
+  model ImportFileJob {
+    id VarChar(36) @id(map: "ImportFileJob_pkey")
+    batchId VarChar(36)
+    userId VarChar(36)
+    kind String
+    scopeId VarChar(36)
+    ordinal Int
+    status String
+    fileName String
+    fileType String
+    fileBytes String?
+    provider String
+    password String?
+    statementId VarChar(36)?
+    importId VarChar(36)?
+    ignoredCount Int @default(0)
+    error String?
+    workerToken VarChar(36)?
+    lockedUntil Timestamp(3)?
+    createdAt Timestamp(3) @default(now())
+    finishedAt Timestamp(3)?
+    @@index([userId, batchId, ordinal], map: "ImportFileJob_batch_idx")
+    @@index([kind, scopeId, status, createdAt], map: "ImportFileJob_scope_idx")
+    @@index([status, lockedUntil], map: "ImportFileJob_recovery_idx")
+    @@map("ImportFileJob")
+  }
   model OpenFinanceRun {
     id VarChar(36) @id(map: "OpenFinanceRun_pkey")
     userId VarChar(36)

@@ -142,6 +142,7 @@ import {
 	deleteRecurringById,
 	getCategories,
 	getCategoriesLookup,
+	getCreditCardImportsBatchByBatchId,
 	getCreditCardImportsById,
 	getCreditCardsByIdStatements,
 	getDashboard,
@@ -155,12 +156,15 @@ import {
 	getRecurringById,
 	getRecurringByIdHistory,
 	getStores,
+	getTransactionImportsBatchByBatchId,
 	getTransactionImportsById,
 	getTransactions,
 	patchRecurringById,
+	postCreditCardImportsBatch,
 	postRecurring,
 	postRecurringByIdAdvance,
 	postRecurringByIdReplay,
+	postTransactionImportsBatch,
 } from "./api";
 import type {
 	Category,
@@ -200,6 +204,7 @@ import type {
 	TransactionImportSummary,
 } from "./api";
 import { ConnectivityError } from "./api/client-api";
+import { type ImportProgress, resumeImportBatch, waitForImportBatch } from "./api/import-job-progress";
 import { loanContractsApi } from "./api/loan-contracts";
 import type { BalanceAdjustment } from "./balance-adjustment";
 import { guestCashbackSnapshot } from "./cashback-snapshot";
@@ -1270,6 +1275,32 @@ export const dataService = {
 			const uploadFile = await prepareUploadFile(file);
 			if (provider === "MEUPLUGGY") throw new Error("Selecione um provedor de arquivo válido.");
 			return postCreditCardImports({ creditCardId, file: uploadFile, password, provider, statementId });
+		},
+
+		async createBatch(data: {
+			files: File[];
+			creditCardId: string;
+			provider: CreditCardImport["provider"];
+			password?: string;
+			statementId?: string;
+			onProgress?: (progress: ImportProgress) => void;
+		}) {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar arquivos.");
+			const files = await Promise.all(data.files.map(file => prepareUploadFile(file)));
+			if (data.provider === "MEUPLUGGY") throw new Error("Selecione um provedor de arquivo válido.");
+			return resumeImportBatch(
+				`${getCurrentCacheIdentity()}:CreditCard:${data.creditCardId}:${data.files.map(file => `${file.name}:${file.size}:${file.lastModified}`).join("|")}`,
+				() =>
+					postCreditCardImportsBatch({
+						creditCardId: data.creditCardId,
+						files,
+						password: data.password,
+						provider: data.provider as Exclude<typeof data.provider, "MEUPLUGGY">,
+						statementId: data.statementId,
+					}),
+				batchId =>
+					waitForImportBatch(() => getCreditCardImportsBatchByBatchId(batchId), data.onProgress),
+			);
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
@@ -3730,6 +3761,7 @@ export const dataService = {
 				data ? { authenticated: true, batch: false, responseType: "json" } : undefined,
 			);
 		},
+
 		async create({
 			file,
 			financialAccountId,
@@ -3742,6 +3774,26 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			const uploadFile = await prepareUploadFile(file);
 			return postTransactionImports({ file: uploadFile, financialAccountId, provider });
+		},
+		async createBatch(data: {
+			files: File[];
+			financialAccountId: string;
+			provider: TransactionImport["provider"];
+			onProgress?: (progress: ImportProgress) => void;
+		}) {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar arquivos.");
+			const files = await Promise.all(data.files.map(file => prepareUploadFile(file)));
+			return resumeImportBatch(
+				`${getCurrentCacheIdentity()}:Transaction:${data.financialAccountId}:${data.files.map(file => `${file.name}:${file.size}:${file.lastModified}`).join("|")}`,
+				() =>
+					postTransactionImportsBatch({
+						files,
+						financialAccountId: data.financialAccountId,
+						provider: data.provider as Exclude<typeof data.provider, "MEUPLUGGY">,
+					}),
+				batchId =>
+					waitForImportBatch(() => getTransactionImportsBatchByBatchId(batchId), data.onProgress),
+			);
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
