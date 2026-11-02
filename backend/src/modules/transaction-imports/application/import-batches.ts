@@ -1,5 +1,5 @@
 import { HttpException } from "~/shared/errors";
-import { db, queryFirst } from "~/shared/infra/sql";
+import { db, nullableNumeric, queryFirst } from "~/shared/infra/sql";
 export async function createTransactionBatch(input: {
 	id?: string;
 	userId: string;
@@ -10,7 +10,18 @@ export async function createTransactionBatch(input: {
 	periodEnd?: Date | null;
 }) {
 	const row = await queryFirst(
-		db.sql.public.TransactionImport.insert([{ ...input, updatedAt: new Date() }])
+		db.sql.public.TransactionImport.insert([
+			{
+				...input,
+				periodEnd:
+					input.periodEnd == null ? input.periodEnd : input.periodEnd.toISOString().slice(0, 10),
+				periodStart:
+					input.periodStart == null
+						? input.periodStart
+						: input.periodStart.toISOString().slice(0, 10),
+				updatedAt: new Date(),
+			},
+		])
 			.returning("id")
 			.build(),
 	);
@@ -27,7 +38,18 @@ export async function createCreditCardBatch(input: {
 	reportedPreviousBalance?: string | null;
 }) {
 	const row = await queryFirst(
-		db.sql.public.CreditCardImport.insert([{ ...input, updatedAt: new Date() }])
+		db.sql.public.CreditCardImport.insert([
+			{
+				...input,
+				dueDate: input.dueDate.toISOString().slice(0, 10),
+				reportedPreviousBalance:
+					input.reportedPreviousBalance === undefined
+						? undefined
+						: nullableNumeric(input.reportedPreviousBalance),
+				statementDate: input.statementDate.toISOString().slice(0, 10),
+				updatedAt: new Date(),
+			},
+		])
 			.returning("id")
 			.build(),
 	);

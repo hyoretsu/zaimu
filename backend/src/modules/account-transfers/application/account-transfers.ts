@@ -1,13 +1,14 @@
 import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
 import { PostgresOutbox } from "~/shared/infra/outbox";
-import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { db, queryRaw, queryRows, withRawTransaction } from "~/shared/infra/sql";
 import type { AccountTransferReturn, CreateAccountTransferDTO } from "../infra/AccountTransfersDTO";
 import { moveFinancialHistory } from "./move-financial-history";
 import { describeTransfer, loadTransferSnapshot } from "./transfer-snapshot";
 
 const outbox = new PostgresOutbox();
 export async function lockTransferOwners(userIds: string[]) {
+	// PostgreSQL transaction-scoped advisory locks serialize owners in stable order.
 	for (const id of [...new Set(userIds)].sort())
 		await queryRaw(`SELECT pg_advisory_xact_lock(hashtextextended('account-owner:'||$1,0))`, [id]);
 }
@@ -24,9 +25,11 @@ async function findTransfer(userId: string, id: string) {
 }
 async function items(id: string) {
 	return (
-		await queryRaw<{ accountId: string }>(
-			`SELECT "accountId" FROM "AccountTransferItem" WHERE "transferId"=$1 ORDER BY "accountId"`,
-			[id],
+		await queryRows(
+			db.sql.public.AccountTransferItem.select("accountId")
+				.where((f, fn) => fn.eq(f.transferId, id))
+				.orderBy("accountId", { direction: "asc" })
+				.build(),
 		)
 	).map(row => row.accountId);
 }
@@ -142,9 +145,11 @@ export async function respondAccountTransfer(
 		if (transfer.status !== "PENDING")
 			throw new HttpException("Este convite já foi respondido ou cancelado.", 409);
 		if (action === "ACCEPTED") {
-			const verified = await queryRaw(
-				`SELECT "id" FROM "user" WHERE "id"=$1 AND "emailVerified"=true`,
-				[userId],
+			const verified = await queryRows(
+				db.sql.public.user
+					.select("id")
+					.where((f, fn) => fn.and(fn.eq(f.id, userId), fn.eq(f.emailVerified, true)))
+					.build(),
 			);
 			if (!verified.length)
 				throw new HttpException("Verifique seu e-mail antes de aceitar a transferência.", 403);

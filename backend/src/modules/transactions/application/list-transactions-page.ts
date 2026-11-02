@@ -241,6 +241,8 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 	const limit = Math.min(input.limit ?? 50, 100);
 	const currentFilterHash = transactionPageFilterHash(input, userId);
 	const cursor = decodeTransactionCursor(input.cursor, currentFilterHash);
+	// rc22's public SQL builder supports lateral joins, but exposes no UNION ALL API.
+	// Keep one combined query so both sources share stable keyset ordering and limit.
 	let sql = input.search?.trim()
 		? listSql
 		: listSql.replace(/ {4}concat_ws\(' ',[\s\S]*?\) AS search_text/g, "NULL::text AS search_text");
@@ -320,6 +322,8 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 						.build(),
 				)
 			: [],
+		// CreditEntry is a compatibility UNION view absent from the rc22 contract namespace.
+		// Preserve its cancellation/refund semantics rather than querying only installment rows.
 		queryRaw<{
 			id: string;
 			parentId: string | null;
@@ -340,9 +344,16 @@ export async function listTransactionsPage(userId: string, input: ListTransactio
 		),
 	]);
 	const detachedRows = transactionIds.length
-		? await queryRaw<{ entityId: string; kind: string }>(
-				`SELECT "entityId","kind" FROM "DetachedFinancialRecord" WHERE "entityType"='Transaction' AND "entityId"=ANY($1::text[]) AND "userId"=$2`,
-				[transactionIds, userId],
+		? await queryRows(
+				db.sql.public.DetachedFinancialRecord.select("entityId", "kind")
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.entityType, "Transaction"),
+							functions.in(fields.entityId, transactionIds),
+							functions.eq(fields.userId, userId),
+						),
+					)
+					.build(),
 			)
 		: [];
 	const detachedKinds = new Map(detachedRows.map(row => [row.entityId, row.kind]));

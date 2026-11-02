@@ -1,16 +1,19 @@
 import { HttpException } from "~/shared/errors";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 
 /** Only direct financial neighbours of the current selection can cause a split. */
 export async function relatedTransferAccounts(userId: string, accountIds: string[]) {
 	const ids = [...new Set(accountIds)];
 	if (!ids.length || ids.length > 500 || ids.some(id => !id || id.length > 36))
 		throw new HttpException("Selecione contas válidas.", 400);
-	const owned = await queryRaw<{ id: string }>(
-		`SELECT "id" FROM "FinancialAccount" WHERE "userId"=$1 AND "id"=ANY($2::text[])`,
-		[userId, ids],
+	const owned = await queryRows(
+		db.sql.public.FinancialAccount.select("id")
+			.where((f, fn) => fn.and(fn.eq(f.userId, userId), fn.in(f.id, ids)))
+			.build(),
 	);
 	if (owned.length !== ids.length) throw new HttpException("Conta não encontrada", 404);
+	// PostgreSQL array overlap, LATERAL expansion and ordered DISTINCT aggregation
+	// preserve batched direct-neighbour discovery without multiplying application queries.
 	return queryRaw<{ id: string; reasons: string[] }>(
 		`
  WITH edges AS (

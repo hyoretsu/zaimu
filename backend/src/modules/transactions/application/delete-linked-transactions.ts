@@ -21,7 +21,10 @@ export async function deleteLinkedTransactions(
 			"destinationFinancialAccountId",
 		)
 			.where((fields, functions) =>
-				functions.and(functions.eq(fields.recurrenceId, linkedEntityId), functions.eq(fields.userId, userId)),
+				functions.and(
+					functions.eq(fields.recurrenceId, linkedEntityId),
+					functions.eq(fields.userId, userId),
+				),
 			)
 			.build(),
 	);
@@ -44,6 +47,7 @@ export async function deleteLinkedTransactions(
 	if (cards.length) await withTransaction(executor => recalculateStatementPayments(executor, cards));
 	for (const row of transactions)
 		for (const accountId of [row.originFinancialAccountId, row.destinationFinancialAccountId])
-			if (accountId) await enqueueAccountYieldRecalculation(accountId, row.date, "recurrence-deleted");
+			if (accountId)
+				await enqueueAccountYieldRecalculation(accountId, new Date(row.date), "recurrence-deleted");
 	return transactionIds.length;
 }
