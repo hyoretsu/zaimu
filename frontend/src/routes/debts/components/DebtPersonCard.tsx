@@ -4,6 +4,7 @@ import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleListingSection } from "@/components/ui/CollapsibleListingSection";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
 	Dialog,
@@ -23,8 +24,8 @@ import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService, type DebtEventPage } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { viewNullableId } from "@/lib/view-state";
-import { compareDebtEventsByDateTimeThenLabel } from "./debt-event";
 import { DebtEventItem } from "./DebtEventItem";
+import { groupDebtEventsByMonth } from "./group-debt-events";
 
 export function DebtPersonCard({
 	createPending,
@@ -174,18 +175,25 @@ export function DebtPersonCard({
 									</Button>
 								</div>
 							) : (
-								events
-									.toSorted(compareDebtEventsByDateTimeThenLabel)
-									.map(event => (
-										<DebtEventItem
-											event={event}
-											key={event.id}
-											onDeleteEvent={onDeleteEvent}
-											onEditEvent={onEditEvent}
-											personId={person.id}
-											personPending={personPending}
-										/>
-									))
+								groupDebtEventsByMonth(events).map(group => (
+									<CollapsibleListingSection
+										containedScroll={false}
+										key={group.key}
+										title={group.title}
+										viewKey={`debts.${person.id}.${group.key}`}
+									>
+										{group.events.map(event => (
+											<DebtEventItem
+												event={event}
+												key={event.id}
+												onDeleteEvent={onDeleteEvent}
+												onEditEvent={onEditEvent}
+												personId={person.id}
+												personPending={personPending}
+											/>
+										))}
+									</CollapsibleListingSection>
+								))
 							)}
 							{!eventsQuery.isPending && !events.length ? (
 								<p className="text-muted-foreground py-8 text-center">
