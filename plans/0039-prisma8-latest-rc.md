@@ -43,10 +43,16 @@ Disposable `bun run scripts/test-runner.ts backend integration`: passes (exit 0)
 
 ## Raw SQL kept on purpose / deferred
 
-- Kept raw (PG capability): outbox `FOR UPDATE SKIP LOCKED` CTE and notification delivery claim CTE, advisory locks (`pg_advisory_xact_lock`), `CreditEntry` view reads, `ON CONFLICT` upserts, interval arithmetic on `now()`.
-- DebtsController event page and invitation summary remain original raw SQL (COALESCE(source_transaction.time, refund.time, purchase.time), per-event CASE descriptions, viewer-relative effect, hiddenAt IS NULL, stable name,id ordering, recordId join). Not converted: a faithful builder translation was not completed.
+- Raw candidates still requiring capability review: outbox and notification claim CTEs, advisory locks (`pg_advisory_xact_lock`), `CreditEntry` view reads, `ON CONFLICT` upserts and interval arithmetic. This is NOT an approved exception register: locks, upserts and intervals are not automatically exempt from conversion.
+- `acf98baf` converts DebtsController event pagination and invitation summaries and adds disposable integration coverage (3 tests, 26 assertions passed). Event ordering is date DESC NULLS LAST, id DESC; source/refund/purchase times, descriptions, viewer-relative effects and hidden-person exclusion are covered. These two baseline queries do not contain an archive recordId join; that invariant belongs to sync-manual-debt-events. Invitation numeric aggregation remains under semantic review.
 - ~499 raw call sites remain across the backend (largest: account-transfers/move-financial-history 43, open-finance sync/process-record/configuration, credit-card-imports/import-service 24, sync/SyncController 21, transaction-imports controller 14, monthly-budgets 13, accounts/institutions controllers). Not converted in this pass.
 
 ## Validation outstanding
 
-Plan is NOT code-complete; do not archive. Outstanding: remaining raw SQL conversion by domain, faithful conversion (or documented retention) of the two debt queries, full-review of financial query semantic drift (a read-only reviewer was run; see parent report), the pre-existing e2e failures, SQL-package suites after the json decode change, and the pre-merge type-check/build gate.
+Plan is NOT code-complete; do not archive. Outstanding: remaining ordinary raw SQL conversion by domain, complete financial semantic review, investigation of blocked backend E2E assertions, JSON normalization review, and the pre-merge type-check/build gate.
+
+## 2026-11-02 continuation
+
+Frozen verification at `acf98baf` finished: SQL integration, SQL E2E and backend integration each exited 0. Backend E2E exited 1 (2 pass, 3 fail, 118 assertions): forecast purchases are empty, shared-debt invitation balance differs, and cleanup violates FinancialInstitutionProposal_authorId_fkey. A previous verifier reports matching baseline failures; their actual causes are not yet established, and assertions after failing points remain unvalidated. Logs are `/tmp/zaimu-verify-{sql-integration,sql-e2e,backend-integration,backend-e2e}.log`.
+
+Bounded parallel work resumed using Sonnet 5.5 at low effort: E2E fixture investigation, monthly-budget conversion, remaining store-query conversion, and read-only JSON/invitation numeric review. No integration into original Zaimu main or remote action has occurred.
