@@ -69,7 +69,7 @@ export function TimeField({ onValueChange, value, disabled, className, ...props 
 		return (
 			<FormField
 				{...props}
-				className={`pr-11 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${className ?? ""}`}
+				className={`pr-11 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:bg-none [&::-webkit-calendar-picker-indicator]:opacity-0 ${className ?? ""}`}
 				disabled={disabled}
 				onChange={event => onValueChange(event.currentTarget.value)}
 				trailing={disabled ? null : clearButton}
