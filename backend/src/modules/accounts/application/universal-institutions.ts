@@ -318,6 +318,7 @@ export async function reviewInstitutionProposal(
 							policy.yieldPeriod ?? null,
 							policy.yieldTaxIds ?? [],
 							policy.yieldTaxRate ?? null,
+							policy.accountType ?? null,
 						],
 					);
 				for (const [position, rule] of policy.rules.entries())
