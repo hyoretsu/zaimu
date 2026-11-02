@@ -17,7 +17,13 @@ import { useCurrencyStore } from "@/stores/currency";
 import { CreateInstitutionProfileDialog } from "./CreateInstitutionProfileDialog";
 import { InstitutionYieldPolicyForm } from "./InstitutionYieldPolicyForm";
 import { InstitutionYieldTimeline } from "./InstitutionYieldTimeline";
-import { policyDay, policyTimeline, selectEditablePolicy } from "./policy-selection";
+import {
+	OPEN_START,
+	policyDay,
+	policyTimeline,
+	selectEditablePolicy,
+	visibleStart,
+} from "./policy-selection";
 
 export function InstitutionYieldEditor({
 	institution,
@@ -35,7 +41,7 @@ export function InstitutionYieldEditor({
 	const [requestedProfileName, setRequestedProfileName] = useState<string>();
 	const [countryCode, setCountry] = useState<string>();
 	const today = new Date().toLocaleDateString("sv-SE");
-	// Blank start means "from today".
+	// Blank start means "the whole previous period" (stored as the open start sentinel).
 	const [effectiveDate, setDate] = useState("");
 	// Resolve the source period independently of the draft's editable start date.
 	const [sourceDate, setSourceDate] = useState(today);
@@ -83,7 +89,7 @@ export function InstitutionYieldEditor({
 					setProfile(nextProfile);
 					setEditingStart(undefined);
 					setSourceDate(today);
-					setDate(nextPolicy ? policyDay(nextPolicy.effectiveDate) : "");
+					setDate(nextPolicy ? visibleStart(nextPolicy.effectiveDate) : "");
 					setUntil(nextPolicy?.effectiveUntil ? policyDay(nextPolicy.effectiveUntil) : "");
 				}}
 				options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
@@ -129,11 +135,14 @@ export function InstitutionYieldEditor({
 						setDate(startDate ?? "");
 						setUntil(endDate ?? "");
 					}}
-					triggerLabel={!effectiveDate && !effectiveUntil ? "A partir de hoje, sem fim" : undefined}
+					triggerLabel={
+						!effectiveDate && !effectiveUntil ? "Todo o período anterior, sem fim" : undefined
+					}
 					value={{ endDate: effectiveUntil || undefined, startDate: effectiveDate || undefined }}
 				/>
 				<p className="text-muted-foreground text-xs">
-					Opcional. Sem início, vale a partir de hoje; sem fim, vale até a próxima mudança.
+					Opcional. Sem início, vale desde todo o período anterior; sem fim, vale até a próxima
+					mudança.
 				</p>
 			</div>
 			<InstitutionYieldTimeline
@@ -146,16 +155,13 @@ export function InstitutionYieldEditor({
 				}}
 				onSelect={item => {
 					setEditingStart(policyDay(item.effectiveDate));
-					setDate(policyDay(item.effectiveDate));
+					setDate(visibleStart(item.effectiveDate));
 					setUntil(item.effectiveUntil ? policyDay(item.effectiveUntil) : "");
 				}}
 				policies={policies.data ?? []}
 				profileId={selectedProfile}
 				selectedStart={replacesEffectiveDate}
 			/>
-			<p className="text-muted-foreground text-sm">
-				Proposta entra em vigor somente após aprovação administrativa.
-			</p>
 		</>
 	);
 	let content: ReactNode;
@@ -199,7 +205,7 @@ export function InstitutionYieldEditor({
 				onDiscard={onClose}
 				onSave={async body => {
 					if (!selectedProfile) throw new Error("Selecione o perfil.");
-					const startDate = effectiveDate || today;
+					const startDate = effectiveDate || OPEN_START;
 					if (effectiveUntil && effectiveUntil <= startDate)
 						throw new Error("O fim da vigência deve ser posterior ao início.");
 					await onUpdate(institution, {

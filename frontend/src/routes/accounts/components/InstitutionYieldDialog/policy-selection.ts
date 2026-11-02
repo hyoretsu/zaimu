@@ -47,3 +47,12 @@ export function selectEditablePolicy(
 		)
 		.at(-1);
 }
+
+/** Start stored for periods without an explicit start: covers the whole previous period. */
+export const OPEN_START = "1970-01-01";
+
+/** Start date to show in the picker; the open-start sentinel is shown as blank. */
+export function visibleStart(effectiveDate: string) {
+	const day = policyDay(effectiveDate);
+	return day === OPEN_START ? "" : day;
+}

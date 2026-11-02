@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import type { FinancialInstitutionYieldPolicy } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { policyDay, policyTimeline } from "./policy-selection";
+import { OPEN_START, policyDay, policyTimeline } from "./policy-selection";
 
 export function InstitutionYieldTimeline({
 	policies,
@@ -27,7 +27,6 @@ export function InstitutionYieldTimeline({
 	if (timeline.length === 0) return null;
 	return (
 		<div className="grid gap-2">
-			<p className="text-sm font-medium">Períodos de rendimento</p>
 			<ul className="grid gap-1">
 				{timeline.map(policy => {
 					const start = policyDay(policy.effectiveDate);
@@ -42,7 +41,7 @@ export function InstitutionYieldTimeline({
 								onClick={() => onSelect(policy)}
 								type="button"
 							>
-								{formatLocalDate(start)}
+								{start === OPEN_START ? "Início" : formatLocalDate(start)}
 								{" → "}
 								{policy.effectiveUntil
 									? formatLocalDate(policyDay(policy.effectiveUntil))
