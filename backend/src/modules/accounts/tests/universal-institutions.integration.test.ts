@@ -121,7 +121,6 @@ describe("universal institution review and calendar coverage", () => {
 			},
 			"2026-01-01",
 		);
-		await reviewInstitutionProposal("admin", legacy.id, "APPROVE");
 		for (const rate of [2, 3]) {
 			const next = await proposeInstitution(
 				"admin",
@@ -135,7 +134,6 @@ describe("universal institution review and calendar coverage", () => {
 				},
 				"2026-02-01",
 			);
-			await reviewInstitutionProposal("admin", next.id, "APPROVE");
 		}
 		const policies = await queryRaw(
 			`SELECT "currency", "effectiveDate" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 ORDER BY "effectiveDate"`,
