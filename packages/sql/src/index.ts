@@ -184,13 +184,29 @@ interface ProjectedPlan {
 	};
 }
 
-const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
-	const numericColumns = new Set(
-		((plan as ProjectedPlan).ast?.projection ?? (plan as ProjectedPlan).ast?.returning ?? [])
-			.filter(item => item.codec?.codecId === "pg/numeric@1")
-			.flatMap(item => (item.alias ? [item.alias] : [])),
-	);
-	if (numericColumns.size === 0) return rows;
+const unwrapLegacyJson = (value: unknown) => {
+	// Historical migrations stored the default of some json columns as the JSON string "[]" (double encoded);
+	// the previous runtime parsed twice, so decode the inner document to keep returning arrays/objects.
+	if (typeof value !== "string" || !/^\s*[[{]/.test(value)) return value;
+	try {
+		return JSON.parse(value) as unknown;
+	} catch {
+		return value;
+	}
+};
+
+const normalizeCodecColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
+	const projection =
+		(plan as ProjectedPlan).ast?.projection ?? (plan as ProjectedPlan).ast?.returning ?? [];
+	const aliasesFor = (codecIds: string[]) =>
+		new Set(
+			projection
+				.filter(item => item.codec?.codecId && codecIds.includes(item.codec.codecId))
+				.flatMap(item => (item.alias ? [item.alias] : [])),
+		);
+	const numericColumns = aliasesFor(["pg/numeric@1"]);
+	const jsonColumns = aliasesFor(["pg/json@1", "pg/jsonb@1"]);
+	if (numericColumns.size === 0 && jsonColumns.size === 0) return rows;
 	return rows.map(row => {
 		if (!row || typeof row !== "object") return row;
 		const normalized = { ...row } as Record<string, unknown>;
@@ -198,6 +214,7 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 			const value = normalized[column];
 			if (typeof value === "string") normalized[column] = Number(value);
 		}
+		for (const column of jsonColumns) normalized[column] = unwrapLegacyJson(normalized[column]);
 		return normalized as Row;
 	});
 };
@@ -205,7 +222,7 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 const createExecutor = (client: ExecutorClient) => {
 	const queryRows = async <Plan extends QueryPlan>(plan: Plan) => {
 		const rows = await client.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
-		return normalizeNumericColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
+		return normalizeCodecColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
 	};
 	return {
 		db: client,
