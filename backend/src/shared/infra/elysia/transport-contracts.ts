@@ -85,6 +85,7 @@ export const FinancialInstitutionYieldPolicyReturn = t.Object({
 	effectiveDate: t.String(),
 	effectiveUntil: t.Optional(t.Union([t.Null(), t.String()])),
 	profileId: t.Optional(t.Union([t.Null(), t.String()])),
+	replacesEffectiveDate: t.Optional(t.String()),
 	requestedEffectiveDate: t.Optional(t.String()),
 	rules: t.Array(FinancialInstitutionYieldRuleReturn),
 	status: t.Optional(t.Union([t.Literal("PENDING"), t.Literal("APPROVED"), t.Literal("REJECTED")])),

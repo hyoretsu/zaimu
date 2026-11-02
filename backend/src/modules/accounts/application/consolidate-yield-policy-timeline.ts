@@ -1,3 +1,4 @@
+import { resolveYieldPolicyTimeline, type YieldTimelineEntry } from "../domain/resolve-yield-policy-timeline";
 import type { RawQuery } from "./institution-card-rules";
 
 interface TimelinePolicy {
@@ -35,9 +36,8 @@ function signature(policy: TimelinePolicy, rules: TimelineRule[]) {
 }
 
 /**
- * Keeps the yield history of one scope (institution, profile, country, currency) explicit:
- * each approved policy is closed where the next one starts, and a policy identical to the
- * one right before it, with no gap between them, is absorbed into it.
+ * Keeps the yield history of one scope (institution, profile, country, currency) explicit and
+ * free of overlaps, resolving them in favour of `focusId`, the policy that was just saved.
  */
 export async function consolidateYieldPolicyTimeline(
 	query: RawQuery,
@@ -45,11 +45,13 @@ export async function consolidateYieldPolicyTimeline(
 		countryCode,
 		currency,
 		financialInstitutionId,
+		focusId = null,
 		profileId,
 	}: {
 		countryCode: null | string;
 		currency: null | string;
 		financialInstitutionId: string;
+		focusId?: null | string;
 		profileId: null | string;
 	},
 ) {
@@ -57,41 +59,40 @@ export async function consolidateYieldPolicyTimeline(
 		`SELECT "id","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId" IS NOT DISTINCT FROM $2 AND "countryCode" IS NOT DISTINCT FROM $3 AND "currency" IS NOT DISTINCT FROM $4 AND "status"='APPROVED' ORDER BY "effectiveDate" ASC FOR UPDATE`,
 		[financialInstitutionId, profileId, countryCode, currency],
 	)) as TimelinePolicy[];
-	if (policies.length < 2) return;
+	if (policies.length === 0) return;
 	const rules = (await query(
 		`SELECT "financialYieldPolicyId","upToBalance","yieldFixedRate","yieldReferencePercentage","yieldReferenceType" FROM "FinancialInstitutionYieldRule" WHERE "financialYieldPolicyId" = ANY($1) ORDER BY "financialYieldPolicyId","position"`,
 		[policies.map(policy => policy.id)],
 	)) as TimelineRule[];
-	const signatures = new Map(
-		policies.map(policy => [
-			policy.id,
-			signature(
-				policy,
-				rules.filter(rule => rule.financialYieldPolicyId === policy.id),
-			),
-		]),
-	);
+	const before: YieldTimelineEntry[] = policies.map(policy => ({
+		id: policy.id,
+		signature: signature(
+			policy,
+			rules.filter(rule => rule.financialYieldPolicyId === policy.id),
+		),
+		start: day(policy.effectiveDate),
+		until: policy.effectiveUntil ? day(policy.effectiveUntil) : null,
+	}));
+	const after = resolveYieldPolicyTimeline(before, focusId, () => crypto.randomUUID());
 
-	let current = policies[0]!;
-	let currentUntil = current.effectiveUntil ? day(current.effectiveUntil) : null;
-	const closings = new Map<string, null | string>();
-	for (const next of policies.slice(1)) {
-		const nextStart = day(next.effectiveDate);
-		const contiguous = currentUntil === null || currentUntil >= nextStart;
-		if (contiguous && signatures.get(current.id) === signatures.get(next.id)) {
-			// The earlier policy already covers this period: absorb the later one.
-			currentUntil = next.effectiveUntil ? day(next.effectiveUntil) : null;
-			closings.set(current.id, currentUntil);
-			await query(`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "id"=$1`, [next.id]);
-			continue;
-		}
-		if (currentUntil === null || currentUntil > nextStart) closings.set(current.id, nextStart);
-		current = next;
-		currentUntil = next.effectiveUntil ? day(next.effectiveUntil) : null;
+	const kept = new Map(after.map(entry => [entry.id, entry]));
+	for (const original of before) {
+		const entry = kept.get(original.id);
+		if (!entry) await query(`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "id"=$1`, [original.id]);
+		else if (entry.start !== original.start || entry.until !== original.until)
+			await query(
+				`UPDATE "FinancialInstitutionYieldPolicy" SET "effectiveDate"=$2,"effectiveUntil"=$3,"updatedAt"=NOW() WHERE "id"=$1`,
+				[original.id, entry.start, entry.until],
+			);
 	}
-	for (const [id, until] of closings)
+	for (const clone of after.filter(entry => entry.sourceId)) {
 		await query(
-			`UPDATE "FinancialInstitutionYieldPolicy" SET "effectiveUntil"=$2,"updatedAt"=NOW() WHERE "id"=$1`,
-			[id, until],
+			`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","effectiveDate","effectiveUntil","status","yieldPeriod","yieldTaxIds","yieldTaxRate","updatedAt") SELECT $2,"financialInstitutionId","profileId","countryCode","currency",$3,$4,"status","yieldPeriod","yieldTaxIds","yieldTaxRate",NOW() FROM "FinancialInstitutionYieldPolicy" WHERE "id"=$1`,
+			[clone.sourceId, clone.id, clone.start, clone.until],
 		);
+		await query(
+			`INSERT INTO "FinancialInstitutionYieldRule" ("id","financialYieldPolicyId","position","upToBalance","yieldFixedRate","yieldReferencePercentage","yieldReferenceType") SELECT gen_random_uuid()::text,$2,"position","upToBalance","yieldFixedRate","yieldReferencePercentage","yieldReferenceType" FROM "FinancialInstitutionYieldRule" WHERE "financialYieldPolicyId"=$1`,
+			[clone.sourceId, clone.id],
+		);
+	}
 }

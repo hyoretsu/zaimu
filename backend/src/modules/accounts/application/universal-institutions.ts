@@ -262,6 +262,19 @@ export async function reviewInstitutionProposal(
 					[policy.profileId, institution.id],
 				);
 				if (!profile) throw new HttpException("Perfil não encontrado", 400);
+				const replaced = (payload as { replacesEffectiveDate?: string }).replacesEffectiveDate;
+				// Moving a period to another start replaces the one it was edited from.
+				if (replaced)
+					await query(
+						`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5`,
+						[
+							institution.id,
+							policy.profileId,
+							policy.currency,
+							policy.countryCode ?? null,
+							replaced,
+						],
+					);
 				const [existing] = await query(
 					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5 FOR UPDATE`,
 					[
@@ -321,6 +334,7 @@ export async function reviewInstitutionProposal(
 					countryCode: policy.countryCode ?? null,
 					currency: policy.currency ?? null,
 					financialInstitutionId: institution.id,
+					focusId: policyId,
 					profileId: policy.profileId,
 				});
 				await query(`UPDATE "FinancialInstitution" SET "version"="version"+1 WHERE "id"=$1`, [
@@ -375,12 +389,13 @@ export async function reviewInstitutionProposal(
 				`SELECT "id" FROM "FinancialAccount" WHERE "institutionId"=$1`,
 				[institution.id],
 			);
+			const replaced = (payload as { replacesEffectiveDate?: string }).replacesEffectiveDate;
+			const firstAffected =
+				replaced && replaced < new Date(proposal.effectiveDate).toISOString().slice(0, 10)
+					? new Date(replaced)
+					: new Date(proposal.effectiveDate);
 			for (const account of accounts)
-				await enqueueAccountYieldRecalculation(
-					account.id,
-					new Date(proposal.effectiveDate),
-					`institution-review:${id}`,
-				);
+				await enqueueAccountYieldRecalculation(account.id, firstAffected, `institution-review:${id}`);
 		}
 		const users = await query<{ userId: string }>(
 			`SELECT DISTINCT "userId" FROM "FinancialAccount" WHERE "institutionId"=$1`,
