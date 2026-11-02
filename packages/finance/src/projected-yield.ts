@@ -1,5 +1,5 @@
 import { indicatorDailyRate } from "./financial-indicators";
-import { type YieldLot, YieldTaxLedger, type YieldTaxMode } from "./yield-tax";
+import { type YieldLot, YieldTaxLedger } from "./yield-tax";
 export interface LegacyYieldCalendar {
 	throughDate: string;
 	holidays: string[];
@@ -34,7 +34,7 @@ export interface YieldAccount {
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
-	yieldTaxMode?: null | YieldTaxMode;
+	yieldTaxMode?: null | string;
 	yieldRateHistories?: YieldRateHistory[];
 }
 
@@ -55,7 +55,7 @@ export interface InstitutionYieldPolicy {
 	yieldPeriod?: null | YieldPeriod;
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
-	yieldTaxMode?: null | YieldTaxMode;
+	yieldTaxMode?: null | string;
 }
 
 export interface InstitutionYieldRule {
@@ -73,7 +73,7 @@ export interface YieldRateHistory {
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
-	yieldTaxMode?: null | YieldTaxMode;
+	yieldTaxMode?: null | string;
 }
 
 export interface HistoricalYieldSettings {

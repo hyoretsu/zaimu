@@ -23,6 +23,7 @@ export const HistoricalYieldCustomSettings = t.Object({
 	yieldTaxIds: t.Optional(
 		t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true }),
 	),
+	yieldTaxMode: t.Optional(t.Nullable(t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))),
 	yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 });
 export type HistoricalYieldCustomSettings = typeof HistoricalYieldCustomSettings.static;

@@ -17,7 +17,7 @@ export interface TaxDefinition {
 export type YieldTaxMode = "DAILY" | "ON_REDEMPTION";
 export interface TaxSettings {
 	yieldTaxIds?: string[] | null;
-	yieldTaxMode?: YieldTaxMode | null;
+	yieldTaxMode?: null | string;
 	yieldTaxRate?: number | null;
 }
 export interface YieldLot {

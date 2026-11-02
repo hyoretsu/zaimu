@@ -50,6 +50,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"yieldPeriod",
 			"yieldTaxIds",
 			"yieldTaxRate",
+			"yieldTaxMode",
 		)
 			.where((fields, functions) => functions.in(fields.id, accountIds))
 			.build(),
@@ -94,6 +95,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"yieldPeriod",
 			"yieldTaxIds",
 			"yieldTaxRate",
+			"yieldTaxMode",
 		)
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),

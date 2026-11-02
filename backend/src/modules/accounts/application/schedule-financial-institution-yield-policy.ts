@@ -17,6 +17,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	rules,
 	yieldPeriod,
 	yieldTaxIds,
+	yieldTaxMode,
 	yieldTaxRate,
 }: {
 	currency: string;
@@ -29,6 +30,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	yieldPeriod?: null | YieldPeriod;
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
+	yieldTaxMode?: null | string;
 }) {
 	const current = await queryRaw<{ yieldTaxIds: string[] }>(
 		`SELECT "yieldTaxIds" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`,
@@ -60,6 +62,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 				updatedAt: new Date(),
 				yieldPeriod: yieldPeriod ?? null,
 				yieldTaxIds: yieldTaxIds ?? [],
+				yieldTaxMode: (yieldTaxMode ?? "DAILY") as "DAILY" | "ON_REDEMPTION",
 				yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
 			})
 				.where((fields, functions) => functions.eq(fields.id, policyId!))
@@ -77,8 +80,11 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 					profileId: profileId ?? undefined,
 					yieldPeriod: yieldPeriod ?? undefined,
 					yieldTaxIds: yieldTaxIds ?? undefined,
+					yieldTaxMode: (yieldTaxMode ?? undefined) as "DAILY" | "ON_REDEMPTION" | undefined,
 					yieldTaxRate:
-						yieldTaxRate === null || yieldTaxRate === undefined ? undefined : String(yieldTaxRate),
+						yieldTaxRate === null || yieldTaxRate === undefined
+							? undefined
+							: String(yieldTaxRate),
 				},
 			])
 				.returning("id")

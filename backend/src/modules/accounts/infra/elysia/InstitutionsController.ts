@@ -247,6 +247,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 					effectiveUntil: policy.effectiveUntil
 						? new Date(policy.effectiveUntil).toISOString().slice(0, 10)
 						: null,
+					yieldTaxMode: policy.yieldTaxMode as "DAILY" | "ON_REDEMPTION" | null | undefined,
 				}),
 			);
 		},
@@ -289,6 +290,9 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				),
 				yieldPeriod: t.Optional(t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]))),
 				yieldTaxIds: t.Optional(t.Array(Id)),
+				yieldTaxMode: t.Optional(
+					t.Nullable(t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { operationId: "postFinancialInstitutionsByIdPolicies" },
