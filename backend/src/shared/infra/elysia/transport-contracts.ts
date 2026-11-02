@@ -79,7 +79,15 @@ export const FinancialInstitutionYieldRuleReturn = t.Object({
 });
 export type FinancialInstitutionYieldRuleReturn = typeof FinancialInstitutionYieldRuleReturn.static;
 
+export const YieldAccountTypeDTO = t.Union([
+	t.Literal("CHECKING"),
+	t.Literal("SAVINGS"),
+	t.Literal("INVESTMENT"),
+	t.Literal("CASH"),
+]);
+
 export const FinancialInstitutionYieldPolicyReturn = t.Object({
+	accountType: t.Optional(t.Nullable(YieldAccountTypeDTO)),
 	countryCode: t.Optional(t.Union([t.Null(), t.String()])),
 	currency: t.Optional(t.Nullable(t.String())),
 	effectiveDate: t.String(),

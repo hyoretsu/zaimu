@@ -457,6 +457,7 @@ namespace public {
     effectiveUntil Date?
     status VarChar(16) @default("APPROVED")
     currency VarChar(3)?
+    accountType VarChar(16)?
 
     id                     VarChar(36)                              @id(map: "FinancialInstitutionYieldPolicy_pkey") @default(dbgenerated("cuid2()"))
     financialInstitutionId VarChar(36)

@@ -43,6 +43,7 @@ export interface InstitutionProfileChange {
 }
 
 export interface InstitutionYieldPolicy {
+	accountType?: null | string;
 	profileId?: null | string;
 	countryCode?: null | string;
 	effectiveUntil?: null | Date | string;
@@ -199,11 +200,13 @@ function getYieldSettings(account: YieldAccount, day: string) {
 					(policy.profileId === profileId &&
 						account.globalRulesFrom !== null &&
 						(!account.globalRulesFrom || day >= dateKey(account.globalRulesFrom)))) &&
+				(!policy.accountType || policy.accountType === account.type) &&
 				(!policy.countryCode || policy.countryCode === account.countryCode) &&
 				(policy.currency === null || (policy.currency ?? "BRL") === (account.currency ?? "BRL")),
 		)
 		.toSorted(
 			(left, right) =>
+				Number(Boolean(left.accountType)) - Number(Boolean(right.accountType)) ||
 				Number(Boolean(left.countryCode)) - Number(Boolean(right.countryCode)) ||
 				dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)) ||
 				Number(left.currency === null) - Number(right.currency === null),

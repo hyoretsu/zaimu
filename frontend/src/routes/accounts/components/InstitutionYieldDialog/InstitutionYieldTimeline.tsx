@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/Button";
 import type { FinancialInstitutionYieldPolicy } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { OPEN_START, policyDay, policyTimeline } from "./policy-selection";
+import { OPEN_START, policyDay, policyTimeline, type YieldAccountType } from "./policy-selection";
 
 export function InstitutionYieldTimeline({
 	policies,
 	profileId,
+	accountType,
 	countryCode,
 	currency,
 	selectedStart,
@@ -16,6 +17,7 @@ export function InstitutionYieldTimeline({
 }: {
 	policies: FinancialInstitutionYieldPolicy[];
 	profileId?: string;
+	accountType?: YieldAccountType;
 	countryCode?: string;
 	currency: string;
 	/** Start of the period being edited; `undefined` while a new period is being created. */
@@ -23,7 +25,7 @@ export function InstitutionYieldTimeline({
 	onSelect: (policy: FinancialInstitutionYieldPolicy) => void;
 	onNew: () => void;
 }) {
-	const timeline = policyTimeline(policies, profileId, countryCode, currency);
+	const timeline = policyTimeline(policies, profileId, countryCode, currency, accountType);
 	if (timeline.length === 0) return null;
 	return (
 		<div className="grid gap-2">

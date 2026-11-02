@@ -1,5 +1,6 @@
 import type {
 	InstitutionYieldPolicy,
+	YieldAccountType,
 	YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { db, queryRows } from "~/shared/infra/sql";
@@ -11,6 +12,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 		db.sql.public.FinancialInstitutionYieldPolicy.select(
 			"id",
 			"financialInstitutionId",
+			"accountType",
 			"currency",
 			"profileId",
 			"countryCode",
@@ -54,6 +56,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 	for (const policy of policies) {
 		const institutionPolicies = policiesByInstitutionId.get(policy.financialInstitutionId) ?? [];
 		institutionPolicies.push({
+			accountType: policy.accountType as YieldAccountType | null,
 			countryCode: policy.countryCode,
 			currency: policy.currency,
 			effectiveDate: policy.effectiveDate,

@@ -15,7 +15,10 @@ import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/appl
 import { requireAdmin } from "~/modules/taxes/admin-access";
 import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
-import { FinancialInstitutionYieldPolicyReturn } from "~/shared/infra/elysia/transport-contracts";
+import {
+	FinancialInstitutionYieldPolicyReturn,
+	YieldAccountTypeDTO,
+} from "~/shared/infra/elysia/transport-contracts";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { configureInstitutionCardRules } from "../../application/institution-card-rules";
@@ -260,6 +263,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			proposeInstitution(await requireUserId(request), params.id, "POLICY", body, body.effectiveDate),
 		{
 			body: t.Object({
+				accountType: t.Optional(YieldAccountTypeDTO),
 				countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),
 				effectiveDate: DateDTO,
 				effectiveUntil: t.Optional(DateDTO),

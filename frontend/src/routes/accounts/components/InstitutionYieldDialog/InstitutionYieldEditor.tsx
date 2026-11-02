@@ -23,6 +23,8 @@ import {
 	policyTimeline,
 	selectEditablePolicy,
 	visibleStart,
+	YIELD_ACCOUNT_TYPES,
+	type YieldAccountType,
 } from "./policy-selection";
 
 export function InstitutionYieldEditor({
@@ -40,6 +42,8 @@ export function InstitutionYieldEditor({
 	const [profileId, setProfile] = useState<string>();
 	const [requestedProfileName, setRequestedProfileName] = useState<string>();
 	const [countryCode, setCountry] = useState<string>();
+	const [accountType, setAccountType] = useState<YieldAccountType>();
+	const [copied, setCopied] = useState<{ policy: FinancialInstitutionYieldPolicy; scope: string }>();
 	const today = new Date().toLocaleDateString("sv-SE");
 	// Blank start means "the whole previous period" (stored as the open start sentinel).
 	const [effectiveDate, setDate] = useState("");
@@ -64,14 +68,42 @@ export function InstitutionYieldEditor({
 		profileId ??
 		profiles.data?.find(profile => profile.name === requestedProfileName)?.id ??
 		profiles.data?.find(profile => profile.isDefault)?.id;
-	const timeline = policyTimeline(policies.data ?? [], selectedProfile, countryCode, currency);
+	const timeline = policyTimeline(policies.data ?? [], selectedProfile, countryCode, currency, accountType);
 	const editedPolicy = editingStart
 		? timeline.find(item => policyDay(item.effectiveDate) === editingStart)
 		: undefined;
 	const replacesEffectiveDate = editedPolicy ? editingStart : undefined;
+	const scope = `${selectedProfile}:${countryCode}:${accountType}`;
+	const copiedPolicy = copied?.scope === scope && !editedPolicy ? copied.policy : undefined;
 	const policy =
 		editedPolicy ??
-		selectEditablePolicy(policies.data ?? [], selectedProfile, countryCode, sourceDate, currency);
+		copiedPolicy ??
+		selectEditablePolicy(
+			policies.data ?? [],
+			selectedProfile,
+			countryCode,
+			sourceDate,
+			currency,
+			accountType,
+		);
+	// Other account types of this profile/country that already have a yield to copy from.
+	const copyOptions: { label: string; value: YieldAccountType | "__all__" }[] = [
+		{ label: "Todos os tipos", value: "__all__" },
+		...YIELD_ACCOUNT_TYPES,
+	];
+	const copySources = copyOptions
+		.filter(option => (option.value === "__all__" ? undefined : option.value) !== accountType)
+		.flatMap(option => {
+			const source = selectEditablePolicy(
+				policies.data ?? [],
+				selectedProfile,
+				countryCode,
+				today,
+				currency,
+				option.value === "__all__" ? undefined : option.value,
+			);
+			return source ? [{ label: option.label, source, value: option.value }] : [];
+		});
 	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const controls = (
 		<>
@@ -85,6 +117,7 @@ export function InstitutionYieldEditor({
 						countryCode,
 						today,
 						currency,
+						accountType,
 					);
 					setProfile(nextProfile);
 					setEditingStart(undefined);
@@ -128,6 +161,40 @@ export function InstitutionYieldEditor({
 				searchable
 				value={countryCode ?? "__all__"}
 			/>
+			<CustomSelect
+				label="Tipo de conta"
+				onValueChange={value => {
+					setAccountType(!value || value === "__all__" ? undefined : (value as YieldAccountType));
+					setEditingStart(undefined);
+					setSourceDate(today);
+					setUntil("");
+				}}
+				options={[
+					{ label: "Todos os tipos", special: true, value: "__all__" },
+					...YIELD_ACCOUNT_TYPES,
+				]}
+				placeholder="Todos os tipos"
+				value={accountType ?? "__all__"}
+			/>
+			{copySources.length > 0 && (
+				<div className="flex flex-wrap items-center gap-2">
+					<span className="text-sm font-medium">Copiar rendimento de</span>
+					{copySources.map(({ label, source, value }) => (
+						<Button
+							key={value}
+							onClick={() => {
+								setCopied({ policy: { ...source, accountType }, scope });
+								setEditingStart(undefined);
+							}}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
+							{label}
+						</Button>
+					))}
+				</div>
+			)}
 			<div className="grid gap-2">
 				<span className="text-sm font-medium">Período de vigência</span>
 				<DateRangePicker
@@ -146,6 +213,7 @@ export function InstitutionYieldEditor({
 				</p>
 			</div>
 			<InstitutionYieldTimeline
+				accountType={accountType}
 				countryCode={countryCode}
 				currency={currency}
 				onNew={() => {
@@ -201,7 +269,7 @@ export function InstitutionYieldEditor({
 			<InstitutionYieldPolicyForm
 				controls={controls}
 				currency={currency}
-				key={`${selectedProfile}:${countryCode}:${replacesEffectiveDate ?? ""}`}
+				key={`${scope}:${replacesEffectiveDate ?? ""}:${copiedPolicy ? "copy" : ""}`}
 				onDiscard={onClose}
 				onSave={async body => {
 					if (!selectedProfile) throw new Error("Selecione o perfil.");
@@ -210,6 +278,7 @@ export function InstitutionYieldEditor({
 						throw new Error("O fim da vigência deve ser posterior ao início.");
 					await onUpdate(institution, {
 						...body,
+						accountType,
 						countryCode,
 						effectiveUntil: effectiveUntil || undefined,
 						profileId: selectedProfile,

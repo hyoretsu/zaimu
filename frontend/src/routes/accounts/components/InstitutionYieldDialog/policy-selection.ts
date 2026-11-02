@@ -1,5 +1,15 @@
 import type { FinancialInstitutionYieldPolicy } from "@/lib/api";
 
+/** Account types that can carry their own yield policy; no type means every type. */
+export type YieldAccountType = NonNullable<FinancialInstitutionYieldPolicy["accountType"]>;
+
+export const YIELD_ACCOUNT_TYPES: { label: string; value: YieldAccountType }[] = [
+	{ label: "Conta corrente", value: "CHECKING" },
+	{ label: "Poupança", value: "SAVINGS" },
+	{ label: "Investimentos", value: "INVESTMENT" },
+	{ label: "Dinheiro", value: "CASH" },
+];
+
 export const policyDay = (value: string) => value.slice(0, 10);
 
 /** Approved periods of one exact scope, oldest first; legacy currency filters stay respected. */
@@ -8,12 +18,14 @@ export function policyTimeline(
 	profileId: string | undefined,
 	countryCode: string | undefined,
 	currency: string,
+	accountType?: YieldAccountType,
 ) {
 	return policies
 		.filter(
 			policy =>
 				policy.profileId === profileId &&
 				(policy.countryCode ?? undefined) === countryCode &&
+				(policy.accountType ?? undefined) === accountType &&
 				(!policy.status || policy.status === "APPROVED") &&
 				(policy.currency === null || (policy.currency ?? "BRL") === currency),
 		)
@@ -22,19 +34,21 @@ export function policyTimeline(
 		);
 }
 
-/** Editing uses the exact country scope; inherited general rules remain separate. */
+/** Editing uses the exact country and account-type scope; inherited general rules remain separate. */
 export function selectEditablePolicy(
 	policies: FinancialInstitutionYieldPolicy[],
 	profileId: string | undefined,
 	countryCode: string | undefined,
 	effectiveDate: string,
 	currency: string,
+	accountType?: YieldAccountType,
 ) {
 	return policies
 		.filter(
 			policy =>
 				policy.profileId === profileId &&
 				(policy.countryCode ?? undefined) === countryCode &&
+				(policy.accountType ?? undefined) === accountType &&
 				(!policy.status || policy.status === "APPROVED") &&
 				policy.effectiveDate.slice(0, 10) <= effectiveDate &&
 				(!policy.effectiveUntil || effectiveDate < policy.effectiveUntil.slice(0, 10)) &&
