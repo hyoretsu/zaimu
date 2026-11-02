@@ -42,22 +42,22 @@ test("daily net compounding keeps age per lot and FIFO withdrawals", () => {
 	expect(ledger.accrueGross(100, { yieldTaxIds: ["ir"] }, day(200))).toBeCloseTo(80);
 	expect(ledger.lots.map(lot => lot.balance)).toEqual([1080, 1000]);
 	ledger.applyCashFlow(-1100, day(201));
-	expect(ledger.lots).toEqual([{ balance: 980, date: day(200) }]);
+	expect(ledger.lots).toEqual([{ balance: 980, date: day(200), principal: 980 }]);
 	expect(ledger.netYield(100, { yieldTaxIds: ["ir"] }, day(201))).toBeCloseTo(77.5);
 });
 test("debt, manual yields and adjustments", () => {
 	const ledger = new YieldTaxLedger();
 	ledger.applyCashFlow(-100, day(0));
 	ledger.applyCashFlow(150, day(1));
-	expect(ledger.lots).toEqual([{ balance: 50, date: day(1) }]);
+	expect(ledger.lots).toEqual([{ balance: 50, date: day(1), principal: 50 }]);
 	ledger.accrueNet(10, day(2));
 	ledger.adjustBalance(100, day(3));
 	expect(ledger.lots).toEqual([
-		{ balance: 60, date: day(1) },
-		{ balance: 40, date: day(3) },
+		{ balance: 60, date: day(1), principal: 50 },
+		{ balance: 40, date: day(3), principal: 40 },
 	]);
 	ledger.adjustBalance(20, day(4));
-	expect(ledger.lots).toEqual([{ balance: 20, date: day(3) }]);
+	expect(ledger.lots).toEqual([{ balance: 20, date: day(3), principal: 20 }]);
 });
 test("recorded system yields reconstruct tax-weighted shares", () => {
 	const first = new YieldTaxLedger([
@@ -106,8 +106,8 @@ test("same-day deposits wait until tomorrow and withdrawals reduce eligible prin
 	expect(ledger.eligibleBalance("2026-10-01")).toBe(380);
 	expect(ledger.accrueGross(38, undefined, "2026-10-01")).toBe(38);
 	expect(ledger.lots).toEqual([
-		{ balance: 418, date: "2026-09-30" },
-		{ balance: 420, date: "2026-10-01" },
+		{ balance: 418, date: "2026-09-30", principal: 380 },
+		{ balance: 420, date: "2026-10-01", principal: 420 },
 	]);
 	expect(ledger.eligibleBalance("2026-10-02")).toBe(838);
 });
@@ -116,4 +116,29 @@ test("recorded and manual amounts remain effective on contribution day", () => {
 	ledger.accrueRecordedNet(0.35, undefined, "2026-09-30");
 	ledger.accrueNet(1, "2026-09-30");
 	expect(ledger.balance).toBeCloseTo(581.35);
+});
+test("on-redemption mode keeps the balance gross and defers tax on the gain", () => {
+	const settings = { yieldTaxIds: ["ir"], yieldTaxMode: "ON_REDEMPTION" };
+	const ledger = new YieldTaxLedger();
+	ledger.applyCashFlow(1000, day(0));
+	expect(ledger.accrueGross(100, settings, day(200))).toBeCloseTo(100);
+	expect(ledger.balance).toBeCloseTo(1100);
+	expect(ledger.deferredTax(settings, day(200))).toBeCloseTo(20);
+	expect(ledger.netBalance(settings, day(200))).toBeCloseTo(1080);
+	expect(ledger.netBalance(settings, day(400))).toBeCloseTo(1082.5);
+});
+test("daily mode never owes deferred tax", () => {
+	const ledger = new YieldTaxLedger();
+	ledger.applyCashFlow(1000, day(0));
+	ledger.accrueGross(100, { yieldTaxIds: ["ir"] }, day(200));
+	expect(ledger.deferredTax({ yieldTaxIds: ["ir"] }, day(200))).toBe(0);
+});
+test("withdrawals shrink principal pro rata so only the remaining gain is taxable", () => {
+	const settings = { yieldTaxIds: ["ir"], yieldTaxMode: "ON_REDEMPTION" };
+	const ledger = new YieldTaxLedger();
+	ledger.applyCashFlow(1000, day(0));
+	ledger.accrueGross(100, settings, day(200));
+	ledger.applyCashFlow(-550, day(200));
+	expect(ledger.lots).toEqual([{ balance: 550, date: day(0), principal: 500 }]);
+	expect(ledger.deferredTax(settings, day(200))).toBeCloseTo(10);
 });
