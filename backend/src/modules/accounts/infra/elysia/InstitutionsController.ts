@@ -550,11 +550,13 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				body.reason,
 				body.targetId,
 				body.confirmedVersion,
+				body.profileResolution,
 			),
 		{
 			body: t.Object({
 				action: t.Union([t.Literal("APPROVE"), t.Literal("REJECT"), t.Literal("ASSOCIATE")]),
 				confirmedVersion: t.Optional(t.Integer({ minimum: 1 })),
+				profileResolution: t.Optional(t.Array(t.Object({ effectiveDate: DateDTO, profileId: Id }))),
 				reason: t.Optional(t.String({ maxLength: 2000 })),
 				targetId: t.Optional(Id),
 			}),
