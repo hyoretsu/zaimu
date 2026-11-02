@@ -14,6 +14,7 @@ import { Elysia, t } from "elysia";
 import { assertBalanceAccountOwnership, requireUserId } from "~/modules/auth";
 import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
 import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import {
@@ -167,6 +168,11 @@ export const LoanContractsController = new Elysia({ prefix: "/loans" })
 					);
 					book.disbursementTransactionId = id;
 					await saveLoanBook(userId, book);
+					await enqueueAccountYieldRecalculation(
+						body.disbursementAccountId,
+						new Date(`${body.terms.startDate}T00:00:00`),
+						`transaction:${id}`,
+					);
 				}
 				if (body.disbursementTransactionId) {
 					const [transaction] = await queryRaw<{ id: string }>(

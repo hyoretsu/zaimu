@@ -151,7 +151,13 @@ export function RecalculateAccountYieldDialog({ account }: { account: FinancialA
 						label="Regra de rendimento"
 						onValueChange={setSelected}
 						options={[
-							{ label: "Regra atual da conta", special: true, value: "current" },
+							{
+								label: account.institutionId
+									? "Histórico de perfis (ou regra atual)"
+									: "Regra atual da conta",
+								special: true,
+								value: "current",
+							},
 							{ label: "Outra regra personalizada", special: true, value: "custom" },
 							...(guest ? guestProfiles : (profiles.data ?? [])).map(profile => ({
 								label: profile.name,

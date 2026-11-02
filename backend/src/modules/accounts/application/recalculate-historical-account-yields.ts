@@ -77,20 +77,24 @@ export async function recalculateHistoricalAccountYields(
 			assertFinancialAccountYieldSettings({ ...customSettings, type: account.type });
 			await assertTaxSelection(customSettings.yieldTaxIds, account.yieldTaxIds ?? [], new Date());
 		}
-		const settings = selectHistoricalYieldSettings(account, throughDate, profileId, customSettings);
+		// Without an explicit choice, a configured profile history wins over freezing today's rule.
+		const useProfileHistory =
+			!profileId && !customSettings && Boolean(account.institutionProfileChanges?.length);
+		const settings = useProfileHistory
+			? null
+			: selectHistoricalYieldSettings(account, throughDate, profileId, customSettings);
 		await query(
 			`UPDATE "FinancialAccount" SET "historicalYieldSettings"=$2::jsonb, "updatedAt"=NOW() WHERE "id"=$1`,
-			[accountId, JSON.stringify({ settings, throughDate })],
+			[accountId, settings ? JSON.stringify({ settings, throughDate }) : null],
 		);
+		const referenceRules = settings
+			? "rules" in settings
+				? settings.rules
+				: [settings]
+			: (account.institutionYieldPolicies ?? []).flatMap(policy => policy.rules);
 		const referenceTypes = [
 			...new Set(
-				"rules" in settings
-					? settings.rules.flatMap(rule =>
-							rule.yieldReferenceType ? [rule.yieldReferenceType] : [],
-						)
-					: settings.yieldReferenceType
-						? [settings.yieldReferenceType]
-						: [],
+				referenceRules.flatMap(rule => (rule.yieldReferenceType ? [rule.yieldReferenceType] : [])),
 			),
 		];
 		const firstBalance = await accountFirstBalanceDate(accountId);

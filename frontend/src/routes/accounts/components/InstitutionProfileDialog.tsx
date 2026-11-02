@@ -28,6 +28,7 @@ import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/backgroun
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionMergeProposal } from "./InstitutionMergeProposal";
+import { InstitutionProfilePeriods } from "./InstitutionProfilePeriods";
 
 export function InstitutionProfileDialog({ institution }: { institution: FinancialInstitution }) {
 	const [open, setOpen] = useState(false);
@@ -94,8 +95,8 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 				<DialogHeader>
 					<DialogTitle>Perfil de {institution.name}</DialogTitle>
 					<DialogDescription>
-						Mudança vale para todas as suas contas nesta instituição. Ajustes próprios têm prioridade.
-						Cancelamento previsto exige nova mudança para Padrão.
+						Mudança vale para todas as suas contas nesta instituição. Ajustes próprios têm
+						prioridade. Cancelamento previsto exige nova mudança para Padrão.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -164,18 +165,30 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 									institution={institution}
 									onClose={() => changeOpen(false)}
 								/>
+								<InstitutionProfilePeriods
+									history={history.data ?? []}
+									institutionId={institution.id}
+									key={history.dataUpdatedAt}
+									onSaved={() => changeOpen(false)}
+									profiles={profiles.data ?? []}
+								/>
 								<div className="space-y-2">
 									<h3 className="font-semibold">Histórico</h3>
-									<p className="text-muted-foreground text-sm">Padrão vale antes da primeira mudança.</p>
+									<p className="text-muted-foreground text-sm">
+										Padrão vale antes da primeira mudança.
+									</p>
 									{history.data?.map(change => (
 										<p className="rounded-xl border p-3 text-sm" key={change.id}>
 											{change.effectiveDate.slice(0, 10)} - {change.name}
-											{change.effectiveDate.slice(0, 10) > new Date().toLocaleDateString("sv-SE")
+											{change.effectiveDate.slice(0, 10) >
+											new Date().toLocaleDateString("sv-SE")
 												? " - Agendada"
 												: ""}
 										</p>
 									))}
-									{!history.data?.length && <p className="text-sm">Nenhuma mudança registrada.</p>}
+									{!history.data?.length && (
+										<p className="text-sm">Nenhuma mudança registrada.</p>
+									)}
 								</div>
 							</>
 						)}

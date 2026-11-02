@@ -8,6 +8,7 @@ import {
 	financialAccountCurrency,
 } from "~/modules/currencies/application/financial-money";
 import { getDebtSplitInput, replaceDebtSplit } from "~/modules/debts/application";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import {
 	createCreditCardBatch,
 	createTransactionBatch,
@@ -217,15 +218,31 @@ async function applyRemote(
 					binding.financialAccountId!,
 				),
 			);
+			await enqueueAccountYieldRecalculation(
+				binding.financialAccountId!,
+				new Date(`${input.date}T00:00:00`),
+				`open-finance:${localId}:${crypto.randomUUID()}`,
+			);
 			if (old?.paymentCreditCardId)
 				await withTransaction(tx => recalculateStatementPayments(tx, [old.paymentCreditCardId!]));
 			if (split)
-				await replaceDebtSplit({ amount: input.amount, split, target: { transactionId: localId }, userId });
+				await replaceDebtSplit({
+					amount: input.amount,
+					split,
+					target: { transactionId: localId },
+					userId,
+				});
 			return { id: localId, kind: "TRANSACTION" as const };
 		}
 		const id = await withTransaction(tx =>
 			persistImportItem(tx, input, [], binding.financialAccountId!, userId),
 		);
+		if (input.type !== "YIELD")
+			await enqueueAccountYieldRecalculation(
+				binding.financialAccountId!,
+				new Date(`${input.date}T00:00:00`),
+				`open-finance:${id}`,
+			);
 		if (input.type === "YIELD") {
 			const [saved] = await queryRaw<{ id: string }>(
 				`SELECT "id" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "date"=$2`,
@@ -235,7 +252,9 @@ async function applyRemote(
 		}
 		return { id: id!, kind: "TRANSACTION" as const };
 	}
-	const [card] = await queryRaw<Parameters<typeof materializeImportedPurchase>[0] & Record<string, unknown>>(
+	const [card] = await queryRaw<
+		Parameters<typeof materializeImportedPurchase>[0] & Record<string, unknown>
+	>(
 		`SELECT c.*, a."userId" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1 AND a."userId"=$2`,
 		[binding.creditCardId, userId],
 	);
@@ -302,10 +321,10 @@ async function safelyApplyRemote(
 			const after = await localSnapshot(result.kind, result.id, userId);
 			for (const sibling of siblings)
 				if (sameSnapshot(sibling.appliedSnapshot, before))
-					await executeRaw(`UPDATE "OpenFinanceRecord" SET "appliedSnapshot"=$2::jsonb WHERE "id"=$1`, [
-						sibling.id,
-						JSON.stringify(after),
-					]);
+					await executeRaw(
+						`UPDATE "OpenFinanceRecord" SET "appliedSnapshot"=$2::jsonb WHERE "id"=$1`,
+						[sibling.id, JSON.stringify(after)],
+					);
 		}
 		await executeRaw("RELEASE SAVEPOINT open_finance_apply");
 		return result;
