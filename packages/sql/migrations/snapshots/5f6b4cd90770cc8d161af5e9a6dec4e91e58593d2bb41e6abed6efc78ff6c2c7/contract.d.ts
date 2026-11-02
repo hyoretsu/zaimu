@@ -14,11 +14,17 @@ import type {
 	TypeMaps as TypeMapsType,
 } from "@prisma/orm-postgres/family-contract/types";
 import type {
+	Bit,
+	Char,
 	CodecTypes as PgTypes,
+	Interval,
+	JsonValue,
 	Numeric,
 	Time,
 	Timestamp,
 	Timestamptz,
+	Timetz,
+	VarBit,
 	Varchar,
 } from "@prisma/orm-postgres/target/codec-types";
 
@@ -29,7 +35,7 @@ export type ProfileHash = ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a3
 export type CodecTypes = PgTypes;
 export type LaneCodecTypes = CodecTypes;
 export type QueryOperationTypes = PgAdapterQueryOps<CodecTypes>;
-export interface AggregateTypes {
+export type AggregateTypes = {
 	readonly avg: {
 		readonly byCodec: {
 			readonly "pg/float@1": { readonly output: "pg/float8@1"; readonly nullable: true };
@@ -175,14 +181,14 @@ export interface AggregateTypes {
 			readonly "sql/int@1": { readonly output: "pg/int8@1"; readonly nullable: true };
 		};
 	};
-}
+};
 type DefaultLiteralValue<CodecId extends string, Encoded> = CodecId extends keyof CodecTypes
 	? Encoded extends CodecTypes[CodecId]["json"]
 		? Encoded
 		: CodecTypes[CodecId]["json"]
 	: Encoded;
 
-export interface FieldOutputTypes {
+export type FieldOutputTypes = {
 	readonly public: {
 		readonly AccountTransfer: {
 			readonly id: Varchar<36>;
@@ -621,7 +627,7 @@ export interface FieldOutputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldFixedRate: Numeric<7, 4> | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: Timestamp<3>;
@@ -656,7 +662,7 @@ export interface FieldOutputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldFixedRate: Numeric<7, 4> | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: Timestamp<3>;
@@ -698,7 +704,7 @@ export interface FieldOutputTypes {
 			readonly creditCardRules: CodecTypes["pg/json@1"]["output"] | null;
 			readonly status: Varchar<24>;
 			readonly version: CodecTypes["pg/int4@1"]["output"];
-			readonly operatingCountryCodes: readonly Varchar<2>[];
+			readonly operatingCountryCodes: ReadonlyArray<Varchar<2>>;
 			readonly accountCurrenciesByCountry: CodecTypes["pg/json@1"]["output"];
 			readonly creditStatementClosingInclusive: CodecTypes["pg/bool@1"]["output"];
 			readonly creditInstallmentRemainderOnFirst: CodecTypes["pg/bool@1"]["output"];
@@ -745,7 +751,7 @@ export interface FieldOutputTypes {
 			readonly financialInstitutionId: Varchar<36>;
 			readonly effectiveDate: CodecTypes["pg/date@1"]["output"];
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 			readonly createdAt: Timestamp<3>;
 			readonly updatedAt: Timestamp<3>;
@@ -947,7 +953,7 @@ export interface FieldOutputTypes {
 			readonly eventType: Varchar<120>;
 			readonly aggregateType: Varchar<80>;
 			readonly aggregateId: Varchar<36>;
-			readonly userIds: readonly Varchar<36>[];
+			readonly userIds: ReadonlyArray<Varchar<36>>;
 			readonly occurredAt: Timestamp<3>;
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["output"];
 			readonly correlationId: Varchar<36>;
@@ -1240,8 +1246,8 @@ export interface FieldOutputTypes {
 			readonly updatedAt: Timestamp<3>;
 		};
 	};
-}
-export interface FieldInputTypes {
+};
+export type FieldInputTypes = {
 	readonly public: {
 		readonly AccountTransfer: {
 			readonly id: CodecTypes["sql/varchar@1"]["input"];
@@ -1680,7 +1686,7 @@ export interface FieldInputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldFixedRate: CodecTypes["pg/numeric@1"]["input"] | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
@@ -1715,7 +1721,7 @@ export interface FieldInputTypes {
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldFixedRate: CodecTypes["pg/numeric@1"]["input"] | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
@@ -1757,7 +1763,7 @@ export interface FieldInputTypes {
 			readonly creditCardRules: CodecTypes["pg/json@1"]["input"] | null;
 			readonly status: CodecTypes["sql/varchar@1"]["input"];
 			readonly version: CodecTypes["pg/int4@1"]["input"];
-			readonly operatingCountryCodes: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly operatingCountryCodes: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly accountCurrenciesByCountry: CodecTypes["pg/json@1"]["input"];
 			readonly creditStatementClosingInclusive: CodecTypes["pg/bool@1"]["input"];
 			readonly creditInstallmentRemainderOnFirst: CodecTypes["pg/bool@1"]["input"];
@@ -1804,7 +1810,7 @@ export interface FieldInputTypes {
 			readonly financialInstitutionId: CodecTypes["sql/varchar@1"]["input"];
 			readonly effectiveDate: CodecTypes["pg/date@1"]["input"];
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
@@ -2006,7 +2012,7 @@ export interface FieldInputTypes {
 			readonly eventType: CodecTypes["sql/varchar@1"]["input"];
 			readonly aggregateType: CodecTypes["sql/varchar@1"]["input"];
 			readonly aggregateId: CodecTypes["sql/varchar@1"]["input"];
-			readonly userIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly userIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly occurredAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["input"];
 			readonly correlationId: CodecTypes["sql/varchar@1"]["input"];
@@ -2299,8 +2305,8 @@ export interface FieldInputTypes {
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
 	};
-}
-export interface StorageColumnTypes {
+};
+export type StorageColumnTypes = {
 	readonly public: {
 		readonly account: {
 			readonly accessToken: CodecTypes["pg/text@1"]["output"] | null;
@@ -2742,7 +2748,7 @@ export interface StorageColumnTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 		};
 		readonly FinancialAccountYield: {
@@ -2777,7 +2783,7 @@ export interface StorageColumnTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: Numeric<7, 4> | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 		};
 		readonly FinancialHistoryCollection: {
@@ -2823,7 +2829,7 @@ export interface StorageColumnTypes {
 			readonly id: Varchar<36>;
 			readonly name: Varchar<100>;
 			readonly normalizedName: Varchar<100>;
-			readonly operatingCountryCodes: readonly Varchar<2>[];
+			readonly operatingCountryCodes: ReadonlyArray<Varchar<2>>;
 			readonly status: Varchar<24>;
 			readonly updatedAt: Timestamp<3>;
 			readonly userId: Varchar<36> | null;
@@ -2865,7 +2871,7 @@ export interface StorageColumnTypes {
 			readonly status: Varchar<16>;
 			readonly updatedAt: Timestamp<3>;
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly Varchar<36>[];
+			readonly yieldTaxIds: ReadonlyArray<Varchar<36>>;
 			readonly yieldTaxRate: Numeric<5, 2> | null;
 		};
 		readonly FinancialInstitutionYieldRule: {
@@ -3075,7 +3081,7 @@ export interface StorageColumnTypes {
 			readonly publishedAt: Timestamp<3> | null;
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["output"];
 			readonly updatedAt: Timestamp<3>;
-			readonly userIds: readonly Varchar<36>[];
+			readonly userIds: ReadonlyArray<Varchar<36>>;
 		};
 		readonly PushDevice: {
 			readonly address: CodecTypes["pg/text@1"]["output"];
@@ -3358,8 +3364,8 @@ export interface StorageColumnTypes {
 			readonly updatedAt: Timestamp<3>;
 		};
 	};
-}
-export interface StorageColumnInputTypes {
+};
+export type StorageColumnInputTypes = {
 	readonly public: {
 		readonly account: {
 			readonly accessToken: CodecTypes["pg/text@1"]["input"] | null;
@@ -3801,7 +3807,7 @@ export interface StorageColumnInputTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 		};
 		readonly FinancialAccountYield: {
@@ -3836,7 +3842,7 @@ export interface StorageColumnInputTypes {
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
 			readonly yieldReferencePercentage: CodecTypes["pg/numeric@1"]["input"] | null;
 			readonly yieldReferenceType: "CDI" | "SELIC" | "IPCA" | "TR" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 		};
 		readonly FinancialHistoryCollection: {
@@ -3882,7 +3888,7 @@ export interface StorageColumnInputTypes {
 			readonly id: CodecTypes["sql/varchar@1"]["input"];
 			readonly name: CodecTypes["sql/varchar@1"]["input"];
 			readonly normalizedName: CodecTypes["sql/varchar@1"]["input"];
-			readonly operatingCountryCodes: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly operatingCountryCodes: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly status: CodecTypes["sql/varchar@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly userId: CodecTypes["sql/varchar@1"]["input"] | null;
@@ -3924,7 +3930,7 @@ export interface StorageColumnInputTypes {
 			readonly status: CodecTypes["sql/varchar@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 			readonly yieldPeriod: "MONTHLY" | "YEARLY" | null;
-			readonly yieldTaxIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly yieldTaxIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 			readonly yieldTaxRate: CodecTypes["pg/numeric@1"]["input"] | null;
 		};
 		readonly FinancialInstitutionYieldRule: {
@@ -4134,7 +4140,7 @@ export interface StorageColumnInputTypes {
 			readonly publishedAt: CodecTypes["pg/timestamp@1"]["input"] | null;
 			readonly schemaVersion: CodecTypes["pg/int4@1"]["input"];
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
-			readonly userIds: readonly CodecTypes["sql/varchar@1"]["input"][];
+			readonly userIds: ReadonlyArray<CodecTypes["sql/varchar@1"]["input"]>;
 		};
 		readonly PushDevice: {
 			readonly address: CodecTypes["pg/text@1"]["input"];
@@ -4417,7 +4423,7 @@ export interface StorageColumnInputTypes {
 			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
 	};
-}
+};
 export type TypeMaps = TypeMapsType<
 	CodecTypes,
 	QueryOperationTypes,
