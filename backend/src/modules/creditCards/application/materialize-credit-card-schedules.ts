@@ -25,8 +25,8 @@ export async function getOrCreateStatement(creditCardId: string, dueDate: Date, 
 			INSERT INTO "CreditCardStatement" ("creditCardId", "dueDate", "statementDate", "totalAmount")
 			VALUES (
 				${param(creditCardId, { codecId: "sql/varchar@1" })},
-				${param(dueDate, { codecId: "pg/date@1" })},
-				${param(statementDate, { codecId: "pg/date@1" })},
+				${param(dueDate, { codecId: "pg/date-string@1" })},
+				${param(statementDate, { codecId: "pg/date-string@1" })},
 				0
 			)
 			ON CONFLICT ("creditCardId", "statementDate") DO NOTHING
@@ -40,7 +40,7 @@ export async function getOrCreateStatement(creditCardId: string, dueDate: Date, 
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.creditCardId, creditCardId),
-					functions.eq(fields.statementDate, statementDate),
+					functions.eq(fields.statementDate, statementDate.toISOString().slice(0, 10)),
 				),
 			)
 			.limit(1)

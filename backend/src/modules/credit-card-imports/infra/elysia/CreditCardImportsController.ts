@@ -343,7 +343,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 									: purchase.description,
 							installmentAmount: String(purchase.installmentAmount),
 							isStatementCharge: statementEntryKind(purchase.description) === "CHARGE",
-							purchaseDate: new Date(`${purchase.purchaseDate}T12:00:00`),
+							purchaseDate: purchase.purchaseDate,
 							...(purchase.reconciledCreditPurchaseId && {
 								reconciledCreditPurchaseId: purchase.reconciledCreditPurchaseId,
 							}),
@@ -376,9 +376,10 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				);
 				if (!original) continue;
 				await executeStatement(
-					db.sql.public.CreditCardImportItem.update(
-						existingPurchaseImportValues(item.description, original),
-					)
+					db.sql.public.CreditCardImportItem.update({
+						...existingPurchaseImportValues(item.description, original),
+						purchaseDate: dateKey(original.purchaseDate),
+					})
 						.where((fields, functions) => functions.eq(fields.id, item.id))
 						.build(),
 				);
@@ -466,8 +467,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 			if (body.statementDate && body.dueDate)
 				await executeStatement(
 					db.sql.public.CreditCardImport.update({
-						dueDate: new Date(body.dueDate),
-						statementDate: new Date(body.statementDate),
+						dueDate: body.dueDate,
+						statementDate: body.statementDate,
 						updatedAt: new Date(),
 					})
 						.where((f, fn) => fn.eq(f.id, params.id))
@@ -551,9 +552,7 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 					...(body.taxes !== undefined
 						? { taxes: body.taxes.map(tax => ({ ...tax, name: tax.name.trim() })) }
 						: {}),
-					purchaseDate: body.purchaseDate
-						? new Date(`${body.purchaseDate}T12:00:00`)
-						: current.purchaseDate,
+					purchaseDate: body.purchaseDate ? body.purchaseDate : current.purchaseDate,
 					storeName:
 						body.storeName === undefined ? current.storeName : body.storeName?.trim() || null,
 					...(body.time !== undefined && { time: body.time }),
@@ -676,8 +675,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 							)
 						: source("description", item.description, duplicate.description),
 					purchaseDate: importedAnticipation(item.description)
-						? duplicate.purchaseDate
-						: source("purchaseDate", item.purchaseDate, duplicate.purchaseDate),
+						? dateKey(duplicate.purchaseDate)
+						: source("purchaseDate", item.purchaseDate, dateKey(duplicate.purchaseDate)),
 					reconciledCreditPurchaseId: body.creditPurchaseId,
 					storeName: importedAnticipation(item.description)
 						? duplicate.storeName

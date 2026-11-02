@@ -2,7 +2,7 @@ import { roundMoney } from "@zaimu/finance/money";
 import { cardRulesForPurchase } from "~/modules/accounts/application/institution-card-rules";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
 import { HttpException } from "~/shared/errors";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryFirst } from "~/shared/infra/sql";
 export async function rewardSnapshot(
 	input: { id: string },
 	total: number,
@@ -29,12 +29,19 @@ export function createRewardSnapshotLoader(loadContext: typeof rewardContext = r
 
 async function rewardContext(input: { id: string }, source: string, date: string, userId: string) {
 	const card = await cardRulesForPurchase(input.id, userId, date);
-	const [account] = card.cashbackAccountId
-		? await queryRaw<{ currency: string }>(
-				'SELECT "currency" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2',
-				[card.cashbackAccountId, userId],
+	const account = card.cashbackAccountId
+		? await queryFirst(
+				db.sql.public.FinancialAccount.select("currency")
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.id, card.cashbackAccountId!),
+							functions.eq(fields.userId, userId),
+						),
+					)
+					.limit(1)
+					.build(),
 			)
-		: [];
+		: undefined;
 	if (card.cashbackAccountId && !account) throw new HttpException("Conta de recompensa indisponível", 400);
 	const currency = account?.currency ?? source;
 	const rate =

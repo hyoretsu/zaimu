@@ -18,7 +18,7 @@ import {
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import type { RawQuery } from "~/modules/creditCards/application/normalized-statement-replay";
 import { HttpException } from "~/shared/errors";
-import { withRawTransaction } from "~/shared/infra/sql";
+import { db, queryRows, withRawTransaction } from "~/shared/infra/sql";
 import { withoutFinancingReferences } from "../domain/financing-source-reference";
 import type { ImportedPurchaseTax } from "../domain/import-purchase-taxes";
 import {
@@ -83,13 +83,40 @@ export async function materializeImportedPurchases(card: CardSnapshot, inputs: I
 	return withRawTransaction(async query => {
 		const ids = await mutateCreditBook(card.userId, card.id, async (book, query) => {
 			const externalIds = inputs.map(input => input.externalId);
-			const identities = await query<{ externalId: string; purchaseId: string }>(
-				`SELECT i."externalId",i."purchaseId" FROM "CreditPurchaseImportIdentity" i JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId" WHERE i."externalId"=ANY($1::text[]) AND p."creditCardId"=$2 AND p."userId"=$3`,
-				[externalIds, card.id, card.userId],
+			const identities = await queryRows(
+				db.sql.public.CreditPurchaseImportIdentity.innerJoin(
+					db.sql.public.CreditPurchaseRecord,
+					(f, fn) => fn.eq(f.CreditPurchaseImportIdentity.purchaseId, f.CreditPurchaseRecord.id),
+				)
+					.select(f => ({
+						externalId: f.CreditPurchaseImportIdentity.externalId,
+						purchaseId: f.CreditPurchaseImportIdentity.purchaseId,
+					}))
+					.where((f, fn) =>
+						fn.and(
+							fn.in(f.CreditPurchaseImportIdentity.externalId, externalIds),
+							fn.eq(f.CreditPurchaseRecord.creditCardId, card.id),
+							fn.eq(f.CreditPurchaseRecord.userId, card.userId),
+						),
+					)
+					.build(),
 			);
-			const refunds = await query<{ externalId: string; id: string }>(
-				`SELECT r."externalId",r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=ANY($1::text[]) AND p."creditCardId"=$2 AND r."deletedAt" IS NULL`,
-				[externalIds, card.id],
+			const refunds = await queryRows(
+				db.sql.public.CreditRefundRecord.innerJoin(db.sql.public.CreditPurchaseRecord, (f, fn) =>
+					fn.eq(f.CreditRefundRecord.purchaseId, f.CreditPurchaseRecord.id),
+				)
+					.select(f => ({
+						externalId: f.CreditRefundRecord.externalId,
+						id: f.CreditRefundRecord.id,
+					}))
+					.where((f, fn) =>
+						fn.and(
+							fn.in(f.CreditRefundRecord.externalId, externalIds),
+							fn.eq(f.CreditPurchaseRecord.creditCardId, card.id),
+							fn.eq(f.CreditRefundRecord.deletedAt, null),
+						),
+					)
+					.build(),
 			);
 			const sources = await query<{ itemId: string; currency: string; originalAmount: number }>(
 				`SELECT "reviewItemId" AS "itemId", "snapshot"->>'currency' AS currency, abs(COALESCE(("snapshot"->>'totalAmount')::numeric,("snapshot"->>'amount')::numeric)) AS "originalAmount" FROM "OpenFinanceRecord" WHERE "reviewItemId"=ANY($1::text[])`,
@@ -97,7 +124,9 @@ export async function materializeImportedPurchases(card: CardSnapshot, inputs: I
 			);
 			const context: ImportBatchContext = {
 				identities: new Map(identities.map(row => [row.externalId, row.purchaseId])),
-				refunds: new Map(refunds.map(row => [row.externalId, row.id])),
+				refunds: new Map(
+					refunds.flatMap(row => (row.externalId == null ? [] : [[row.externalId, row.id]])),
+				),
 				reward: createRewardSnapshotLoader(),
 				sources: new Map(sources.map(row => [row.itemId, row])),
 			};
@@ -161,11 +190,21 @@ async function materializePurchaseInBook(
 				? context.identities.has(input.externalId)
 					? [{ purchaseId: context.identities.get(input.externalId)! }]
 					: []
-				: await query<{ purchaseId: string }>(
-						`SELECT i."purchaseId" FROM "CreditPurchaseImportIdentity" i
-			 JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId"
-			 WHERE i."externalId"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
-						[input.externalId, card.id, card.userId],
+				: await queryRows(
+						db.sql.public.CreditPurchaseImportIdentity.innerJoin(
+							db.sql.public.CreditPurchaseRecord,
+							(f, fn) =>
+								fn.eq(f.CreditPurchaseImportIdentity.purchaseId, f.CreditPurchaseRecord.id),
+						)
+							.select(f => ({ purchaseId: f.CreditPurchaseImportIdentity.purchaseId }))
+							.where((f, fn) =>
+								fn.and(
+									fn.eq(f.CreditPurchaseImportIdentity.externalId, input.externalId),
+									fn.eq(f.CreditPurchaseRecord.creditCardId, card.id),
+									fn.eq(f.CreditPurchaseRecord.userId, card.userId),
+								),
+							)
+							.build(),
 					)
 			: [];
 	const duplicate = book.purchases.find(
@@ -175,16 +214,27 @@ async function materializePurchaseInBook(
 		? context.refunds.has(input.externalId)
 			? [{ id: context.refunds.get(input.externalId)! }]
 			: []
-		: await query<{ id: string }>(
-				`SELECT r."id" FROM "CreditRefundRecord" r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId" WHERE r."externalId"=$1 AND p."creditCardId"=$2 AND r."deletedAt" IS NULL`,
-				[input.externalId, card.id],
+		: await queryRows(
+				db.sql.public.CreditRefundRecord.innerJoin(db.sql.public.CreditPurchaseRecord, (f, fn) =>
+					fn.eq(f.CreditRefundRecord.purchaseId, f.CreditPurchaseRecord.id),
+				)
+					.select(f => ({ id: f.CreditRefundRecord.id }))
+					.where((f, fn) =>
+						fn.and(
+							fn.eq(f.CreditRefundRecord.externalId, input.externalId),
+							fn.eq(f.CreditPurchaseRecord.creditCardId, card.id),
+							fn.eq(f.CreditRefundRecord.deletedAt, null),
+						),
+					)
+					.build(),
 			);
 	if (input.installmentAmount < 0) {
 		if (refundDuplicate[0]) return refundDuplicate[0].id;
 		const [reference] = input.existingRootId
-			? await query<{ purchaseId: string | null }>(
-					`SELECT "purchaseId" FROM "CreditEntryReference" WHERE "id"=$1`,
-					[input.existingRootId],
+			? await queryRows(
+					db.sql.public.CreditEntryReference.select("purchaseId")
+						.where((f, fn) => fn.eq(f.id, input.existingRootId!))
+						.build(),
 				)
 			: [];
 		const source = book.purchases.find(p => p.id === (reference?.purchaseId ?? input.existingRootId));

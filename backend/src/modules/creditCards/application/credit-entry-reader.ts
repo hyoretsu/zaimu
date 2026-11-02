@@ -1,6 +1,7 @@
 import { queryRaw } from "~/shared/infra/sql";
 
-/** Read-only projection; all mutations use normalized-credit-book. */
+/** PostgreSQL view is absent from the emitted Prisma table contract; retain its raw projection.
+ * Read-only projection; all mutations use normalized-credit-book. */
 export interface CreditReadRow extends Record<string, unknown> {
 	id: string;
 	purchaseId: string | null;

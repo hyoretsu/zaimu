@@ -7,7 +7,7 @@ import {
 	type StatementInput,
 } from "@zaimu/finance/credit-card";
 import { accountCardRules } from "~/modules/accounts/application/institution-card-rules";
-import { queryRaw, type SqlExecutor } from "~/shared/infra/sql";
+import { db, queryRaw, queryRows, type SqlExecutor } from "~/shared/infra/sql";
 import { mutateCreditBook, readCreditBook } from "./normalized-credit-book";
 
 export async function withStatementPayments<T extends StatementInput & { creditCardId: string }>(
@@ -17,9 +17,13 @@ export async function withStatementPayments<T extends StatementInput & { creditC
 ) {
 	if (!statements.length) return [];
 	const ids = [...new Set(statements.map(s => s.creditCardId))];
-	const owners = await queryRaw<{ id: string; userId: string }>(
-		`SELECT c."id",a."userId" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=ANY($1)`,
-		[ids],
+	const owners = await queryRows(
+		db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+			functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
+		)
+			.select(fields => ({ id: fields.CreditCard.id, userId: fields.FinancialAccount.userId }))
+			.where((fields, functions) => functions.in(fields.CreditCard.id, ids))
+			.build(),
 	);
 	const dateKey =
 		asOf instanceof Date
@@ -101,11 +105,11 @@ export async function recalculateStatementPayments(transaction: SqlExecutor, car
 				.map(p => ({ ...p, amount: p.paymentAmount ?? p.amount })),
 			dates => ({
 				creditCardId: card.id,
-				dueDate: new Date(`${dates.dueDate}T12:00:00Z`),
+				dueDate: dates.dueDate,
 				id: `cycle-${dates.statementDate}`,
 				isPaid: false,
 				paidAmount: 0,
-				statementDate: new Date(`${dates.statementDate}T12:00:00Z`),
+				statementDate: dates.statementDate,
 				totalAmount: 0,
 			}),
 		);

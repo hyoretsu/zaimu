@@ -7,7 +7,7 @@ import {
 	readCreditBook,
 } from "~/modules/creditCards/application/normalized-credit-book";
 import { HttpException } from "~/shared/errors";
-import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, queryRaw, queryRows, withRawTransaction } from "~/shared/infra/sql";
 import { approveImportedRefund } from "../domain/existing-imported-refund";
 import { getFinancingSource } from "../domain/financing-source-reference";
 import type { RefundImportReviewDTO } from "../infra/elysia/CreditCardImportsDTO";
@@ -162,15 +162,21 @@ export async function saveRefundReview(
 			: undefined;
 		if (data.purchase) await assertTagOwnership(data.purchase.tagIds ?? [], userId);
 		try {
-			applyReview(structuredClone(await readCreditBook(userId, imported.creditCardId)), item, data, source);
+			applyReview(
+				structuredClone(await readCreditBook(userId, imported.creditCardId)),
+				item,
+				data,
+				source,
+			);
 		} catch (error) {
 			if (error instanceof RangeError) throw new HttpException(error.message, 400);
 			throw error;
 		}
 		const stored: StoredReview = { ...data, ...(source && { sourceExternalId: source.externalId }) };
-		await queryRaw(
-			`UPDATE "CreditCardImportItem" SET "refundReview"=$2::jsonb, "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`,
-			[item.id, JSON.stringify(stored)],
+		await executeStatement(
+			db.sql.public.CreditCardImportItem.update({ refundReview: stored, updatedAt: new Date() })
+				.where((f, fn) => fn.eq(f.id, item.id))
+				.build(),
 		);
 		return { refundReview: data };
 	});
@@ -217,15 +223,23 @@ export async function approveReviewedRefund(
 			applyReview(book, item, { ...data, purchaseId }),
 		);
 		await cleanupItemTags([item.id]);
-		await queryRaw(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [item.id]);
-		const [{ remaining }] = await queryRaw<{ remaining: number }>(
-			`SELECT count(*)::int AS remaining FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
-			[importId],
+		await executeStatement(
+			db.sql.public.CreditCardImportItem.delete()
+				.where((f, fn) => fn.eq(f.id, item.id))
+				.build(),
+		);
+		const [{ remaining }] = await queryRows(
+			db.sql.public.CreditCardImportItem.select((_f, fn) => ({
+				remaining: fn.raw`count(*)::int`.returns("pg/int4@1"),
+			}))
+				.where((f, fn) => fn.eq(f.creditCardImportId, importId))
+				.build(),
 		);
 		if (remaining === 0) {
-			await queryRaw(
-				`UPDATE "CreditCardImport" SET "status"='APPROVED', "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`,
-				[importId],
+			await executeStatement(
+				db.sql.public.CreditCardImport.update({ status: "APPROVED", updatedAt: new Date() })
+					.where((f, fn) => fn.eq(f.id, importId))
+					.build(),
 			);
 			await markStatementAsFullySynced(imported);
 		}

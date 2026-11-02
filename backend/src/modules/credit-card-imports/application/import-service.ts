@@ -230,6 +230,7 @@ async function reconcileUniquePurchases(userId: string, importId: string, credit
 			await executeStatement(
 				db.sql.public.CreditCardImportItem.update({
 					...values,
+					purchaseDate: values.purchaseDate.toISOString().slice(0, 10),
 					reconciledCreditPurchaseId: original.id,
 					updatedAt: new Date(),
 				})
@@ -273,7 +274,11 @@ export async function getImport(userId: string, importId: string) {
 			.build(),
 	);
 	if (!creditCardImport) throw new HttpException("Importação de fatura não encontrada", 404);
-	return creditCardImport;
+	return {
+		...creditCardImport,
+		dueDate: new Date(`${creditCardImport.dueDate}T00:00:00Z`),
+		statementDate: new Date(`${creditCardImport.statementDate}T00:00:00Z`),
+	};
 }
 
 export async function markStatementAsFullySynced({
@@ -490,9 +495,9 @@ export async function getImportReturn(
 	)
 		existingStatements.push({
 			creditCardId: creditCardImport.creditCardId,
-			dueDate: creditCardImport.dueDate,
+			dueDate: creditCardImport.dueDate.toISOString().slice(0, 10),
 			id: "import-cycle",
-			statementDate: creditCardImport.statementDate,
+			statementDate: creditCardImport.statementDate.toISOString().slice(0, 10),
 			totalAmount: 0,
 		});
 	const balance = (
@@ -793,6 +798,7 @@ async function approveItemsImpl(
 			existingRootId: item.reconciledCreditPurchaseId ?? importedRoot?.id ?? null,
 			installmentAmount: Number(item.installmentAmount),
 			pendingSourceItemId: pendingPurchaseId(item.description),
+			purchaseDate: new Date(`${item.purchaseDate}T00:00:00Z`),
 			statementDate: creditCardImport.statementDate,
 			tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
 			taxes: readImportTaxes(item.taxes),
@@ -851,6 +857,7 @@ async function approveItemsImpl(
 				dueDate: creditCardImport.dueDate,
 				existingRootId: item.reconciledCreditPurchaseId ?? importedRoot?.id ?? null,
 				installmentAmount: Number(item.installmentAmount),
+				purchaseDate: new Date(`${item.purchaseDate}T00:00:00Z`),
 				statementDate: creditCardImport.statementDate,
 				tagIds: (tagsByItem.get(item.id) ?? []).map(tag => tag.id),
 				taxes: readImportTaxes(item.taxes),

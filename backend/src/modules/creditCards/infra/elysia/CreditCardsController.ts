@@ -361,10 +361,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.creditCardId, params.id),
-								functions.eq(
-									fields.statementDate,
-									new Date(`${body.statementDate}T12:00:00Z`),
-								),
+								functions.eq(fields.statementDate, body.statementDate),
 							),
 						)
 						.limit(1)
@@ -375,7 +372,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const cutoff = body.statementDate ? statementCutoffAfter(body.statementDate) : null;
 			await executeStatement(
 				db.sql.public.CreditCard.update({
-					ignoreStatementsBefore: cutoff ? new Date(`${cutoff}T12:00:00Z`) : null,
+					ignoreStatementsBefore: cutoff,
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -1134,7 +1131,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					executor.db.sql.public.Transaction.insert([
 						{
 							amount: String(body.amount),
-							date: new Date(body.date),
+							date: body.date,
 							originFinancialAccountId: body.financialAccountId,
 							paymentCreditCardId: params.id,
 							time: resolvePurchaseTime(body.time),
