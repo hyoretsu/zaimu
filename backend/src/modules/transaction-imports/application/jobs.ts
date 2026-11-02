@@ -7,6 +7,7 @@ import { executeRaw, queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { createUploadedTransactionImport } from "./upload";
 
 type Kind = "account" | "credit-card";
+type JobRow = Job & Record<string, unknown>;
 interface Job {
 	provider: string;
 	password?: string;
@@ -84,7 +85,7 @@ export async function enqueueImportBatch(
 }
 
 export async function getImportBatch(userId: string, batchId: string) {
-	const jobs = await queryRaw<Job>(
+	const jobs = await queryRaw<JobRow>(
 		`SELECT "ordinal","fileName","status","importId","ignoredCount","error" FROM "ImportFileJob" WHERE "userId"=$1 AND "batchId"=$2 ORDER BY "ordinal"`,
 		[userId, batchId],
 	);
@@ -111,7 +112,7 @@ export async function getImportBatch(userId: string, batchId: string) {
 export async function handleImportFile(event: EventEnvelope<{ jobId: string }>) {
 	const token = crypto.randomUUID();
 	const job = await withRawTransaction(async () => {
-		const [candidate] = await queryRaw<Job>(
+		const [candidate] = await queryRaw<JobRow>(
 			`SELECT "id","kind","scopeId" FROM "ImportFileJob" WHERE "id"=$1`,
 			[event.payload.jobId],
 		);
@@ -120,7 +121,7 @@ export async function handleImportFile(event: EventEnvelope<{ jobId: string }>) 
 			`import-file:${candidate.kind}:${candidate.scopeId}`,
 		]);
 		// An earlier unfinished file blocks later files, even across batches/replicas.
-		const [claimed] = await queryRaw<Job>(
+		const [claimed] = await queryRaw<JobRow>(
 			`UPDATE "ImportFileJob" j SET "status"='RUNNING',"workerToken"=$2,"lockedUntil"=now()+interval '2 minutes' WHERE j."id"=$1 AND (j."status"='QUEUED' OR (j."status"='RUNNING' AND j."lockedUntil"<now())) AND NOT EXISTS (SELECT 1 FROM "ImportFileJob" p WHERE p."kind"=j."kind" AND p."scopeId"=j."scopeId" AND p."status" IN ('QUEUED','RUNNING') AND (p."createdAt",p."batchId",p."ordinal") < (j."createdAt",j."batchId",j."ordinal")) RETURNING j.*`,
 			[candidate.id, token],
 		);
