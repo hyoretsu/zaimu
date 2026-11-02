@@ -133,7 +133,7 @@ interface TransferSuggestionCandidate extends TransferSuggestionItem {
 }
 
 async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
-	const [items, candidates, rejections] = await Promise.all([
+	const [pendingItems, candidates, rejections] = await Promise.all([
 		queryRows(
 			db.sql.public.TransactionImportItem.innerJoin(
 				db.sql.public.TransactionImport,
@@ -160,7 +160,6 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 					functions.and(
 						functions.eq(fields.TransactionImport.userId, userId),
 						functions.eq(fields.TransactionImport.status, "PENDING"),
-						functions.in(fields.TransactionImportItem.id, itemIds),
 					),
 				)
 				.build(),
@@ -195,7 +194,7 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 				.where((fields, functions) =>
 					functions.and(
 						functions.eq(fields.FinancialAccount.userId, userId),
-						functions.eq(fields.Transaction.type, "INCOME"),
+						functions.in(fields.Transaction.type, ["INCOME", "EXPENSE"]),
 					),
 				)
 				.build(),
@@ -212,7 +211,7 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 		),
 	]);
 	const rejectedPairs = new Set(rejections.map(transferSuggestionRejectionKey));
-	const activeItems: TransferSuggestionCandidate[] = items
+	const pendingCandidates: TransferSuggestionCandidate[] = pendingItems
 		.filter(candidate => !candidate.isReconciled)
 		.map(({ isReconciled: _, ...candidate }) => ({
 			...candidate,
@@ -220,6 +219,8 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 			source: "IMPORT_ITEM" as const,
 			type: candidate.type as ImportItemType,
 		}));
+	const requestedItemIds = new Set(itemIds);
+	const activeItems = pendingCandidates.filter(candidate => requestedItemIds.has(candidate.id));
 	const transactionTags = await getTagsByEntity(
 		tagEntityType.transaction,
 		candidates.map(candidate => candidate.id),
@@ -244,7 +245,16 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 	return new Map<string, TransferSuggestion<TransferSuggestionCandidate>[]>(
 		itemIds.map(itemId => {
 			const item = activeItems.find(candidate => candidate.id === itemId);
-			return [itemId, item ? getTransferSuggestions(item, materializedCandidates, rejectedPairs) : []];
+			return [
+				itemId,
+				item
+					? getTransferSuggestions(
+							item,
+							[...materializedCandidates, ...pendingCandidates],
+							rejectedPairs,
+						)
+					: [],
+			];
 		}),
 	);
 }
@@ -984,59 +994,109 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					candidate.incoming.id === params.counterpartItemId,
 			);
 			const requestedItem = pair?.outgoing.id === params.itemId ? pair.outgoing : pair?.incoming;
-			if (
-				!pair ||
-				!requestedItem ||
-				requestedItem.transactionImportId !== transactionImport.id ||
-				pair.incoming.source !== "TRANSACTION"
-			)
+			if (!pair || !requestedItem || requestedItem.transactionImportId !== transactionImport.id)
 				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const savedSide = [pair.outgoing, pair.incoming].find(side => side.source === "TRANSACTION");
+			const importSides = [pair.outgoing, pair.incoming].filter(side => side.source === "IMPORT_ITEM");
 			const debtSplits = await queryRows(
 				db.sql.public.DebtSplit.select("id")
 					.where((fields, functions) =>
 						functions.or(
-							functions.eq(fields.transactionImportItemId, pair.outgoing.id),
-							functions.eq(fields.transactionId, pair.incoming.id),
+							functions.in(
+								fields.transactionImportItemId,
+								importSides.map(side => side.id),
+							),
+							functions.in(fields.transactionId, savedSide ? [savedSide.id] : []),
 						),
 					)
 					.build(),
 			);
 			if (debtSplits.length)
 				throw new HttpException("Remova o rateio de dívida antes de combinar a transferência", 400);
-			await withTransaction(async transaction => {
-				await transaction.executeStatement(
-					transaction.db.sql.public.Transaction.update({
-						destinationFinancialAccountId: pair.incoming.financialAccountId,
-						originFinancialAccountId: pair.outgoing.financialAccountId,
-						paymentCreditCardId: null,
-						storeName: null,
-						type: "TRANSFER",
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, pair.incoming.id))
-						.build(),
-				);
-				await transaction.executeStatement(
-					transaction.db.sql.public.TransactionExternalReference.insert([
-						{
-							externalId: pair.outgoing.externalId!,
-							financialAccountId: pair.outgoing.financialAccountId,
-							transactionId: pair.incoming.id,
-						},
-					]).build(),
-				);
-				await transaction.executeStatement(
-					transaction.db.sql.public.TagAssignment.delete()
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.entityType, tagEntityType.transaction),
-								functions.eq(fields.entityId, pair.incoming.id),
-							),
+			for (const side of importSides) await assertImportItemIsNotReconciliationTarget(side.id);
+			const transferAccounts = {
+				destinationFinancialAccountId: pair.incoming.financialAccountId,
+				originFinancialAccountId: pair.outgoing.financialAccountId,
+			};
+			const outgoingImportItem =
+				pair.outgoing.source === "IMPORT_ITEM"
+					? await queryFirst(
+							db.sql.public.TransactionImportItem.select(
+								"id",
+								"amount",
+								"date",
+								"description",
+								"externalId",
+								"time",
+							)
+								.where((fields, functions) => functions.eq(fields.id, pair.outgoing.id))
+								.limit(1)
+								.build(),
 						)
-						.build(),
-				);
-				await removeImportItem(transaction, pair.outgoing.id);
-				await finalizeImportWhenEmpty(transaction, transactionImport.id);
+					: null;
+			await withTransaction(async transaction => {
+				if (savedSide) {
+					const importSide = importSides[0]!;
+					await transaction.executeStatement(
+						transaction.db.sql.public.Transaction.update({
+							...transferAccounts,
+							paymentCreditCardId: null,
+							storeName: null,
+							type: "TRANSFER",
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.id, savedSide.id))
+							.build(),
+					);
+					await transaction.executeStatement(
+						transaction.db.sql.public.TransactionExternalReference.insert([
+							{
+								externalId: importSide.externalId!,
+								financialAccountId: importSide.financialAccountId,
+								transactionId: savedSide.id,
+							},
+						]).build(),
+					);
+					await transaction.executeStatement(
+						transaction.db.sql.public.TagAssignment.delete()
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.entityType, tagEntityType.transaction),
+									functions.eq(fields.entityId, savedSide.id),
+								),
+							)
+							.build(),
+					);
+				} else {
+					if (!outgoingImportItem)
+						throw new HttpException("Item da importação não encontrado", 404);
+					await persistImportItem(
+						transaction,
+						{
+							...outgoingImportItem,
+							...transferAccounts,
+							amount: Number(outgoingImportItem.amount),
+							date: new Date(outgoingImportItem.date),
+							isHidden: false,
+							isReconciled: false,
+							paymentCreditCardId: null,
+							reconciledImportItemId: null,
+							reconciledTransactionId: null,
+							storeName: null,
+							transferCounterpartExternalId: pair.incoming.externalId,
+							type: "TRANSFER",
+						},
+						[],
+						pair.outgoing.financialAccountId,
+						userId,
+					);
+				}
+				const importIds = new Set<string>();
+				for (const side of importSides) {
+					await removeImportItem(transaction, side.id);
+					importIds.add((side as TransferSuggestionCandidate).transactionImportId!);
+				}
+				for (const importId of importIds) await finalizeImportWhenEmpty(transaction, importId);
 			});
 			return { removedImportId: transactionImport.id, success: true };
 		},
@@ -1066,7 +1126,6 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				!pair ||
 				!requestedItem ||
 				requestedItem.transactionImportId !== transactionImport.id ||
-				pair.incoming.source !== "TRANSACTION" ||
 				!pair.outgoing.externalId ||
 				!pair.incoming.externalId
 			)

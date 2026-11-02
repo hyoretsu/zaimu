@@ -33,7 +33,10 @@ export interface YieldAccount {
 	yieldRateHistories?: YieldRateHistory[];
 }
 
+export type YieldAccountType = "CASH" | "CHECKING" | "INVESTMENT" | "SAVINGS";
+
 export interface InstitutionYieldPolicy {
+	accountType?: null | YieldAccountType;
 	profileId?: null | string;
 	countryCode?: null | string;
 	effectiveUntil?: null | Date | string;

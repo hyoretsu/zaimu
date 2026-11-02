@@ -9,8 +9,8 @@ import {
 	primaryKey,
 	sql,
 } from "@prisma/orm-postgres/migration";
-import type { Contract as End } from "../../snapshots/0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29/contract";
-import endContract from "../../snapshots/0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29/contract.json" with { type: "json" };
+import type { Contract as End } from "../../snapshots/e15dbe7f999388cc745849f8ad489efd47fded20f72115b5aaa2f654271b09ce/contract";
+import endContract from "../../snapshots/e15dbe7f999388cc745849f8ad489efd47fded20f72115b5aaa2f654271b09ce/contract.json" with { type: "json" };
 
 export default class M extends Migration<never, End> {
 	override readonly endContractJson = endContract;
@@ -2174,6 +2174,9 @@ export default class M extends Migration<never, End> {
 			}),
 			this.createTable({
 				columns: [
+					col("accountType", "character varying(16)", {
+						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 16 } },
+					}),
 					col("countryCode", "character varying(2)", {
 						codecRef: { codecId: "sql/varchar@1", typeParams: { length: 2 } },
 					}),

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
-const historicalHead = "5f6b4cd90770cc8d161af5e9a6dec4e91e58593d2bb41e6abed6efc78ff6c2c7";
+const historicalHead = "ec3991a80af4806c580f49042477bf9891cac2f4c4817722a8c0aaa2cac63163";
 const nativeAliases: Record<string, string> = {
 	boolean: "bool",
 	"character varying": "varchar",

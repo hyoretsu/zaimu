@@ -42,7 +42,12 @@ describe("getTransferSuggestionPair", () => {
 		expect(
 			getTransferSuggestionPair(
 				{ ...outgoing, time: "13:29" },
-				{ ...incoming, date: "2026-09-10", financialAccountId: outgoing.financialAccountId, time: "13:30" },
+				{
+					...incoming,
+					date: "2026-09-10",
+					financialAccountId: outgoing.financialAccountId,
+					time: "13:30",
+				},
 			),
 		).toBeNull();
 		expect(
@@ -61,9 +66,23 @@ describe("getTransferSuggestionPair", () => {
 });
 
 describe("getTransferSuggestions", () => {
-	test("only suggests materialized transactions for an import item", () => {
-		expect(getTransferSuggestions(outgoing, [{ ...incoming, source: "IMPORT_ITEM" }], new Set())).toEqual([]);
-		expect(getTransferSuggestions({ ...outgoing, source: "TRANSACTION" }, [incoming], new Set())).toEqual([]);
+	test("suggests pending items of other imports and only for import items", () => {
+		const pendingOutgoing = { ...outgoing, time: "13:29" };
+		const pendingIncoming = {
+			...incoming,
+			date: "2026-09-10",
+			source: "IMPORT_ITEM" as const,
+			time: "13:30",
+		};
+		expect(getTransferSuggestions(pendingOutgoing, [pendingIncoming], new Set())).toEqual([
+			{ incoming: pendingIncoming, outgoing: pendingOutgoing },
+		]);
+		expect(getTransferSuggestions(pendingIncoming, [pendingOutgoing], new Set())).toEqual([
+			{ incoming: pendingIncoming, outgoing: pendingOutgoing },
+		]);
+		expect(getTransferSuggestions({ ...outgoing, source: "TRANSACTION" }, [incoming], new Set())).toEqual(
+			[],
+		);
 		const timedOutgoing = { ...outgoing, time: "13:29" };
 		const timedIncoming = { ...incoming, date: "2026-09-10", time: "13:30" };
 		expect(getTransferSuggestions(timedOutgoing, [timedIncoming], new Set())).toEqual([

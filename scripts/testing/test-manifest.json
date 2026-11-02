@@ -96,6 +96,7 @@
 		"backend/src/modules/credit-card-imports/domain/imported-purchase-total.test.ts",
 		"backend/src/modules/credit-card-imports/domain/installment-amounts.test.ts",
 		"backend/src/modules/credit-card-imports/domain/inter-credit-card.test.ts",
+		"backend/src/modules/credit-card-imports/domain/inter-global-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/invoice-payment.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-text.test.ts",

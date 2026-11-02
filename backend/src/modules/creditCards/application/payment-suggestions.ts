@@ -4,6 +4,7 @@ import { toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialMoney } from "~/modules/currencies/application/financial-money";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction, withTransaction } from "~/shared/infra/sql";
 import { hasPaymentBalance } from "../domain/statement-balance";
@@ -96,7 +97,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 			if (!hasPaymentBalance(balance, debitAmount, account.currency))
 				throw new HttpException("Saldo insuficiente na conta pagadora na data informada", 400);
 		}
-		return withTransaction(async executor => {
+		const created = await withTransaction(async executor => {
 			const [transaction] = await query<SuggestedPaymentTransaction>(
 				`INSERT INTO "Transaction" ("id","userId","type","amount","date","originFinancialAccountId","paymentCreditCardId","currency","bookingCurrency","originalAmount","paymentAmount","paymentCurrency","createdAt","updatedAt") VALUES ($1,$2,'EXPENSE',$3,$4,$5,$6,$7,$7,$3,$8,$9,NOW(),NOW()) RETURNING *`,
 				[
@@ -114,5 +115,11 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 			await recalculateStatementPayments(executor, [cardId]);
 			return { transaction: presentSuggestedPayment(transaction) };
 		});
+		await enqueueAccountYieldRecalculation(
+			input.financialAccountId,
+			new Date(`${input.date}T00:00:00`),
+			`transaction:${input.attemptId}`,
+		);
+		return created;
 	});
 }

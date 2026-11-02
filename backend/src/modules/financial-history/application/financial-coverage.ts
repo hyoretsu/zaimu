@@ -124,7 +124,7 @@ export async function getFinancialCoverage(
 			status: string;
 			version: string;
 		}>(
-			`SELECT p."id",p."financialInstitutionId" AS "institutionId",i."name",p."profileId",p."countryCode",p."currency",to_char(p."effectiveDate",'YYYY-MM-DD') AS "startDate",to_char(LEAST(p."effectiveUntil",lead(p."effectiveDate") OVER (PARTITION BY p."financialInstitutionId",p."profileId",p."countryCode",p."currency" ORDER BY p."effectiveDate")-1),'YYYY-MM-DD') AS "endDate",p."status",i."version"::text AS "version" FROM "FinancialInstitutionYieldPolicy" p JOIN "FinancialInstitution" i ON i."id"=p."financialInstitutionId" WHERE ($1::boolean OR p."financialInstitutionId"=ANY($2::text[])) ORDER BY i."name",p."effectiveDate"`,
+			`SELECT p."id",p."financialInstitutionId" AS "institutionId",i."name",p."profileId",p."countryCode",p."currency",to_char(p."effectiveDate",'YYYY-MM-DD') AS "startDate",to_char(LEAST(p."effectiveUntil",lead(p."effectiveDate") OVER (PARTITION BY p."financialInstitutionId",p."profileId",p."countryCode",p."currency",p."accountType" ORDER BY p."effectiveDate")-1),'YYYY-MM-DD') AS "endDate",p."status",i."version"::text AS "version" FROM "FinancialInstitutionYieldPolicy" p JOIN "FinancialInstitution" i ON i."id"=p."financialInstitutionId" WHERE ($1::boolean OR p."financialInstitutionId"=ANY($2::text[])) ORDER BY i."name",p."effectiveDate"`,
 			[admin, institutions],
 		),
 		queryRaw<{

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { inputControlClassName } from "@/components/ui/input-styles";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { fixedMaskBeforeInput, fixedMaskKeyDown, fixedMaskPaste } from "@/lib/fixed-mask";
 import { cn } from "@/lib/utils";
 import { showToast } from "@/stores";
 import { CalendarMonth } from "./DateRangePicker/CalendarMonth";
@@ -212,6 +213,7 @@ export function DateField({
 							disabled={disabled}
 							id={id}
 							inputMode="numeric"
+							onBeforeInput={fixedMaskBeforeInput}
 							onBlur={commitDraft}
 							onChange={event => {
 								const input = event.target;
@@ -223,6 +225,14 @@ export function DateField({
 								setDraft({ source: value, text });
 							}}
 							onKeyDown={event => {
+								fixedMaskKeyDown(event);
+								if (
+									event.ctrlKey ||
+									event.metaKey ||
+									event.altKey ||
+									event.nativeEvent.isComposing
+								)
+									return;
 								const input = event.currentTarget;
 								const start = input.selectionStart ?? 0;
 								const end = input.selectionEnd ?? start;
@@ -245,6 +255,7 @@ export function DateField({
 									commitDraft();
 								}
 							}}
+							onPaste={fixedMaskPaste}
 							placeholder={placeholder}
 							ref={inputRef}
 							type="text"

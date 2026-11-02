@@ -15,7 +15,10 @@ import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/appl
 import { requireAdmin } from "~/modules/taxes/admin-access";
 import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
-import { FinancialInstitutionYieldPolicyReturn } from "~/shared/infra/elysia/transport-contracts";
+import {
+	FinancialInstitutionYieldPolicyReturn,
+	YieldAccountTypeDTO,
+} from "~/shared/infra/elysia/transport-contracts";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { configureInstitutionCardRules } from "../../application/institution-card-rules";
@@ -260,6 +263,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			proposeInstitution(await requireUserId(request), params.id, "POLICY", body, body.effectiveDate),
 		{
 			body: t.Object({
+				accountType: t.Optional(YieldAccountTypeDTO),
 				countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),
 				effectiveDate: DateDTO,
 				effectiveUntil: t.Optional(DateDTO),
@@ -358,6 +362,105 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			response: ChangeReturn,
 		},
 	)
+	.put(
+		"/:id/profile-periods",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await visibleInstitution(userId, params.id);
+			const periods = body.periods.toSorted((a, b) => a.startDate.localeCompare(b.startDate));
+			for (const [index, period] of periods.entries()) {
+				const next = periods[index + 1];
+				if (period.endDate && period.endDate < period.startDate)
+					throw new HttpException("Fim do período anterior ao início", 400);
+				if (next && (period.endDate ?? "9999-12-31") >= next.startDate)
+					throw new HttpException("Períodos de perfil não podem se sobrepor", 400);
+			}
+			const earliest = await withRawTransaction(async query => {
+				const rows = await query<{ id: string }>(
+					`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1`,
+					[params.id],
+				);
+				const profileIds = new Set(rows.map(row => row.id));
+				if (periods.some(period => !profileIds.has(period.profileId)))
+					throw new HttpException("Perfil não encontrado", 404);
+				const [defaultProfile] = await query<{ id: string }>(
+					`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND "isDefault" LIMIT 1`,
+					[params.id],
+				);
+				const changes = periods.flatMap((period, index) => {
+					const result = [{ date: period.startDate, profileId: period.profileId }];
+					if (period.endDate && defaultProfile) {
+						const day = new Date(`${period.endDate}T12:00:00Z`);
+						day.setUTCDate(day.getUTCDate() + 1);
+						const after = day.toISOString().slice(0, 10);
+						const next = periods[index + 1];
+						if (!next || next.startDate > after)
+							result.push({ date: after, profileId: defaultProfile.id });
+					}
+					return result;
+				});
+				const [link] = await query<{ id: string }>(
+					`INSERT INTO "UserFinancialInstitution" ("id","userId","institutionId","globalRulesFrom","updatedAt") VALUES ($1,$2,$3,$4,NOW()) ON CONFLICT ("userId","institutionId") DO UPDATE SET "updatedAt"=NOW() RETURNING "id"`,
+					[crypto.randomUUID(), userId, params.id, periods[0]?.startDate ?? null],
+				);
+				const [previous] = await query<{ date: string | null }>(
+					`SELECT MIN("effectiveDate")::text AS "date" FROM "UserInstitutionProfileChange" WHERE "linkId"=$1`,
+					[link.id],
+				);
+				await query(`DELETE FROM "UserInstitutionProfileChange" WHERE "linkId"=$1`, [link.id]);
+				for (const change of changes)
+					await query(
+						`INSERT INTO "UserInstitutionProfileChange" ("id","linkId","profileId","effectiveDate","updatedAt") VALUES ($1,$2,$3,$4,NOW())`,
+						[crypto.randomUUID(), link.id, change.profileId, change.date],
+					);
+				if (changes.length)
+					await query(
+						`UPDATE "UserFinancialInstitution" SET "globalRulesFrom"=LEAST(COALESCE("globalRulesFrom",$2::date),$2::date) WHERE "id"=$1`,
+						[link.id, changes[0].date],
+					);
+				await new PostgresOutbox().append(
+					createEventEnvelope({
+						aggregateId: params.id,
+						aggregateType: "account",
+						correlationId: link.id,
+						eventType: "account.institution.profile.changed",
+						payload: { effectiveDate: changes[0]?.date ?? previous?.date },
+						userIds: [userId],
+					}),
+				);
+				const dates = [previous?.date?.slice(0, 10), changes[0]?.date].filter(Boolean) as string[];
+				return dates.toSorted()[0] ?? null;
+			});
+			if (earliest) {
+				const accounts = await queryRaw<{ id: string }>(
+					`SELECT "id" FROM "FinancialAccount" WHERE "userId"=$1 AND "institutionId"=$2`,
+					[userId, params.id],
+				);
+				for (const account of accounts)
+					await enqueueAccountYieldRecalculation(
+						account.id,
+						new Date(`${earliest}T00:00:00`),
+						`institution-periods:${crypto.randomUUID()}`,
+					);
+			}
+			return { success: true };
+		},
+		{
+			body: t.Object({
+				periods: t.Array(
+					t.Object({
+						endDate: t.Optional(t.Nullable(DateDTO)),
+						profileId: Id,
+						startDate: DateDTO,
+					}),
+					{ maxItems: 100 },
+				),
+			}),
+			detail: { operationId: "putFinancialInstitutionsByIdProfilePeriods" },
+			params: t.Object({ id: Id }),
+			response: t.Object({ success: t.Boolean() }),
+		},
+	)
 	.delete(
 		"/:id",
 		async ({ params, request }) => {
@@ -438,28 +541,6 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 					},
 					{ additionalProperties: true },
 				),
-			),
-		},
-	)
-	.get(
-		"/review/proposals/:id/profile-history",
-		async ({ request, params, query }) => {
-			await requireAdmin(request);
-			return queryRaw<{ institutionId: string; name: string; effectiveDate: Date }>(
-				`SELECT l."institutionId",p."name",c."effectiveDate" FROM "UserInstitutionProfileChange" c JOIN "UserFinancialInstitution" l ON l."id"=c."linkId" JOIN "FinancialInstitutionProfile" p ON p."id"=c."profileId" JOIN "FinancialInstitutionProposal" proposal ON proposal."authorId"=l."userId" WHERE proposal."id"=$1 AND (l."institutionId"=proposal."institutionId" OR l."institutionId"=$2) ORDER BY c."effectiveDate"`,
-				[params.id, query.targetId ?? null],
-			);
-		},
-		{
-			detail: { operationId: "getFinancialInstitutionsReviewProposalsByIdProfileHistory" },
-			params: t.Object({ id: Id }),
-			query: t.Object({ targetId: t.Optional(Id) }),
-			response: t.Array(
-				t.Object({
-					effectiveDate: t.Union([t.Date(), t.String()]),
-					institutionId: t.String(),
-					name: t.String(),
-				}),
 			),
 		},
 	)

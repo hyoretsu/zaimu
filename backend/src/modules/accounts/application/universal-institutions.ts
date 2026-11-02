@@ -245,6 +245,7 @@ export async function reviewInstitutionProposal(
 					typeof assertFinancialInstitutionYieldPolicy
 				>[0] & {
 					profileId: string;
+					accountType?: string;
 					countryCode?: string;
 					effectiveUntil?: string;
 				};
@@ -266,23 +267,25 @@ export async function reviewInstitutionProposal(
 				// Moving a period to another start replaces the one it was edited from.
 				if (replaced)
 					await query(
-						`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5`,
+						`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5`,
 						[
 							institution.id,
 							policy.profileId,
 							policy.currency,
 							policy.countryCode ?? null,
 							replaced,
+							policy.accountType ?? null,
 						],
 					);
 				const [existing] = await query(
-					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5 FOR UPDATE`,
+					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5 FOR UPDATE`,
 					[
 						institution.id,
 						policy.profileId,
 						policy.currency,
 						policy.countryCode ?? null,
 						proposal.effectiveDate,
+						policy.accountType ?? null,
 					],
 				);
 				const policyId = existing?.id ?? crypto.randomUUID();
@@ -303,7 +306,7 @@ export async function reviewInstitutionProposal(
 					);
 				} else
 					await query(
-						`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())`,
+						`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","updatedAt") VALUES ($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,NOW())`,
 						[
 							policyId,
 							institution.id,
@@ -331,6 +334,7 @@ export async function reviewInstitutionProposal(
 						],
 					);
 				await consolidateYieldPolicyTimeline(query, {
+					accountType: policy.accountType ?? null,
 					countryCode: policy.countryCode ?? null,
 					currency: policy.currency ?? null,
 					financialInstitutionId: institution.id,

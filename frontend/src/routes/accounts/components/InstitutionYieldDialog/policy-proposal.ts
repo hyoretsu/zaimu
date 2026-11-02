@@ -10,6 +10,7 @@ export function toPolicyProposalBody(
 	if (!requestedEffectiveDate || !profileId) throw new Error("Selecione perfil e data de vigência.");
 	return {
 		...body,
+		accountType: body.accountType ?? undefined,
 		countryCode: body.countryCode ?? undefined,
 		effectiveDate: requestedEffectiveDate,
 		effectiveUntil: body.effectiveUntil ?? undefined,

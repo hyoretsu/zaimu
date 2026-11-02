@@ -123,9 +123,6 @@ export function InstitutionYieldPolicyForm({
 			<DialogBody>
 				<fieldset className="min-w-0 space-y-4" disabled={pending}>
 					{controls}
-					<p className="text-muted-foreground text-sm">
-						Limites em unidades da moeda de cada conta, sem conversão cambial.
-					</p>
 					<div className="">
 						<div className="grid gap-4 pb-2">
 							<div className="grid gap-4 sm:grid-cols-2">

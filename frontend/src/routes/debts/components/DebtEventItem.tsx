@@ -29,7 +29,7 @@ export function DebtEventItem({
 				{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
 			</div>
 			<div className="min-w-0 flex-1">
-				<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
+				<p className="truncate text-sm font-medium">{getDebtEventLabel(event)}</p>
 				<p className="text-muted-foreground text-xs">
 					{event.date ? formatLocalDate(event.date) : ""}
 					{formatLocalTime(event.time) ? ` · ${formatLocalTime(event.time)}` : ""}
@@ -38,7 +38,7 @@ export function DebtEventItem({
 				</p>
 			</div>
 			<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-				{event.effect === 0 ? "" : event.effect > 0 ? "+" : "-"}
+				{event.effect === 0 ? "" : event.effect > 0 ? "Te deve " : "Você deve "}
 				{new Intl.NumberFormat("pt-BR", {
 					currency: event.currency ?? "BRL",
 					style: "currency",

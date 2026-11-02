@@ -30,3 +30,9 @@ test("timeline lists the approved periods of one scope in date order", () => {
 	const plus = { ...base, profileId: "plus" };
 	expect(policyTimeline([later, pending, plus, base], "standard", undefined, "BRL")).toEqual([base, later]);
 });
+
+test("account type policies form separate timelines", () => {
+	const savings = { ...base, accountType: "SAVINGS" as const };
+	expect(policyTimeline([base, savings], "standard", undefined, "BRL", "SAVINGS")).toEqual([savings]);
+	expect(policyTimeline([base, savings], "standard", undefined, "BRL")).toEqual([base]);
+});

@@ -3147,6 +3147,7 @@ export const dataService = {
 				date.setDate(date.getDate() + 1);
 				await postFinancialInstitutionsByIdPolicies(id, {
 					...data.yieldPolicy,
+					accountType: data.yieldPolicy.accountType ?? undefined,
 					countryCode: data.yieldPolicy.countryCode ?? undefined,
 					effectiveDate:
 						data.yieldPolicy.requestedEffectiveDate ?? date.toLocaleDateString("sv-SE"),

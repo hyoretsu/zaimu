@@ -21,7 +21,7 @@ import type {
 } from "@prisma/orm-postgres/target/codec-types";
 import type { QueryOperationTypes as PgTargetQueryOps } from "@prisma/orm-postgres/target/operation-types";
 
-export type StorageHash = StorageHashBase<"0910b74d970a439b82b4439747f1beb173ec250413d41fc5029ec1c3ddde9b29">;
+export type StorageHash = StorageHashBase<"e15dbe7f999388cc745849f8ad489efd47fded20f72115b5aaa2f654271b09ce">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
 
@@ -1457,6 +1457,7 @@ export namespace Models {
 		readonly [RelationKeys]?: "audits" | "author" | "institution" | "reviewer";
 	};
 	export type public_FinancialInstitutionYieldPolicy = {
+		accountType: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["accountType"];
 		countryCode: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["countryCode"];
 		createdAt: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["createdAt"];
 		currency: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["currency"];
@@ -8105,6 +8106,13 @@ type ContractBase = Omit<
 						};
 						readonly FinancialInstitutionYieldPolicy: {
 							columns: {
+								readonly accountType: {
+									readonly dataType: "pg/varchar";
+									readonly codecId: "sql/varchar@1";
+									readonly nullable: true;
+									readonly typeParams: { readonly length: 16 };
+									readonly many: false;
+								};
 								readonly countryCode: {
 									readonly dataType: "pg/varchar";
 									readonly codecId: "sql/varchar@1";
@@ -19791,6 +19799,14 @@ type ContractBase = Omit<
 					};
 					readonly FinancialInstitutionYieldPolicy: {
 						readonly fields: {
+							readonly accountType: {
+								readonly nullable: true;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "sql/varchar@1";
+									readonly typeParams: { readonly length: 16 };
+								};
+							};
 							readonly countryCode: {
 								readonly nullable: true;
 								readonly type: {
@@ -19936,6 +19952,7 @@ type ContractBase = Omit<
 							readonly table: "FinancialInstitutionYieldPolicy";
 							readonly namespaceId: "public";
 							readonly fields: {
+								readonly accountType: { readonly column: "accountType" };
 								readonly countryCode: { readonly column: "countryCode" };
 								readonly createdAt: { readonly column: "createdAt" };
 								readonly currency: { readonly column: "currency" };

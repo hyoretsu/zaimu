@@ -70,6 +70,7 @@ import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchang
 import { getDebtSplitReturn, linkPurchaseToDebt } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { projectRecurringCreditBook } from "~/modules/recurring/application/project-credit-book";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
@@ -1158,6 +1159,11 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 				await recalculateStatementPayments(executor, [params.id]);
 				return payment;
 			});
+			await enqueueAccountYieldRecalculation(
+				body.financialAccountId,
+				new Date(body.date),
+				`transaction:${transaction.id}`,
+			);
 			return { transaction };
 		},
 		{

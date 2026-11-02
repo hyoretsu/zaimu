@@ -11,11 +11,14 @@ export function PreferredMoneyAmount({
 	date = "latest",
 	pending = false,
 	error = false,
+	debt = false,
 }: {
 	values: readonly MoneyPosition[];
 	date?: string;
 	pending?: boolean;
 	error?: boolean;
+	/** Renders the sign as "Te deve" (positive) / "Você deve" (negative) instead of +/-. */
+	debt?: boolean;
 }) {
 	const identity = useCacheIdentity();
 	const client = useQueryClient();
@@ -37,5 +40,13 @@ export function PreferredMoneyAmount({
 	if (error) return <span>Valores indisponíveis</span>;
 	if (query.isPending) return <Skeleton className="inline-block h-6 w-32 align-middle" />;
 	if (query.isError) return <span>Conversão indisponível</span>;
-	return <span>{createCurrencyFormatter(currency, navigator.languages).format(query.data)}</span>;
+	const formatter = createCurrencyFormatter(currency, navigator.languages);
+	if (debt && query.data !== 0) {
+		return (
+			<span>
+				{query.data > 0 ? "Te deve" : "Você deve"} {formatter.format(Math.abs(query.data))}
+			</span>
+		);
+	}
+	return <span>{formatter.format(query.data)}</span>;
 }
