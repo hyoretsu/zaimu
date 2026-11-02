@@ -1236,11 +1236,25 @@ suite("Prisma 8 SQL query builder", () => {
 			outsider.cookie,
 		);
 		const outsiderAccount = (await outsiderAccountResponse.json()) as { id: string };
+		// The sync transport requires complete account payloads (see SyncAccount in SyncDTO).
+		const syncAccount = (overrides: {
+			id: string;
+			name: string;
+			type: "CASH" | "CHECKING" | "SAVINGS";
+		}) => ({
+			balance: 0,
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			userId: owner.userId,
+			...overrides,
+		});
 		const conflictSync = await jsonRequest(
 			"/sync/",
 			"POST",
 			{
-				financialAccounts: [{ id: outsiderAccount.id, name: "Tentativa indevida", type: "CHECKING" }],
+				financialAccounts: [
+					syncAccount({ id: outsiderAccount.id, name: "Tentativa indevida", type: "CHECKING" }),
+				],
 			},
 			owner.cookie,
 		);
@@ -1256,12 +1270,16 @@ suite("Prisma 8 SQL query builder", () => {
 			"POST",
 			{
 				financialAccounts: [
-					{ id: crypto.randomUUID(), name: `Offline A ${crypto.randomUUID()}`, type: "CASH" },
-					{
+					syncAccount({
+						id: crypto.randomUUID(),
+						name: `Offline A ${crypto.randomUUID()}`,
+						type: "CASH",
+					}),
+					syncAccount({
 						id: crypto.randomUUID(),
 						name: `Offline B ${crypto.randomUUID()}`,
 						type: "SAVINGS",
-					},
+					}),
 				],
 			},
 			owner.cookie,
