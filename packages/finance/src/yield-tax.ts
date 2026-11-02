@@ -13,13 +13,18 @@ export interface TaxDefinition {
 	isActive: boolean;
 	versions: TaxVersion[];
 }
+/** DAILY taxes each day's yield inside the balance; ON_REDEMPTION keeps the balance gross and taxes only on withdrawal. */
+export type YieldTaxMode = "DAILY" | "ON_REDEMPTION";
 export interface TaxSettings {
 	yieldTaxIds?: string[] | null;
+	yieldTaxMode?: YieldTaxMode | null;
 	yieldTaxRate?: number | null;
 }
 export interface YieldLot {
 	date: string;
 	balance: number;
+	/** Contributed amount still in the lot; the taxable gain is `balance - principal`. Absent means no gain. */
+	principal?: number;
 }
 const iofRates = [
 	100, 96, 93, 90, 86, 83, 80, 76, 73, 70, 66, 63, 60, 56, 53, 50, 46, 43, 40, 36, 33, 30, 26, 23, 20, 16,
@@ -85,7 +90,19 @@ export function validateTaxBrackets(brackets: TaxBracket[]) {
 export function contributionAge(date: string, day: string) {
 	return Math.max(0, Math.round((Date.parse(day.slice(0, 10)) - Date.parse(date.slice(0, 10))) / 86400000));
 }
+/** Fraction kept after the daily tax; ON_REDEMPTION defers every tax to the withdrawal. */
 export function retainedYieldFraction(
+	settings: TaxSettings | undefined,
+	contributionDate: string,
+	day: string,
+	definitions = catalog,
+) {
+	return settings?.yieldTaxMode === "ON_REDEMPTION"
+		? 1
+		: redemptionRetainedFraction(settings, contributionDate, day, definitions);
+}
+/** Fraction of a lot's gain kept once every configured tax is applied, regardless of the tax mode. */
+export function redemptionRetainedFraction(
 	settings: TaxSettings | undefined,
 	contributionDate: string,
 	day: string,
@@ -140,7 +157,7 @@ export class YieldTaxLedger {
 			const paid = Math.min(amount, -this.debt);
 			this.debt += paid;
 			if (amount > paid) {
-				this.lots.push({ balance: amount - paid, date: day });
+				this.lots.push({ balance: amount - paid, date: day, principal: amount - paid });
 				this.lots.sort((a, b) => a.date.localeCompare(b.date));
 			}
 		} else {
@@ -148,6 +165,7 @@ export class YieldTaxLedger {
 			while (remaining > 0 && this.lots.length) {
 				const lot = this.lots[0]!;
 				const used = Math.min(remaining, lot.balance);
+				if (lot.principal !== undefined) lot.principal -= (lot.principal * used) / lot.balance;
 				lot.balance -= used;
 				remaining -= used;
 				if (lot.balance <= 0) this.lots.shift();
@@ -202,6 +220,20 @@ export class YieldTaxLedger {
 			return;
 		}
 		for (const lot of this.lots) lot.balance += (amount * lot.balance) / total;
+	}
+	/** Tax owed if every lot were redeemed on `day`; zero unless taxes are deferred to redemption. */
+	deferredTax(settings: TaxSettings | undefined, day: string, definitions = catalog) {
+		if (settings?.yieldTaxMode !== "ON_REDEMPTION") return 0;
+		return this.lots.reduce(
+			(sum, lot) =>
+				sum +
+				Math.max(0, lot.balance - (lot.principal ?? lot.balance)) *
+					(1 - redemptionRetainedFraction(settings, lot.date, day, definitions)),
+			0,
+		);
+	}
+	netBalance(settings: TaxSettings | undefined, day: string, definitions = catalog) {
+		return this.balance - this.deferredTax(settings, day, definitions);
 	}
 	adjustBalance(balance: number, day: string) {
 		this.applyCashFlow(balance - this.balance, day);
