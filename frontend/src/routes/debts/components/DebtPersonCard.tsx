@@ -76,7 +76,10 @@ export function DebtPersonCard({
 						: "text-muted-foreground whitespace-nowrap"
 			}
 		>
-			<PreferredMoneyAmount values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]} />
+			<PreferredMoneyAmount
+				debt
+				values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]}
+			/>
 		</strong>
 	);
 	return (
