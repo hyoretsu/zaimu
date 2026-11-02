@@ -239,4 +239,25 @@ describe("historical yield recalculation", () => {
 		expect(automatic[0]!.date).toBe("2026-04-27");
 		expect(automatic.at(-1)!.date).toBe("2026-10-30");
 	});
+
+	test("starts at a balance adjustment when the account has no transactions", async () => {
+		setSystemTime(new Date("2026-11-02T14:00:00Z"));
+		await queryRaw(
+			`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt") VALUES ('adjusted','owner','SAVINGS','BRL','BR','2026-09-13T15:00:00Z')`,
+		);
+		await queryRaw(
+			`INSERT INTO "BalanceAdjustment" ("id","userId","financialAccountId","date","balance","currency","updatedAt") VALUES ('adjusted-balance','owner','adjusted','2026-05-04',100,'BRL',now())`,
+		);
+		await queryRaw(
+			`INSERT INTO "ReferenceRate" ("id","type","date","value") SELECT 'adj-cdi-'||d::date, 'CDI', d::date, 0.05 FROM generate_series('2026-04-01'::date,'2026-10-30'::date,'1 day') d ON CONFLICT DO NOTHING`,
+		);
+		await recalculateHistoricalAccountYields("owner", "adjusted", undefined, {
+			yieldReferencePercentage: 100,
+			yieldReferenceType: "CDI",
+		});
+		for (const event of await commands("command.account-yield-recalculation"))
+			await handleAccountYieldRecalculationCommand(event);
+		const automatic = (await yields("adjusted")).filter(row => row.origin === "SYSTEM");
+		expect(automatic[0]!.date).toBe("2026-05-05");
+	});
 });
