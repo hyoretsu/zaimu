@@ -8,12 +8,16 @@ import { loadTaxCatalog } from "~/modules/taxes/catalog";
 import { getCountryHolidays } from "~/modules/yield-calendar/catalog";
 import { ensureProjectedCoverage } from "~/modules/yield-calendar/ensure-projected-coverage";
 import { userFinancialDate } from "~/shared/application/financial-date";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryRows } from "~/shared/infra/sql";
 import { loadLoanBook, loanReferenceContext } from "./loan-contracts";
 export async function loanPlannerContext(userId: string, currency: string): Promise<LoanPlannerSnapshot> {
 	const from = await userFinancialDate(userId);
 	const today = new Date(`${from}T12:00:00`);
-	const ids = await queryRaw<{ id: string }>('SELECT "id" FROM "Loan" WHERE "userId"=$1', [userId]);
+	const ids = await queryRows(
+		db.sql.public.Loan.select("id")
+			.where((fields, ops) => ops.eq(fields.userId, userId))
+			.build(),
+	);
 	const books = await Promise.all(ids.map(row => loadLoanBook(userId, row.id)));
 	const input: PlannerInput = {
 		accounts: [],

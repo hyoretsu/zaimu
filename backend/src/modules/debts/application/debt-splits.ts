@@ -1,7 +1,7 @@
 import type { DebtSplitInput } from "~/modules/debts/domain";
 import { calculateDebtSplit, DebtSplitValidationError } from "~/modules/debts/domain";
 import { HttpException } from "~/shared/errors";
-import { db, queryFirst, queryRaw, queryRows, withRawTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
 import type { DebtSplitReturnDTO } from "../infra/elysia/DebtSplitsDTO";
 
 export type DebtSplitTarget =
@@ -64,10 +64,12 @@ async function findSplit(target: DebtSplitTarget) {
 			"recurrenceId",
 		)
 			.where((fields, functions) => {
-				if (field === "creditCardImportItemId") return functions.eq(fields.creditCardImportItemId, id);
+				if (field === "creditCardImportItemId")
+					return functions.eq(fields.creditCardImportItemId, id);
 				if (field === "creditPurchaseId") return functions.eq(fields.creditPurchaseId, id);
 				if (field === "recurrenceId") return functions.eq(fields.recurrenceId, id);
-				if (field === "transactionImportItemId") return functions.eq(fields.transactionImportItemId, id);
+				if (field === "transactionImportItemId")
+					return functions.eq(fields.transactionImportItemId, id);
 				return functions.eq(fields.transactionId, id);
 			})
 			.limit(1)
@@ -81,34 +83,44 @@ export async function getDebtSplitInputs(
 	ids: string[],
 ): Promise<Map<string, DebtSplitInput>> {
 	if (ids.length === 0) return new Map();
-	const columns: Record<DebtSplitTargetField, string> = {
-		creditCardImportItemId: "creditCardImportItemId",
-		creditPurchaseId: "creditPurchaseId",
-		recurrenceId: "recurrenceId",
-		transactionId: "transactionId",
-		transactionImportItemId: "transactionImportItemId",
-	};
-	const column = columns[field];
-	const rows = await queryRaw<{
-		targetId: string;
-		mode: "SHARES" | "PERCENTAGE" | "FIXED";
-		ownerIncluded: boolean;
-		ownerShares: number | null;
-		remainderDebtPersonId: string | null;
-		participants: {
-			debtPersonId: string;
-			description: string | null;
-			shares: number | null;
-			percentage: number | null;
-			fixedAmount: number | null;
-		}[];
-	}>(
-		`SELECT s."${column}" AS "targetId", s."mode", s."ownerIncluded", s."ownerShares", s."remainderDebtPersonId",
-  COALESCE(json_agg(json_build_object('debtPersonId',p."debtPersonId",'description',p."description",'shares',p."shares",'percentage',p."percentage",'fixedAmount',p."fixedAmount") ORDER BY p."sortOrder",p."id") FILTER (WHERE p."id" IS NOT NULL),'[]') AS "participants"
-  FROM "DebtSplit" s LEFT JOIN "DebtSplitParticipant" p ON p."debtSplitId"=s."id"
-  WHERE s."${column}"=ANY($1::varchar[]) GROUP BY s."id"`,
-		[[...new Set(ids)]],
+	const splits = await queryRows(
+		db.sql.public.DebtSplit.select(
+			"id",
+			"mode",
+			"ownerIncluded",
+			"ownerShares",
+			"remainderDebtPersonId",
+			field,
+		)
+			.where((fields, functions) => functions.in(fields[field], [...new Set(ids)]))
+			.build(),
 	);
+	if (!splits.length) return new Map();
+	const participants = await queryRows(
+		db.sql.public.DebtSplitParticipant.select(
+			"debtSplitId",
+			"debtPersonId",
+			"description",
+			"shares",
+			"percentage",
+			"fixedAmount",
+		)
+			.where((fields, functions) =>
+				functions.in(
+					fields.debtSplitId,
+					splits.map(split => split.id),
+				),
+			)
+			.orderBy("sortOrder", { direction: "asc" })
+			.orderBy("id", { direction: "asc" })
+			.build(),
+	);
+	const grouped = Map.groupBy(participants, participant => participant.debtSplitId);
+	const rows = splits.map(split => ({
+		...split,
+		participants: grouped.get(split.id) ?? [],
+		targetId: split[field]!,
+	}));
 	return new Map(
 		rows.map(split => {
 			let input: DebtSplitInput;
@@ -209,15 +221,22 @@ export async function replaceDebtSplit(input: {
 	target: DebtSplitTarget;
 	userId: string;
 }) {
-	return withRawTransaction(async query => {
+	return withTransaction(async () => {
 		const [field, targetId] = targetEntry(input.target);
-		const [existing] = await query<{ id: string; userId: string; currency: string }>(
-			`SELECT "id","userId","currency" FROM "DebtSplit" WHERE "${field}"=$1 FOR UPDATE`,
-			[targetId],
+		const existing = await queryFirst(
+			db.sql.public.DebtSplit.select("id", "userId", "currency")
+				.where((fields, functions) => functions.eq(fields[field], targetId))
+				.forUpdate()
+				.build(),
 		);
 		if (existing && existing.userId !== input.userId) throw new HttpException("Rateio indisponível", 403);
 		if (input.split === null) {
-			if (existing) await query(`DELETE FROM "DebtSplit" WHERE "id"=$1`, [existing.id]);
+			if (existing)
+				await executeStatement(
+					db.sql.public.DebtSplit.delete()
+						.where((fields, functions) => functions.eq(fields.id, existing.id))
+						.build(),
+				);
 			return;
 		}
 		const next = input.split;
@@ -229,54 +248,70 @@ export async function replaceDebtSplit(input: {
 		await assertParticipantsOwned(next, input.userId);
 		const splitId = existing?.id ?? crypto.randomUUID();
 		const ownerIncluded = next.mode === "SHARES" ? next.ownerShares !== null : next.ownerIncluded;
-		const values = [
-			next.mode,
+		const values = {
+			currency: input.currency ?? existing?.currency ?? "BRL",
+			mode: next.mode,
 			ownerIncluded,
-			next.mode === "SHARES" ? next.ownerShares : null,
-			next.mode === "SHARES" ? null : (next.remainderDebtPersonId ?? null),
-			input.userId,
-		];
+			ownerShares: next.mode === "SHARES" ? next.ownerShares : null,
+			remainderDebtPersonId: next.mode === "SHARES" ? null : (next.remainderDebtPersonId ?? null),
+			userId: input.userId,
+		};
 		if (existing)
-			await query(
-				`UPDATE "DebtSplit" SET "mode"=$1,"ownerIncluded"=$2,"ownerShares"=$3,"remainderDebtPersonId"=$4,"userId"=$5,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$6`,
-				[...values, splitId],
+			await executeStatement(
+				db.sql.public.DebtSplit.update({ ...values, updatedAt: new Date() })
+					.where((fields, functions) => functions.eq(fields.id, splitId))
+					.build(),
 			);
 		else
-			await query(
-				`INSERT INTO "DebtSplit" ("mode","ownerIncluded","ownerShares","remainderDebtPersonId","userId","id","${field}") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-				[...values, splitId, targetId],
+			await executeStatement(
+				db.sql.public.DebtSplit.insert([{ ...values, id: splitId, [field]: targetId }]).build(),
 			);
-		await query(`UPDATE "DebtSplit" SET "currency"=$1 WHERE "id"=$2`, [
-			input.currency ?? existing?.currency ?? "BRL",
-			splitId,
-		]);
-		const oldParticipants = await query<{ id: string; debtPersonId: string }>(
-			`SELECT "id","debtPersonId" FROM "DebtSplitParticipant" WHERE "debtSplitId"=$1`,
-			[splitId],
+		const oldParticipants = await queryRows(
+			db.sql.public.DebtSplitParticipant.select("id", "debtPersonId")
+				.where((fields, functions) => functions.eq(fields.debtSplitId, splitId))
+				.build(),
 		);
-		await query(
-			`DELETE FROM "DebtSplitParticipant" WHERE "debtSplitId"=$1 AND NOT ("debtPersonId"=ANY($2))`,
-			[splitId, next.participants.map(p => p.debtPersonId)],
-		);
+		const retainedIds = new Set(next.participants.map(p => p.debtPersonId));
+		const removedIds = oldParticipants.filter(p => !retainedIds.has(p.debtPersonId)).map(p => p.id);
+		if (removedIds.length)
+			await executeStatement(
+				db.sql.public.DebtSplitParticipant.delete()
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.debtSplitId, splitId),
+							functions.in(fields.id, removedIds),
+						),
+					)
+					.build(),
+			);
+		const inserted = [];
 		for (const [sortOrder, p] of next.participants.entries()) {
-			const id = oldParticipants.find(old => old.debtPersonId === p.debtPersonId)?.id ?? crypto.randomUUID();
-			const shares = next.mode === "SHARES" ? (p as { shares: number }).shares : null;
-			const percentage = next.mode === "PERCENTAGE" ? (p as { percentage: number }).percentage : null;
-			const fixedAmount = next.mode === "FIXED" ? (p as { fixedAmount: number }).fixedAmount : null;
-			await query(
-				`INSERT INTO "DebtSplitParticipant" ("id","debtPersonId","debtSplitId","description","shares","percentage","fixedAmount","sortOrder") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT ("id") DO UPDATE SET "description"=EXCLUDED."description","shares"=EXCLUDED."shares","percentage"=EXCLUDED."percentage","fixedAmount"=EXCLUDED."fixedAmount","sortOrder"=EXCLUDED."sortOrder","updatedAt"=CURRENT_TIMESTAMP`,
-				[
-					id,
-					p.debtPersonId,
-					splitId,
-					p.description?.trim() || null,
-					shares,
-					percentage,
-					fixedAmount,
-					sortOrder,
-				],
-			);
+			const existingParticipant = oldParticipants.find(old => old.debtPersonId === p.debtPersonId);
+			const participant = {
+				description: p.description?.trim() || null,
+				fixedAmount:
+					next.mode === "FIXED" ? String((p as { fixedAmount: number }).fixedAmount) : null,
+				percentage:
+					next.mode === "PERCENTAGE" ? String((p as { percentage: number }).percentage) : null,
+				shares: next.mode === "SHARES" ? (p as { shares: number }).shares : null,
+				sortOrder,
+			};
+			if (existingParticipant)
+				await executeStatement(
+					db.sql.public.DebtSplitParticipant.update({ ...participant, updatedAt: new Date() })
+						.where((fields, functions) => functions.eq(fields.id, existingParticipant.id))
+						.build(),
+				);
+			else
+				inserted.push({
+					...participant,
+					debtPersonId: p.debtPersonId,
+					debtSplitId: splitId,
+					id: crypto.randomUUID(),
+				});
 		}
+		if (inserted.length)
+			await executeStatement(db.sql.public.DebtSplitParticipant.insert(inserted).build());
 		return calculated;
 	});
 }
@@ -292,52 +327,61 @@ export async function getDebtSplitReturns(
 ): Promise<Map<string, DebtSplitReturn>> {
 	if (entries.length === 0) return new Map();
 	const ids = [...new Set(entries.map(entry => entry.id))];
-	const columns: Record<DebtSplitTargetField, string> = {
-		creditCardImportItemId: "creditCardImportItemId",
-		creditPurchaseId: "creditPurchaseId",
-		recurrenceId: "recurrenceId",
-		transactionId: "transactionId",
-		transactionImportItemId: "transactionImportItemId",
-	};
-	const splits = await queryRaw<
-		{
-			id: string;
-			mode: string;
-			currency: string;
-			ownerIncluded: boolean;
-			ownerShares: number | null;
-			remainderDebtPersonId: string | null;
-		} & Record<DebtSplitTargetField, string | null>
-	>(
-		`SELECT "id", "mode", "currency", "ownerIncluded", "ownerShares", "remainderDebtPersonId", "creditCardImportItemId", "transactionId", "transactionImportItemId", "creditPurchaseId", "recurrenceId" FROM "DebtSplit" WHERE "${columns[field]}"=ANY($1::varchar[])`,
-		[ids],
+	const splits = await queryRows(
+		db.sql.public.DebtSplit.select(
+			"id",
+			"mode",
+			"currency",
+			"ownerIncluded",
+			"ownerShares",
+			"remainderDebtPersonId",
+			"creditCardImportItemId",
+			"transactionId",
+			"transactionImportItemId",
+			"creditPurchaseId",
+			"recurrenceId",
+		)
+			.where((fields, functions) => functions.in(fields[field], ids))
+			.build(),
 	);
-
 	if (splits.length === 0) return new Map();
-	const participants = await queryRaw<{
-		debtSplitId: string;
-		debtPersonId: string;
-		description: string | null;
-		shares: number | null;
-		percentage: number | null;
-		fixedAmount: number | null;
-		sortOrder: number;
-	}>(
-		`SELECT "debtSplitId", "debtPersonId", "description", "shares", "percentage", "fixedAmount", "sortOrder" FROM "DebtSplitParticipant" WHERE "debtSplitId"=ANY($1::varchar[]) ORDER BY "sortOrder"`,
-		[splits.map(split => split.id)],
+	const participants = await queryRows(
+		db.sql.public.DebtSplitParticipant.select(
+			"debtSplitId",
+			"debtPersonId",
+			"description",
+			"shares",
+			"percentage",
+			"fixedAmount",
+			"sortOrder",
+		)
+			.where((fields, functions) =>
+				functions.in(
+					fields.debtSplitId,
+					splits.map(split => split.id),
+				),
+			)
+			.orderBy("sortOrder", { direction: "asc" })
+			.build(),
 	);
-	const people = await queryRaw<{ id: string; name: string }>(
-		`SELECT "id", "name" FROM "DebtPerson" WHERE "id"=ANY($1::varchar[])`,
-		[[...new Set(participants.map(participant => participant.debtPersonId))]],
-	);
+	const people = participants.length
+		? await queryRows(
+				db.sql.public.DebtPerson.select("id", "name")
+					.where((fields, functions) =>
+						functions.in(fields.id, [...new Set(participants.map(p => p.debtPersonId))]),
+					)
+					.build(),
+			)
+		: [];
 
 	const participantsBySplit = Map.groupBy(participants, participant => participant.debtSplitId);
 	const names = new Map(people.map(person => [person.id, person.name]));
 	const amounts = new Map(entries.map(entry => [entry.id, entry.amount]));
 	if (field === "creditPurchaseId") {
-		const originals = await queryRaw<{ id: string; totalAmount: number }>(
-			`SELECT "id","totalAmount" FROM "CreditPurchaseRecord" WHERE "id"=ANY($1)`,
-			[ids],
+		const originals = await queryRows(
+			db.sql.public.CreditPurchaseRecord.select("id", "totalAmount")
+				.where((fields, functions) => functions.in(fields.id, ids))
+				.build(),
 		);
 		for (const purchase of originals) amounts.set(purchase.id, Number(purchase.totalAmount));
 	}

@@ -22,6 +22,9 @@ beforeAll(async () => {
 	await queryRaw(
 		`INSERT INTO "user" (id,email,name,"preferredCurrency") VALUES ('currency-owner','currency-owner@test.invalid','Owner','BRL'),('currency-other','currency-other@test.invalid','Other','EUR'),('currency-unset','currency-unset@test.invalid','Unset',NULL)`,
 	);
+	// Warm the runtime (per-connection DateStyle/lc_monetary startup settings and the one-time contract marker probe)
+	// so query-count assertions measure only the default-currency read itself.
+	await defaultCurrency("currency-warmup");
 });
 afterAll(() => closeDatabase());
 

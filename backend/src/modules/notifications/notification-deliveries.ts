@@ -1,5 +1,5 @@
 import { sendEmail } from "~/modules/auth/email";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, executeStatement, queryRaw, queryRows } from "~/shared/infra/sql";
 import {
 	PushConfigurationMissing,
 	PushDestinationExpired,
@@ -21,9 +21,13 @@ export async function deliverNotifications(adapters = { sendEmail, sendPush }) {
 	);
 	for (const delivery of deliveries) {
 		try {
-			const [context] = await queryRaw<{ status: string; email: string }>(
-				`SELECT invitation."status",recipient."email" FROM "AccountTransfer" invitation JOIN "user" recipient ON recipient."id"=$2 WHERE invitation."id"=$1`,
-				[delivery.transferId, delivery.userId],
+			const [context] = await queryRows(
+				db.sql.public.AccountTransfer.innerJoin(db.sql.public.user, (f, fn) =>
+					fn.eq(f.user.id, delivery.userId),
+				)
+					.select(f => ({ email: f.user.email, status: f.AccountTransfer.status }))
+					.where((f, fn) => fn.eq(f.AccountTransfer.id, delivery.transferId))
+					.build(),
 			);
 			if (!context || context.status !== delivery.event) {
 				await complete(delivery.id, "SKIPPED");
@@ -83,8 +87,14 @@ export async function deliverNotifications(adapters = { sendEmail, sendPush }) {
 	}
 }
 async function complete(id: string, status: string) {
-	await queryRaw(
-		`UPDATE "NotificationDelivery" SET "status"=$2,"lockedUntil"=NULL,"lastError"=NULL,"updatedAt"=now() WHERE "id"=$1`,
-		[id, status],
+	await executeStatement(
+		db.sql.public.NotificationDelivery.update({
+			lastError: null,
+			lockedUntil: null,
+			status,
+			updatedAt: new Date(),
+		})
+			.where((f, fn) => fn.eq(f.id, id))
+			.build(),
 	);
 }

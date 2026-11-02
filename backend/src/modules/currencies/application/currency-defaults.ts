@@ -1,6 +1,6 @@
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryFirst } from "~/shared/infra/sql";
 import { supportedCurrencies } from "./currency-catalog";
 
 export async function assertSupportedCurrency(value: string): Promise<string> {
@@ -16,9 +16,12 @@ export async function defaultCurrency(userId: string, locationCurrency?: string 
 		"currencies:preferences",
 		{},
 		async () => {
-			const [user] = await queryRaw<{ preferredCurrency: string | null }>(
-				'SELECT "preferredCurrency" FROM "user" WHERE "id"=$1',
-				[userId],
+			const user = await queryFirst(
+				db.sql.public.user
+					.select("preferredCurrency")
+					.where((fields, functions) => functions.eq(fields.id, userId))
+					.limit(1)
+					.build(),
 			);
 			return user?.preferredCurrency ?? null;
 		},

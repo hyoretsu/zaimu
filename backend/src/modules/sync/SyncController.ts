@@ -366,8 +366,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						>(entity, "yieldRateHistories");
 						for (const history of yieldRateHistories ?? []) {
 							if (!history.effectiveDate) continue;
-							const effectiveDate = new Date(`${history.effectiveDate.slice(0, 10)}T00:00:00`);
-							if (Number.isNaN(effectiveDate.getTime())) continue;
+							const effectiveDate = history.effectiveDate.slice(0, 10);
+							if (Number.isNaN(new Date(`${effectiveDate}T00:00:00`).getTime())) continue;
 							const existingHistory = await queryFirst(
 								db.sql.public.FinancialAccountYieldRateHistory.select("id")
 									.where((fields, functions) =>
@@ -504,7 +504,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 										functions.eq(fields.id, id),
 										functions.and(
 											functions.eq(fields.financialAccountId, financialAccountId),
-											functions.eq(fields.date, date),
+											functions.eq(fields.date, date.toISOString().slice(0, 10)),
 										),
 									),
 								)
@@ -519,7 +519,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								value<number | null | undefined>(entity, "amount") ?? null,
 							),
 							currency: account.currency,
-							date,
+							date: date.toISOString().slice(0, 10),
 							isExcluded: value<boolean | undefined>(entity, "isExcluded") ?? false,
 							kind,
 							origin: "USER" as const,
@@ -762,12 +762,12 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						);
 						const values = {
 							creditCardId,
-							dueDate: new Date(value<string>(entity, "dueDate")),
+							dueDate: value<string>(entity, "dueDate").slice(0, 10),
 							isFullySynced:
 								value<boolean>(entity, "isFullySynced") ?? existing?.isFullySynced ?? false,
 							isPaid: value<boolean>(entity, "isPaid") ?? false,
 							paidAmount: String(value<number>(entity, "paidAmount") ?? 0),
-							statementDate: new Date(value<string>(entity, "statementDate")),
+							statementDate: value<string>(entity, "statementDate").slice(0, 10),
 							totalAmount: String(value<number>(entity, "totalAmount") ?? 0),
 							updatedAt: new Date(),
 						};
@@ -831,13 +831,13 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							currency,
 							description: value<string | undefined>(entity, "description"),
 							dueDay: Number(value<number>(entity, "dueDay")),
-							firstDueDate: new Date(value<string>(entity, "firstDueDate")),
+							firstDueDate: value<string>(entity, "firstDueDate").slice(0, 10),
 							installmentAmount: String(value<number>(entity, "installmentAmount")),
 							institutionId: value<string | undefined>(entity, "institutionId"),
 							interestRate: String(value<number>(entity, "interestRate")),
 							lender: value<string>(entity, "lender"),
 							principalAmount: String(value<number>(entity, "principalAmount")),
-							startDate: new Date(value<string>(entity, "startDate")),
+							startDate: value<string>(entity, "startDate").slice(0, 10),
 							totalInstallments: Number(value<number>(entity, "totalInstallments")),
 							updatedAt: new Date(),
 						};
@@ -927,7 +927,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							currency,
 							financialAccountId: accountId ?? null,
 							isAdvanced: Boolean(entity.isAdvanced),
-							paidDate: optionalDate(entity, "paidDate"),
+							paidDate:
+								value<string | null | undefined>(entity, "paidDate")?.slice(0, 10) ?? null,
 							updatedAt: new Date(),
 						};
 						if (existing)
@@ -941,7 +942,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								db.sql.public.LoanPayment.insert([
 									{
 										...fields,
-										dueDate: new Date(value<string>(entity, "dueDate")),
+										dueDate: value<string>(entity, "dueDate").slice(0, 10),
 										id,
 										installmentNumber: number,
 										interestPaid: String(amounts[1]),
@@ -954,7 +955,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						if (accountId && fields.paidDate)
 							await enqueueAccountYieldRecalculation(
 								accountId,
-								fields.paidDate,
+								new Date(`${fields.paidDate}T00:00:00`),
 								`sync-loan:${id}:${syncRevision(entity)}`,
 							);
 					});
@@ -1054,7 +1055,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 										fn.and(
 											fn.eq(f.userId, userId),
 											fn.eq(f.amount, String(value<number>(entity, "amount"))),
-											fn.eq(f.date, new Date(value<string>(entity, "date"))),
+											fn.eq(f.date, value<string>(entity, "date").slice(0, 10)),
 											fn.eq(
 												f.description,
 												value<string | null | undefined>(entity, "description") ??
@@ -1105,7 +1106,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									{
 										amount: String(money.amount),
 										currency: money.currency,
-										date: new Date(value<string>(entity, "date")),
+										date: value<string>(entity, "date").slice(0, 10),
 										description: value<string | undefined>(entity, "description"),
 										destinationFinancialAccountId,
 										exchangeRate: String(money.exchangeRate),
@@ -1115,7 +1116,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 										originFinancialAccountId,
 										paymentCreditCardId,
 										recurrenceId,
-										recurrenceOccurrenceDate,
+										recurrenceOccurrenceDate:
+											recurrenceOccurrenceDate?.toISOString().slice(0, 10) ?? null,
 										storeName: value<string | undefined>(entity, "storeName"),
 										type:
 											value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ??
