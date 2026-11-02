@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuHistory } from "react-icons/lu";
+import { LuUserRoundCog } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
 	DialogBody,
 	DialogContent,
-	DialogFooter,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
@@ -54,69 +54,51 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 							size="icon-sm"
 							variant="outline"
 						>
-							<LuHistory />
+							<LuUserRoundCog />
 						</Button>
 					</DialogTrigger>
 				</TooltipTrigger>
-				<TooltipContent>Perfil e histórico</TooltipContent>
+				<TooltipContent>Escolher perfil da instituição</TooltipContent>
 			</Tooltip>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Perfil de {institution.name}</DialogTitle>
+					<DialogDescription>
+						Salvar recalcula o rendimento das contas desta instituição a partir do primeiro dia
+						afetado.
+					</DialogDescription>
 				</DialogHeader>
-				<div className="flex min-h-0 flex-1 flex-col gap-4">
+				{guest ? (
 					<DialogBody>
-						{guest ? (
-							<p>Perfis institucionais exigem conexão e conta do Zaimu.</p>
-						) : profiles.isPending || history.isPending ? (
-							<div className="space-y-3">
-								<Skeleton className="h-11 w-full" />
-								<Skeleton className="h-11 w-full" />
-								<Skeleton className="h-24 w-full" />
-							</div>
-						) : profiles.isError || history.isError ? (
-							<p role="alert">{profiles.error?.message ?? history.error?.message}</p>
-						) : (
-							<>
-								<InstitutionMergeProposal
-									initialTarget={mergeTarget}
-									institution={institution}
-									onClose={() => changeOpen(false)}
-								/>
-								<InstitutionProfilePeriods
-									history={history.data ?? []}
-									institutionId={institution.id}
-									key={history.dataUpdatedAt}
-									onSaved={() => changeOpen(false)}
-									profiles={profiles.data ?? []}
-								/>
-								<div className="space-y-2">
-									<h3 className="font-semibold">Histórico</h3>
-									<p className="text-muted-foreground text-sm">
-										Padrão vale antes da primeira mudança.
-									</p>
-									{history.data?.map(change => (
-										<p className="rounded-xl border p-3 text-sm" key={change.id}>
-											{change.effectiveDate.slice(0, 10)} - {change.name}
-											{change.effectiveDate.slice(0, 10) >
-											new Date().toLocaleDateString("sv-SE")
-												? " - Agendada"
-												: ""}
-										</p>
-									))}
-									{!history.data?.length && (
-										<p className="text-sm">Nenhuma mudança registrada.</p>
-									)}
-								</div>
-							</>
-						)}
+						<p>Perfis institucionais exigem conexão e conta do Zaimu.</p>
 					</DialogBody>
-					<DialogFooter>
-						<Button onClick={() => changeOpen(false)} type="button" variant="outline">
-							Fechar
-						</Button>
-					</DialogFooter>
-				</div>
+				) : profiles.isPending || history.isPending ? (
+					<DialogBody>
+						<div className="space-y-3">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					</DialogBody>
+				) : profiles.isError || history.isError ? (
+					<DialogBody>
+						<p role="alert">{profiles.error?.message ?? history.error?.message}</p>
+					</DialogBody>
+				) : (
+					<InstitutionProfilePeriods
+						history={history.data ?? []}
+						institutionId={institution.id}
+						key={history.dataUpdatedAt}
+						onCancel={() => changeOpen(false)}
+						onSaved={() => changeOpen(false)}
+						profiles={profiles.data ?? []}
+					>
+						<InstitutionMergeProposal
+							initialTarget={mergeTarget}
+							institution={institution}
+							onClose={() => changeOpen(false)}
+						/>
+					</InstitutionProfilePeriods>
+				)}
 			</DialogContent>
 		</Dialog>
 	);
