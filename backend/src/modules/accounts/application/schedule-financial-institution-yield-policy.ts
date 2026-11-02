@@ -90,7 +90,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 					financialInstitutionId,
 					profileId: profileId ?? undefined,
 					yieldPeriod: yieldPeriod ?? undefined,
-					yieldTaxIds: yieldTaxIds ?? undefined,
+					yieldTaxIds: yieldTaxIds ?? [],
 					yieldTaxRate:
 						yieldTaxRate === null || yieldTaxRate === undefined
 							? undefined
