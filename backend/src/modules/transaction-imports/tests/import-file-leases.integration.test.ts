@@ -1,19 +1,21 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Client } from "pg";
+import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 
-const url = requireFixtureUrl("DATABASE_TEST_URL");
+const url = requireFixtureUrl("DATABASE_URL");
 describe("durable import file leases", () => {
-	const schema = `import_jobs_${crypto.randomUUID().replaceAll("-", "")}`;
 	const client = new Client({ connectionString: url });
 	beforeAll(async () => {
 		await client.connect();
-		await client.query(`CREATE SCHEMA "${schema}"`);
-		await client.query(`SET search_path TO "${schema}",public`);
-		await client.query(`CREATE TABLE "ImportFileJob" (LIKE public."ImportFileJob" INCLUDING ALL)`);
+		await installContractFixture(
+			client,
+			await Bun.file(
+				new URL("../../../../../packages/sql/out/prisma/contract.json", import.meta.url),
+			).json(),
+		);
 	});
 	afterAll(async () => {
-		await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
 		await client.end();
 	});
 	test("earlier unfinished file blocks successors and expired tokens cannot finish", async () => {

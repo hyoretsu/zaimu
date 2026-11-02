@@ -7,12 +7,10 @@ import { executeRaw, queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { createUploadedTransactionImport } from "./upload";
 
 type Kind = "account" | "credit-card";
-interface Options {
+interface Job {
 	provider: string;
 	password?: string;
 	statementId?: string;
-}
-type Job = Options & {
 	id: string;
 	batchId: string;
 	userId: string;
@@ -26,7 +24,8 @@ type Job = Options & {
 	importId: string | null;
 	ignoredCount: number;
 	error: string | null;
-};
+}
+type Options = Pick<Job, "password" | "provider" | "statementId">;
 const publish = (jobId: string) =>
 	new PostgresOutbox().append(
 		createEventEnvelope({
