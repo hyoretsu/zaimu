@@ -16,6 +16,7 @@ import { useCacheIdentity } from "@/lib/query-cache";
 import { useCurrencyStore } from "@/stores/currency";
 import { CreateInstitutionProfileDialog } from "./CreateInstitutionProfileDialog";
 import { InstitutionYieldPolicyForm } from "./InstitutionYieldPolicyForm";
+import { InstitutionYieldTimeline } from "./InstitutionYieldTimeline";
 import { selectEditablePolicy } from "./policy-selection";
 
 export function InstitutionYieldEditor({
@@ -101,6 +102,12 @@ export function InstitutionYieldEditor({
 				required
 				value={effectiveDate}
 			/>
+			<InstitutionYieldTimeline
+				countryCode={countryCode}
+				currency={currency}
+				policies={policies.data ?? []}
+				profileId={selectedProfile}
+			/>
 			<p className="text-muted-foreground text-sm">
 				Proposta entra em vigor somente após aprovação administrativa.
 			</p>
@@ -143,7 +150,7 @@ export function InstitutionYieldEditor({
 			<InstitutionYieldPolicyForm
 				controls={controls}
 				currency={currency}
-				key={`${selectedProfile}:${countryCode}:${effectiveDate}:${JSON.stringify(policy)}`}
+				key={`${selectedProfile}:${countryCode}`}
 				onDiscard={onClose}
 				onSave={async body => {
 					if (!selectedProfile || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
