@@ -1,5 +1,5 @@
 import { addMonths, format, isValid, parse, parseISO, startOfMonth, subMonths } from "date-fns";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { LuCalendarDays, LuChevronDown, LuChevronLeft, LuChevronRight, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -52,6 +52,13 @@ export function DateField({
 	const [open, setOpen] = useState(false);
 	const isTouch = useMediaQuery("(hover: none), (pointer: coarse)");
 	const [draft, setDraft] = useState<{ source: string; text: string }>();
+	const inputRef = useRef<HTMLInputElement>(null);
+	const pendingCaret = useRef<number | undefined>(undefined);
+	useLayoutEffect(() => {
+		if (pendingCaret.current === undefined) return;
+		inputRef.current?.setSelectionRange(pendingCaret.current, pendingCaret.current);
+		pendingCaret.current = undefined;
+	});
 	const selectedDate = toDate(value);
 	const displayValue =
 		draft?.source === value ? draft.text : selectedDate ? format(selectedDate, "dd/MM/yyyy") : "";
@@ -204,15 +211,42 @@ export function DateField({
 							className={cn(inputControlClassName, "w-full pr-12", className)}
 							disabled={disabled}
 							id={id}
+							inputMode="numeric"
 							onBlur={commitDraft}
-							onChange={event => setDraft({ source: value, text: event.target.value })}
+							onChange={event => {
+								const input = event.target;
+								const digitsBeforeCaret = input.value
+									.slice(0, input.selectionStart ?? 0)
+									.replace(/\D/g, "").length;
+								const text = maskDate(input.value);
+								pendingCaret.current = dateCaret(text, digitsBeforeCaret);
+								setDraft({ source: value, text });
+							}}
 							onKeyDown={event => {
+								const input = event.currentTarget;
+								const start = input.selectionStart ?? 0;
+								const end = input.selectionEnd ?? start;
+								const backward = event.key === "Backspace";
+								if (start === end && (backward || event.key === "Delete")) {
+									const digits = displayValue.replace(/\D/g, "");
+									const before = displayValue.slice(0, start).replace(/\D/g, "").length;
+									const index = backward ? before - 1 : before;
+									event.preventDefault();
+									if (index >= 0 && index < digits.length) {
+										const text = maskDate(
+											digits.slice(0, index) + digits.slice(index + 1),
+										);
+										pendingCaret.current = dateCaret(text, index);
+										setDraft({ source: value, text });
+									}
+								}
 								if (event.key === "Enter") {
 									event.preventDefault();
 									commitDraft();
 								}
 							}}
 							placeholder={placeholder}
+							ref={inputRef}
 							type="text"
 							value={displayValue}
 						/>
@@ -246,6 +280,22 @@ export function DateField({
 			)}
 		</div>
 	);
+}
+
+function maskDate(value: string) {
+	const digits = value.replace(/\D/g, "").slice(0, 8);
+	return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join("/");
+}
+
+function dateCaret(text: string, digitCount: number) {
+	let position = 0;
+	let digits = 0;
+	while (position < text.length && digits < digitCount) {
+		if (/\d/.test(text[position])) digits++;
+		position++;
+	}
+	if (text[position] === "/") position++;
+	return position;
 }
 
 function toDate(value: string) {
