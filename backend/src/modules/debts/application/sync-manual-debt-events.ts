@@ -102,6 +102,7 @@ export async function listManualDebtEvents(userId: string): Promise<SyncDebtEven
 				functions.and(
 					functions.eq(fields.createdByUserId, userId),
 					functions.in(fields.kind, ["ORIGIN", "MIGRATED_SETTLEMENT"]),
+					functions.ne(fields.debtPersonId, null),
 				),
 			)
 			.build(),
