@@ -22,10 +22,10 @@ beforeAll(async () => {
 		await client.end();
 	}
 	await queryRaw(
-		`INSERT INTO "user" (id,email,name) VALUES ('mb-owner','mb-owner@test.invalid','Owner'),('mb-other','mb-other@test.invalid','Other')`,
+		`INSERT INTO "user" (id,email,name) VALUES ('mb-owner','mb-owner@test.invalid','Owner'),('mb-other','mb-other@test.invalid','Other'),('mb-owner-2','mb-owner-2@test.invalid','Owner 2')`,
 	);
 	await queryRaw(
-		`INSERT INTO "Category" (id,"userId",name) VALUES ('mb-cat-a','mb-owner','A'),('mb-cat-b','mb-owner','B'),('mb-cat-foreign','mb-other','F')`,
+		`INSERT INTO "Category" (id,"userId",name) VALUES ('mb-cat-a','mb-owner','A'),('mb-cat-b','mb-owner','B'),('mb-cat-foreign','mb-other','F'),('mb-cat-2','mb-owner-2','C')`,
 	);
 });
 afterAll(() => closeDatabase());
@@ -100,7 +100,8 @@ test("overlap honours source, currency, category nulls, month ranges and single-
 });
 
 test("RESERVE and UNCATEGORIZED collide only on same name; TAG and STATEMENTS ignore it", async () => {
-	const owner = "mb-owner";
+	// Own user: the first test leaves open-ended STATEMENTS/TAG budgets that would overlap these.
+	const owner = "mb-owner-2";
 	await saveMonthlyBudget(owner, body({ name: "Res A", source: "RESERVE", startMonth: "2030-01" }));
 	await saveMonthlyBudget(owner, body({ name: "Res B", source: "RESERVE", startMonth: "2030-01" }));
 	expect(
@@ -130,13 +131,13 @@ test("RESERVE and UNCATEGORIZED collide only on same name; TAG and STATEMENTS ig
 	);
 	await saveMonthlyBudget(
 		owner,
-		body({ categoryId: "mb-cat-b", name: "Tag 1", source: "TAG", startMonth: "2031-01" }),
+		body({ categoryId: "mb-cat-2", name: "Tag 1", source: "TAG", startMonth: "2031-01" }),
 	);
 	expect(
 		await statusOf(
 			saveMonthlyBudget(
 				owner,
-				body({ categoryId: "mb-cat-b", name: "Tag 2", source: "TAG", startMonth: "2031-01" }),
+				body({ categoryId: "mb-cat-2", name: "Tag 2", source: "TAG", startMonth: "2031-01" }),
 			),
 		),
 	).toBe(409);
