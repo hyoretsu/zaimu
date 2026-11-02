@@ -1,6 +1,7 @@
 import { type ComponentProps, useMemo, useState } from "react";
 import { LuX } from "react-icons/lu";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { fixedMaskBeforeInput, fixedMaskKeyDown, fixedMaskPaste } from "@/lib/fixed-mask";
 import {
 	type DayPeriod,
 	format12Hour,
@@ -82,6 +83,9 @@ export function TimeField({ onValueChange, value, disabled, className, ...props 
 		<FormField
 			autoComplete="off"
 			inputMode="numeric"
+			onBeforeInput={fixedMaskBeforeInput}
+			onKeyDown={fixedMaskKeyDown}
+			onPaste={fixedMaskPaste}
 			placeholder={twelveHour ? "hh:mm AM" : "HH:MM"}
 			{...props}
 			className={`pr-11 ${className ?? ""}`}
