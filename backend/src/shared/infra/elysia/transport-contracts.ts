@@ -1660,6 +1660,7 @@ export const CreditPurchaseEditDetailsReturn = t.Object({
 	purchaseDate: t.String(),
 	refinancedFromPurchaseId: t.Optional(t.Union([t.Null(), t.String()])),
 	refinancingPurchaseIds: t.Optional(t.Array(t.String())),
+	time: t.Nullable(t.String()),
 	totalAmountCents: t.Number(),
 });
 export type CreditPurchaseEditDetailsReturn = typeof CreditPurchaseEditDetailsReturn.static;

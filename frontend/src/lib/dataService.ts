@@ -1693,6 +1693,7 @@ export const dataService = {
 				installmentImportedNumbers: purchase.installmentImportedNumbers ?? [],
 				originalAmount: purchase.originalAmount,
 				purchaseDate: purchase.purchaseDate,
+				time: purchase.time ?? null,
 				totalAmountCents: purchase.totalAmountCents,
 			};
 		},
