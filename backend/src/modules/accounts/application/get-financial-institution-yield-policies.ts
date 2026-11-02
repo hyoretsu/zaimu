@@ -56,8 +56,8 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 		institutionPolicies.push({
 			countryCode: policy.countryCode,
 			currency: policy.currency,
-			effectiveDate: policy.effectiveDate,
-			effectiveUntil: policy.effectiveUntil,
+			effectiveDate: new Date(policy.effectiveDate),
+			effectiveUntil: policy.effectiveUntil === null ? null : new Date(policy.effectiveUntil),
 			profileId: policy.profileId,
 			rules: (rulesByPolicyId.get(policy.id) ?? []).map(rule => ({
 				upToBalance: rule.upToBalance === null ? null : Number(rule.upToBalance),

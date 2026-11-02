@@ -298,7 +298,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				.where((fields, functions) =>
 					functions.and(
 						functions.eq(fields.financialAccountId, account.id),
-						functions.eq(fields.date, day),
+						functions.eq(fields.date, key),
 						functions.eq(fields.origin, "USER"),
 					),
 				)
@@ -335,7 +335,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				{
 					amount: numeric<12, 4>(amount),
 					currency: account.currency,
-					date: day,
+					date: key,
 					financialAccountId: account.id,
 					isExcluded: false,
 					kind: "AUTOMATIC",

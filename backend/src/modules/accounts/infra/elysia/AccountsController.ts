@@ -1,6 +1,6 @@
 import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
-import { startOfDay } from "date-fns";
+import { format } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
@@ -939,7 +939,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.financialAccountId, account.id),
-										functions.eq(fields.date, startOfDay(new Date())),
+										functions.eq(fields.date, format(new Date(), "yyyy-MM-dd")),
 										functions.eq(fields.kind, "AUTOMATIC"),
 									),
 								)

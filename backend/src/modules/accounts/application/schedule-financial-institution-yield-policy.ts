@@ -1,11 +1,11 @@
-import { startOfDay } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import type {
 	InstitutionYieldRule,
 	YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
-import { db, executeStatement, nullableNumeric, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export async function scheduleFinancialInstitutionYieldPolicy({
 	currency,
@@ -30,9 +30,10 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 }) {
-	const current = await queryRaw<{ yieldTaxIds: string[] }>(
-		`SELECT "yieldTaxIds" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`,
-		[financialInstitutionId],
+	const current = await queryRows(
+		db.sql.public.FinancialInstitutionYieldPolicy.select("yieldTaxIds")
+			.where((f, fn) => fn.eq(f.financialInstitutionId, financialInstitutionId))
+			.build(),
 	);
 	await assertTaxSelection(
 		yieldTaxIds,
@@ -40,9 +41,22 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 		effectiveDate,
 	);
 	const date = startOfDay(effectiveDate);
-	const [existing] = await queryRaw<{ id: string }>(
-		`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "effectiveDate"=$2 AND "currency"=$3 AND "profileId" IS NOT DISTINCT FROM $4 AND "countryCode" IS NOT DISTINCT FROM $5`,
-		[financialInstitutionId, date, currency, profileId, countryCode],
+	const [existing] = await queryRows(
+		db.sql.public.FinancialInstitutionYieldPolicy.select("id")
+			.where((f, fn) =>
+				fn.and(
+					fn.eq(f.financialInstitutionId, financialInstitutionId),
+					fn.eq(f.effectiveDate, format(date, "yyyy-MM-dd")),
+					fn.eq(f.currency, currency),
+					profileId === null
+						? fn.raw`${f.profileId} IS NULL`.returns("pg/bool@1")
+						: fn.eq(f.profileId, profileId),
+					countryCode === null
+						? fn.raw`${f.countryCode} IS NULL`.returns("pg/bool@1")
+						: fn.eq(f.countryCode, countryCode),
+				),
+			)
+			.build(),
 	);
 	let policyId = existing?.id;
 	if (policyId) {
@@ -55,7 +69,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 			db.sql.public.FinancialInstitutionYieldPolicy.update({
 				countryCode,
 				currency,
-				effectiveUntil,
+				effectiveUntil: effectiveUntil === null ? null : format(effectiveUntil, "yyyy-MM-dd"),
 				profileId,
 				updatedAt: new Date(),
 				yieldPeriod: yieldPeriod ?? null,
@@ -71,14 +85,16 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 				{
 					countryCode: countryCode ?? undefined,
 					currency,
-					effectiveDate: date,
-					effectiveUntil: effectiveUntil ?? undefined,
+					effectiveDate: format(date, "yyyy-MM-dd"),
+					effectiveUntil: effectiveUntil == null ? undefined : format(effectiveUntil, "yyyy-MM-dd"),
 					financialInstitutionId,
 					profileId: profileId ?? undefined,
 					yieldPeriod: yieldPeriod ?? undefined,
 					yieldTaxIds: yieldTaxIds ?? undefined,
 					yieldTaxRate:
-						yieldTaxRate === null || yieldTaxRate === undefined ? undefined : String(yieldTaxRate),
+						yieldTaxRate === null || yieldTaxRate === undefined
+							? undefined
+							: String(yieldTaxRate),
 				},
 			])
 				.returning("id")

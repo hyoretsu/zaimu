@@ -9,7 +9,7 @@ import type { YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays } from "date-fns";
 import { loadYieldCalendar } from "~/modules/yield-calendar/catalog";
 import { ensureProjectedCoverage } from "~/modules/yield-calendar/ensure-projected-coverage";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryRows } from "~/shared/infra/sql";
 import { getReferenceRateAverages } from "./get-reference-rate-averages";
 import { loadYieldAccounts } from "./reference-rate-jobs";
 
@@ -20,9 +20,15 @@ export async function projectedYieldContext(
 	through = from,
 ) {
 	const owned = accountIds.length
-		? await queryRaw<{ id: string }>(
-				`SELECT "id" FROM "FinancialAccount" WHERE "userId"=$1 AND "id"=ANY($2)`,
-				[userId, accountIds],
+		? await queryRows(
+				db.sql.public.FinancialAccount.select("id")
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.userId, userId),
+							functions.in(fields.id, accountIds),
+						),
+					)
+					.build(),
 			)
 		: [];
 	const [accounts, rateResult] = await Promise.all([
