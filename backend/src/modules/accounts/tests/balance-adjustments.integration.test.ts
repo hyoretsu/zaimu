@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, expect, mock, test } from "bun:test";
 import { format } from "date-fns";
+import { Elysia } from "elysia";
 import { Client } from "pg";
 import { closeDatabase, queryRaw } from "sql";
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
@@ -20,8 +21,11 @@ mock.module("~/modules/reference-rates/application/reference-rate-jobs", () => (
 }));
 
 const { BalanceAdjustmentsController } = await import("../infra/elysia/BalanceAdjustmentsController");
+const { GlobalPlugin } = await import("~/shared/infra/elysia/global");
+// Product error mapping (HttpException -> status) lives in GlobalPlugin, as in the real app.
+const app = new Elysia().use(GlobalPlugin).use(BalanceAdjustmentsController);
 const call = (method: string, path: string, body?: unknown) =>
-	BalanceAdjustmentsController.handle(
+	app.handle(
 		new Request(`http://localhost/balance-adjustments${path}`, {
 			body: body === undefined ? undefined : JSON.stringify(body),
 			headers: { "content-type": "application/json" },
