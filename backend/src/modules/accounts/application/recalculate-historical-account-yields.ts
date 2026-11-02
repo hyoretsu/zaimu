@@ -5,7 +5,7 @@ import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/a
 import type { YieldAccount } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
 import {
-	accountYieldHistoryStart,
+	accountFirstMovementDate,
 	enqueueAccountYieldRecalculation,
 	loadYieldAccount,
 } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -93,8 +93,9 @@ export async function recalculateHistoricalAccountYields(
 						: [],
 			),
 		];
-		const historyStart = await accountYieldHistoryStart(accountId, account.createdAt);
-		const collectionWindow = historicalYieldCollectionWindow(historyStart, now);
+		const firstMovement = await accountFirstMovementDate(accountId);
+		if (!firstMovement) return { success: true as const };
+		const collectionWindow = historicalYieldCollectionWindow(firstMovement, now);
 		if (referenceTypes.length && collectionWindow)
 			await requestHistoryCollection(
 				"INTEREST",
@@ -103,7 +104,7 @@ export async function recalculateHistoricalAccountYields(
 				undefined,
 				collectionWindow,
 			);
-		await enqueueAccountYieldRecalculation(accountId, historyStart, `historical:${crypto.randomUUID()}`);
+		await enqueueAccountYieldRecalculation(accountId, firstMovement, `historical:${crypto.randomUUID()}`);
 		return { success: true as const };
 	});
 }

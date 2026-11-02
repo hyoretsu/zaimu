@@ -88,13 +88,13 @@ export async function enqueueReferenceRateFetch(
 		startDate: dateKey(startDate),
 	});
 }
-/** Accounts can be created after their first movement (imports), so history starts at the earliest of both. */
-export async function accountYieldHistoryStart(accountId: string, createdAt: Date) {
+/** Yield needs balance and every balance comes from a movement, so history starts at the first one. */
+export async function accountFirstMovementDate(accountId: string) {
 	const [row] = await queryRaw<{ date: Date | null }>(
 		`SELECT MIN("date") AS "date" FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1`,
 		[accountId],
 	);
-	return row?.date && row.date < createdAt ? row.date : createdAt;
+	return row?.date ?? null;
 }
 export async function enqueueAccountYieldRecalculation(
 	accountId: string,
@@ -264,8 +264,9 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
 	const account = await loadYieldAccount(job.financialAccountId);
 	if (!account) return;
-	const historyStart = await accountYieldHistoryStart(account.id, account.createdAt);
-	const fromDate = startOfDay(job.fromDate > historyStart ? job.fromDate : historyStart);
+	const firstMovement = await accountFirstMovementDate(account.id);
+	if (!firstMovement) return;
+	const fromDate = startOfDay(job.fromDate > firstMovement ? job.fromDate : firstMovement);
 	const endDate = startOfDay(job.endDate ?? yieldSchedulerClock().date);
 	if (fromDate > endDate) return;
 	const years = Array.from(
