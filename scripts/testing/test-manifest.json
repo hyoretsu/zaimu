@@ -27,6 +27,7 @@
 		"backend/src/modules/debts/tests/debt-event-page.integration.test.ts",
 		"backend/src/modules/stores/tests/stores-list.integration.test.ts",
 		"backend/src/modules/categories/tests/categories-list.integration.test.ts",
+		"backend/src/modules/taxes/tests/taxes-admin.integration.test.ts",
 		"backend/src/modules/loans/tests/loan-contracts.integration.test.ts",
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],
