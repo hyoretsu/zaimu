@@ -13,6 +13,7 @@ import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/a
 import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
 import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { userFinancialDate } from "~/shared/application/financial-date";
 import {
 	decodePaginationCursor,
 	encodePaginationCursor,
@@ -571,7 +572,12 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 					throw new HttpException("Payment already made", 400);
 				}
 
-				const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
+				const paidDateKey = body.paidDate
+					? new Date(body.paidDate).toISOString().slice(0, 10)
+					: await userFinancialDate(userId);
+				const paidDate = body.paidDate
+					? new Date(body.paidDate)
+					: new Date(`${paidDateKey}T00:00:00`);
 				const accountCurrency = body.financialAccountId
 					? await financialAccountCurrency(body.financialAccountId)
 					: null;
@@ -580,7 +586,7 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 					payment.currency,
 					accountCurrency,
 					body.accountAmount,
-					(from, to) => getCurrencyRate(paidDate.toISOString().slice(0, 10), from, to),
+					(from, to) => getCurrencyRate(paidDateKey, from, to),
 				);
 				const updatedPayment = await queryFirst(
 					db.sql.public.LoanPayment.update({
@@ -589,7 +595,7 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 						advanceType: body.advanceType,
 						financialAccountId: body.financialAccountId,
 						isAdvanced: body.isAdvanced ?? false,
-						paidDate: paidDate.toISOString().slice(0, 10),
+						paidDate: paidDateKey,
 						updatedAt: new Date(),
 					})
 						.where((fields, functions) => functions.eq(fields.id, payment.id))
@@ -686,7 +692,12 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 				}
 
 				// Mark installments as paid with advance
-				const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
+				const paidDateKey = body.paidDate
+					? new Date(body.paidDate).toISOString().slice(0, 10)
+					: await userFinancialDate(userId);
+				const paidDate = body.paidDate
+					? new Date(body.paidDate)
+					: new Date(`${paidDateKey}T00:00:00`);
 
 				const accountCurrency = body.financialAccountId
 					? await financialAccountCurrency(body.financialAccountId)
@@ -696,7 +707,7 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 					loan.currency,
 					accountCurrency,
 					body.accountAmount,
-					(from, to) => getCurrencyRate(paidDate.toISOString().slice(0, 10), from, to),
+					(from, to) => getCurrencyRate(paidDateKey, from, to),
 				);
 				for (const [index, payment] of unpaidPayments.entries())
 					await executeStatement(
@@ -706,7 +717,7 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 							advanceType: body.advanceType,
 							financialAccountId: body.financialAccountId,
 							isAdvanced: true,
-							paidDate: paidDate.toISOString().slice(0, 10),
+							paidDate: paidDateKey,
 							updatedAt: new Date(),
 						})
 							.where((fields, functions) => functions.eq(fields.id, payment.id))
