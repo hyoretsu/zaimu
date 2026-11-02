@@ -3,7 +3,7 @@ import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { DateField } from "@/components/ui/DateField";
+import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DialogBody } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
@@ -33,12 +33,12 @@ export function InstitutionYieldEditor({
 }) {
 	const [profileId, setProfile] = useState<string>();
 	const [requestedProfileName, setRequestedProfileName] = useState<string>();
-	const [countryCode, setCountry] = useState<string | undefined>(
-		institution.operatingCountryCodes?.length === 1 ? institution.operatingCountryCodes[0] : undefined,
-	);
-	const [effectiveDate, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
+	const [countryCode, setCountry] = useState<string>();
+	const today = new Date().toLocaleDateString("sv-SE");
+	// Blank start means "from today".
+	const [effectiveDate, setDate] = useState("");
 	// Resolve the source period independently of the draft's editable start date.
-	const [sourceDate, setSourceDate] = useState(effectiveDate);
+	const [sourceDate, setSourceDate] = useState(today);
 	const [effectiveUntil, setUntil] = useState("");
 	// Start date of the existing period being edited; unset while a new period is created.
 	const [editingStart, setEditingStart] = useState<string>();
@@ -73,7 +73,6 @@ export function InstitutionYieldEditor({
 				label="Perfil da política"
 				onValueChange={value => {
 					const nextProfile = value || undefined;
-					const today = new Date().toLocaleDateString("sv-SE");
 					const nextPolicy = selectEditablePolicy(
 						policies.data ?? [],
 						nextProfile,
@@ -83,8 +82,8 @@ export function InstitutionYieldEditor({
 					);
 					setProfile(nextProfile);
 					setEditingStart(undefined);
-					setSourceDate(new Date().toLocaleDateString("sv-SE"));
-					setDate(nextPolicy?.effectiveDate.slice(0, 10) ?? today);
+					setSourceDate(today);
+					setDate(nextPolicy ? policyDay(nextPolicy.effectiveDate) : "");
 					setUntil(nextPolicy?.effectiveUntil ? policyDay(nextPolicy.effectiveUntil) : "");
 				}}
 				options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
@@ -99,7 +98,7 @@ export function InstitutionYieldEditor({
 					setRequestedProfileName(name);
 					setProfile(undefined);
 					setEditingStart(undefined);
-					setSourceDate(new Date().toLocaleDateString("sv-SE"));
+					setSourceDate(today);
 					setUntil("");
 					await profiles.refetch();
 				}}
@@ -109,7 +108,7 @@ export function InstitutionYieldEditor({
 				onValueChange={value => {
 					setCountry(!value || value === "__all__" ? undefined : value);
 					setEditingStart(undefined);
-					setSourceDate(new Date().toLocaleDateString("sv-SE"));
+					setSourceDate(today);
 					setUntil("");
 				}}
 				options={[
@@ -123,29 +122,26 @@ export function InstitutionYieldEditor({
 				searchable
 				value={countryCode ?? "__all__"}
 			/>
-			<DateField
-				id="policy-effective-date"
-				label="Vigente desde"
-				name="policy-effective-date"
-				onValueChange={setDate}
-				required
-				value={effectiveDate}
-			/>
-			<DateField
-				description="Em branco, vale até a próxima mudança."
-				id="policy-effective-until"
-				label="Vigente até"
-				min={effectiveDate}
-				name="policy-effective-until"
-				onValueChange={setUntil}
-				value={effectiveUntil}
-			/>
+			<div className="grid gap-2">
+				<span className="text-sm font-medium">Período de vigência</span>
+				<DateRangePicker
+					onChange={({ endDate, startDate }) => {
+						setDate(startDate ?? "");
+						setUntil(endDate ?? "");
+					}}
+					triggerLabel={!effectiveDate && !effectiveUntil ? "A partir de hoje, sem fim" : undefined}
+					value={{ endDate: effectiveUntil || undefined, startDate: effectiveDate || undefined }}
+				/>
+				<p className="text-muted-foreground text-xs">
+					Opcional. Sem início, vale a partir de hoje; sem fim, vale até a próxima mudança.
+				</p>
+			</div>
 			<InstitutionYieldTimeline
 				countryCode={countryCode}
 				currency={currency}
 				onNew={() => {
 					setEditingStart(undefined);
-					setSourceDate(effectiveDate);
+					setSourceDate(effectiveDate || today);
 					setUntil("");
 				}}
 				onSelect={item => {
@@ -202,10 +198,9 @@ export function InstitutionYieldEditor({
 				key={`${selectedProfile}:${countryCode}:${replacesEffectiveDate ?? ""}`}
 				onDiscard={onClose}
 				onSave={async body => {
-					if (!selectedProfile || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
-						throw new Error("Selecione perfil e data de vigência.");
-					}
-					if (effectiveUntil && effectiveUntil <= effectiveDate)
+					if (!selectedProfile) throw new Error("Selecione o perfil.");
+					const startDate = effectiveDate || today;
+					if (effectiveUntil && effectiveUntil <= startDate)
 						throw new Error("O fim da vigência deve ser posterior ao início.");
 					await onUpdate(institution, {
 						...body,
@@ -213,7 +208,7 @@ export function InstitutionYieldEditor({
 						effectiveUntil: effectiveUntil || undefined,
 						profileId: selectedProfile,
 						replacesEffectiveDate,
-						requestedEffectiveDate: effectiveDate,
+						requestedEffectiveDate: startDate,
 					});
 					await policies.refetch();
 					onClose();
