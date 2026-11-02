@@ -9,6 +9,7 @@ import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { assertFinancialInstitutionYieldPolicy } from "../domain/assert-financial-institution-yield-policy";
 import { assertInstitutionReview } from "../domain/assert-institution-review";
 import { normalizeFinancialInstitutionName } from "../domain/normalize-financial-institution-name";
+import { consolidateYieldPolicyTimeline } from "./consolidate-yield-policy-timeline";
 import {
 	assertInstitutionCardRules,
 	type RawQuery,
@@ -316,6 +317,12 @@ export async function reviewInstitutionProposal(
 							rule.yieldReferenceType ?? null,
 						],
 					);
+				await consolidateYieldPolicyTimeline(query, {
+					countryCode: policy.countryCode ?? null,
+					currency: policy.currency ?? null,
+					financialInstitutionId: institution.id,
+					profileId: policy.profileId,
+				});
 				await query(`UPDATE "FinancialInstitution" SET "version"="version"+1 WHERE "id"=$1`, [
 					institution.id,
 				]);
