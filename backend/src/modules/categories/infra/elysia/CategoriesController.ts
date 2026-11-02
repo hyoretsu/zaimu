@@ -3,9 +3,68 @@ import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { catalogFilterHash, catalogPage, decodeCatalogCursor } from "~/shared/application/catalog-pagination";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, queryFirst, queryRaw } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import { categoryLookupIds } from "../../application/category-lookup";
 import { CategoryPageReturn, CategorySummaryReturn } from "./CategoriesDTO";
+
+const textCodec = "pg/text@1";
+const boolCodec = "pg/bool@1";
+const categoryColumns = ["id", "name", "userId", "color", "icon", "parentId"] as const;
+
+/**
+ * Category catalog page rows for one user. Ownership, projection and limit use the typed builder; only the
+ * PostgreSQL-specific capabilities the builder lacks (public.normalize_search, strpos, COLLATE "C") are
+ * expressed as typed, fully parameterized raw expressions. Order and cursor are byte-wise ("C") on (name, id).
+ */
+export const listCategoryRows = (
+	userId: string,
+	search: string,
+	cursor: { id: string; name: string } | undefined,
+	rowLimit: number,
+) =>
+	queryRows(
+		db.sql.public.Category.select(...categoryColumns)
+			.where((fields, functions) => {
+				const cName = functions.raw`${fields.name} COLLATE "C"`.returns(textCodec);
+				const cId = functions.raw`${fields.id} COLLATE "C"`.returns(textCodec);
+				return functions.and(
+					functions.eq(fields.userId, userId),
+					functions.raw`strpos(public.normalize_search(${fields.name}), public.normalize_search(${search})) > 0`.returns(
+						boolCodec,
+					),
+					...(cursor
+						? [
+								functions.or(
+									functions.gt(
+										cName,
+										functions.raw`${cursor.name}::text COLLATE "C"`.returns(textCodec),
+									),
+									functions.and(
+										functions.eq(
+											cName,
+											functions.raw`${cursor.name}::text COLLATE "C"`.returns(
+												textCodec,
+											),
+										),
+										functions.gt(
+											cId,
+											functions.raw`${cursor.id}::text COLLATE "C"`.returns(textCodec),
+										),
+									),
+								),
+							]
+						: []),
+				);
+			})
+			.orderBy((fields, functions) => functions.raw`${fields.name} COLLATE "C"`.returns(textCodec), {
+				direction: "asc",
+			})
+			.orderBy((fields, functions) => functions.raw`${fields.id} COLLATE "C"`.returns(textCodec), {
+				direction: "asc",
+			})
+			.limit(rowLimit)
+			.build(),
+	);
 
 export const CategoriesController = new Elysia({ prefix: "/categories" })
 	.get(
@@ -21,14 +80,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 				"categories:list",
 				{ cursor: query.cursor, limit, search, version: 2 },
 				async () => {
-					const rows = await queryRaw<typeof CategorySummaryReturn.static>(
-						`SELECT "id", "name", "userId", "color", "icon", "parentId" FROM "public"."Category"
-					 WHERE "userId" = $1
-					 AND strpos(public.normalize_search("name"), public.normalize_search($2)) > 0
-					 AND ($3::text IS NULL OR ("name" COLLATE "C", "id" COLLATE "C") > ($3::text COLLATE "C", $4::text COLLATE "C"))
-					 ORDER BY "name" COLLATE "C", "id" COLLATE "C" LIMIT $5`,
-						[userId, search, cursor?.name ?? null, cursor?.id ?? null, limit + 1],
-					);
+					const rows = await listCategoryRows(userId, search, cursor ?? undefined, limit + 1);
 					return catalogPage(rows, limit, hash);
 				},
 			);
@@ -61,11 +113,29 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 				{ ids, version: 1 },
 				async () => {
 					if (!ids.length) return [];
-					return queryRaw<typeof CategorySummaryReturn.static>(
-						`SELECT "id", "name", "userId", "color", "icon", "parentId" FROM "public"."Category"
-					 WHERE "userId" = $1 AND "id" = ANY($2::text[])
-					 ORDER BY "name" COLLATE "C", "id" COLLATE "C"`,
-						[userId, ids],
+					return queryRows(
+						db.sql.public.Category.select(...categoryColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.userId, userId),
+									functions.in(fields.id, ids),
+								),
+							)
+							.orderBy(
+								(fields, functions) =>
+									functions.raw`${fields.name} COLLATE "C"`.returns(textCodec),
+								{
+									direction: "asc",
+								},
+							)
+							.orderBy(
+								(fields, functions) =>
+									functions.raw`${fields.id} COLLATE "C"`.returns(textCodec),
+								{
+									direction: "asc",
+								},
+							)
+							.build(),
 					);
 				},
 			);
@@ -104,7 +174,10 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 							"updatedAt",
 						)
 							.where((fields, functions) =>
-								functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
+								functions.and(
+									functions.eq(fields.id, params.id),
+									functions.eq(fields.userId, userId),
+								),
 							)
 							.limit(1)
 							.build(),
@@ -139,7 +212,10 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 			const existing = await queryFirst(
 				db.sql.public.Category.select("id")
 					.where((fields, functions) =>
-						functions.and(functions.eq(fields.userId, userId), functions.eq(fields.name, body.name)),
+						functions.and(
+							functions.eq(fields.userId, userId),
+							functions.eq(fields.name, body.name),
+						),
 					)
 					.limit(1)
 					.build(),
