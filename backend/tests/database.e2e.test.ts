@@ -101,9 +101,11 @@ suite("Prisma 8 SQL query builder", () => {
 	afterAll(async () => {
 		if (userIds.length > 0) {
 			// Institution proposals created by signup flows reference users without cascade.
-			await db.orm.public.FinancialInstitutionProposal.where(fields =>
-				fields.authorId.in(userIds as never),
-			).deleteAndCount();
+			await executeStatement(
+				db.sql.public.FinancialInstitutionProposal.delete()
+					.where((fields, functions) => functions.in(fields.authorId, userIds))
+					.build(),
+			);
 		}
 		if (userIds.length > 0)
 			await db.orm.public.User.where(fields => fields.id.in(userIds as never)).deleteAndCount();
