@@ -18,7 +18,7 @@ import {
 } from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 import { requirePendingInvitationRecipient } from "./debt-invitation";
 import { normalizeDebtLedgerPerson } from "./debt-ledger-person";
 import {
@@ -197,7 +197,7 @@ async function getPeopleLedger(userId: string) {
 	return [...grouped.values()];
 }
 
-async function getPersonEventPage(
+export async function getPersonEventPage(
 	userId: string,
 	personId: string,
 	cursorValue?: string,
@@ -213,53 +213,153 @@ async function getPersonEventPage(
 		personId,
 	});
 	const cursor = decodePaginationCursor(cursorValue, filterHash, isDebtEventCursor);
-	const rows = await queryRaw<{
-		amount: string;
-		currency: string;
-		createdByName: string;
-		createdByUserId: string;
-		date: Date | null;
-		description: null | string;
-		dueDate: Date | null;
-		effect: string;
-		id: string;
-		kind: DebtEventType;
-		time: null | string;
-	}>(
-		`SELECT event."id", event."amount", event."currency", event."createdByUserId", creator."name" AS "createdByName",
-		        event."date", event."dueDate", event."kind",
-		        CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END AS "effect",
-		        CASE WHEN income_transaction."id" IS NOT NULL THEN income_transaction."description"
-		        WHEN purchase."id" IS NOT NULL THEN COALESCE(NULLIF(purchase_participant."description", ''), NULLIF(purchase."description", ''), NULLIF(purchase."storeName", ''), 'Compra')
-		        ELSE COALESCE(NULLIF(event."description", ''), NULLIF(source_transaction."description", '')) END AS "description",
-		        COALESCE(source_transaction."time", refund."time", purchase."time") AS "time"
-		 FROM "public"."DebtEvent" event
-		 JOIN "public"."user" creator ON creator."id" = event."createdByUserId"
-		 LEFT JOIN "public"."DebtTransactionLink" transaction_link ON transaction_link."eventId" = event."id" AND transaction_link."isCreator" = true
-		 LEFT JOIN "public"."Transaction" source_transaction ON source_transaction."id" = transaction_link."transactionId"
-		 LEFT JOIN "public"."Transaction" income_transaction ON income_transaction."id" = transaction_link."transactionId" AND income_transaction."type" = 'INCOME'
-		 LEFT JOIN "public"."DebtPurchaseLink" purchase_link ON purchase_link."eventId" = event."id" AND purchase_link."isCreator" = true
-		 LEFT JOIN "public"."CreditEntryReference" purchase_reference ON purchase_reference."id" = purchase_link."creditPurchaseId"
-		 LEFT JOIN "public"."CreditPurchaseRecord" purchase ON purchase."id" = purchase_reference."purchaseId"
-		 LEFT JOIN "public"."CreditRefundRecord" refund ON refund."id" = purchase_reference."refundId"
-		 LEFT JOIN "public"."DebtSplit" purchase_split ON purchase_split."creditPurchaseId"=purchase."id" AND purchase_split."userId"=event."createdByUserId"
-		 LEFT JOIN "public"."DebtSplitParticipant" purchase_participant ON purchase_participant."debtSplitId"=purchase_split."id" AND purchase_participant."debtPersonId"=event."debtPersonId"
-		 WHERE ${connectionId ? 'event."connectionId" = $2' : 'event."debtPersonId" = $2'}
-		   AND event."deletedAt" IS NULL
-		   AND ($4 = '' OR
-		        ($3::date IS NULL AND event."date" IS NULL AND event."id" < $4) OR
-		        ($3::date IS NOT NULL AND (event."date" IS NULL OR (event."date", event."id") < ($3::date, $4))))
-		 ORDER BY event."date" DESC NULLS LAST, event."id" DESC
-		 LIMIT $5`,
-		[userId, connectionId ?? personId, cursor?.date ?? null, cursor?.id ?? "", pageLimit + 1],
+	// Only the raw columns are selected here; the viewer-relative effect and the per-event description/time
+	// CASE/COALESCE logic are applied below because the builder has no CASE/COALESCE/NULLIF.
+	const creator = db.sql.public.user.select("id", "name").as("creator");
+	const transactionLink = db.sql.public.DebtTransactionLink.select(
+		"eventId",
+		"isCreator",
+		"transactionId",
+	).as("transactionLink");
+	const sourceTransaction = db.sql.public.Transaction.select("id", "description", "time", "type").as(
+		"sourceTransaction",
+	);
+	const purchaseLink = db.sql.public.DebtPurchaseLink.select("creditPurchaseId", "eventId", "isCreator").as(
+		"purchaseLink",
+	);
+	const purchaseReference = db.sql.public.CreditEntryReference.select("id", "purchaseId", "refundId").as(
+		"purchaseReference",
+	);
+	const purchase = db.sql.public.CreditPurchaseRecord.select("id", "description", "storeName", "time").as(
+		"purchase",
+	);
+	const refund = db.sql.public.CreditRefundRecord.select("id", "time").as("refund");
+	const purchaseSplit = db.sql.public.DebtSplit.select("creditPurchaseId", "id", "userId").as(
+		"purchaseSplit",
+	);
+	const purchaseParticipant = db.sql.public.DebtSplitParticipant.select(
+		"debtPersonId",
+		"debtSplitId",
+		"description",
+	).as("purchaseParticipant");
+	const cursorDate = cursor?.date ? cursor.date.slice(0, 10) : null;
+	const cursorId = cursor?.id ?? "";
+	const rows = await queryRows(
+		db.sql.public.DebtEvent.innerJoin(creator, (fields, functions) =>
+			functions.eq(fields.creator.id, fields.DebtEvent.createdByUserId),
+		)
+			.outerLeftJoin(transactionLink, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.transactionLink.eventId, fields.DebtEvent.id),
+					functions.eq(fields.transactionLink.isCreator, true),
+				),
+			)
+			.outerLeftJoin(sourceTransaction, (fields, functions) =>
+				functions.eq(fields.sourceTransaction.id, fields.transactionLink.transactionId),
+			)
+			.outerLeftJoin(purchaseLink, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.purchaseLink.eventId, fields.DebtEvent.id),
+					functions.eq(fields.purchaseLink.isCreator, true),
+				),
+			)
+			.outerLeftJoin(purchaseReference, (fields, functions) =>
+				functions.eq(fields.purchaseReference.id, fields.purchaseLink.creditPurchaseId),
+			)
+			.outerLeftJoin(purchase, (fields, functions) =>
+				functions.eq(fields.purchase.id, fields.purchaseReference.purchaseId),
+			)
+			.outerLeftJoin(refund, (fields, functions) =>
+				functions.eq(fields.refund.id, fields.purchaseReference.refundId),
+			)
+			.outerLeftJoin(purchaseSplit, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.purchaseSplit.creditPurchaseId, fields.purchase.id),
+					functions.eq(fields.purchaseSplit.userId, fields.DebtEvent.createdByUserId),
+				),
+			)
+			.outerLeftJoin(purchaseParticipant, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.purchaseParticipant.debtSplitId, fields.purchaseSplit.id),
+					functions.eq(fields.purchaseParticipant.debtPersonId, fields.DebtEvent.debtPersonId),
+				),
+			)
+			.select(fields => ({
+				amount: fields.DebtEvent.amount,
+				createdByName: fields.creator.name,
+				createdByUserId: fields.DebtEvent.createdByUserId,
+				currency: fields.DebtEvent.currency,
+				date: fields.DebtEvent.date,
+				description: fields.DebtEvent.description,
+				dueDate: fields.DebtEvent.dueDate,
+				effect: fields.DebtEvent.effect,
+				id: fields.DebtEvent.id,
+				kind: fields.DebtEvent.kind,
+				participantDescription: fields.purchaseParticipant.description,
+				purchaseDescription: fields.purchase.description,
+				purchaseId: fields.purchase.id,
+				purchaseStoreName: fields.purchase.storeName,
+				purchaseTime: fields.purchase.time,
+				refundTime: fields.refund.time,
+				sourceDescription: fields.sourceTransaction.description,
+				sourceTime: fields.sourceTransaction.time,
+				sourceType: fields.sourceTransaction.type,
+			}))
+			.where((fields, functions) =>
+				functions.and(
+					connectionId
+						? functions.eq(fields.DebtEvent.connectionId, connectionId)
+						: functions.eq(fields.DebtEvent.debtPersonId, personId),
+					functions.eq(fields.DebtEvent.deletedAt, null),
+					...(cursorId
+						? [
+								cursorDate === null
+									? functions.and(
+											functions.eq(fields.DebtEvent.date, null),
+											functions.lt(fields.DebtEvent.id, cursorId),
+										)
+									: functions.or(
+											functions.eq(fields.DebtEvent.date, null),
+											functions.lt(fields.DebtEvent.date, cursorDate),
+											functions.and(
+												functions.eq(fields.DebtEvent.date, cursorDate),
+												functions.lt(fields.DebtEvent.id, cursorId),
+											),
+										),
+							]
+						: []),
+				),
+			)
+			.orderBy(fields => fields.DebtEvent.date, { direction: "desc", nulls: "last" })
+			.orderBy(fields => fields.DebtEvent.id, { direction: "desc" })
+			.limit(pageLimit + 1)
+			.build(),
 	);
 	const hasMore = rows.length > pageLimit;
-	const items = rows.slice(0, pageLimit).map(row => ({
-		...row,
-		amount: Number(row.amount),
-		createdByMe: row.createdByUserId === userId,
-		effect: Number(row.effect),
-	}));
+	const dateOnly = (value: null | string) => (value ? new Date(`${value}T00:00:00.000Z`) : null);
+	const items = rows.slice(0, pageLimit).map(row => {
+		const createdByMe = row.createdByUserId === userId;
+		const isIncome = row.sourceType === "INCOME";
+		const description = isIncome
+			? row.sourceDescription
+			: row.purchaseId
+				? row.participantDescription || row.purchaseDescription || row.purchaseStoreName || "Compra"
+				: row.description || row.sourceDescription || null;
+		return {
+			amount: Number(row.amount),
+			createdByMe,
+			createdByName: row.createdByName,
+			createdByUserId: row.createdByUserId,
+			currency: row.currency,
+			date: dateOnly(row.date),
+			description: description ?? null,
+			dueDate: dateOnly(row.dueDate),
+			effect: createdByMe ? Number(row.effect) : 0 - Number(row.effect),
+			id: row.id,
+			kind: row.kind as DebtEventType,
+			time: row.sourceTime ?? row.refundTime ?? row.purchaseTime ?? null,
+		};
+	});
 	const last = items.at(-1);
 	return {
 		hasMore,
@@ -274,19 +374,64 @@ async function getPersonEventPage(
 	};
 }
 
-async function getInvitationPreview(
+export async function getInvitationPreview(
 	connectionId: string,
 	requesterId: string,
 	viewerId: string,
 	cursor?: string,
 	limit = 50,
 ) {
-	const rows = await queryRaw<{ id: string; currency: string; balance: string; eventCount: string }>(
-		`SELECT person."id", COALESCE(event."currency",'BRL') AS "currency", COALESCE(SUM(CASE WHEN event."createdByUserId"=$3 THEN event."effect" ELSE -event."effect" END),0) AS "balance", COUNT(event."id") AS "eventCount"
- FROM "DebtPerson" person LEFT JOIN "DebtEvent" event ON event."debtPersonId"=person."id" AND event."deletedAt" IS NULL
- WHERE person."connectionId"=$1 AND person."userId"=$2 AND person."hiddenAt" IS NULL GROUP BY person."id", event."currency"`,
-		[connectionId, requesterId, viewerId],
+	const people = await queryRows(
+		db.sql.public.DebtPerson.select("id")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.connectionId, connectionId),
+					functions.eq(fields.userId, requesterId),
+					functions.eq(fields.hiddenAt, null),
+				),
+			)
+			.orderBy("id", { direction: "asc" })
+			.build(),
 	);
+	// Aggregate per creator in PostgreSQL, then apply the viewer-relative sign per event creator in integer
+	// minor units (equivalent to SUM(CASE WHEN createdByUserId = viewer THEN effect ELSE -effect END)).
+	const totals = people.length
+		? await queryRows(
+				db.sql.public.DebtEvent.select("debtPersonId", "currency", "createdByUserId")
+					.where((fields, functions) =>
+						functions.and(
+							functions.in(
+								fields.debtPersonId,
+								people.map(candidate => candidate.id),
+							),
+							functions.eq(fields.deletedAt, null),
+						),
+					)
+					.select((fields, functions) => ({
+						balance: functions.sum(fields.effect),
+						eventCount: functions.count(fields.id),
+					}))
+					.groupBy("debtPersonId", "currency", "createdByUserId")
+					.build(),
+			)
+		: [];
+	const rows = people.flatMap(candidate => {
+		const byCurrency = new Map<string, { balance: number; eventCount: number }>();
+		for (const total of totals.filter(entry => entry.debtPersonId === candidate.id)) {
+			const entry = byCurrency.get(total.currency) ?? { balance: 0, eventCount: 0 };
+			const units = toMinorUnits(Number(total.balance), total.currency, -Number.MAX_SAFE_INTEGER);
+			entry.balance += total.createdByUserId === viewerId ? units : -units;
+			entry.eventCount += Number(total.eventCount);
+			byCurrency.set(total.currency, entry);
+		}
+		if (!byCurrency.size) byCurrency.set("BRL", { balance: 0, eventCount: 0 });
+		return [...byCurrency].map(([currency, entry]) => ({
+			balance: fromMinorUnits(entry.balance, currency),
+			currency,
+			eventCount: entry.eventCount,
+			id: candidate.id,
+		}));
+	});
 	const person = rows[0];
 	if (!person)
 		return { balance: 0, balances: [], eventCount: 0, hasMore: false, items: [], nextCursor: null };

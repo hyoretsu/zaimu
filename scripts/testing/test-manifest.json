@@ -22,6 +22,7 @@
 		"backend/src/shared/infra/broker/tests/RabbitMqBroker.integration.test.ts",
 		"backend/src/shared/infra/cache/RedisCache.test.ts",
 		"backend/src/shared/tests/pdf-worker.test.ts",
+		"backend/src/modules/debts/tests/debt-event-page.integration.test.ts",
 		"backend/src/modules/loans/tests/loan-contracts.integration.test.ts",
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],
