@@ -76,4 +76,6 @@ Conversion progress: monthly budgets, stores, categories, balance adjustments, d
 
 Test infrastructure: `prepare-schema.ts` now honors `TEST_COMMAND_TIMEOUT_MS`. The runner has no file filter and `--changed` can select zero tests and still pass, so validation requires full runs without `--changed`.
 
-Still outstanding: the conversion above, financial semantic review of unread chunks, the pre-merge type-check and build for affected packages (not yet run), and integration into the original `main` (nothing is integrated or pushed).
+Pre-merge gate at `b2334909`: workspace `check-types` (7 of 7 tasks) and `build` (5 of 5 tasks, 3 cached) both exit 0. The cached build tasks reuse outputs for unchanged inputs.
+
+Still outstanding: the conversion above, financial semantic review of unread chunks, and integration into the original `main` (nothing is integrated or pushed). Integrating the current partial state is a decision for the owner: every commit is individually tested and the gate passes, but the requested full adoption is not finished.
