@@ -171,28 +171,61 @@ export const db = postgres({ contract, pg: transactionalPool });
 type QueryPlan = SqlOrmPlan<unknown>;
 type StatementPlan = Parameters<ReturnType<typeof db.runtime>["execute"]>[0];
 type ExecutorClient = Pick<typeof db, "sql"> & Pick<ReturnType<typeof db.runtime>, "query" | "execute">;
+interface PlanSource {
+	alias?: string;
+	kind?: string;
+	name?: string;
+	source?: PlanSource;
+}
+interface ProjectionItem {
+	alias?: string;
+	codec?: { codecId?: string };
+	expr?: { column?: string; kind?: string; name?: string; table?: string };
+}
 interface ProjectedPlan {
 	ast?: {
-		projection?: readonly {
-			alias?: string;
-			codec?: { codecId?: string };
-		}[];
-		returning?: readonly {
-			alias?: string;
-			codec?: { codecId?: string };
-		}[];
+		from?: PlanSource;
+		joins?: readonly PlanSource[];
+		projection?: readonly ProjectionItem[];
+		returning?: readonly ProjectionItem[];
+		table?: PlanSource;
 	};
 }
 
-const unwrapLegacyJson = (value: unknown) => {
-	// Historical migrations stored the default of some json columns as the JSON string "[]" (double encoded);
-	// the previous runtime parsed twice, so decode the inner document to keep returning arrays/objects.
-	if (typeof value !== "string" || !/^\s*[[{]/.test(value)) return value;
-	try {
-		return JSON.parse(value) as unknown;
-	} catch {
-		return value;
+// Some json columns were created by historical migrations with a double-encoded default (the JSON string "[]" or
+// "{}", see the CreditCardImportItem.metadataMissing, OpenFinanceRun.errors and OutboxEvent.payload column defaults).
+// Rows written with that default are decoded here, only for the exact physical table/column and only when the value
+// is exactly the default sentinel, so genuine scalar JSON strings elsewhere are returned untouched. This applies to
+// builder (`db.sql`) plans, whose provenance is resolved from the plan AST; `db.orm` results and raw queries are
+// not normalized by this function and return the stored JSON value as is.
+const legacyJsonDefaults: Record<string, Record<string, string>> = {
+	CreditCardImportItem: { metadataMissing: "[]" },
+	OpenFinanceRun: { errors: "[]" },
+	OutboxEvent: { payload: "{}" },
+};
+
+const legacyJsonSentinel = (plan: ProjectedPlan, item: ProjectionItem) => {
+	const ast = plan.ast;
+	const { expr } = item;
+	if (!ast || !expr) return undefined;
+	// Query-scope names (alias, else table name) mapped to physical tables; non-table sources are not mapped.
+	const scope = new Map<string, string>();
+	const register = (source: PlanSource | undefined) => {
+		if (source?.kind === "table-source" && source.name)
+			scope.set(source.alias ?? source.name, source.name);
+	};
+	register(ast.from ?? ast.table);
+	for (const join of ast.joins ?? []) register(join.source);
+	let table: string | undefined;
+	let column: string | undefined;
+	if (expr.kind === "column-ref" && expr.table) {
+		table = scope.get(expr.table);
+		column = expr.column;
+	} else if (expr.kind === "identifier-ref" && !ast.joins?.length && scope.size === 1) {
+		table = [...scope.values()][0];
+		column = expr.name;
 	}
+	return table && column ? legacyJsonDefaults[table]?.[column] : undefined;
 };
 
 const normalizeCodecColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
@@ -205,8 +238,14 @@ const normalizeCodecColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 				.flatMap(item => (item.alias ? [item.alias] : [])),
 		);
 	const numericColumns = aliasesFor(["pg/numeric@1"]);
-	const jsonColumns = aliasesFor(["pg/json@1", "pg/jsonb@1"]);
-	if (numericColumns.size === 0 && jsonColumns.size === 0) return rows;
+	const legacyJson = new Map<string, string>();
+	for (const item of projection) {
+		if (!item.alias || !item.codec?.codecId || !["pg/json@1", "pg/jsonb@1"].includes(item.codec.codecId))
+			continue;
+		const sentinel = legacyJsonSentinel(plan as ProjectedPlan, item);
+		if (sentinel) legacyJson.set(item.alias, sentinel);
+	}
+	if (numericColumns.size === 0 && legacyJson.size === 0) return rows;
 	return rows.map(row => {
 		if (!row || typeof row !== "object") return row;
 		const normalized = { ...row } as Record<string, unknown>;
@@ -214,7 +253,8 @@ const normalizeCodecColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 			const value = normalized[column];
 			if (typeof value === "string") normalized[column] = Number(value);
 		}
-		for (const column of jsonColumns) normalized[column] = unwrapLegacyJson(normalized[column]);
+		for (const [column, sentinel] of legacyJson)
+			if (normalized[column] === sentinel) normalized[column] = JSON.parse(sentinel) as unknown;
 		return normalized as Row;
 	});
 };

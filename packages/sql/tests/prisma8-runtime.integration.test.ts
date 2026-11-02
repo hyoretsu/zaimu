@@ -46,3 +46,68 @@ test("ORM builder and nested raw work share one rollback connection", async () =
 	).rejects.toThrow("intentional affinity rollback");
 	expect(await db.orm.public.User.where({ id }).first()).toBeNull();
 });
+
+test("legacy double-encoded json defaults are decoded only for known columns", async () => {
+	const eventId = crypto.randomUUID();
+	const institutionId = crypto.randomUUID();
+	await expect(
+		withRawTransaction(async raw => {
+			await raw('INSERT INTO "user" ("id","name","email") VALUES ($1,$2,$3)', [
+				eventId,
+				"Legacy json",
+				`${eventId}@example.test`,
+			]);
+			await raw(
+				`INSERT INTO "OutboxEvent" ("id","aggregateId","aggregateType","correlationId","eventType","occurredAt","userIds")
+				 VALUES ($1,$1,'t','c','e',now(),'{}')`,
+				[eventId],
+			);
+			await raw(
+				`INSERT INTO "FinancialInstitution" ("id","name","normalizedName","creditCardRules")
+				 VALUES ($1::text,'Legacy json','legacy json ' || $1::text,$2::json)`,
+				[institutionId, JSON.stringify("[1]")],
+			);
+			const stored = await raw<{ payload: unknown }>(`SELECT payload FROM "OutboxEvent" WHERE id=$1`, [
+				eventId,
+			]);
+			expect(stored[0].payload).toBe("{}");
+			const built = await queryFirst(
+				db.sql.public.OutboxEvent.select("payload")
+					.where((event, ops) => ops.eq(event.id, eventId))
+					.build(),
+			);
+			expect(built).toEqual({ payload: {} });
+			const orm = await db.orm.public.OutboxEvent.where({ id: eventId }).first();
+			// db.orm is not normalized: the stored double-encoded sentinel is returned as is.
+			expect(orm?.payload).toBe("{}");
+			const genuine = await queryFirst(
+				db.sql.public.FinancialInstitution.select("creditCardRules")
+					.where((institution, ops) => ops.eq(institution.id, institutionId))
+					.build(),
+			);
+			expect(genuine).toEqual({ creditCardRules: "[1]" });
+			const aliased = await queryFirst(
+				db.sql.public.user
+					.innerJoin(db.sql.public.OutboxEvent.as("renamed"), (f, fn) =>
+						fn.eq(f.user.id, f.renamed.aggregateId),
+					)
+					.select(f => ({ payload: f.renamed.payload }))
+					.where((f, fn) => fn.eq(f.user.id, eventId))
+					.build(),
+			);
+			expect(aliased).toEqual({ payload: {} });
+			await raw(`UPDATE "FinancialInstitution" SET "creditCardRules"=$2::json WHERE id=$1`, [
+				institutionId,
+				JSON.stringify("[]"),
+			]);
+			const impostor = await queryFirst(
+				db.sql.public.FinancialInstitution.as("OutboxEvent")
+					.select("creditCardRules")
+					.where((institution, ops) => ops.eq(institution.id, institutionId))
+					.build(),
+			);
+			expect(impostor).toEqual({ creditCardRules: "[]" });
+			throw new Error("rollback legacy json");
+		}),
+	).rejects.toThrow("rollback legacy json");
+});
