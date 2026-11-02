@@ -123,7 +123,6 @@ export async function reviewInstitutionProposal(
 	reason?: string,
 	targetId?: string,
 	confirmedVersion?: number,
-	profileResolution?: { profileId: string; effectiveDate: string }[],
 ) {
 	return withRawTransaction(async query => {
 		const [proposal] = await query(
@@ -158,41 +157,15 @@ export async function reviewInstitutionProposal(
 				[targetId],
 			);
 			if (!target) throw new HttpException("Instituição aprovada não encontrada", 404);
-			// Never publish legacy rules, and reject conflicting profile histories.
+			// Never publish legacy rules; keep the previous profile history in the audit payload.
 			const histories = await query(
 				`SELECT c.*,l."institutionId" FROM "UserInstitutionProfileChange" c JOIN "UserFinancialInstitution" l ON l."id"=c."linkId" WHERE l."userId"=$3 AND l."institutionId" IN ($1,$2) ORDER BY c."effectiveDate"`,
 				[institution.id, targetId, proposal.authorId],
 			);
-			if (histories.length && !profileResolution)
-				throw new HttpException("Resolva o histórico de perfis antes de associar", 409);
-			const [targetLink] = await query(
+			await query(
 				`INSERT INTO "UserFinancialInstitution" ("id","userId","institutionId","updatedAt") VALUES ($1,$2,$3,NOW()) ON CONFLICT ("userId","institutionId") DO UPDATE SET "updatedAt"=NOW() RETURNING "id"`,
 				[crypto.randomUUID(), proposal.authorId, targetId],
 			);
-			if (profileResolution) {
-				if (
-					new Set(profileResolution.map(change => change.effectiveDate)).size !==
-					profileResolution.length
-				)
-					throw new HttpException("Datas de perfil duplicadas", 400);
-				for (const change of profileResolution) {
-					const [profile] = await query(
-						`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "id"=$1 AND "institutionId"=$2`,
-						[change.profileId, targetId],
-					);
-					if (!profile)
-						throw new HttpException(
-							"Perfil da resolução não pertence à instituição de destino",
-							400,
-						);
-				}
-				await query(`DELETE FROM "UserInstitutionProfileChange" WHERE "linkId"=$1`, [targetLink.id]);
-				for (const change of profileResolution)
-					await query(
-						`INSERT INTO "UserInstitutionProfileChange" ("id","linkId","profileId","effectiveDate","updatedAt") VALUES ($1,$2,$3,$4,NOW())`,
-						[crypto.randomUUID(), targetLink.id, change.profileId, change.effectiveDate],
-					);
-			}
 			payload.previousProfileHistory = histories;
 			await query(
 				`UPDATE "FinancialAccount" SET "legacyInstitutionId"=COALESCE("legacyInstitutionId","institutionId"),"institutionId"=$2,"updatedAt"=NOW() WHERE "institutionId"=$1 AND "userId"=$3`,
@@ -369,7 +342,6 @@ export async function reviewInstitutionProposal(
 					after,
 					before: institution,
 					confirmedVersion,
-					profileResolution,
 					proposal: payload,
 					reason,
 					targetId,

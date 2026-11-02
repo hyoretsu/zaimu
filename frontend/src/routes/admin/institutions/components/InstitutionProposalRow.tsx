@@ -12,7 +12,6 @@ import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import type { InstitutionProposal } from "./InstitutionReviewQueue";
-import { MergeProfileResolution, type ProfileResolution } from "./MergeProfileResolution";
 
 const labels: Record<string, string> = {
 	APPROVED: "Aprovada",
@@ -29,7 +28,6 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 	const queryClient = useQueryClient();
 	const [reason, setReason] = useDebouncedInput("", () => undefined);
 	const [target, setTarget] = useState<string>();
-	const [resolution, setResolution] = useState<ProfileResolution[]>();
 	const [pending, setPending] = useState(false);
 	const [confirmed, setConfirmed] = useState(false);
 	const userId = useAuthStore(state => state.user?.id);
@@ -49,7 +47,6 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 		void postFinancialInstitutionsReviewProposalsById(proposal.id, {
 			action,
 			confirmedVersion: confirmed ? (proposal.version ?? undefined) : undefined,
-			profileResolution: resolution,
 			reason: reason.trim() || undefined,
 			targetId: target,
 		})
@@ -119,7 +116,6 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 						label="Associar a instituição aprovada"
 						onValueChange={value => {
 							setTarget(value);
-							setResolution(undefined);
 						}}
 						options={(institutions.data ?? [])
 							.filter(item => item.status === "APPROVED" && item.id !== proposal.institutionId)
@@ -131,14 +127,6 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 						searchable
 						value={target}
 					/>
-					{target && (
-						<MergeProfileResolution
-							onChange={setResolution}
-							proposalId={proposal.id}
-							targetId={target}
-							value={resolution}
-						/>
-					)}
 					<ActionGroup>
 						<Button
 							disabled={pending || !reason.trim()}

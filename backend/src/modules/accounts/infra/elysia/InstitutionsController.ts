@@ -540,28 +540,6 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			),
 		},
 	)
-	.get(
-		"/review/proposals/:id/profile-history",
-		async ({ request, params, query }) => {
-			await requireAdmin(request);
-			return queryRaw<{ institutionId: string; name: string; effectiveDate: Date }>(
-				`SELECT l."institutionId",p."name",c."effectiveDate" FROM "UserInstitutionProfileChange" c JOIN "UserFinancialInstitution" l ON l."id"=c."linkId" JOIN "FinancialInstitutionProfile" p ON p."id"=c."profileId" JOIN "FinancialInstitutionProposal" proposal ON proposal."authorId"=l."userId" WHERE proposal."id"=$1 AND (l."institutionId"=proposal."institutionId" OR l."institutionId"=$2) ORDER BY c."effectiveDate"`,
-				[params.id, query.targetId ?? null],
-			);
-		},
-		{
-			detail: { operationId: "getFinancialInstitutionsReviewProposalsByIdProfileHistory" },
-			params: t.Object({ id: Id }),
-			query: t.Object({ targetId: t.Optional(Id) }),
-			response: t.Array(
-				t.Object({
-					effectiveDate: t.Union([t.Date(), t.String()]),
-					institutionId: t.String(),
-					name: t.String(),
-				}),
-			),
-		},
-	)
 	.post(
 		"/review/proposals/:id",
 		async ({ request, params, body }) =>
@@ -572,13 +550,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				body.reason,
 				body.targetId,
 				body.confirmedVersion,
-				body.profileResolution,
 			),
 		{
 			body: t.Object({
 				action: t.Union([t.Literal("APPROVE"), t.Literal("REJECT"), t.Literal("ASSOCIATE")]),
 				confirmedVersion: t.Optional(t.Integer({ minimum: 1 })),
-				profileResolution: t.Optional(t.Array(t.Object({ effectiveDate: DateDTO, profileId: Id }))),
 				reason: t.Optional(t.String({ maxLength: 2000 })),
 				targetId: t.Optional(Id),
 			}),

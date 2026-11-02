@@ -289,18 +289,7 @@ describe("universal institution review and calendar coverage", () => {
 		const proposal = await proposeInstitution("owner", source.institutionId, "MERGE", {
 			targetId: target.institutionId,
 		});
-		await expect(
-			reviewInstitutionProposal("admin", proposal.id, "ASSOCIATE", undefined, target.institutionId),
-		).rejects.toThrow("histórico de perfis");
-		await reviewInstitutionProposal(
-			"admin",
-			proposal.id,
-			"ASSOCIATE",
-			undefined,
-			target.institutionId,
-			undefined,
-			[],
-		);
+		await reviewInstitutionProposal("admin", proposal.id, "ASSOCIATE", undefined, target.institutionId);
 		const [account] = await queryRaw<{ institutionId: string; legacyInstitutionId: string }>(
 			`SELECT "institutionId","legacyInstitutionId" FROM "FinancialAccount" WHERE "id"='merge-account'`,
 		);
