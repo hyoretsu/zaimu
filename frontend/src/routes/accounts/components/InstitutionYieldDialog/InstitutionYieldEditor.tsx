@@ -65,7 +65,19 @@ export function InstitutionYieldEditor({
 		<>
 			<CustomSelect
 				label="Perfil da política"
-				onValueChange={value => setProfile(value || undefined)}
+				onValueChange={value => {
+					const nextProfile = value || undefined;
+					const today = new Date().toLocaleDateString("sv-SE");
+					const nextPolicy = selectEditablePolicy(
+						policies.data ?? [],
+						nextProfile,
+						countryCode,
+						today,
+						currency,
+					);
+					setProfile(nextProfile);
+					setDate(nextPolicy?.effectiveDate.slice(0, 10) ?? today);
+				}}
 				options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
 				placeholder="Ex: Padrão"
 				required
