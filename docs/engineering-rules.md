@@ -232,6 +232,12 @@ CDI/Selic/IPCA/TR, bypassing completed/no-data history units. Empty responses pr
 stored rates; newly published or corrected values trigger dependent account recalculation.
 Missing rates or calendar coverage remain pending until a subsequent recovery command.
 
+Work finished by the worker after the HTTP response (yield recalculation, statement and import jobs) reaches
+open clients through `GET /realtime/stream` (SSE, cookie-authenticated, hidden from the SDK): the worker's
+`CacheInvalidationConsumer` publishes each domain event on a per-user Redis channel once the server cache is
+fresh, and the frontend (`lib/realtime.ts`) refetches the matching cache operations. A new asynchronous side
+effect needs its aggregate mapped in `lib/realtime-operations.ts`.
+
 ## Assets and quotes
 
 `Asset` is the global catalog of fiat and crypto codes (`code`, `kind`, `decimals`, `quoteProvider`); balances live per `(financialAccountId, assetCode)`. Asset codes are 2-12 uppercase alphanumerics. Crypto amounts use `Numeric(38,18)` and travel as decimal strings; never convert them through `number`. Format every monetary value through the single asset formatter in `packages/finance`, never ad hoc `Intl.NumberFormat`. Quotes come from brapi.dev (`BRAPI_TOKEN`, `Authorization: Bearer`) and follow the `CurrencyRateSnapshot` rule: no silent substitution by the current quote.
