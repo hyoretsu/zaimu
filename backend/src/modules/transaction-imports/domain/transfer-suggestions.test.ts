@@ -38,7 +38,7 @@ describe("getTransferSuggestionPair", () => {
 		});
 	});
 
-	test("does not match movements in the same account, without a time, or more than one minute apart", () => {
+	test("does not match movements in the same account, on different dates, or more than one minute apart", () => {
 		expect(
 			getTransferSuggestionPair(
 				{ ...outgoing, time: "13:29" },
@@ -51,7 +51,7 @@ describe("getTransferSuggestionPair", () => {
 			),
 		).toBeNull();
 		expect(
-			getTransferSuggestionPair(outgoing, { ...incoming, date: "2026-09-10", time: "13:30" }),
+			getTransferSuggestionPair({ ...outgoing, time: "13:29" }, { ...incoming, date: "2026-09-11" }),
 		).toBeNull();
 		expect(
 			getTransferSuggestionPair(
@@ -62,6 +62,17 @@ describe("getTransferSuggestionPair", () => {
 		expect(
 			getTransferSuggestionPair({ ...outgoing, time: "13:29" }, { ...incoming, time: "13:30" }),
 		).toBeNull();
+	});
+});
+
+describe("getTransferSuggestionPair without times", () => {
+	test("matches same-day opposite movements when either side has no time", () => {
+		const pair = getTransferSuggestionPair(
+			{ ...outgoing, time: null },
+			{ ...incoming, date: outgoing.date, time: null },
+		);
+		expect(pair?.outgoing.id).toBe(outgoing.id);
+		expect(pair?.incoming.id).toBe(incoming.id);
 	});
 });
 
