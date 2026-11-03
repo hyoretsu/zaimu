@@ -12,6 +12,7 @@ export function AccountYieldFields({
 	referenceType,
 	taxRate,
 	taxIds,
+	taxMode,
 	onEnabledChange,
 	onFixedRateChange,
 	onPeriodChange,
@@ -19,6 +20,7 @@ export function AccountYieldFields({
 	onReferenceTypeChange,
 	onTaxRateChange,
 	onTaxIdsChange,
+	onTaxModeChange,
 }: {
 	enabled: boolean;
 	allowReference: boolean;
@@ -28,6 +30,7 @@ export function AccountYieldFields({
 	referenceType: string;
 	taxRate: string;
 	taxIds: string[];
+	taxMode: "DAILY" | "ON_REDEMPTION";
 	onEnabledChange: (enabled: boolean) => void;
 	onFixedRateChange: (rate: string) => void;
 	onPeriodChange: (period: "MONTHLY" | "YEARLY") => void;
@@ -35,6 +38,7 @@ export function AccountYieldFields({
 	onReferenceTypeChange: (rate: "" | "CDI" | "SELIC" | "IPCA" | "TR") => void;
 	onTaxRateChange: (rate: string) => void;
 	onTaxIdsChange: (type: string[]) => void;
+	onTaxModeChange: (mode: "DAILY" | "ON_REDEMPTION") => void;
 }) {
 	const hasReference = Boolean(referenceType);
 	return (
@@ -100,8 +104,10 @@ export function AccountYieldFields({
 						<YieldTaxFields
 							id="account-yield-tax-rate"
 							onTaxIdsChange={onTaxIdsChange}
+							onTaxModeChange={onTaxModeChange}
 							onTaxRateChange={onTaxRateChange}
 							taxIds={taxIds}
+							taxMode={taxMode}
 							taxRate={taxRate}
 						/>
 						{Boolean(fixedRate) && (

@@ -166,7 +166,19 @@ export function calculateFinancialAccountBalances(
 							).toFixed(4),
 						),
 		}))
-		.map(account => ({ ...account, yieldLots: snapshots.get(account.id) ?? [] }));
+		.map(account => {
+			const yieldLots = snapshots.get(account.id) ?? [];
+			const settings = getYieldSettings(account, todayKey);
+			const deferredTax =
+				account.balance === null || settings?.yieldTaxMode !== "ON_REDEMPTION"
+					? 0
+					: new YieldTaxLedger(yieldLots).deferredTax(settings, todayKey);
+			return {
+				...account,
+				netBalance: deferredTax > 0 ? Number((account.balance! - deferredTax).toFixed(4)) : null,
+				yieldLots,
+			};
+		});
 }
 
 export function calculateFinancialAccountYieldEntries(

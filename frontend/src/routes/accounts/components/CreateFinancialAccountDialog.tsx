@@ -182,6 +182,9 @@ export function CreateFinancialAccountDialog({
 		() => undefined,
 	);
 	const [yieldTaxIds, setYieldTaxIds] = useState<string[]>(account?.yieldTaxIds ?? []);
+	const [yieldTaxMode, setYieldTaxMode] = useState<"DAILY" | "ON_REDEMPTION">(
+		account?.yieldTaxMode ?? "DAILY",
+	);
 	const [yieldTaxRate, setYieldTaxRate] = useDebouncedInput(
 		String(account?.yieldTaxRate ?? ""),
 		() => undefined,
@@ -224,6 +227,7 @@ export function CreateFinancialAccountDialog({
 		setYieldReferenceType(isGuestMode ? "" : (account?.yieldReferenceType ?? ""));
 		setYieldReferencePercentage(String(account?.yieldReferencePercentage ?? 100));
 		setYieldTaxIds(account?.yieldTaxIds ?? []);
+		setYieldTaxMode(account?.yieldTaxMode ?? "DAILY");
 		setYieldTaxRate(String(account?.yieldTaxRate ?? ""));
 		setYieldPeriod(account?.yieldPeriod ?? "MONTHLY");
 		setIsRecalculateCurrentDayYieldDialogOpen(false);
@@ -254,7 +258,8 @@ export function CreateFinancialAccountDialog({
 				(account.yieldReferenceType ?? null) ||
 			(yieldEnabled && yieldTaxRate !== "" ? Number(yieldTaxRate) : null) !==
 				(account.yieldTaxRate ?? null) ||
-			JSON.stringify(yieldEnabled ? yieldTaxIds : []) !== JSON.stringify(account.yieldTaxIds ?? [])
+			JSON.stringify(yieldEnabled ? yieldTaxIds : []) !== JSON.stringify(account.yieldTaxIds ?? []) ||
+			(yieldEnabled ? yieldTaxMode : "DAILY") !== (account.yieldTaxMode ?? "DAILY")
 		);
 	};
 	const save = async (recalculateCurrentDay: boolean) => {
@@ -326,6 +331,8 @@ export function CreateFinancialAccountDialog({
 							: undefined,
 				yieldTaxIds:
 					type !== "CREDIT_CARD" && yieldEnabled ? yieldTaxIds : account ? null : undefined,
+				yieldTaxMode:
+					type !== "CREDIT_CARD" && yieldEnabled ? yieldTaxMode : account ? null : undefined,
 				yieldTaxRate:
 					type !== "CREDIT_CARD" && yieldEnabled && yieldTaxRate !== ""
 						? Number(yieldTaxRate)
@@ -489,11 +496,13 @@ export function CreateFinancialAccountDialog({
 								onReferencePercentageChange={setYieldReferencePercentage}
 								onReferenceTypeChange={setYieldReferenceType}
 								onTaxIdsChange={setYieldTaxIds}
+								onTaxModeChange={setYieldTaxMode}
 								onTaxRateChange={setYieldTaxRate}
 								period={yieldPeriod}
 								referencePercentage={yieldReferencePercentage}
 								referenceType={yieldReferenceType}
 								taxIds={yieldTaxIds}
+								taxMode={yieldTaxMode}
 								taxRate={yieldTaxRate}
 							/>
 						)}

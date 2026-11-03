@@ -62,6 +62,8 @@ export interface LocalFinancialAccountFields {
 	historicalYieldSettings?: import("@zaimu/finance/projected-yield").HistoricalYieldSettings | null;
 	legacyYieldCalendar?: import("@zaimu/finance/projected-yield").LegacyYieldCalendar | null;
 	yieldLots?: import("@zaimu/finance/yield-tax").YieldLot[];
+	/** Balance after the tax deferred to redemption; null when no tax is deferred. */
+	netBalance?: number | null;
 	legacyInstitutionId?: string | null;
 	legacyInstitutionYieldPolicies?: import("./generated/api").FinancialInstitutionYieldPolicyReturn[];
 }

@@ -6,14 +6,18 @@ import { cachedTaxCatalog, fetchTaxCatalog } from "@/lib/tax-catalog";
 export function YieldTaxFields({
 	id,
 	taxIds,
+	taxMode,
 	taxRate,
 	onTaxIdsChange,
+	onTaxModeChange,
 	onTaxRateChange,
 }: {
 	id: string;
 	taxIds: string[];
+	taxMode: "DAILY" | "ON_REDEMPTION";
 	taxRate: string;
 	onTaxIdsChange: (ids: string[]) => void;
+	onTaxModeChange: (mode: "DAILY" | "ON_REDEMPTION") => void;
 	onTaxRateChange: (rate: string) => void;
 }) {
 	const catalog = useQuery({
@@ -34,7 +38,9 @@ export function YieldTaxFields({
 						setFixed(!fixed);
 						if (fixed) onTaxRateChange("");
 					} else
-						onTaxIdsChange(taxIds.includes(value) ? taxIds.filter(id => id !== value) : [...taxIds, value]);
+						onTaxIdsChange(
+							taxIds.includes(value) ? taxIds.filter(id => id !== value) : [...taxIds, value],
+						);
 				}}
 				options={[
 					{ label: "Fixa", special: true, value: "fixed" },
@@ -57,8 +63,24 @@ export function YieldTaxFields({
 					value={taxRate}
 				/>
 			)}
+			{(taxIds.length > 0 || fixed) && (
+				<CustomSelect
+					label="Aplicação do imposto"
+					onValueChange={value => onTaxModeChange(value as "DAILY" | "ON_REDEMPTION")}
+					options={[
+						{ label: "Diariamente (saldo líquido)", value: "DAILY" },
+						{ label: "Apenas no resgate (saldo bruto)", value: "ON_REDEMPTION" },
+					]}
+					placeholder="Selecione"
+					sortOptions={false}
+					value={taxMode}
+				/>
+			)}
 			<p className="text-muted-foreground text-xs">
-				Desconto diário sobre lucro de cada aporte. IOF antes do IR; alíquota fixa por último.
+				{taxMode === "ON_REDEMPTION"
+					? "O saldo é bruto e o imposto incide sobre o lucro de cada aporte apenas no resgate; o saldo líquido é exibido à parte."
+					: "Desconto diário sobre lucro de cada aporte."}{" "}
+				IOF antes do IR; alíquota fixa por último.
 			</p>
 			{definitions
 				.filter(tax => taxIds.includes(tax.id))
@@ -68,7 +90,9 @@ export function YieldTaxFields({
 						<div className="grid gap-1 pt-2">
 							{tax.versions.at(-1)?.brackets.map((bracket, index, brackets) => (
 								<p key={index}>
-									{index === 0 ? "Desde depósito" : `Após ${brackets[index - 1]?.upToDays} dias`}
+									{index === 0
+										? "Desde depósito"
+										: `Após ${brackets[index - 1]?.upToDays} dias`}
 									{bracket.upToDays === null ? "" : ` até ${bracket.upToDays} dias`}:{" "}
 									{bracket.rate.toLocaleString("pt-BR")}%
 								</p>

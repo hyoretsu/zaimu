@@ -233,6 +233,33 @@ describe("calculateFinancialAccountBalances", () => {
 		).toBeCloseTo(100 * (1 + dailyRate), 4);
 	});
 
+	test("on-redemption tax keeps the balance gross and exposes the net balance", () => {
+		const base = {
+			balance: 0,
+			createdAt: "2026-01-05T12:00:00",
+			id: "checking",
+			type: "CHECKING" as const,
+			yieldFixedRate: 10,
+			yieldPeriod: "MONTHLY" as const,
+			yieldTaxRate: 20,
+		};
+		const today = new Date("2026-01-06T12:00:00");
+		const transactions = [{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }];
+		const dailyRate = 1.1 ** (1 / 21) - 1;
+		const [daily] = calculateFinancialAccountBalances([base] as never, transactions, [], [], today);
+		const [deferred] = calculateFinancialAccountBalances(
+			[{ ...base, yieldTaxMode: "ON_REDEMPTION" }] as never,
+			transactions,
+			[],
+			[],
+			today,
+		);
+		const gross = 100 * (1 + dailyRate) ** 2;
+		expect(daily?.netBalance).toBeNull();
+		expect(deferred?.balance).toBeCloseTo(gross, 4);
+		expect(deferred?.netBalance).toBeCloseTo(gross - (gross - 100) * 0.2, 3);
+	});
+
 	test("reduces automatic yields by the configured tax rate", () => {
 		const account = {
 			balance: 0,
