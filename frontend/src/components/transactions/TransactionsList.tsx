@@ -2,8 +2,6 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { HiArrowsRightLeft } from "react-icons/hi2";
 import { LuLoaderCircle } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
-import { ActionGroup } from "@/components/ui/ActionGroup";
-import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -94,19 +92,18 @@ export function TransactionsList({
 }: TransactionsListProps) {
 	const [expandedTransactionGroups, setExpandedTransactionGroups] = useUrlViewSet(`${viewKey}.groups`);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
+	const canLoadMoreTransactions =
+		hasMoreTransactions && !isFetchingMoreTransactions && !!onLoadMoreTransactions;
+	const canLoadMoreYields = hasMoreYields && !isFetchingMoreYields && !!onLoadMoreYields;
+	const hasMore = hasMoreTransactions || hasMoreYields;
+	const isFetchingMore = isFetchingMoreTransactions || isFetchingMoreYields;
 	useEffect(() => {
-		if (
-			isPending ||
-			refreshError ||
-			!hasMoreTransactions ||
-			isFetchingMoreTransactions ||
-			!onLoadMoreTransactions
-		)
-			return;
+		if (isPending || refreshError || (!canLoadMoreTransactions && !canLoadMoreYields)) return;
 		const loadMoreWhenNearEnd = () => {
 			const element = loadMoreRef.current;
 			if (!element || element.getBoundingClientRect().top > window.innerHeight + 1200) return;
-			void onLoadMoreTransactions();
+			if (canLoadMoreTransactions) void onLoadMoreTransactions?.();
+			if (canLoadMoreYields) void onLoadMoreYields?.();
 		};
 		loadMoreWhenNearEnd();
 		window.addEventListener("resize", loadMoreWhenNearEnd);
@@ -115,7 +112,14 @@ export function TransactionsList({
 			window.removeEventListener("resize", loadMoreWhenNearEnd);
 			window.removeEventListener("scroll", loadMoreWhenNearEnd, true);
 		};
-	}, [isPending, refreshError, hasMoreTransactions, isFetchingMoreTransactions, onLoadMoreTransactions]);
+	}, [
+		isPending,
+		refreshError,
+		canLoadMoreTransactions,
+		canLoadMoreYields,
+		onLoadMoreTransactions,
+		onLoadMoreYields,
+	]);
 	const renderEntry = (entry: TransactionDisplayEntry) => {
 		if (entry.kind === "yield")
 			return (
@@ -319,27 +323,13 @@ export function TransactionsList({
 							</section>
 						);
 					})}
-					{hasMoreYields && (
-						<ActionGroup>
-							<Button
-								className="cursor-pointer"
-								disabled={isFetchingMoreYields}
-								onClick={() => void onLoadMoreYields?.()}
-								variant="outline"
-							>
-								{isFetchingMoreYields
-									? "Carregando rendimentos..."
-									: "Carregar mais rendimentos"}
-							</Button>
-						</ActionGroup>
-					)}
-					{hasMoreTransactions ? (
+					{hasMore ? (
 						<div
 							aria-live="polite"
 							className="flex h-14 items-center justify-center"
 							ref={loadMoreRef}
 						>
-							{isFetchingMoreTransactions ? (
+							{isFetchingMore ? (
 								<span className="text-muted-foreground flex items-center gap-2 text-sm">
 									<LuLoaderCircle aria-hidden className="animate-spin" />
 									Carregando transações anteriores...
