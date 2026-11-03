@@ -1,0 +1,101 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add column \"aliases\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD COLUMN \"aliases\" character varying(100)[] DEFAULT '{}' NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitution.aliases",
+		"label": "Add column \"aliases\" to \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"aliases\" exists",
+				"expectation": {
+					"expects": "present",
+					"object": "column \"aliases\" on \"FinancialInstitution\""
+				},
+				"params": ["public", "FinancialInstitution", "aliases"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			},
+			{
+				"description": "verify column \"aliases\" has type \"character varying(100)[]\"",
+				"params": ["public", "FinancialInstitution", "aliases", "character varying(100)[]"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\""
+			},
+			{
+				"description": "verify column \"aliases\" is NOT NULL",
+				"params": ["public", "FinancialInstitution", "aliases", "NO"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"aliases\" is missing",
+				"expectation": {
+					"expects": "absent",
+					"object": "column \"aliases\" on \"FinancialInstitution\""
+				},
+				"params": ["public", "FinancialInstitution", "aliases"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "aliases",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add check constraint \"FinancialInstitution_aliases_elem_not_null_3676266c\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ADD CONSTRAINT \"FinancialInstitution_aliases_elem_not_null_3676266c\" CHECK (array_position(\"aliases\", NULL) IS NULL)"
+			}
+		],
+		"id": "checkConstraint.FinancialInstitution.FinancialInstitution_aliases_elem_not_null_3676266c",
+		"label": "Add check constraint \"FinancialInstitution_aliases_elem_not_null_3676266c\" on \"FinancialInstitution\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify check constraint \"FinancialInstitution_aliases_elem_not_null_3676266c\" exists",
+				"params": [
+					"FinancialInstitution_aliases_elem_not_null_3676266c",
+					"public",
+					"\"public\".\"FinancialInstitution\"",
+					"c"
+				],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure constraint \"FinancialInstitution_aliases_elem_not_null_3676266c\" does not exist",
+				"expectation": {
+					"expects": "absent",
+					"object": "constraint \"FinancialInstitution_aliases_elem_not_null_3676266c\" on \"FinancialInstitution\""
+				},
+				"params": [
+					"FinancialInstitution_aliases_elem_not_null_3676266c",
+					"public",
+					"\"public\".\"FinancialInstitution\""
+				],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "FinancialInstitution_aliases_elem_not_null_3676266c",
+				"objectType": "checkConstraint",
+				"schema": "public",
+				"table": "FinancialInstitution"
+			},
+			"id": "postgres"
+		}
+	}
+]

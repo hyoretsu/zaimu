@@ -19,6 +19,7 @@ import type { CreditCard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCreditCardStatementPdfPasswordConfiguration } from "@/lib/credit-card-imports";
 import { dataService } from "@/lib/dataService";
+import { institutionOption } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { statementLabel } from "@/lib/statement-label";
 import { showToast } from "@/stores";
@@ -167,7 +168,7 @@ export function ImportCreditCardStatementDialog({
 							}}
 							options={(institutions.data ?? [])
 								.filter(institution => getCreditCardImportProvider(institution))
-								.map(institution => ({ label: institution.name, value: institution.id }))}
+								.map(institutionOption)}
 							placeholder="Selecione a instituição"
 							required
 							searchable

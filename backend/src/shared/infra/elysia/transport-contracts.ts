@@ -109,6 +109,7 @@ export type FinancialInstitutionYieldPolicyReturn = typeof FinancialInstitutionY
 
 export const FinancialInstitutionReturn = t.Object({
 	accountCurrenciesByCountry: t.Optional(t.Record(t.String(), t.Array(t.String()))),
+	aliases: t.Optional(t.Array(t.String())),
 	cardRulesProfiles: t.Optional(
 		t.Array(
 			t.Object({

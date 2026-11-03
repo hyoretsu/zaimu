@@ -18,6 +18,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { institutionOption } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { StatementFilePicker } from "./StatementFilePicker";
@@ -180,7 +181,7 @@ export function ImportTransactionsDialog({
 							}}
 							options={(institutions.data ?? [])
 								.filter(institution => getTransactionImportProvider(institution))
-								.map(institution => ({ label: institution.name, value: institution.id }))}
+								.map(institutionOption)}
 							placeholder="Selecione a instituição"
 							required
 							searchable

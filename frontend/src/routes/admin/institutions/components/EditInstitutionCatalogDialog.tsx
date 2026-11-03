@@ -29,6 +29,7 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 	const [pending, setPending] = useState(false);
 	const [name, setName] = useState(institution.name);
 	const [input, setInput] = useDebouncedInput(name, setName);
+	const [aliases, setAliases] = useState((institution.aliases ?? []).join(", "));
 	const [error, setError] = useState("");
 	const [closingInclusive, setClosingInclusive] = useState(false);
 	const [mapping, setMapping] = useState<Record<string, string[]>>({});
@@ -45,6 +46,10 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 		setPending(true);
 		try {
 			await patchFinancialInstitutionsReviewCatalogById(institution.id, {
+				aliases: aliases
+					.split(",")
+					.map(alias => alias.trim())
+					.filter(Boolean),
 				creditStatementClosingInclusive: closingInclusive,
 				name: trimmedName,
 				operatingCountryCodes: Object.keys(mapping),
@@ -124,6 +129,16 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 								required
 								type="text"
 								value={input}
+							/>
+							<FormField
+								disabled={pending}
+								id={`institution-aliases-${institution.id}`}
+								label="Outros nomes (separados por vírgula)"
+								name="institution-aliases"
+								onChange={event => setAliases(event.currentTarget.value)}
+								placeholder="Ex: AUVP"
+								type="text"
+								value={aliases}
 							/>
 							{error && (
 								<p className="text-destructive text-sm" role="alert">

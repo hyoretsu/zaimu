@@ -121,6 +121,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 				body.operatingCountryCodes,
 				body.creditStatementClosingInclusive,
 				body.name,
+				body.aliases,
 			);
 		},
 		{

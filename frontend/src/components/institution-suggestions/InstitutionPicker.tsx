@@ -1,6 +1,7 @@
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialInstitution } from "@/lib/api";
+import { institutionOption } from "@/lib/financial-institution";
 import { useSuggestionInstitutions } from "./useSuggestionInstitutions";
 
 export function InstitutionPicker({
@@ -22,7 +23,7 @@ export function InstitutionPicker({
 		<CustomSelect
 			label={label}
 			onValueChange={id => onChange(options.find(item => item.id === id))}
-			options={options.map(item => ({ label: item.name, value: item.id }))}
+			options={options.map(institutionOption)}
 			placeholder="Ex: Banco Inter"
 			required
 			searchable

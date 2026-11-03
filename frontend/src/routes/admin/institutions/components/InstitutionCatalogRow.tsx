@@ -33,6 +33,11 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 		<article className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border p-4">
 			<div className="min-w-0 flex-1 space-y-1">
 				<h3 className="font-semibold break-words">{institution.name}</h3>
+				{!!institution.aliases?.length && (
+					<p className="text-muted-foreground text-sm break-words">
+						Também conhecida como {institution.aliases.join(", ")}
+					</p>
+				)}
 				<p className="text-muted-foreground text-sm break-words">Versão {institution.version ?? 1}</p>
 				<p className="text-muted-foreground text-sm break-words">
 					{institution.operatingCountryCodes?.length

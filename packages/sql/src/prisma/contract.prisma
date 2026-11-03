@@ -431,6 +431,7 @@ namespace public {
     status VarChar(24) @default("LEGACY_PRIVATE")
     version Int @default(1)
     operatingCountryCodes VarChar(2)[] @default([])
+    aliases VarChar(100)[] @default([])
     accountCurrenciesByCountry Json @default(sql`'{}'::json`)
     creditStatementClosingInclusive Boolean @default(false)
     creditInstallmentRemainderOnFirst Boolean @default(false)

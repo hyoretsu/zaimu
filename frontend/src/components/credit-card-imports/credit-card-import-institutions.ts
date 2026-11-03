@@ -12,9 +12,9 @@ const providerNames = {
 
 export function getCreditCardImportProvider(institution?: FinancialInstitution | null) {
 	if (!institution) return undefined;
-	const name = normalizeInstitutionName(institution.name);
+	const names = [institution.name, ...(institution.aliases ?? [])].map(normalizeInstitutionName);
 	return (Object.keys(providerNames) as (keyof typeof providerNames)[]).find(provider =>
-		providerNames[provider].some(alias => normalizeInstitutionName(alias) === name),
+		providerNames[provider].some(alias => names.includes(normalizeInstitutionName(alias))),
 	);
 }
 
@@ -33,7 +33,8 @@ export function getSelectableImportCards<T extends Pick<CreditCard, "financialAc
 	return cards.filter(card => {
 		const institution = getCreditCardImportInstitution(card, accounts);
 		return (
-			!!getCreditCardImportProvider(institution) && (!institutionId || institution?.id === institutionId)
+			!!getCreditCardImportProvider(institution) &&
+			(!institutionId || institution?.id === institutionId)
 		);
 	});
 }

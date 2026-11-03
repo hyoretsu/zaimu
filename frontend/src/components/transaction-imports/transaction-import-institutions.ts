@@ -15,9 +15,9 @@ export type TransactionImportProvider = keyof typeof providerInstitutionNames;
 
 export function getTransactionImportProvider(institution?: FinancialInstitution | null) {
 	if (!institution) return undefined;
-	const name = normalizeInstitutionName(institution.name);
+	const names = [institution.name, ...(institution.aliases ?? [])].map(normalizeInstitutionName);
 	return (Object.keys(providerInstitutionNames) as TransactionImportProvider[]).find(provider =>
-		providerInstitutionNames[provider].some(alias => normalizeInstitutionName(alias) === name),
+		providerInstitutionNames[provider].some(alias => names.includes(normalizeInstitutionName(alias))),
 	);
 }
 

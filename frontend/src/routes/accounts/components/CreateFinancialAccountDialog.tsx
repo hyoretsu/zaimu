@@ -33,6 +33,7 @@ import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { runDialogSave } from "@/lib/dialog-save";
+import { institutionOption } from "@/lib/financial-institution";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { useCurrencyStore } from "@/stores/currency";
@@ -418,12 +419,7 @@ export function CreateFinancialAccountDialog({
 								setInstitutionId(value);
 								setCountry(undefined);
 							}}
-							options={[
-								...institutions.map(institution => ({
-									label: institution.name,
-									value: institution.id,
-								})),
-							]}
+							options={[...institutions.map(institutionOption)]}
 							placeholder="Selecione uma instituição"
 							required
 							searchable
