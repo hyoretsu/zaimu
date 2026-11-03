@@ -6,7 +6,8 @@ import type { DistributedCache } from "./DistributedCache";
 test("invalidates every user affected by a shared debt event", async () => {
 	const finishWrite = mock(async () => {});
 	const cache = { finishWrite } as unknown as DistributedCache;
-	await new CacheInvalidationConsumer(cache).handle(
+	const publish = mock(async () => {});
+	await new CacheInvalidationConsumer(cache, { publish }).handle(
 		createEventEnvelope({
 			aggregateId: "debt-event",
 			aggregateType: "debt",
@@ -33,4 +34,8 @@ test("invalidates every user affected by a shared debt event", async () => {
 		"transactions:list",
 		"transactions:detail",
 	]);
+	expect(publish).toHaveBeenCalledWith(["user-1", "user-2"], {
+		aggregateType: "debt",
+		eventType: "updated",
+	});
 });
