@@ -212,6 +212,21 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						).build(),
 					);
 			});
+			const changedCards = [
+				...new Set(
+					[left.paymentCreditCardId, right.paymentCreditCardId].filter((id): id is string =>
+						Boolean(id),
+					),
+				),
+			];
+			if (changedCards.length) await refreshCardPayments(changedCards);
+			const recalculationDate = left.date < right.date ? left.date : right.date;
+			for (const accountId of [outgoingAccountId, incomingAccountId])
+				await enqueueAccountYieldRecalculation(
+					accountId,
+					new Date(recalculationDate),
+					`transfer-suggestion:${retained.id}`,
+				);
 			return { success: true };
 		},
 		{
