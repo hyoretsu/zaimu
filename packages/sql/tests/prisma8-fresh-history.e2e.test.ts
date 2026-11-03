@@ -5,7 +5,7 @@ import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 
 const url = requireFixtureUrl("DATABASE_TEST_URL");
 
-test("empty database replays immutable history including all data invariants", async () => {
+test("empty database is built by the native baseline including all data invariants", async () => {
 	const client = new Client({ connectionString: url });
 	await client.connect();
 	try {

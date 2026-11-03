@@ -72,6 +72,8 @@ Never label form fields as "(opcional)", "(optional)", or add redundant optional
 
 ## Database migration references
 
+This section applies to the frozen historical graph only. The native graph (`packages/sql/migrations-native`) has no `refs/`: each `migration.json` records its `from`/`to` contract hashes and provided invariants, and `migrate` does not write references for it.
+
 `packages/sql/migrations/app/refs/db.json` is versioned migration state: it records the contract hash and data invariants at the end of the migration chain. A commit that adds or changes migrations or snapshots must also update this file, in the same commit, so it reflects that commit's work; its hash must point to a committed or staged snapshot. Confirm the value by applying the chain to a disposable test database (never a remote or shared one), as the SQL test runner does in a temporary copy (`packages/sql/tests/prepare-schema.ts`); `migrate --advance-ref db` writes the resulting reference. Do not advance it for work outside the commit (another task's uncommitted migrations or snapshots), and never commit the temporary `deploy-*.json` references that interrupted runs leave beside it. This rule does not authorize running migrations or other commands against remote/shared databases.
 
 ## Collapsible headers
@@ -129,6 +131,14 @@ after merging request options: an undefined timeout resets Ky to its 10-second
 default. Explicit per-request deadlines and cancellation remain supported. Never
 automatically retry mutations after transport failures: a missing response does
 not prove that the backend rolled back the operation.
+
+## Adding a migration
+
+A database created from nothing is built by one native baseline migration (`packages/sql/migrations-native/app/*_native_format_baseline`) with the latest toolchain; the historical toolchain is never installed or run for it.
+
+- New migrations are native successors only: `migration plan` from the baseline's `to` hash (`7c4f89de…`) or from the latest native successor, authored under `packages/sql/migrations-native`.
+- The baseline is hand-maintained source. Its schema operations came from the generated plan, and `custom-objects.ts` adds the functions, triggers, views, CHECK constraints, trigram indexes, extensions, seed rows and marker invariants that the historical graph produced. Never regenerate it with `migration plan`, never change its `to` hash, and never change its operations after a successor exists. `tests/baseline-equivalence.e2e.test.ts` proves it equivalent to a full historical replay.
+- `packages/sql/migrations/app` and `packages/sql/migrations/snapshots` are a frozen archive of 113 migrations. Do not add to, rename or edit them; `tests/historical-archive-frozen.test.ts` fails if their contents change. They are executed only for a database whose marker is still inside that graph (a lagging database), which `scripts/migrate.ts` repairs, replays to the historical head with the pinned `compatibility/early-rc` toolchain, verifies and signs once. A database with an unknown marker, or with tables but no marker, is refused before any mutation.
 
 ## Prisma 8 RC compatibility
 

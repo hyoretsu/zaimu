@@ -133,3 +133,7 @@ Still open, so this plan is not archived:
 - Financial semantic review of the unread parts of the converted queries.
 
 For the next merge of `main` into any long-lived branch, follow the checklist in the "merge with `main`" section above.
+
+## Follow-up
+
+Superseded in part by `plans/0040-squash-historical-migrations.md`: the executable 113-migration history is now a frozen archive used only for lagging databases, and empty databases are built by the extended native baseline.

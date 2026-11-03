@@ -221,6 +221,7 @@
 	],
 	"sql:unit": [
 		"packages/sql/src/query-metrics.test.ts",
+		"packages/sql/tests/historical-archive-frozen.test.ts",
 		"packages/sql/tests/international-money-precision.test.ts",
 		"packages/sql/tests/universal-institutions-migration.test.ts"
 	]
