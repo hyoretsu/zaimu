@@ -116,7 +116,7 @@ export function FinancialAccountStatementDialog({
 	const removeTransaction = (transaction: Transaction) => {
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["yield"] },
-			close: () => onOpenChange(false),
+			close: () => {}, // exclusão ocorre em segundo plano; o extrato permanece aberto
 			conflictKey: `transaction:${transaction.id}`,
 			failureMessage: "Não foi possível excluir transação.",
 			loadingMessage: "Excluindo transação...",
@@ -133,7 +133,7 @@ export function FinancialAccountStatementDialog({
 	const removeYield = (entry: FinancialAccountYieldEntry) => {
 		runBackgroundModalAction<unknown>({
 			cache: { client: queryClient, operations: ["yield"] },
-			close: () => onOpenChange(false),
+			close: () => {}, // exclusão ocorre em segundo plano; o extrato permanece aberto
 			conflictKey: `yield:${entry.id}`,
 			failureMessage: "Não foi possível excluir rendimento.",
 			loadingMessage: "Excluindo rendimento...",
