@@ -8,7 +8,6 @@ export * from "./EditFinancialAccountYieldDialog";
 export * from "./FinancialAccountCard";
 export * from "./FinancialInstitutionGroup";
 export { InstitutionActions } from "./InstitutionActions";
-export { InstitutionAssociationProfile } from "./InstitutionAssociationProfile";
 export { InstitutionMergeProposal } from "./InstitutionMergeProposal";
 export { InstitutionProfileDialog } from "./InstitutionProfileDialog";
 export { ProfileProposalForm } from "./ProfileProposalForm";
