@@ -1,4 +1,9 @@
 #!/usr/bin/env -S bun
+// HAND-MAINTAINED BASELINE. Do not regenerate with `migration plan`: this file extends the generated
+// schema operations with the custom objects and seed data that the squashed historical graph produced
+// (see custom-objects.ts). Equivalence with a full historical replay is enforced by
+// packages/sql/tests/baseline-equivalence.e2e.test.ts. Its `to` hash must never change; later contract
+// changes are native successors chained to it.
 import {
 	checkExpression,
 	col,
@@ -11,6 +16,7 @@ import {
 } from "@prisma/orm-postgres/migration";
 import type { Contract as End } from "../../snapshots/7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad/contract";
 import endContract from "../../snapshots/7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad/contract.json" with { type: "json" };
+import { customOperations, preludeOperations } from "./custom-objects";
 
 export default class M extends Migration<never, End> {
 	override readonly endContractJson = endContract;
@@ -18,6 +24,7 @@ export default class M extends Migration<never, End> {
 	override get operations() {
 		return [
 			this.createSchema({ schema: "public" }),
+			...preludeOperations,
 			this.createNativeEnumType({
 				members: ["FRONT", "BACK"],
 				schema: "public",
@@ -6616,6 +6623,7 @@ export default class M extends Migration<never, End> {
 				schema: "public",
 				table: "taxDefinitionVersion",
 			}),
+			...customOperations,
 		];
 	}
 }
