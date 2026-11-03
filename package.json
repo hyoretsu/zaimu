@@ -17,7 +17,6 @@
 		"dev:frontend": "bun -F frontend tauri dev",
 		"format": "bun fmt",
 		"prepare": "bun run ./prepare.ts || true",
-		"setup:historical-sql": "bun install --cwd packages/sql/compatibility/early-rc --frozen-lockfile",
 		"start": "turbo start",
 		"test": "bun run test:runner && bun run scripts/test-runner.ts backend all && bun run scripts/test-runner.ts sql all",
 		"test:unit": "bun run scripts/test-runner.ts backend unit && bun run scripts/test-runner.ts sql unit",

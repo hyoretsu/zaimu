@@ -199,7 +199,6 @@
 		"backend/src/modules/reference-rates/domain/yield-scheduler-clock.test.ts"
 	],
 	"sql:e2e": [
-		"packages/sql/tests/baseline-equivalence.e2e.test.ts",
 		"packages/sql/tests/migrate-transition.e2e.test.ts",
 		"packages/sql/tests/migrations.e2e.test.ts",
 		"packages/sql/tests/prisma8-fresh-history.e2e.test.ts",
@@ -211,12 +210,9 @@
 		"packages/sql/src/tests/query-metrics.test.ts",
 		"packages/sql/tests/application-upgrade-audit.test.ts",
 		"packages/sql/tests/card-payments-migration.test.ts",
-		"packages/sql/tests/credit-ledger-cutover.test.ts",
-		"packages/sql/tests/credit-purchases-backfill.test.ts",
 		"packages/sql/tests/remove-debt-legacy.test.ts",
 		"packages/sql/tests/remove-financial-legacy.test.ts",
 		"packages/sql/tests/remove-recurrence-legacy.test.ts",
-		"packages/sql/tests/repair-credit-recurrence-integrity.test.ts",
 		"packages/sql/tests/unified-recurrences.test.ts"
 	],
 	"sql:unit": [

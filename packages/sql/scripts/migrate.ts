@@ -2,12 +2,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { Client } from "pg";
-import {
-	isGraphAncestor,
-	isHistoricalAncestor,
-	repairStaleIntegrityFunction,
-	replayHistoricalGraph,
-} from "./historical-replay";
+import { isGraphAncestor, isHistoricalAncestor } from "./historical-replay";
 
 const root = resolve(import.meta.dir, "..");
 const require = createRequire(import.meta.url);
@@ -39,7 +34,6 @@ try {
 } finally {
 	await connection.end();
 }
-const baselineConfig = join(root, "compatibility/native-baseline/prisma.config.ts");
 const run = async (...args: string[]) => {
 	const child = Bun.spawn(["bun", cli, ...args, "--db", url], {
 		cwd: root,
@@ -52,15 +46,14 @@ const run = async (...args: string[]) => {
 const native =
 	current &&
 	(await isGraphAncestor(join(root, "migrations-native/app"), current, contract.storage.storageHash));
-// No marker: an empty database is built by the native baseline below, with no historical toolchain.
-// A marker inside the historical graph is a lagging database: it is brought to the native format once.
+// No marker: an empty database is built by the native baseline below.
+// A marker inside the retired historical graph can no longer be upgraded by this release.
 if (current && current !== contract.storage.storageHash && current !== formatBaseline && !native) {
-	if (!(await isHistoricalAncestor(root, current)))
-		throw new Error("Unknown database marker; historical replay and adoption refused before mutation");
-	await repairStaleIntegrityFunction(url);
-	await replayHistoricalGraph(root, url);
-	await run("db", "verify", "--schema-only", "--config", baselineConfig);
-	await run("db", "sign", "--no-advance-ref", "--config", baselineConfig);
+	if (await isHistoricalAncestor(root, current))
+		throw new Error(
+			`Database marker ${current} is inside the retired historical migration graph; deploy release ef44976b (git tag or commit) first to upgrade it, then deploy this one`,
+		);
+	throw new Error("Unknown database marker; migration refused before mutation");
 }
 if (!current || contract.storage.storageHash !== formatBaseline) await run("db", "migrate");
 await run("db", "verify");
