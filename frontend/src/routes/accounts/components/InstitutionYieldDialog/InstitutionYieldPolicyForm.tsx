@@ -32,6 +32,7 @@ export function InstitutionYieldPolicyForm({
 }) {
 	const [period, setPeriod] = useState<"MONTHLY" | "YEARLY">(policy?.yieldPeriod ?? "MONTHLY");
 	const [taxIds, setTaxIds] = useState<string[]>(policy?.yieldTaxIds ?? []);
+	const [taxMode, setTaxMode] = useState<"DAILY" | "ON_REDEMPTION">(policy?.yieldTaxMode ?? "DAILY");
 	const [taxRate, setTaxRate] = useState(String(policy?.yieldTaxRate ?? ""));
 	const [rules, setRules] = useState<EditableYieldRule[]>(() =>
 		policy?.rules.length
@@ -109,6 +110,7 @@ export function InstitutionYieldPolicyForm({
 						rules: submitted,
 						yieldPeriod: submitted.some(rule => rule.yieldFixedRate !== null) ? period : null,
 						yieldTaxIds: taxIds,
+						yieldTaxMode: taxMode,
 						yieldTaxRate: submittedTax ? Number(submittedTax) : null,
 					});
 				} catch (cause) {
@@ -143,8 +145,10 @@ export function InstitutionYieldPolicyForm({
 								<YieldTaxFields
 									id="institution-yield-tax"
 									onTaxIdsChange={setTaxIds}
+									onTaxModeChange={setTaxMode}
 									onTaxRateChange={setTaxRate}
 									taxIds={taxIds}
+									taxMode={taxMode}
 									taxRate={taxRate}
 								/>
 							</div>

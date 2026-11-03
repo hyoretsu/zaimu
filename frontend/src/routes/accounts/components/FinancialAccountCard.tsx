@@ -203,6 +203,16 @@ export function FinancialAccountCard({
 								/>
 							}
 						</p>
+						{account.netBalance != null && (
+							<p className="text-muted-foreground mt-1 text-sm">
+								Saldo líquido:{" "}
+								<PreferredMoneyAmount
+									values={[
+										{ amount: account.netBalance, currency: account.currency ?? "BRL" },
+									]}
+								/>
+							</p>
+						)}
 					</>
 				)}
 			</div>
