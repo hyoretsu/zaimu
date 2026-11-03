@@ -37,7 +37,7 @@ Branches that currently carry their own migration or contract changes, measured 
 ## Steps
 
 - [ ] 0. Freeze. Agree with everyone who can merge that no migration is merged to `packages/sql/migrations/app` until step 7 lands, and reject any such change in review. Optionally enforce it with the test from design point 5, added first.
-- [ ] 1. Inventory (read-only). Script that replays the historical graph on a disposable database and diffs it against the generated baseline: lists every function, view, trigger, extension and seeded row the baseline lacks, and reports whether the replayed `enforce_credit_purchase_integrity()` still mentions `"Subscription"`. Commit the script and its output summary in this plan.
+- [x] 1. Inventory (read-only). Script that replays the historical graph on a disposable database and diffs it against the generated baseline: lists every function, view, trigger, extension and seeded row the baseline lacks, and reports whether the replayed `enforce_credit_purchase_integrity()` still mentions `"Subscription"`. Commit the script and its output summary in this plan.
 - [ ] 2. Choose the mechanism per object (`rawSql`, `dataTransform`, `createExtension` or plain operations) and prove each with a disposable database; unsupported objects are recorded here with their reason.
 - [ ] 3. Write the extension of the baseline migration, with the corrected function body, and the header comment forbidding regeneration.
 - [ ] 4. Equivalence test (design point 3) in `packages/sql/tests`, registered in `scripts/testing/test-manifest.json`. It must fail when any single object is removed from the baseline (mutation check).
@@ -68,4 +68,15 @@ Branches that currently carry their own migration or contract changes, measured 
 
 ## Progress
 
-Not started. Plan written 2026-11-03 after reproducing and repairing the lagging-database failure on a local copy; no repository code has changed for the squash yet.
+Plan written 2026-11-03 after reproducing and repairing the lagging-database failure on a local copy.
+
+- Step 1 done (`packages/sql/scripts/inventory-baseline-gap.ts <replayedUrl> <baselineUrl>`). Result of a full replay of the 113 migrations (head `0da3dd5c…`, 14s) against an empty database, counting only user-defined objects:
+    - extensions the baseline lacks: `pgcrypto`, `pg_trgm`, `unaccent` (the extensions also add about 70 extension-owned functions, which come with `CREATE EXTENSION`);
+    - own functions: `cuid2`, `credit_cycle_date`, `enforce_credit_purchase_integrity`, `enforce_credit_refund_policy`, `markDeletedRecurrencePurchase`, `markDeletedRecurrenceTransaction`, `normalize_search`, `trackUpgradeRecurrence`, `zaimu_ownership_guard`, `zaimu_record_owner`;
+    - 51 triggers (46 `zaimu_ownership_guard`, 4 credit integrity, `FinancialInstitution_refund_policy`, 3 recurrence delete triggers);
+    - views `CreditConsumption`, `CreditEntry`, `CreditRefundEffect`;
+    - sequence `prisma_contract.ledger_id_seq`;
+    - seeded rows: `taxDefinition` 2, `taxDefinitionVersion` 2 (plus 2 `OutboxEvent` rows, to be checked in step 2 whether they are seed data or side effects).
+    - A freshly replayed database does **not** carry the broken `"Subscription"` reference in `enforce_credit_purchase_integrity()`. Only databases migrated to the middle of the history carry it.
+    - The generated baseline does not even run on an empty database: it fails with `function cuid2() does not exist`, so `cuid2` and `pgcrypto` must come first in the extended baseline.
+- Steps 2 to 9 not started.
