@@ -159,7 +159,7 @@ export function DebtsPage() {
 				<div className="border-primary-foreground/20 mt-6 grid grid-cols-2 gap-4 border-t pt-4">
 					<div>
 						<p className="text-primary-foreground/70 text-sm">A receber</p>
-						<strong className="text-emerald-700">
+						<strong className="text-emerald-900">
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
 									{
@@ -173,7 +173,7 @@ export function DebtsPage() {
 					</div>
 					<div className="text-right">
 						<p className="text-primary-foreground/70 text-sm">A pagar</p>
-						<strong className="text-rose-700">
+						<strong className="text-rose-900">
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
 									{

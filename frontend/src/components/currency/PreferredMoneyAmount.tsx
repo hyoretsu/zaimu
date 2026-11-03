@@ -48,7 +48,7 @@ export function PreferredMoneyAmount({
 	if (debt === "plural" && query.data !== 0) {
 		return (
 			<>
-				<span className={query.data > 0 ? "text-emerald-700" : "text-rose-700"}>
+				<span className={query.data > 0 ? "text-emerald-900" : "text-rose-900"}>
 					{formatter.format(Math.abs(query.data))}
 				</span>
 				<span className="block text-sm font-normal opacity-70">
