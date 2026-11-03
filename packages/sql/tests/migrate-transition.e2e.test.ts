@@ -8,7 +8,6 @@ const base = new URL(fixtureUrl).pathname.slice(1);
 const nativeHash = "7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad";
 const names = {
 	empty: `${base}_tr_empty`,
-	midpoint: `${base}_tr_mid`,
 	stray: `${base}_tr_stray`,
 	unknown: `${base}_tr_unknown`,
 };
@@ -75,24 +74,6 @@ test("an empty database is built by the native baseline and a rerun changes noth
 		{ core_hash: marker[0].core_hash },
 	]);
 }, 240000);
-
-test("a database inside the retired historical graph is refused before mutation", async () => {
-	const url = urlOf(names.midpoint);
-	await query(url, "CREATE SCHEMA prisma_contract");
-	await query(
-		url,
-		"CREATE TABLE prisma_contract.marker (space text PRIMARY KEY, core_hash text, invariants text[])",
-	);
-	await query(
-		url,
-		"INSERT INTO prisma_contract.marker VALUES ('app', '489fa825bbec65c03cbedcfb5f9392b3e81f364964be9deadd99a8e829aa13cf', '{}')",
-	);
-	const before = await query(url, "SELECT * FROM prisma_contract.marker");
-	const result = await migrate(url);
-	expect(result.code).not.toBe(0);
-	expect(result.output).toContain("retired historical migration graph");
-	expect(await query(url, "SELECT * FROM prisma_contract.marker")).toEqual(before);
-}, 120000);
 
 test("a database with tables but no marker is refused before mutation", async () => {
 	const url = urlOf(names.stray);

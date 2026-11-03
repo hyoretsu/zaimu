@@ -8,8 +8,7 @@ export default definePrismaConfig({
 		db: {
 			connection: process.env.DATABASE_URL!,
 		},
-		// Immutable early-RC history is replayed separately; new migrations use only native snapshots.
-		migrations: { dir: "./migrations-native" },
+		migrations: { dir: "./migrations" },
 		output: "./out/prisma",
 	}),
 });

@@ -3,14 +3,13 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-test("ignores deploy refs and source changes, restarts after stable migration changes", async () => {
+test("ignores source changes, restarts after stable migration changes", async () => {
 	const root = await mkdtemp(join(tmpdir(), "zaimu-migration-watch-"));
 	const target = Bun.spawn(["sleep", "30"]);
 	let watcher: ReturnType<typeof Bun.spawn> | undefined;
 	try {
-		await mkdir(join(root, "packages/sql/migrations/app/refs"), { recursive: true });
+		await mkdir(join(root, "packages/sql/migrations/app"), { recursive: true });
 		await mkdir(join(root, "packages/sql/src/prisma"), { recursive: true });
-		await mkdir(join(root, "packages/sql/migrations-native/app"), { recursive: true });
 		await mkdir(join(root, "packages/sql/compatibility/native-baseline"), { recursive: true });
 		await writeFile(join(root, "packages/sql/prisma.config.ts"), "initial");
 		watcher = Bun.spawn(["sh", new URL("./dev-migration-watch.sh", import.meta.url).pathname], {
@@ -24,15 +23,11 @@ test("ignores deploy refs and source changes, restarts after stable migration ch
 			stdout: "pipe",
 		});
 		await Bun.sleep(300);
-		await writeFile(join(root, "packages/sql/migrations/app/refs/db.json"), "deploy state");
 		await writeFile(join(root, "packages/sql/src/index.ts"), "source change");
 		await Bun.sleep(400);
 		expect(target.exitCode).toBeNull();
 		expect(watcher.exitCode).toBeNull();
-		await writeFile(
-			join(root, "packages/sql/migrations-native/app/migration.ts"),
-			"new native migration",
-		);
+		await writeFile(join(root, "packages/sql/migrations/app/migration.ts"), "new migration");
 		await Promise.race([
 			watcher.exited,
 			Bun.sleep(3000).then(() => {

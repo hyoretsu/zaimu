@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { Client } from "pg";
-import { isGraphAncestor, isHistoricalAncestor } from "./historical-replay";
+import { isGraphAncestor } from "./graph";
 
 const root = resolve(import.meta.dir, "..");
 const require = createRequire(import.meta.url);
@@ -44,18 +44,10 @@ const run = async (...args: string[]) => {
 	if (await child.exited) throw new Error(`Prisma ${args.join(" ")} failed`);
 };
 const native =
-	current &&
-	(await isGraphAncestor(join(root, "migrations-native/app"), current, contract.storage.storageHash));
+	current && (await isGraphAncestor(join(root, "migrations/app"), current, contract.storage.storageHash));
 // No marker: an empty database is built by the native baseline below.
-// A marker inside the retired historical graph can no longer be upgraded by this release.
 if (current && current !== contract.storage.storageHash && current !== formatBaseline && !native) {
-	if (await isHistoricalAncestor(root, current))
-		throw new Error(
-			`Database marker ${current} is inside the retired historical migration graph; deploy release ef44976b (git tag or commit) first to upgrade it, then deploy this one`,
-		);
 	throw new Error("Unknown database marker; migration refused before mutation");
 }
 if (!current || contract.storage.storageHash !== formatBaseline) await run("db", "migrate");
 await run("db", "verify");
-// Historical graph is deliberately immutable and is executed only by its pinned toolchain.
-// Native migrations live separately so latest tooling never parses historical snapshot formats.

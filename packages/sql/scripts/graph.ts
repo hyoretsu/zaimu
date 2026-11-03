@@ -1,12 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-export const historicalHead = "0da3dd5cbaeda84c9f4583c0f980da783941c366881c591f1d09fff6b5ac7988";
-
-export async function isHistoricalAncestor(root: string, hash: string) {
-	return isGraphAncestor(join(root, "migrations/app"), hash, historicalHead);
-}
-
 export async function isGraphAncestor(directory: string, hash: string, target: string) {
 	if (!/^[a-f0-9]{64}$/.test(hash)) return false;
 	const edges = new Map<string, string[]>();

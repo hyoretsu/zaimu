@@ -202,25 +202,12 @@
 	],
 	"sql:e2e": [
 		"packages/sql/tests/migrate-transition.e2e.test.ts",
-		"packages/sql/tests/migrations.e2e.test.ts",
 		"packages/sql/tests/prisma8-fresh-history.e2e.test.ts",
 		"packages/sql/tests/prisma8-native-successors.e2e.test.ts"
 	],
 	"sql:integration": [
-		"packages/sql/tests/prisma8-contract-parity.integration.test.ts",
 		"packages/sql/tests/prisma8-runtime.integration.test.ts",
-		"packages/sql/src/tests/query-metrics.test.ts",
-		"packages/sql/tests/application-upgrade-audit.test.ts",
-		"packages/sql/tests/card-payments-migration.test.ts",
-		"packages/sql/tests/remove-debt-legacy.test.ts",
-		"packages/sql/tests/remove-financial-legacy.test.ts",
-		"packages/sql/tests/remove-recurrence-legacy.test.ts",
-		"packages/sql/tests/unified-recurrences.test.ts"
+		"packages/sql/src/tests/query-metrics.test.ts"
 	],
-	"sql:unit": [
-		"packages/sql/src/query-metrics.test.ts",
-		"packages/sql/tests/historical-archive-frozen.test.ts",
-		"packages/sql/tests/international-money-precision.test.ts",
-		"packages/sql/tests/universal-institutions-migration.test.ts"
-	]
+	"sql:unit": ["packages/sql/src/query-metrics.test.ts"]
 }

@@ -70,12 +70,6 @@ All single-line form controls must share `inputControlClassName` from `frontend/
 
 Never label form fields as "(opcional)", "(optional)", or add redundant optional-field notices. Fields without a required marker are implicitly optional. Mark required fields with `RequiredMark` instead.
 
-## Database migration references
-
-This section applies to the frozen historical graph only. The native graph (`packages/sql/migrations-native`) has no `refs/`: each `migration.json` records its `from`/`to` contract hashes and provided invariants, and `migrate` does not write references for it.
-
-`packages/sql/migrations/app/refs/db.json` is versioned migration state: it records the contract hash and data invariants at the end of the migration chain. A commit that adds or changes migrations or snapshots must also update this file, in the same commit, so it reflects that commit's work; its hash must point to a committed or staged snapshot. Confirm the value by applying the chain to a disposable test database (never a remote or shared one), as the SQL test runner does in a temporary copy (`packages/sql/tests/prepare-schema.ts`); `migrate --advance-ref db` writes the resulting reference. Do not advance it for work outside the commit (another task's uncommitted migrations or snapshots), and never commit the temporary `deploy-*.json` references that interrupted runs leave beside it. This rule does not authorize running migrations or other commands against remote/shared databases.
-
 ## Collapsible headers
 
 Every collapsible header must toggle from its entire row, including title, summary, whitespace and surrounding header padding. Preserve keyboard activation and accessible expanded state; keep controls inside expanded content independent.
@@ -134,17 +128,17 @@ not prove that the backend rolled back the operation.
 
 ## Adding a migration
 
-A database created from nothing is built by one native baseline migration (`packages/sql/migrations-native/app/*_native_format_baseline`) with the latest toolchain; the historical toolchain is never installed or run for it.
+A database created from nothing is built by one baseline migration (`packages/sql/migrations/app/*_native_format_baseline`) followed by its successors. `packages/sql/migrations` is the only migration graph; each `migration.json` records its `from`/`to` contract hashes and provided invariants, and `migrate` writes no references.
 
-- New migrations are native successors only: `migration plan` from the baseline's `to` hash (`7c4f89de…`) or from the latest native successor, authored under `packages/sql/migrations-native`.
-- The baseline is hand-maintained source. Its schema operations came from the generated plan, and `custom-objects.ts` adds the functions, triggers, views, CHECK constraints, trigram indexes, extensions, seed rows and marker invariants that the historical graph produced. Never regenerate it with `migration plan`, never change its `to` hash, and never change its operations after a successor exists. `tests/baseline-equivalence.e2e.test.ts` proves it equivalent to a full historical replay.
-- `packages/sql/migrations/app` and `packages/sql/migrations/snapshots` are a frozen archive of 113 migrations that is no longer executed. Do not add to, rename or edit them; `tests/historical-archive-frozen.test.ts` fails if their contents change. A database with a marker inside that graph, an unknown marker, or tables but no marker is refused by `scripts/migrate.ts` before any mutation.
+- New migrations: `migration plan` from the latest migration's `to` hash, authored under `packages/sql/migrations`.
+- The baseline is hand-maintained source (`custom-objects.ts` adds the functions, triggers, views, CHECK constraints, trigram indexes, extensions, seed rows and marker invariants). Never regenerate it with `migration plan`, never change its `to` hash, and never change its operations after a successor exists.
+- A database with an unknown marker, or tables but no marker, is refused by `scripts/migrate.ts` before any mutation.
 
 ## Prisma 8 RC compatibility
 
 Application tooling pins `prisma` rc29 and `@prisma/orm-postgres` rc22 independently. Root overrides align the CLI's older transitive toolchain/framework with rc22: rc21 does not understand rc22 authoring type-choice descriptors. Contract generation uses the standard CLI without package source patches.
 
-The early-RC migration manifests, scripts, snapshots and refs are an immutable archive. Their pinned replay toolchain (`packages/sql/compatibility/early-rc`, `setup:historical-sql`) was removed once every database was past the historical head; `scripts/migrate.ts` refuses a database whose marker is still inside that graph and names the release (`ef44976b`) that can upgrade it. Empty databases are built by the extended native baseline, and the explicit migration wrapper applies native successors. New migrations are authored with the standard CLI under `packages/sql/migrations-native`. `packages/sql/compatibility/native-baseline` keeps the baseline authoring source and emitted artifacts. Docker includes both graphs. Disposable E2E covers empty-database build, repeat deployment, unknown-marker, historical-marker and marker-less refusal, and native successors. Full application query adoption remains in progress under plan 0039.
+The early-RC migration history was squashed into the native baseline and its replay toolchain was removed after every database passed the historical head. Empty databases are built by the extended baseline, and the explicit migration wrapper applies later migrations from `packages/sql/migrations`. `packages/sql/compatibility/native-baseline` keeps the baseline authoring source and emitted artifacts. Disposable E2E covers empty-database build, repeat deployment, and unknown-marker and marker-less refusal. Full application query adoption remains in progress under plan 0039.
 
 The native contract explicitly preserves JavaScript `Date` timestamp codecs, lowercase physical tax-table mappings and existing scalar JSON-string defaults. Do not silently turn JSON strings containing `[]` or `{}` into arrays or objects during emission upgrades.
 

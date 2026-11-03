@@ -13,15 +13,7 @@ test("production wrapper continues through two officially planned native success
 	const client = new Client({ connectionString: url });
 	await client.connect();
 	try {
-		for (const name of [
-			"scripts",
-			"src",
-			"out",
-			"compatibility",
-			"migrations",
-			"migrations-native",
-			"prisma.config.ts",
-		])
+		for (const name of ["scripts", "src", "out", "compatibility", "migrations", "prisma.config.ts"])
 			await cp(join(root, name), join(copy, name), {
 				filter: source => !source.includes("node_modules"),
 				recursive: true,
