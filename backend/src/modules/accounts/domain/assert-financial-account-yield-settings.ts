@@ -9,6 +9,7 @@ export function assertFinancialAccountYieldSettings(settings: {
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }) {
 	const hasFixedRate = settings.yieldFixedRate !== undefined && settings.yieldFixedRate !== null;
 	const hasPeriod = settings.yieldPeriod !== undefined && settings.yieldPeriod !== null;

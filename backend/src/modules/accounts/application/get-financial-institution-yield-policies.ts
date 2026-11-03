@@ -23,6 +23,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			"yieldTaxIds",
 			"yieldTaxRate",
 			"yieldTaxMode",
+			"yieldTaxModes",
 		)
 			.where((fields, functions) => functions.in(fields.financialInstitutionId, institutionIds))
 			.orderBy("effectiveDate", { direction: "asc" })
@@ -74,6 +75,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			yieldPeriod: policy.yieldPeriod as null | YieldPeriod,
 			yieldTaxIds: policy.yieldTaxIds as string[] | null,
 			yieldTaxMode: policy.yieldTaxMode as "DAILY" | "ON_REDEMPTION",
+			yieldTaxModes: policy.yieldTaxModes as null | Record<string, "DAILY" | "ON_REDEMPTION">,
 			yieldTaxRate: policy.yieldTaxRate === null ? null : Number(policy.yieldTaxRate),
 		});
 		policiesByInstitutionId.set(policy.financialInstitutionId, institutionPolicies);

@@ -295,7 +295,7 @@ export async function reviewInstitutionProposal(
 						[policyId],
 					);
 					await query(
-						`UPDATE "FinancialInstitutionYieldPolicy" SET "yieldPeriod"=$2,"yieldTaxIds"=$3,"yieldTaxRate"=$4,"effectiveUntil"=$5,"yieldTaxMode"=$6,"updatedAt"=NOW() WHERE "id"=$1`,
+						`UPDATE "FinancialInstitutionYieldPolicy" SET "yieldPeriod"=$2,"yieldTaxIds"=$3,"yieldTaxRate"=$4,"effectiveUntil"=$5,"yieldTaxMode"=$6,"yieldTaxModes"=$7,"updatedAt"=NOW() WHERE "id"=$1`,
 						[
 							policyId,
 							policy.yieldPeriod ?? null,
@@ -303,11 +303,12 @@ export async function reviewInstitutionProposal(
 							policy.yieldTaxRate ?? null,
 							policy.effectiveUntil ?? null,
 							policy.yieldTaxMode ?? "DAILY",
+							policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
 						],
 					);
 				} else
 					await query(
-						`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","yieldTaxMode","updatedAt") VALUES ($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,$12,NOW())`,
+						`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","yieldTaxMode","yieldTaxModes","updatedAt") VALUES ($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,$12,$13,NOW())`,
 						[
 							policyId,
 							institution.id,
@@ -321,6 +322,7 @@ export async function reviewInstitutionProposal(
 							policy.yieldTaxRate ?? null,
 							policy.accountType ?? null,
 							policy.yieldTaxMode ?? "DAILY",
+							policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
 						],
 					);
 				for (const [position, rule] of policy.rules.entries())

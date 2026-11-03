@@ -21,6 +21,7 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldReferenceType,
 	yieldTaxIds,
 	yieldTaxMode,
+	yieldTaxModes,
 	yieldTaxRate,
 }: {
 	effectiveDate: Date;
@@ -32,6 +33,7 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }) {
 	const current = await queryRows(
 		db.sql.public.FinancialAccount.select("yieldTaxIds")
@@ -80,6 +82,7 @@ export async function scheduleFinancialAccountYieldRate({
 		yieldReferenceType: yieldReferenceType ?? null,
 		yieldTaxIds: yieldTaxIds ?? [],
 		yieldTaxMode: (yieldTaxMode ?? "DAILY") as "DAILY" | "ON_REDEMPTION",
+		yieldTaxModes: (yieldTaxModes ?? null) as never,
 		yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
 	};
 	if (existing) {

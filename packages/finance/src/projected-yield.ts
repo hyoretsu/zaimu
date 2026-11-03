@@ -35,6 +35,7 @@ export interface YieldAccount {
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldRateHistories?: YieldRateHistory[];
 }
 
@@ -56,6 +57,7 @@ export interface InstitutionYieldPolicy {
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }
 
 export interface InstitutionYieldRule {
@@ -74,6 +76,7 @@ export interface YieldRateHistory {
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }
 
 export interface HistoricalYieldSettings {
@@ -171,6 +174,7 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		yieldReferenceType: account.yieldReferenceType,
 		yieldTaxIds: account.yieldTaxIds,
 		yieldTaxMode: account.yieldTaxMode,
+		yieldTaxModes: account.yieldTaxModes,
 		yieldTaxRate: account.yieldTaxRate,
 	};
 	if (

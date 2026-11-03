@@ -30,6 +30,7 @@ export interface YieldAccount {
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldTaxIds?: string[] | null;
 	yieldRateHistories?: YieldRateHistory[];
 }
@@ -49,6 +50,7 @@ export interface InstitutionYieldPolicy {
 
 	yieldTaxRate?: null | number;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldTaxIds?: string[] | null;
 }
 
@@ -67,6 +69,7 @@ export interface YieldRateHistory {
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldTaxIds?: string[] | null;
 }
 

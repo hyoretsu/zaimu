@@ -100,6 +100,9 @@ export const FinancialInstitutionYieldPolicyReturn = t.Object({
 	yieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
 	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+	yieldTaxModes: t.Optional(
+		t.Union([t.Null(), t.Record(t.String(), t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))]),
+	),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialInstitutionYieldPolicyReturn = typeof FinancialInstitutionYieldPolicyReturn.static;
@@ -188,6 +191,9 @@ export const FinancialAccountYieldRateHistoryReturn = t.Object({
 	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
 	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+	yieldTaxModes: t.Optional(
+		t.Union([t.Null(), t.Record(t.String(), t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))]),
+	),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialAccountYieldRateHistoryReturn = typeof FinancialAccountYieldRateHistoryReturn.static;
@@ -349,6 +355,9 @@ export const FinancialAccountReturn = t.Object({
 	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
 	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+	yieldTaxModes: t.Optional(
+		t.Union([t.Null(), t.Record(t.String(), t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))]),
+	),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialAccountReturn = typeof FinancialAccountReturn.static;

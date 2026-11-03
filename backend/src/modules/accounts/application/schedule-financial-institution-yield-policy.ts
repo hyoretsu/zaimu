@@ -18,6 +18,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	yieldPeriod,
 	yieldTaxIds,
 	yieldTaxMode,
+	yieldTaxModes,
 	yieldTaxRate,
 }: {
 	currency: string;
@@ -31,6 +32,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
 	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }) {
 	const current = await queryRows(
 		db.sql.public.FinancialInstitutionYieldPolicy.select("yieldTaxIds")
@@ -77,6 +79,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 				yieldPeriod: yieldPeriod ?? null,
 				yieldTaxIds: yieldTaxIds ?? [],
 				yieldTaxMode: (yieldTaxMode ?? "DAILY") as "DAILY" | "ON_REDEMPTION",
+				yieldTaxModes: (yieldTaxModes ?? null) as never,
 				yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
 			})
 				.where((fields, functions) => functions.eq(fields.id, policyId!))
@@ -95,6 +98,7 @@ export async function scheduleFinancialInstitutionYieldPolicy({
 					yieldPeriod: yieldPeriod ?? undefined,
 					yieldTaxIds: yieldTaxIds ?? [],
 					yieldTaxMode: (yieldTaxMode ?? "DAILY") as "DAILY" | "ON_REDEMPTION",
+					yieldTaxModes: (yieldTaxModes ?? null) as never,
 					yieldTaxRate:
 						yieldTaxRate === null || yieldTaxRate === undefined
 							? undefined

@@ -467,6 +467,7 @@ namespace public {
     yieldPeriod            pg.enum(FinancialAccountYieldPeriod)?
     yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxMode           pg.enum(FinancialAccountYieldTaxMode) @default("DAILY")
+    yieldTaxModes Json?
     yieldTaxRate           Numeric(5, 2)?
     createdAt              TimestampJsDate(3)                             @default(now())
     updatedAt              TimestampJsDate(3)                             @default(now())
@@ -610,6 +611,7 @@ namespace public {
     yieldFixedRate           Numeric(7, 4)?
     yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxMode           pg.enum(FinancialAccountYieldTaxMode) @default("DAILY")
+    yieldTaxModes Json?
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
     createdAt               TimestampJsDate(3)                  @default(now())
@@ -711,6 +713,7 @@ namespace public {
     yieldFixedRate           Numeric(7, 4)?
     yieldTaxIds            VarChar(36)[] @default([])
     yieldTaxMode           pg.enum(FinancialAccountYieldTaxMode) @default("DAILY")
+    yieldTaxModes Json?
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
     createdAt          TimestampJsDate(3)                        @default(now())
