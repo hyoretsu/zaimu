@@ -18,7 +18,7 @@ export function PreferredMoneyAmount({
 	pending?: boolean;
 	error?: boolean;
 	/**
-	 * "plural" renders the sign as "Te devem" (positive) / "Você deve" (negative);
+	 * "plural" renders the magnitude with a small "Te devem" (positive) / "Você deve" (negative) below;
 	 * "absolute" renders the magnitude only, for callers that label the direction themselves.
 	 */
 	debt?: "absolute" | "plural";
@@ -45,11 +45,14 @@ export function PreferredMoneyAmount({
 	if (query.isError) return <span>Conversão indisponível</span>;
 	const formatter = createCurrencyFormatter(currency, navigator.languages);
 	if (debt === "absolute") return <span>{formatter.format(Math.abs(query.data))}</span>;
-	if (debt && query.data !== 0) {
+	if (debt === "plural" && query.data !== 0) {
 		return (
-			<span>
-				{query.data > 0 ? "Te devem" : "Você deve"} {formatter.format(Math.abs(query.data))}
-			</span>
+			<>
+				<span>{formatter.format(Math.abs(query.data))}</span>
+				<span className="block text-sm font-normal opacity-70">
+					{query.data > 0 ? "Te devem" : "Você deve"}
+				</span>
+			</>
 		);
 	}
 	return <span>{formatter.format(query.data)}</span>;
