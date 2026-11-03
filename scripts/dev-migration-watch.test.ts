@@ -10,7 +10,6 @@ test("ignores source changes, restarts after stable migration changes", async ()
 	try {
 		await mkdir(join(root, "packages/sql/migrations/app"), { recursive: true });
 		await mkdir(join(root, "packages/sql/src/prisma"), { recursive: true });
-		await mkdir(join(root, "packages/sql/compatibility/native-baseline"), { recursive: true });
 		await writeFile(join(root, "packages/sql/prisma.config.ts"), "initial");
 		watcher = Bun.spawn(["sh", new URL("./dev-migration-watch.sh", import.meta.url).pathname], {
 			env: {

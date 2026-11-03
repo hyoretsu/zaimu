@@ -138,7 +138,7 @@ A database created from nothing is built by one baseline migration (`packages/sq
 
 Application tooling pins `prisma` rc29 and `@prisma/orm-postgres` rc22 independently. Root overrides align the CLI's older transitive toolchain/framework with rc22: rc21 does not understand rc22 authoring type-choice descriptors. Contract generation uses the standard CLI without package source patches.
 
-The early-RC migration history was squashed into the native baseline and its replay toolchain was removed after every database passed the historical head. Empty databases are built by the extended baseline, and the explicit migration wrapper applies later migrations from `packages/sql/migrations`. `packages/sql/compatibility/native-baseline` keeps the baseline authoring source and emitted artifacts. Disposable E2E covers empty-database build, repeat deployment, and unknown-marker and marker-less refusal. Full application query adoption remains in progress under plan 0039.
+The early-RC migration history was squashed into the native baseline and its replay toolchain was removed after every database passed the historical head. Empty databases are built by the extended baseline, and the explicit migration wrapper applies later migrations from `packages/sql/migrations`. Disposable E2E covers empty-database build, repeat deployment, and unknown-marker and marker-less refusal. Full application query adoption remains in progress under plan 0039.
 
 The native contract explicitly preserves JavaScript `Date` timestamp codecs, lowercase physical tax-table mappings and existing scalar JSON-string defaults. Do not silently turn JSON strings containing `[]` or `{}` into arrays or objects during emission upgrades.
 

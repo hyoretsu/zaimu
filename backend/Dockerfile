@@ -47,7 +47,6 @@ COPY --from=build /app/packages/sql/prisma.config.ts ./packages/sql/prisma.confi
 COPY --from=build /app/packages/sql/scripts ./packages/sql/scripts
 COPY --from=build /app/packages/sql/src/prisma ./packages/sql/src/prisma
 COPY --from=build /app/packages/sql/migrations ./packages/sql/migrations
-COPY --from=build /app/packages/sql/compatibility/native-baseline ./packages/sql/compatibility/native-baseline
 
 WORKDIR /app/backend
 
