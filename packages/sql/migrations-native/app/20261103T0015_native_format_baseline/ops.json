@@ -20503,6 +20503,7 @@
 			}
 		],
 		"id": "seed.taxDefinitions",
+		"invariantId": "taxDefinitions.initialCatalog.v1",
 		"label": "Seed initial tax catalog",
 		"operationClass": "data",
 		"postcheck": [
@@ -20530,6 +20531,138 @@
 			{
 				"description": "Queue reference-rate backfill is present",
 				"sql": "SELECT count(*) = 2 AS ok FROM \"OutboxEvent\" WHERE \"eventType\" = 'command.reference-rate-fetch'"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Provide invariant creditCard.nubankCycleDefaults.v1",
+				"sql": "SELECT 1"
+			}
+		],
+		"id": "invariant.creditCard.nubankCycleDefaults.v1",
+		"invariantId": "creditCard.nubankCycleDefaults.v1",
+		"label": "Provide invariant creditCard.nubankCycleDefaults.v1",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Provide invariant creditCard.nubankCycleDefaults.v1 is present",
+				"sql": "SELECT true AS ok"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Provide invariant creditPurchases.allowExcessRefunds.v1",
+				"sql": "SELECT 1"
+			}
+		],
+		"id": "invariant.creditPurchases.allowExcessRefunds.v1",
+		"invariantId": "creditPurchases.allowExcessRefunds.v1",
+		"label": "Provide invariant creditPurchases.allowExcessRefunds.v1",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Provide invariant creditPurchases.allowExcessRefunds.v1 is present",
+				"sql": "SELECT position('Refunds exceed purchase total' in pg_get_functiondef('public.enforce_credit_purchase_integrity()'::regprocedure)) = 0 AS ok"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Provide invariant legacyYieldCalendar.frozen.v1",
+				"sql": "SELECT 1"
+			}
+		],
+		"id": "invariant.legacyYieldCalendar.frozen.v1",
+		"invariantId": "legacyYieldCalendar.frozen.v1",
+		"label": "Provide invariant legacyYieldCalendar.frozen.v1",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Provide invariant legacyYieldCalendar.frozen.v1 is present",
+				"sql": "SELECT true AS ok"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Provide invariant monthlyBudget.uncategorizedValues.v1",
+				"sql": "SELECT 1"
+			}
+		],
+		"id": "invariant.monthlyBudget.uncategorizedValues.v1",
+		"invariantId": "monthlyBudget.uncategorizedValues.v1",
+		"label": "Provide invariant monthlyBudget.uncategorizedValues.v1",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Provide invariant monthlyBudget.uncategorizedValues.v1 is present",
+				"sql": "SELECT true AS ok"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Provide invariant monthlyBudget.values.v1",
+				"sql": "SELECT 1"
+			}
+		],
+		"id": "invariant.monthlyBudget.values.v1",
+		"invariantId": "monthlyBudget.values.v1",
+		"label": "Provide invariant monthlyBudget.values.v1",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Provide invariant monthlyBudget.values.v1 is present",
+				"sql": "SELECT true AS ok"
+			}
+		],
+		"precheck": [],
+		"target": {
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "Provide invariant universalInstitutions.legacyPreserved.v1",
+				"sql": "SELECT 1"
+			}
+		],
+		"id": "invariant.universalInstitutions.legacyPreserved.v1",
+		"invariantId": "universalInstitutions.legacyPreserved.v1",
+		"label": "Provide invariant universalInstitutions.legacyPreserved.v1",
+		"operationClass": "data",
+		"postcheck": [
+			{
+				"description": "Provide invariant universalInstitutions.legacyPreserved.v1 is present",
+				"sql": "SELECT true AS ok"
 			}
 		],
 		"precheck": [],

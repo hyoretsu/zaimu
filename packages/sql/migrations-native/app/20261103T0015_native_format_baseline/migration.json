@@ -1,7 +1,15 @@
 {
 	"createdAt": "2026-11-03T00:15:28.894Z",
 	"from": null,
-	"migrationHash": "a2a33091cca94ede57b10613a61633d11fbb21756c7bf483a02249a4a94829eb",
-	"providedInvariants": [],
+	"migrationHash": "b6555ad2d309bf9ce79a90b6058e263f0b05ae4d097e52f9eb8915207f840e67",
+	"providedInvariants": [
+		"creditCard.nubankCycleDefaults.v1",
+		"creditPurchases.allowExcessRefunds.v1",
+		"legacyYieldCalendar.frozen.v1",
+		"monthlyBudget.uncategorizedValues.v1",
+		"monthlyBudget.values.v1",
+		"taxDefinitions.initialCatalog.v1",
+		"universalInstitutions.legacyPreserved.v1"
+	],
 	"to": "7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad"
 }
