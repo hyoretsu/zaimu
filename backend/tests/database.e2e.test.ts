@@ -695,7 +695,10 @@ suite("Prisma 8 SQL query builder", () => {
 					.build(),
 			),
 		).toHaveLength(1);
-		const today = new Date().toISOString().slice(0, 10);
+		// The app resolves "today" in the user's financial time zone (Brazil here), which differs from the UTC date
+		// for three hours every evening; deriving it the same way keeps this scenario independent of the clock.
+		const { financialDate } = await import("../src/shared/application/financial-date");
+		const today = financialDate(new Date(), "BR", null);
 		const dueTodaySubscriptionResponse = await jsonRequest(
 			"/recurring/",
 			"POST",
