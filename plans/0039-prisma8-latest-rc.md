@@ -105,22 +105,28 @@ Hazards found:
 
 Final verification of the merge state at `a9269a88`: SQL integration and SQL E2E were rerun after the historical snapshot was restored to `main`'s exact content (both exit 0; the native-successor scenario took 551 seconds at a load average of 38, which exceeds the former 300 second limit). Backend integration, backend E2E, `check-types` and `build` were verified at `f67b3095`; the later commit changes only hook configuration, a restored type-declaration snapshot and formatting of three files.
 
-## 2026-11-02 integration into `main`
+## 2026-11-02 status: verified, NOT yet integrated into `main`
 
-The branch was merged with `main` a second time (`56e13939`, which added the 112th historical migration `20261102T2033_yield_policy_account_type`, head `ec3991a8…`, baseline `e15dbe7f…`) and then fast-forwarded into the local `main`. Nothing was pushed.
+The branch contains `main` up to `a52d5ee5` (merged four times; each time `main` had added historical migrations or contract changes, so the pinned hashes and the native baseline were regenerated per the checklist above). Current heads: historical `0da3dd5c…` (113 migrations), native baseline `7c4f89de…` (409 operations). It is a pure fast-forward of `main` (`main` has no commit the branch lacks) unless `main` moved again. Nothing was pushed.
 
-Defects that exist on `main` itself, found because the merged runner reached suites that were otherwise hidden behind the first failure. Each is its own commit on this branch so it can be dropped if `main` already fixed it:
+Integration into the original checkout was NOT done. The development container `zaimu-dev-1` bind-mounts that checkout at `/app`; its watcher (`scripts/dev-migration-watch.sh`) restarts the container when anything under `packages/sql/migrations`, `packages/sql/src/prisma` or `packages/sql/prisma.config.ts` changes, and the restart runs `bun -F sql migrate:deploy` against the database configured in `packages/sql/.env` and `backend/.env` (`zaimu_dev` on a remote host). The fast-forward changes those paths, so it would migrate that database with the new handoff for the first time. Stopping the container was denied in the session that prepared this, so the owner must decide: either stop the container first (`docker compose stop dev`, or `docker stop zaimu-dev-1`) or accept the restart and migration.
 
-- `universal-institutions.ts`: `INSERT INTO "FinancialInstitutionYieldPolicy"` lists `accountType` as `$11` but supplied ten values (bind error 08P01 when publishing any new policy). Fixed by appending `policy.accountType ?? null`.
-- `open-finance/application/process-record.ts`: `new Date(\`${input.date}T00:00:00\`)`interpolates a`Date`object, producing an invalid date, so the new yield-recalculation enqueue threw`RangeError`and every non-yield record became a pending review. Fixed by using the original`remote.date` string.
-- `universal-institutions.integration.test.ts`: re-approved administrator-authored proposals (409). Two redundant lines removed.
+To integrate once decided:
 
-Verified at the integration commit (runner exit codes read from the runner itself): SQL integration, SQL E2E (112-migration replay, adoption, two native successors, fresh history), backend integration (30 of 30 files), workspace `check-types` and `build`. Backend E2E: 3 of 4, the failing assertion being the pre-existing refund `DebtPurchaseLink` one that also fails on the pre-migration commit and on `main`.
+1. Stop the dev container (see above).
+2. In the original checkout on `main`: `git merge --ff-only feat/prisma8-latest-rc`. If `main` moved, merge `main` into the branch first (checklist above) and rerun the gate.
+3. Two uncommitted files block the fast-forward: `frontend/src/lib/debt-split.ts` and `debt-split.test.ts`. The branch holds them in the formatter's canonical form, while `main` committed them unformatted, so the owner's edits and the formatting change touch overlapping lines (a three-way merge conflicts). The formatter is `bun fmt` with the root `bunfig.toml` and `.editorconfig`; run on `main`'s committed blobs in a scratch directory it reproduces the branch's blobs byte for byte. So: save the two files, `git checkout -- ` them, fast-forward, then put back `bun fmt` of the saved files (that is exactly what a commit hook would produce from them).
+4. Verify `git status` lists the same 24 uncommitted paths as before, and that no other uncommitted file changed (none of the other 22 is touched by the fast-forward).
+5. Clean up per `.agents/skills/task-worktree/SKILL.md`: remove the worktree, then `git branch -d feat/prisma8-latest-rc` (it succeeds only because the branch is fully contained in `main`).
+6. Do not restart the dev container until the database it targets has been checked. The checkout's `node_modules` and `packages/sql/out/` predate this change; `bun install` and `bun -F sql contract:emit` come first.
 
-Known inherited issues not fixed: the refund `DebtPurchaseLink` assertion above; about 250 plain raw SQL statements still unconverted (`bun scripts/raw-sql-inventory.ts`).
+Defects that exist on `main` itself, found because the merged runner reached suites that were otherwise hidden behind the first failure. Each is its own commit on this branch so it can be dropped if `main` already fixed it (`main` has since fixed the first one itself, identically):
 
-Integration notes for the next person:
+- `universal-institutions.ts`: the yield policy `INSERT` listed `accountType` as `$11` but supplied ten values (bind error 08P01). Fixed on `main` in 56e13939.
+- `open-finance/application/process-record.ts`: `new Date(\`${input.date}T00:00:00\`)`interpolates a`Date`object into a string, producing an invalid date, so the new yield-recalculation enqueue threw`RangeError`and every non-yield record became a pending review. Fixed here using the original`remote.date`.
+- `universal-institutions.integration.test.ts` re-approved administrator-authored proposals (409); two redundant lines removed.
+- `database.e2e.test.ts` computed "today" as the UTC date, while the application uses the user's financial time zone, so the recurring-purchase scenario failed every evening between 21:00 and midnight in Brazil. Fixed by deriving it through `financialDate`; verified inside the failing window.
 
-- The development container `zaimu-dev-1` bind-mounts the checkout and its watcher restarts it on any change under `packages/sql/migrations`, `src/prisma` or `prisma.config.ts`; the restart then runs `bun -F sql migrate:deploy` against the database in `packages/sql/.env` and `backend/.env` (`zaimu_dev` on a remote host). Integration therefore stopped the container first and left it stopped. Starting it again will run the new migration handoff against that database for the first time (it replays pending historical migrations, verifies the native baseline and adopts the marker); check that database first.
-- The checkout's `node_modules` and `packages/sql/out/` predate this change; `bun install` and `bun -F sql contract:emit` are needed before running anything locally.
-- Two uncommitted frontend files, `frontend/src/lib/debt-split.ts` and `debt-split.test.ts`, overlap files this branch reformats; they were carried across in canonical formatted form with a backup (see the integration report).
+Verified at the final tree (runner exit codes read from the runner): SQL integration, SQL E2E (113-migration replay, adoption, two native successors, fresh history), backend integration (30 of 30 files), workspace `check-types` and `build`. Backend E2E: 3 of 4; the failing assertion is the refund `DebtPurchaseLink` one that also fails on the pre-migration commit and on `main`.
+
+Known inherited issues not fixed: the refund `DebtPurchaseLink` assertion above, and about 250 plain raw SQL statements still unconverted (`bun scripts/raw-sql-inventory.ts`). This plan stays active.
