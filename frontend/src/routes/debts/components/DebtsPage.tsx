@@ -27,7 +27,7 @@ const formatTotals = (
 	field: "net" | "iOwe" | "owedToMe",
 ) => (
 	<PreferredMoneyAmount
-		debt={field === "net"}
+		debt={field === "net" ? "plural" : undefined}
 		values={rows.map(row => ({ amount: row[field], currency: row.currency }))}
 	/>
 );
