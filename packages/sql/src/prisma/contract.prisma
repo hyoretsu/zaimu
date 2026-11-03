@@ -1865,6 +1865,7 @@ namespace public {
     PICPAY = "PICPAY"
     MEUPLUGGY = "MEUPLUGGY"
     BANCO_PAN = "BANCO_PAN"
+    BTG_PACTUAL = "BTG_PACTUAL"
   }
 
   native_enum CreditCardImportProvider {

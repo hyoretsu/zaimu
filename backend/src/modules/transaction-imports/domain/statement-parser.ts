@@ -2,6 +2,7 @@ import { HttpException } from "~/shared/errors";
 import { loadPdfParser } from "~/shared/pdf-worker";
 import { parseBancoDoBrasilStatementText } from "./banco-do-brasil";
 import { parseBancoPanStatementText } from "./banco-pan";
+import { parseBtgPactualStatementText } from "./btg-pactual";
 import { parseInterStatementText } from "./inter";
 import { parseMercadoPagoStatementText } from "./mercado-pago";
 import { parseNubankStatementText } from "./nubank";
@@ -42,6 +43,11 @@ const knownParsers: Array<{
 		detect: text => /conta Pan\./iu.test(text) && /Extrato de \d{2}\/\d{2}\/\d{4}/iu.test(text),
 		parse: parseBancoPanStatementText,
 		provider: "BANCO_PAN",
+	},
+	{
+		detect: text => /BTG Pactual/iu.test(text) && /Extrato de conta corrente/iu.test(text),
+		parse: parseBtgPactualStatementText,
+		provider: "BTG_PACTUAL",
 	},
 ];
 

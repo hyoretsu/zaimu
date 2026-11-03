@@ -1465,6 +1465,7 @@ export const TransactionImportReturn = t.Object({
 		t.Literal("PICPAY"),
 		t.Literal("BANCO_PAN"),
 		t.Literal("BANCO_DO_BRASIL"),
+		t.Literal("BTG_PACTUAL"),
 	]),
 	status: t.Union([t.Literal("PENDING"), t.Literal("APPROVED")]),
 	updatedAt: t.String(),

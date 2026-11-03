@@ -12,7 +12,8 @@ export async function createTransactionBatch(input: {
 		| "BANCO_DO_BRASIL"
 		| "INTER"
 		| "PICPAY"
-		| "BANCO_PAN";
+		| "BANCO_PAN"
+		| "BTG_PACTUAL";
 	fileName: string;
 	periodStart?: Date | null;
 	periodEnd?: Date | null;

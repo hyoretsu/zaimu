@@ -4,6 +4,7 @@ import { normalizeInstitutionName } from "@/lib/financial-institution";
 const providerInstitutionNames = {
 	BANCO_DO_BRASIL: ["Banco do Brasil"],
 	BANCO_PAN: ["Banco PAN", "Pan"],
+	BTG_PACTUAL: ["BTG Pactual", "Banco BTG Pactual", "BTG"],
 	INTER: ["Banco Inter", "Inter"],
 	MERCADO_PAGO: ["Mercado Pago"],
 	NUBANK: ["Nubank"],

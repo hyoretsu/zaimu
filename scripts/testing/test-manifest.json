@@ -159,6 +159,7 @@
 		"backend/src/modules/transaction-imports/application/imported-money.test.ts",
 		"backend/src/modules/transaction-imports/domain/banco-do-brasil.test.ts",
 		"backend/src/modules/transaction-imports/domain/banco-pan.test.ts",
+		"backend/src/modules/transaction-imports/domain/btg-pactual.test.ts",
 		"backend/src/modules/transaction-imports/domain/filter-existing-transactions.test.ts",
 		"backend/src/modules/transaction-imports/domain/filter-synchronized-transactions.test.ts",
 		"backend/src/modules/transaction-imports/domain/filter-zero-value-transactions.test.ts",
