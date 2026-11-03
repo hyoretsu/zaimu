@@ -19,6 +19,7 @@ export const CreateTransactionImportBody = t.Object({
 		t.Literal("BANCO_DO_BRASIL"),
 		t.Literal("INTER"),
 		t.Literal("PICPAY"),
+		t.Literal("BANCO_PAN"),
 	]),
 });
 

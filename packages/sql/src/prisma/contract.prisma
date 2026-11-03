@@ -1864,6 +1864,7 @@ namespace public {
     INTER = "INTER"
     PICPAY = "PICPAY"
     MEUPLUGGY = "MEUPLUGGY"
+    BANCO_PAN = "BANCO_PAN"
   }
 
   native_enum CreditCardImportProvider {

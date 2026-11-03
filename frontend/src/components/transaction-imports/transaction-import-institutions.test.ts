@@ -10,6 +10,7 @@ describe("statement institution mapping", () => {
 		["Mercado Pago", "MERCADO_PAGO"],
 		[" NUBANK ", "NUBANK"],
 		["PicPay", "PICPAY"],
+		["Banco PAN", "BANCO_PAN"],
 	] as const)("maps %s to its parser", (name, provider) => {
 		expect(getTransactionImportProvider({ id: "catalog-id", name })).toBe(provider);
 	});
@@ -43,9 +44,9 @@ describe("statement account institutions", () => {
 		]);
 	});
 	test("filters by institution identity instead of matching names", () => {
-		expect(getSelectableImportAccounts(accounts, institutions, "inter").map(account => account.id)).toEqual([
-			"inter-account",
-		]);
+		expect(
+			getSelectableImportAccounts(accounts, institutions, "inter").map(account => account.id),
+		).toEqual(["inter-account"]);
 		expect(getSelectableImportAccounts(accounts, institutions, "missing")).toEqual([]);
 	});
 	test("waits for the institution catalog", () => {

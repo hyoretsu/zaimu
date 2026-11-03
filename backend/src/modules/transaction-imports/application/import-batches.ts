@@ -4,7 +4,15 @@ export async function createTransactionBatch(input: {
 	id?: string;
 	userId: string;
 	financialAccountId: string;
-	provider: "MEUPLUGGY" | "MERCADO_PAGO" | "NUBANK" | "GENERIC" | "BANCO_DO_BRASIL" | "INTER" | "PICPAY";
+	provider:
+		| "MEUPLUGGY"
+		| "MERCADO_PAGO"
+		| "NUBANK"
+		| "GENERIC"
+		| "BANCO_DO_BRASIL"
+		| "INTER"
+		| "PICPAY"
+		| "BANCO_PAN";
 	fileName: string;
 	periodStart?: Date | null;
 	periodEnd?: Date | null;

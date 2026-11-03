@@ -1,0 +1,53 @@
+[
+	{
+		"execute": [
+			{
+				"description": "add value \"BANCO_PAN\" to enum type \"TransactionImportProvider\"",
+				"sql": "ALTER TYPE \"public\".\"TransactionImportProvider\" ADD VALUE 'BANCO_PAN'"
+			}
+		],
+		"id": "addNativeEnumValue.TransactionImportProvider.BANCO_PAN",
+		"label": "Add value \"BANCO_PAN\" to enum type \"TransactionImportProvider\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify value \"BANCO_PAN\" exists on enum type \"TransactionImportProvider\"",
+				"expectation": {
+					"expects": "present",
+					"object": "value \"BANCO_PAN\" in enum type \"TransactionImportProvider\""
+				},
+				"params": ["public", "TransactionImportProvider", "BANCO_PAN"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure enum type \"TransactionImportProvider\" exists",
+				"expectation": {
+					"expects": "present",
+					"object": "enum type \"TransactionImportProvider\""
+				},
+				"params": ["public", "TransactionImportProvider", "e"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\""
+			},
+			{
+				"description": "ensure value \"BANCO_PAN\" is absent from enum type \"TransactionImportProvider\"",
+				"expectation": {
+					"expects": "absent",
+					"object": "value \"BANCO_PAN\" in enum type \"TransactionImportProvider\""
+				},
+				"params": ["public", "TransactionImportProvider", "BANCO_PAN"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\""
+			}
+		],
+		"summary": "Adds value \"BANCO_PAN\" to enum type \"TransactionImportProvider\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+		"target": {
+			"details": {
+				"name": "TransactionImportProvider",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	}
+]

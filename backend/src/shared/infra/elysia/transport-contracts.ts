@@ -1463,6 +1463,7 @@ export const TransactionImportReturn = t.Object({
 		t.Literal("INTER"),
 		t.Literal("NUBANK"),
 		t.Literal("PICPAY"),
+		t.Literal("BANCO_PAN"),
 		t.Literal("BANCO_DO_BRASIL"),
 	]),
 	status: t.Union([t.Literal("PENDING"), t.Literal("APPROVED")]),
