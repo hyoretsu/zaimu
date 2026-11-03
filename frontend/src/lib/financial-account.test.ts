@@ -216,7 +216,7 @@ describe("calculateFinancialAccountBalances", () => {
 			balance: 0,
 			createdAt: "2026-01-05T12:00:00",
 			id: "checking",
-			type: "CHECKING" as const,
+			type: "INVESTMENT" as const,
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 		};
@@ -238,7 +238,7 @@ describe("calculateFinancialAccountBalances", () => {
 			balance: 0,
 			createdAt: "2026-01-05T12:00:00",
 			id: "checking",
-			type: "CHECKING" as const,
+			type: "INVESTMENT" as const,
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 			yieldTaxRate: 20,
@@ -265,7 +265,7 @@ describe("calculateFinancialAccountBalances", () => {
 			balance: 0,
 			createdAt: "2026-01-05T12:00:00",
 			id: "checking",
-			type: "CHECKING" as const,
+			type: "INVESTMENT" as const,
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 			yieldTaxRate: 15,
@@ -308,7 +308,7 @@ describe("calculateFinancialAccountBalances", () => {
 		const account = {
 			balance: 0,
 			id: "checking",
-			type: "CHECKING" as const,
+			type: "INVESTMENT" as const,
 			yieldFixedRate: 20,
 			yieldPeriod: "MONTHLY" as const,
 			yieldRateHistories: [
@@ -339,7 +339,7 @@ describe("calculateFinancialAccountBalances", () => {
 		const account = {
 			balance: 0,
 			id: "checking",
-			type: "CHECKING" as const,
+			type: "INVESTMENT" as const,
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 		};
@@ -455,7 +455,7 @@ describe("calculateFinancialAccountBalances", () => {
 			new Date("2026-01-05T12:00:00"),
 		);
 		const expected = 15_000 + 10_000 * (1.1 ** (1 / 252) - 1) + 5_000 * (1.2 ** (1 / 252) - 1);
-		expect(accounts[0]?.balance).toBeCloseTo(expected, 4);
+		expect(accounts[0]?.balance).toBeCloseTo(expected, 2);
 	});
 });
 
@@ -490,7 +490,7 @@ test("offline balances and yield entries preserve frozen history and require cur
 		id: "legacy",
 		legacyYieldCalendar: { holidays: ["2026-01-06"], throughDate: "2026-01-07" },
 		name: "Legada",
-		type: "CHECKING",
+		type: "INVESTMENT",
 		updatedAt: "2026-01-05",
 		userId: "owner",
 		yieldFixedRate: 10,

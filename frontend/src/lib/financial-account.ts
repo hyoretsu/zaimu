@@ -2,7 +2,7 @@ import {
 	getYieldSettings as resolveYieldSettings,
 	legacyCalendarHoliday,
 } from "@zaimu/finance/projected-yield";
-import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
 import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { normalizeInstitutionName } from "./financial-institution";
@@ -276,7 +276,10 @@ export function calculateFinancialAccountYieldEntries(
 			const grossAmount = calendarCovered
 				? calculateGrossYield(ledger.eligibleBalance(key), settings)
 				: 0;
-			const calculatedAmount = ledger.netYield(grossAmount, settings, key);
+			const calculatedAmount = roundDailyYield(
+				account.type,
+				ledger.netYield(grossAmount, settings, key),
+			);
 			const amount = automaticYield?.amount ?? calculatedAmount;
 			if (amount > 0) {
 				entries.push({
@@ -291,7 +294,7 @@ export function calculateFinancialAccountYieldEntries(
 				if (automaticYield?.amount != null) {
 					if (automaticYield.origin === "SYSTEM") ledger.accrueRecordedNet(amount, settings, key);
 					else ledger.accrueNet(amount, key);
-				} else ledger.accrueGross(grossAmount, settings, key);
+				} else ledger.accrueRecordedNet(calculatedAmount, settings, key);
 				balance = ledger.balance;
 			}
 		}
@@ -433,7 +436,11 @@ function calculateYieldedBalance(
 					ledger.accrueRecordedNet(automaticYield.amount, yieldSettings, key);
 				else ledger.accrueNet(automaticYield.amount, key);
 			} else if (!hasReference && (calendarCovered?.(key) ?? true))
-				ledger.accrueGross(grossAmount, yieldSettings, key);
+				ledger.accrueRecordedNet(
+					roundDailyYield(account.type, ledger.netYield(grossAmount, yieldSettings, key)),
+					yieldSettings,
+					key,
+				);
 			balance = ledger.balance;
 		}
 		for (const [dailyRate, cashbackBalance] of cashbackBalances) {

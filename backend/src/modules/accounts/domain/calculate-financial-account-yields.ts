@@ -4,7 +4,7 @@ import {
 	legacyCalendarHoliday,
 	type LegacyYieldCalendar,
 } from "@zaimu/finance/projected-yield";
-import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
 export type YieldPeriod = "MONTHLY" | "YEARLY";
@@ -335,8 +335,13 @@ function calculateYieldedBalance(
 				if (automaticYield.origin === "SYSTEM")
 					ledger.accrueRecordedNet(automaticYield.amount, yieldSettings, key);
 				else ledger.accrueNet(automaticYield.amount, key);
-			} else if (!hasReference && (calendarCovered?.(key) ?? true))
-				ledger.accrueGross(grossAmount, yieldSettings, key);
+			} else if (!hasReference && (calendarCovered?.(key) ?? true)) {
+				ledger.accrueRecordedNet(
+					roundDailyYield(account.type, ledger.netYield(grossAmount, yieldSettings, key)),
+					yieldSettings,
+					key,
+				);
+			}
 			balance = ledger.balance;
 		}
 		for (const [rate, cashbackBalance] of cashbackBalances) {

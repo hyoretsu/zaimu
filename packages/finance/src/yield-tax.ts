@@ -13,6 +13,11 @@ export interface TaxDefinition {
 	isActive: boolean;
 	versions: TaxVersion[];
 }
+const centCreditedAccountTypes = new Set(["CHECKING", "SAVINGS"]);
+/** Checking and savings credit their daily net yield in whole cents; other accounts keep full precision. */
+export function roundDailyYield(accountType: string | undefined, amount: number) {
+	return centCreditedAccountTypes.has(accountType ?? "") ? Math.round(amount * 100 + 1e-9) / 100 : amount;
+}
 /** DAILY taxes each day's yield inside the balance; ON_REDEMPTION keeps the balance gross and taxes only on withdrawal. */
 export type YieldTaxMode = "DAILY" | "ON_REDEMPTION";
 export interface TaxSettings {
