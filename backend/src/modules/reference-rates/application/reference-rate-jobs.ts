@@ -324,7 +324,14 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			[key, types],
 		);
 		if (rows.length !== types.length) {
-			firstGap ??= key;
+			// A day without a published rate that is followed by later ones is a non-business day
+			// the calendar does not know about, not a pending rate: nothing to compute and nothing to wait for.
+			const missing = types.filter(type => !rows.some(row => row.type === type));
+			const [later] = await queryRaw<{ count: string }>(
+				`SELECT count(DISTINCT "type") AS "count" FROM "public"."ReferenceRate" WHERE "type" = ANY($2::"ReferenceRateType"[]) AND "date" > $1::date`,
+				[key, missing],
+			);
+			if (Number(later?.count) !== missing.length) firstGap ??= key;
 			continue;
 		}
 		const override = await queryFirst(
