@@ -372,6 +372,7 @@ export interface FinancialAccountUpdateDraft {
 	yieldReferenceType?: FinancialAccount["yieldReferenceType"];
 	yieldTaxIds?: string[] | null;
 	yieldTaxMode?: FinancialAccount["yieldTaxMode"];
+	yieldTaxModes?: FinancialAccount["yieldTaxModes"];
 	yieldTaxRate?: FinancialAccount["yieldTaxRate"];
 }
 
@@ -476,6 +477,7 @@ export const dataService = {
 								yieldReferenceType: data.yieldReferenceType,
 								yieldTaxIds: data.yieldTaxIds,
 								yieldTaxMode: data.yieldTaxMode,
+								yieldTaxModes: data.yieldTaxModes,
 								yieldTaxRate: data.yieldTaxRate,
 							},
 						],
@@ -696,6 +698,7 @@ export const dataService = {
 					data.yieldReferenceType !== undefined ||
 					data.yieldTaxIds !== undefined ||
 					data.yieldTaxMode !== undefined ||
+					data.yieldTaxModes !== undefined ||
 					data.yieldTaxRate !== undefined;
 				const effectiveDate = new Date();
 				if (!recalculateCurrentDay) effectiveDate.setDate(effectiveDate.getDate() + 1);
@@ -731,6 +734,10 @@ export const dataService = {
 									data.yieldTaxMode === undefined
 										? existing.data.yieldTaxMode
 										: data.yieldTaxMode,
+								yieldTaxModes:
+									data.yieldTaxModes === undefined
+										? existing.data.yieldTaxModes
+										: data.yieldTaxModes,
 								yieldTaxRate:
 									data.yieldTaxRate === undefined
 										? existing.data.yieldTaxRate

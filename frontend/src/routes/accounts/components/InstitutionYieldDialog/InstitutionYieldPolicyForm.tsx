@@ -1,3 +1,4 @@
+import { pickTaxModes, resolveTaxModes } from "@zaimu/finance/yield-tax";
 import { type ReactNode, useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -32,7 +33,9 @@ export function InstitutionYieldPolicyForm({
 }) {
 	const [period, setPeriod] = useState<"MONTHLY" | "YEARLY">(policy?.yieldPeriod ?? "MONTHLY");
 	const [taxIds, setTaxIds] = useState<string[]>(policy?.yieldTaxIds ?? []);
-	const [taxMode, setTaxMode] = useState<"DAILY" | "ON_REDEMPTION">(policy?.yieldTaxMode ?? "DAILY");
+	const [taxModes, setTaxModes] = useState<Record<string, "DAILY" | "ON_REDEMPTION">>(
+		resolveTaxModes(policy, [...(policy?.yieldTaxIds ?? []), ...(policy?.yieldTaxRate ? ["fixed"] : [])]),
+	);
 	const [taxRate, setTaxRate] = useState(String(policy?.yieldTaxRate ?? ""));
 	const [rules, setRules] = useState<EditableYieldRule[]>(() =>
 		policy?.rules.length
@@ -110,7 +113,10 @@ export function InstitutionYieldPolicyForm({
 						rules: submitted,
 						yieldPeriod: submitted.some(rule => rule.yieldFixedRate !== null) ? period : null,
 						yieldTaxIds: taxIds,
-						yieldTaxMode: taxMode,
+						yieldTaxModes: pickTaxModes(taxModes, [
+							...taxIds,
+							...(submittedTax ? ["fixed"] : []),
+						]),
 						yieldTaxRate: submittedTax ? Number(submittedTax) : null,
 					});
 				} catch (cause) {
@@ -145,10 +151,10 @@ export function InstitutionYieldPolicyForm({
 								<YieldTaxFields
 									id="institution-yield-tax"
 									onTaxIdsChange={setTaxIds}
-									onTaxModeChange={setTaxMode}
+									onTaxModesChange={setTaxModes}
 									onTaxRateChange={setTaxRate}
 									taxIds={taxIds}
-									taxMode={taxMode}
+									taxModes={taxModes}
 									taxRate={taxRate}
 								/>
 							</div>

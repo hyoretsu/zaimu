@@ -8,6 +8,7 @@ import {
 } from "@zaimu/finance/credit-card";
 import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
+import { pickTaxModes, resolveTaxModes } from "@zaimu/finance/yield-tax";
 import { type SyntheticEvent, useState } from "react";
 import { LuPencil, LuPlus } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency";
@@ -33,7 +34,6 @@ import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { runDialogSave } from "@/lib/dialog-save";
-import { institutionOption } from "@/lib/financial-institution";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 import { useCurrencyStore } from "@/stores/currency";
@@ -183,8 +183,11 @@ export function CreateFinancialAccountDialog({
 		() => undefined,
 	);
 	const [yieldTaxIds, setYieldTaxIds] = useState<string[]>(account?.yieldTaxIds ?? []);
-	const [yieldTaxMode, setYieldTaxMode] = useState<"DAILY" | "ON_REDEMPTION">(
-		account?.yieldTaxMode ?? "DAILY",
+	const [yieldTaxModes, setYieldTaxModes] = useState<Record<string, "DAILY" | "ON_REDEMPTION">>(
+		resolveTaxModes(account, [
+			...(account?.yieldTaxIds ?? []),
+			...(account?.yieldTaxRate ? ["fixed"] : []),
+		]),
 	);
 	const [yieldTaxRate, setYieldTaxRate] = useDebouncedInput(
 		String(account?.yieldTaxRate ?? ""),
@@ -228,7 +231,12 @@ export function CreateFinancialAccountDialog({
 		setYieldReferenceType(isGuestMode ? "" : (account?.yieldReferenceType ?? ""));
 		setYieldReferencePercentage(String(account?.yieldReferencePercentage ?? 100));
 		setYieldTaxIds(account?.yieldTaxIds ?? []);
-		setYieldTaxMode(account?.yieldTaxMode ?? "DAILY");
+		setYieldTaxModes(
+			resolveTaxModes(account, [
+				...(account?.yieldTaxIds ?? []),
+				...(account?.yieldTaxRate ? ["fixed"] : []),
+			]),
+		);
 		setYieldTaxRate(String(account?.yieldTaxRate ?? ""));
 		setYieldPeriod(account?.yieldPeriod ?? "MONTHLY");
 		setIsRecalculateCurrentDayYieldDialogOpen(false);
@@ -260,7 +268,17 @@ export function CreateFinancialAccountDialog({
 			(yieldEnabled && yieldTaxRate !== "" ? Number(yieldTaxRate) : null) !==
 				(account.yieldTaxRate ?? null) ||
 			JSON.stringify(yieldEnabled ? yieldTaxIds : []) !== JSON.stringify(account.yieldTaxIds ?? []) ||
-			(yieldEnabled ? yieldTaxMode : "DAILY") !== (account.yieldTaxMode ?? "DAILY")
+			JSON.stringify(
+				yieldEnabled
+					? pickTaxModes(yieldTaxModes, [...yieldTaxIds, ...(yieldTaxRate !== "" ? ["fixed"] : [])])
+					: {},
+			) !==
+				JSON.stringify(
+					resolveTaxModes(account, [
+						...(account.yieldTaxIds ?? []),
+						...(account.yieldTaxRate ? ["fixed"] : []),
+					]),
+				)
 		);
 	};
 	const save = async (recalculateCurrentDay: boolean) => {
@@ -332,8 +350,15 @@ export function CreateFinancialAccountDialog({
 							: undefined,
 				yieldTaxIds:
 					type !== "CREDIT_CARD" && yieldEnabled ? yieldTaxIds : account ? null : undefined,
-				yieldTaxMode:
-					type !== "CREDIT_CARD" && yieldEnabled ? yieldTaxMode : account ? null : undefined,
+				yieldTaxModes:
+					type !== "CREDIT_CARD" && yieldEnabled
+						? pickTaxModes(yieldTaxModes, [
+								...yieldTaxIds,
+								...(yieldTaxRate !== "" ? ["fixed"] : []),
+							])
+						: account
+							? null
+							: undefined,
 				yieldTaxRate:
 					type !== "CREDIT_CARD" && yieldEnabled && yieldTaxRate !== ""
 						? Number(yieldTaxRate)
@@ -419,7 +444,12 @@ export function CreateFinancialAccountDialog({
 								setInstitutionId(value);
 								setCountry(undefined);
 							}}
-							options={[...institutions.map(institutionOption)]}
+							options={[
+								...institutions.map(institution => ({
+									label: institution.name,
+									value: institution.id,
+								})),
+							]}
 							placeholder="Selecione uma instituição"
 							required
 							searchable
@@ -492,13 +522,13 @@ export function CreateFinancialAccountDialog({
 								onReferencePercentageChange={setYieldReferencePercentage}
 								onReferenceTypeChange={setYieldReferenceType}
 								onTaxIdsChange={setYieldTaxIds}
-								onTaxModeChange={setYieldTaxMode}
+								onTaxModesChange={setYieldTaxModes}
 								onTaxRateChange={setYieldTaxRate}
 								period={yieldPeriod}
 								referencePercentage={yieldReferencePercentage}
 								referenceType={yieldReferenceType}
 								taxIds={yieldTaxIds}
-								taxMode={yieldTaxMode}
+								taxModes={yieldTaxModes}
 								taxRate={yieldTaxRate}
 							/>
 						)}

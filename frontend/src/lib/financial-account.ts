@@ -2,7 +2,7 @@ import {
 	getYieldSettings as resolveYieldSettings,
 	legacyCalendarHoliday,
 } from "@zaimu/finance/projected-yield";
-import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { hasRedemptionTax, roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
 import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { normalizeInstitutionName } from "./financial-institution";
@@ -170,7 +170,7 @@ export function calculateFinancialAccountBalances(
 			const yieldLots = snapshots.get(account.id) ?? [];
 			const settings = getYieldSettings(account, todayKey);
 			const deferredTax =
-				account.balance === null || settings?.yieldTaxMode !== "ON_REDEMPTION"
+				account.balance === null || !hasRedemptionTax(settings)
 					? 0
 					: new YieldTaxLedger(yieldLots).deferredTax(settings, todayKey);
 			return {
