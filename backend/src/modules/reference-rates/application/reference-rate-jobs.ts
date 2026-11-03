@@ -270,7 +270,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	if (!account) return;
 	const firstBalance = await accountFirstBalanceDate(account.id);
 	if (!firstBalance) return;
-	const reconcile = (from: string) =>
+	const reconcile = (from: string, before: string | null = null) =>
 		withRawTransaction(async query => {
 			// Brief source locks close the gap between version validation and deletion.
 			// Any mutation during yield calculation leaves checkpoints for the next job.
@@ -283,6 +283,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				(account as YieldAccount & { userId: string }).userId,
 				account.id,
 				from,
+				before,
 			);
 		});
 	const fromDate = startOfDay(job.fromDate > firstBalance ? job.fromDate : firstBalance);
@@ -306,7 +307,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const loaded = await loadFinancialAccountBalanceInput([account.id]);
 	if (!loaded.input) return;
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };
-	let complete = true;
+	let firstGap: string | null = null;
 	for (let day = fromDate; day <= endDate; day = addDays(day, 1)) {
 		const key = dateKey(day);
 		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidayKeys.has(key))) continue;
@@ -323,7 +324,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			[key, types],
 		);
 		if (rows.length !== types.length) {
-			complete = false;
+			firstGap ??= key;
 			continue;
 		}
 		const override = await queryFirst(
@@ -382,7 +383,8 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			]).build(),
 		);
 	}
-	if (complete) await reconcile(dateKey(fromDate));
+	// A checkpoint only depends on days before it, so missing rates later on do not block it.
+	await reconcile(dateKey(fromDate), firstGap);
 	await outbox.append(
 		createEventEnvelope({
 			aggregateId: account.id,
