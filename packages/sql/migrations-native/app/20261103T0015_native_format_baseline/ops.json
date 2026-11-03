@@ -283,6 +283,28 @@
 	{
 		"execute": [
 			{
+				"description": "create enum type \"FinancialAccountYieldTaxMode\"",
+				"params": [],
+				"sql": "CREATE TYPE \"public\".\"FinancialAccountYieldTaxMode\" AS ENUM ('DAILY', 'ON_REDEMPTION')"
+			}
+		],
+		"id": "createNativeEnumType.FinancialAccountYieldTaxMode",
+		"label": "Create enum type \"FinancialAccountYieldTaxMode\"",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "FinancialAccountYieldTaxMode",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
 				"description": "create enum type \"PaymentMethod\"",
 				"params": [],
 				"sql": "CREATE TYPE \"public\".\"PaymentMethod\" AS ENUM ('DEBIT', 'CREDIT', 'PIX', 'CASH', 'TRANSFER', 'BOLETO')"
@@ -1966,7 +1988,7 @@
 			{
 				"description": "create table \"FinancialAccount\"",
 				"params": [],
-				"sql": "CREATE TABLE \"public\".\"FinancialAccount\" (\n  \"balance\" numeric(20,6) DEFAULT (0),\n  \"countryCode\" character varying(2),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL,\n  \"historicalYieldSettings\" json,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"institutionId\" character varying(36),\n  \"isDefaultForStatements\" bool DEFAULT false NOT NULL,\n  \"isHidden\" bool DEFAULT false NOT NULL,\n  \"isPrimary\" bool DEFAULT false NOT NULL,\n  \"legacyInstitutionId\" character varying(36),\n  \"legacyYieldCalendar\" json,\n  \"name\" character varying(70),\n  \"transferredProfileContext\" json,\n  \"type\" \"FinancialAccountType\" DEFAULT 'CHECKING'::\"FinancialAccountType\" NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  \"yieldFixedRate\" numeric(7,4),\n  \"yieldPeriod\" \"FinancialAccountYieldPeriod\",\n  \"yieldReferencePercentage\" numeric(7,4),\n  \"yieldReferenceType\" \"ReferenceRateType\",\n  \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL,\n  \"yieldTaxRate\" numeric(5,2),\n  CONSTRAINT \"Account_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"FinancialAccount_yieldTaxIds_elem_not_null_6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)\n)"
+				"sql": "CREATE TABLE \"public\".\"FinancialAccount\" (\n  \"balance\" numeric(20,6) DEFAULT (0),\n  \"countryCode\" character varying(2),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"currency\" character varying(3) DEFAULT 'BRL' NOT NULL,\n  \"historicalYieldSettings\" json,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"institutionId\" character varying(36),\n  \"isDefaultForStatements\" bool DEFAULT false NOT NULL,\n  \"isHidden\" bool DEFAULT false NOT NULL,\n  \"isPrimary\" bool DEFAULT false NOT NULL,\n  \"legacyInstitutionId\" character varying(36),\n  \"legacyYieldCalendar\" json,\n  \"name\" character varying(70),\n  \"transferredProfileContext\" json,\n  \"type\" \"FinancialAccountType\" DEFAULT 'CHECKING'::\"FinancialAccountType\" NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"userId\" character varying(36) NOT NULL,\n  \"yieldFixedRate\" numeric(7,4),\n  \"yieldPeriod\" \"FinancialAccountYieldPeriod\",\n  \"yieldReferencePercentage\" numeric(7,4),\n  \"yieldReferenceType\" \"ReferenceRateType\",\n  \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL,\n  \"yieldTaxMode\" \"FinancialAccountYieldTaxMode\" DEFAULT 'DAILY'::\"FinancialAccountYieldTaxMode\" NOT NULL,\n  \"yieldTaxRate\" numeric(5,2),\n  CONSTRAINT \"Account_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"FinancialAccount_yieldTaxIds_elem_not_null_6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)\n)"
 			}
 		],
 		"id": "table.FinancialAccount",
@@ -2095,7 +2117,7 @@
 			{
 				"description": "create table \"FinancialAccountYieldRateHistory\"",
 				"params": [],
-				"sql": "CREATE TABLE \"public\".\"FinancialAccountYieldRateHistory\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"effectiveDate\" date NOT NULL,\n  \"financialAccountId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"yieldFixedRate\" numeric(7,4),\n  \"yieldPeriod\" \"FinancialAccountYieldPeriod\",\n  \"yieldReferencePercentage\" numeric(7,4),\n  \"yieldReferenceType\" \"ReferenceRateType\",\n  \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL,\n  \"yieldTaxRate\" numeric(5,2),\n  CONSTRAINT \"FinancialAccountYieldRateHistory_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)\n)"
+				"sql": "CREATE TABLE \"public\".\"FinancialAccountYieldRateHistory\" (\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"effectiveDate\" date NOT NULL,\n  \"financialAccountId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"yieldFixedRate\" numeric(7,4),\n  \"yieldPeriod\" \"FinancialAccountYieldPeriod\",\n  \"yieldReferencePercentage\" numeric(7,4),\n  \"yieldReferenceType\" \"ReferenceRateType\",\n  \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL,\n  \"yieldTaxMode\" \"FinancialAccountYieldTaxMode\" DEFAULT 'DAILY'::\"FinancialAccountYieldTaxMode\" NOT NULL,\n  \"yieldTaxRate\" numeric(5,2),\n  CONSTRAINT \"FinancialAccountYieldRateHistory_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"FinancialAccountYieldRateHistory_yieldTaxIds_elem_not__6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)\n)"
 			}
 		],
 		"id": "table.FinancialAccountYieldRateHistory",
@@ -2396,7 +2418,7 @@
 			{
 				"description": "create table \"FinancialInstitutionYieldPolicy\"",
 				"params": [],
-				"sql": "CREATE TABLE \"public\".\"FinancialInstitutionYieldPolicy\" (\n  \"accountType\" character varying(16),\n  \"countryCode\" character varying(2),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"currency\" character varying(3),\n  \"effectiveDate\" date NOT NULL,\n  \"effectiveUntil\" date,\n  \"financialInstitutionId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"profileId\" character varying(36),\n  \"status\" character varying(16) DEFAULT 'APPROVED' NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"yieldPeriod\" \"FinancialAccountYieldPeriod\",\n  \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL,\n  \"yieldTaxRate\" numeric(5,2),\n  CONSTRAINT \"FinancialInstitutionYieldPolicy_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)\n)"
+				"sql": "CREATE TABLE \"public\".\"FinancialInstitutionYieldPolicy\" (\n  \"accountType\" character varying(16),\n  \"countryCode\" character varying(2),\n  \"createdAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"currency\" character varying(3),\n  \"effectiveDate\" date NOT NULL,\n  \"effectiveUntil\" date,\n  \"financialInstitutionId\" character varying(36) NOT NULL,\n  \"id\" character varying(36) DEFAULT (cuid2()) NOT NULL,\n  \"profileId\" character varying(36),\n  \"status\" character varying(16) DEFAULT 'APPROVED' NOT NULL,\n  \"updatedAt\" timestamp(3) DEFAULT (now()) NOT NULL,\n  \"yieldPeriod\" \"FinancialAccountYieldPeriod\",\n  \"yieldTaxIds\" character varying(36)[] DEFAULT '{}' NOT NULL,\n  \"yieldTaxMode\" \"FinancialAccountYieldTaxMode\" DEFAULT 'DAILY'::\"FinancialAccountYieldTaxMode\" NOT NULL,\n  \"yieldTaxRate\" numeric(5,2),\n  CONSTRAINT \"FinancialInstitutionYieldPolicy_pkey\" PRIMARY KEY (\"id\"),\n  CONSTRAINT \"FinancialInstitutionYieldPolicy_yieldTaxIds_elem_not_n_6844033d\" CHECK (array_position(\"yieldTaxIds\", NULL) IS NULL)\n)"
 			}
 		],
 		"id": "table.FinancialInstitutionYieldPolicy",

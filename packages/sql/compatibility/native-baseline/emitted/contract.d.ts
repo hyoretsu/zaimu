@@ -21,7 +21,7 @@ import type {
 } from "@prisma/orm-postgres/target/codec-types";
 import type { QueryOperationTypes as PgTargetQueryOps } from "@prisma/orm-postgres/target/operation-types";
 
-export type StorageHash = StorageHashBase<"e15dbe7f999388cc745849f8ad489efd47fded20f72115b5aaa2f654271b09ce">;
+export type StorageHash = StorageHashBase<"7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
 
@@ -349,6 +349,10 @@ type FieldTypeOverrides = {
 					readonly output: "CDI" | "SELIC" | "IPCA" | "TR";
 					readonly input: "CDI" | "SELIC" | "IPCA" | "TR";
 				};
+				readonly yieldTaxMode: {
+					readonly output: "DAILY" | "ON_REDEMPTION";
+					readonly input: "DAILY" | "ON_REDEMPTION";
+				};
 			};
 			readonly FinancialAccountYield: {
 				readonly kind: {
@@ -366,6 +370,10 @@ type FieldTypeOverrides = {
 					readonly output: "CDI" | "SELIC" | "IPCA" | "TR";
 					readonly input: "CDI" | "SELIC" | "IPCA" | "TR";
 				};
+				readonly yieldTaxMode: {
+					readonly output: "DAILY" | "ON_REDEMPTION";
+					readonly input: "DAILY" | "ON_REDEMPTION";
+				};
 			};
 			readonly FinancialInstitution: {
 				readonly creditRefundPolicy: {
@@ -377,6 +385,10 @@ type FieldTypeOverrides = {
 				readonly yieldPeriod: {
 					readonly output: "MONTHLY" | "YEARLY";
 					readonly input: "MONTHLY" | "YEARLY";
+				};
+				readonly yieldTaxMode: {
+					readonly output: "DAILY" | "ON_REDEMPTION";
+					readonly input: "DAILY" | "ON_REDEMPTION";
 				};
 			};
 			readonly FinancialInstitutionYieldRule: {
@@ -527,6 +539,10 @@ type ColumnTypeOverrides = {
 				readonly output: "CDI" | "SELIC" | "IPCA" | "TR";
 				readonly input: "CDI" | "SELIC" | "IPCA" | "TR";
 			};
+			readonly yieldTaxMode: {
+				readonly output: "DAILY" | "ON_REDEMPTION";
+				readonly input: "DAILY" | "ON_REDEMPTION";
+			};
 		};
 		readonly FinancialAccountYield: {
 			readonly kind: {
@@ -544,6 +560,10 @@ type ColumnTypeOverrides = {
 				readonly output: "CDI" | "SELIC" | "IPCA" | "TR";
 				readonly input: "CDI" | "SELIC" | "IPCA" | "TR";
 			};
+			readonly yieldTaxMode: {
+				readonly output: "DAILY" | "ON_REDEMPTION";
+				readonly input: "DAILY" | "ON_REDEMPTION";
+			};
 		};
 		readonly FinancialInstitution: {
 			readonly creditRefundPolicy: {
@@ -555,6 +575,10 @@ type ColumnTypeOverrides = {
 			readonly yieldPeriod: {
 				readonly output: "MONTHLY" | "YEARLY";
 				readonly input: "MONTHLY" | "YEARLY";
+			};
+			readonly yieldTaxMode: {
+				readonly output: "DAILY" | "ON_REDEMPTION";
+				readonly input: "DAILY" | "ON_REDEMPTION";
 			};
 		};
 		readonly FinancialInstitutionYieldRule: {
@@ -1270,6 +1294,7 @@ export namespace Models {
 		yieldReferencePercentage: FieldOutputTypes["public"]["FinancialAccount"]["yieldReferencePercentage"];
 		yieldReferenceType: FieldOutputTypes["public"]["FinancialAccount"]["yieldReferenceType"];
 		yieldTaxIds: FieldOutputTypes["public"]["FinancialAccount"]["yieldTaxIds"];
+		yieldTaxMode: FieldOutputTypes["public"]["FinancialAccount"]["yieldTaxMode"];
 		yieldTaxRate: FieldOutputTypes["public"]["FinancialAccount"]["yieldTaxRate"];
 		balanceAdjustments: public_BalanceAdjustment[];
 		cashbackCreditCards: public_CreditCard[];
@@ -1354,6 +1379,7 @@ export namespace Models {
 		yieldReferencePercentage: FieldOutputTypes["public"]["FinancialAccountYieldRateHistory"]["yieldReferencePercentage"];
 		yieldReferenceType: FieldOutputTypes["public"]["FinancialAccountYieldRateHistory"]["yieldReferenceType"];
 		yieldTaxIds: FieldOutputTypes["public"]["FinancialAccountYieldRateHistory"]["yieldTaxIds"];
+		yieldTaxMode: FieldOutputTypes["public"]["FinancialAccountYieldRateHistory"]["yieldTaxMode"];
 		yieldTaxRate: FieldOutputTypes["public"]["FinancialAccountYieldRateHistory"]["yieldTaxRate"];
 		financialAccount: public_FinancialAccount;
 		readonly [RelationKeys]?: "financialAccount";
@@ -1470,6 +1496,7 @@ export namespace Models {
 		updatedAt: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["updatedAt"];
 		yieldPeriod: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["yieldPeriod"];
 		yieldTaxIds: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["yieldTaxIds"];
+		yieldTaxMode: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["yieldTaxMode"];
 		yieldTaxRate: FieldOutputTypes["public"]["FinancialInstitutionYieldPolicy"]["yieldTaxRate"];
 		financialInstitution: public_FinancialInstitution;
 		profile: public_FinancialInstitutionProfile | null;
@@ -6995,6 +7022,19 @@ type ContractBase = Omit<
 									readonly typeParams: { readonly length: 36 };
 									readonly many: { readonly elementNullable: false };
 								};
+								readonly yieldTaxMode: {
+									readonly dataType: "pg/enum";
+									readonly codecId: "pg/enum@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"pg/enum@1", "DAILY">;
+									};
+									readonly typeParams: {
+										readonly typeName: "FinancialAccountYieldTaxMode";
+									};
+									readonly many: false;
+								};
 								readonly yieldTaxRate: {
 									readonly dataType: "pg/numeric";
 									readonly codecId: "pg/numeric@1";
@@ -7361,6 +7401,19 @@ type ContractBase = Omit<
 									};
 									readonly typeParams: { readonly length: 36 };
 									readonly many: { readonly elementNullable: false };
+								};
+								readonly yieldTaxMode: {
+									readonly dataType: "pg/enum";
+									readonly codecId: "pg/enum@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"pg/enum@1", "DAILY">;
+									};
+									readonly typeParams: {
+										readonly typeName: "FinancialAccountYieldTaxMode";
+									};
+									readonly many: false;
 								};
 								readonly yieldTaxRate: {
 									readonly dataType: "pg/numeric";
@@ -8214,6 +8267,19 @@ type ContractBase = Omit<
 									};
 									readonly typeParams: { readonly length: 36 };
 									readonly many: { readonly elementNullable: false };
+								};
+								readonly yieldTaxMode: {
+									readonly dataType: "pg/enum";
+									readonly codecId: "pg/enum@1";
+									readonly nullable: false;
+									readonly default: {
+										readonly kind: "literal";
+										readonly value: DefaultLiteralValue<"pg/enum@1", "DAILY">;
+									};
+									readonly typeParams: {
+										readonly typeName: "FinancialAccountYieldTaxMode";
+									};
+									readonly many: false;
 								};
 								readonly yieldTaxRate: {
 									readonly dataType: "pg/numeric";
@@ -13197,6 +13263,10 @@ type ContractBase = Omit<
 						readonly FinancialAccountYieldPeriod: {
 							readonly kind: "valueSet";
 							readonly values: readonly ["MONTHLY", "YEARLY"];
+						};
+						readonly FinancialAccountYieldTaxMode: {
+							readonly kind: "valueSet";
+							readonly values: readonly ["DAILY", "ON_REDEMPTION"];
 						};
 						readonly PaymentMethod: {
 							readonly kind: "valueSet";
@@ -18402,6 +18472,16 @@ type ContractBase = Omit<
 								};
 								readonly many: { readonly elementNullable: false };
 							};
+							readonly yieldTaxMode: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/enum@1";
+									readonly typeParams: {
+										readonly typeName: "FinancialAccountYieldTaxMode";
+									};
+								};
+							};
 							readonly yieldTaxRate: {
 								readonly nullable: true;
 								readonly type: {
@@ -18692,6 +18772,7 @@ type ContractBase = Omit<
 								};
 								readonly yieldReferenceType: { readonly column: "yieldReferenceType" };
 								readonly yieldTaxIds: { readonly column: "yieldTaxIds" };
+								readonly yieldTaxMode: { readonly column: "yieldTaxMode" };
 								readonly yieldTaxRate: { readonly column: "yieldTaxRate" };
 							};
 						};
@@ -18978,6 +19059,16 @@ type ContractBase = Omit<
 								};
 								readonly many: { readonly elementNullable: false };
 							};
+							readonly yieldTaxMode: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/enum@1";
+									readonly typeParams: {
+										readonly typeName: "FinancialAccountYieldTaxMode";
+									};
+								};
+							};
 							readonly yieldTaxRate: {
 								readonly nullable: true;
 								readonly type: {
@@ -19017,6 +19108,7 @@ type ContractBase = Omit<
 								};
 								readonly yieldReferenceType: { readonly column: "yieldReferenceType" };
 								readonly yieldTaxIds: { readonly column: "yieldTaxIds" };
+								readonly yieldTaxMode: { readonly column: "yieldTaxMode" };
 								readonly yieldTaxRate: { readonly column: "yieldTaxRate" };
 							};
 						};
@@ -19902,6 +19994,16 @@ type ContractBase = Omit<
 								};
 								readonly many: { readonly elementNullable: false };
 							};
+							readonly yieldTaxMode: {
+								readonly nullable: false;
+								readonly type: {
+									readonly kind: "scalar";
+									readonly codecId: "pg/enum@1";
+									readonly typeParams: {
+										readonly typeName: "FinancialAccountYieldTaxMode";
+									};
+								};
+							};
 							readonly yieldTaxRate: {
 								readonly nullable: true;
 								readonly type: {
@@ -19967,6 +20069,7 @@ type ContractBase = Omit<
 								readonly updatedAt: { readonly column: "updatedAt" };
 								readonly yieldPeriod: { readonly column: "yieldPeriod" };
 								readonly yieldTaxIds: { readonly column: "yieldTaxIds" };
+								readonly yieldTaxMode: { readonly column: "yieldTaxMode" };
 								readonly yieldTaxRate: { readonly column: "yieldTaxRate" };
 							};
 						};

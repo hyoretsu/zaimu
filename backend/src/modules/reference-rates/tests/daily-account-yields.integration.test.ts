@@ -191,7 +191,7 @@ describe("daily yield recovery", () => {
 			expect(accounts).toHaveLength(2);
 			for (const account of accounts) {
 				expect(account.countryCode).toBe("BR");
-				expect(account.yieldLots).toEqual([{ balance: 1000, date: "2026-10-02" }]);
+				expect(account.yieldLots).toEqual([{ balance: 1000, date: "2026-10-02", principal: 1000 }]);
 			}
 			const histories = accounts.find(account => account.id === "context-first")!.yieldRateHistories!;
 			expect(histories).toHaveLength(1);

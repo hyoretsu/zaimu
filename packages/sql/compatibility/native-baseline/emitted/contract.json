@@ -6283,6 +6283,16 @@
 									}
 								}
 							},
+							"yieldTaxMode": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/enum@1",
+									"kind": "scalar",
+									"typeParams": {
+										"typeName": "FinancialAccountYieldTaxMode"
+									}
+								}
+							},
 							"yieldTaxRate": {
 								"nullable": true,
 								"type": {
@@ -6609,6 +6619,9 @@
 								},
 								"yieldTaxIds": {
 									"column": "yieldTaxIds"
+								},
+								"yieldTaxMode": {
+									"column": "yieldTaxMode"
 								},
 								"yieldTaxRate": {
 									"column": "yieldTaxRate"
@@ -6993,6 +7006,16 @@
 									}
 								}
 							},
+							"yieldTaxMode": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/enum@1",
+									"kind": "scalar",
+									"typeParams": {
+										"typeName": "FinancialAccountYieldTaxMode"
+									}
+								}
+							},
 							"yieldTaxRate": {
 								"nullable": true,
 								"type": {
@@ -7050,6 +7073,9 @@
 								},
 								"yieldTaxIds": {
 									"column": "yieldTaxIds"
+								},
+								"yieldTaxMode": {
+									"column": "yieldTaxMode"
 								},
 								"yieldTaxRate": {
 									"column": "yieldTaxRate"
@@ -8207,6 +8233,16 @@
 									}
 								}
 							},
+							"yieldTaxMode": {
+								"nullable": false,
+								"type": {
+									"codecId": "pg/enum@1",
+									"kind": "scalar",
+									"typeParams": {
+										"typeName": "FinancialAccountYieldTaxMode"
+									}
+								}
+							},
 							"yieldTaxRate": {
 								"nullable": true,
 								"type": {
@@ -8296,6 +8332,9 @@
 								},
 								"yieldTaxIds": {
 									"column": "yieldTaxIds"
+								},
+								"yieldTaxMode": {
+									"column": "yieldTaxMode"
 								},
 								"yieldTaxRate": {
 									"column": "yieldTaxRate"
@@ -15748,6 +15787,11 @@
 							"members": ["MONTHLY", "YEARLY"],
 							"typeName": "FinancialAccountYieldPeriod"
 						},
+						"FinancialAccountYieldTaxMode": {
+							"kind": "postgres-enum",
+							"members": ["DAILY", "ON_REDEMPTION"],
+							"typeName": "FinancialAccountYieldTaxMode"
+						},
 						"PaymentMethod": {
 							"kind": "postgres-enum",
 							"members": ["DEBIT", "CREDIT", "PIX", "CASH", "TRANSFER", "BOLETO"],
@@ -20963,6 +21007,24 @@
 										"length": 36
 									}
 								},
+								"yieldTaxMode": {
+									"codecId": "pg/enum@1",
+									"dataType": "pg/enum",
+									"default": {
+										"kind": "literal",
+										"value": "DAILY"
+									},
+									"nullable": false,
+									"typeParams": {
+										"typeName": "FinancialAccountYieldTaxMode"
+									},
+									"valueSet": {
+										"entityKind": "valueSet",
+										"entityName": "FinancialAccountYieldTaxMode",
+										"namespaceId": "public",
+										"plane": "storage"
+									}
+								},
 								"yieldTaxRate": {
 									"codecId": "pg/numeric@1",
 									"dataType": "pg/numeric",
@@ -21396,6 +21458,24 @@
 									"nullable": false,
 									"typeParams": {
 										"length": 36
+									}
+								},
+								"yieldTaxMode": {
+									"codecId": "pg/enum@1",
+									"dataType": "pg/enum",
+									"default": {
+										"kind": "literal",
+										"value": "DAILY"
+									},
+									"nullable": false,
+									"typeParams": {
+										"typeName": "FinancialAccountYieldTaxMode"
+									},
+									"valueSet": {
+										"entityKind": "valueSet",
+										"entityName": "FinancialAccountYieldTaxMode",
+										"namespaceId": "public",
+										"plane": "storage"
 									}
 								},
 								"yieldTaxRate": {
@@ -22354,6 +22434,24 @@
 									"nullable": false,
 									"typeParams": {
 										"length": 36
+									}
+								},
+								"yieldTaxMode": {
+									"codecId": "pg/enum@1",
+									"dataType": "pg/enum",
+									"default": {
+										"kind": "literal",
+										"value": "DAILY"
+									},
+									"nullable": false,
+									"typeParams": {
+										"typeName": "FinancialAccountYieldTaxMode"
+									},
+									"valueSet": {
+										"entityKind": "valueSet",
+										"entityName": "FinancialAccountYieldTaxMode",
+										"namespaceId": "public",
+										"plane": "storage"
 									}
 								},
 								"yieldTaxRate": {
@@ -27787,6 +27885,10 @@
 							"kind": "valueSet",
 							"values": ["MONTHLY", "YEARLY"]
 						},
+						"FinancialAccountYieldTaxMode": {
+							"kind": "valueSet",
+							"values": ["DAILY", "ON_REDEMPTION"]
+						},
 						"PaymentMethod": {
 							"kind": "valueSet",
 							"values": ["DEBIT", "CREDIT", "PIX", "CASH", "TRANSFER", "BOLETO"]
@@ -27833,7 +27935,7 @@
 				"kind": "postgres-schema"
 			}
 		},
-		"storageHash": "e15dbe7f999388cc745849f8ad489efd47fded20f72115b5aaa2f654271b09ce"
+		"storageHash": "7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad"
 	},
 	"target": "postgres",
 	"targetFamily": "sql"

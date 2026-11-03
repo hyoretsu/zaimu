@@ -1,0 +1,126 @@
+[
+	{
+		"execute": [
+			{
+				"description": "create enum type \"FinancialAccountYieldTaxMode\"",
+				"params": [],
+				"sql": "CREATE TYPE \"public\".\"FinancialAccountYieldTaxMode\" AS ENUM ('DAILY', 'ON_REDEMPTION')"
+			}
+		],
+		"id": "createNativeEnumType.FinancialAccountYieldTaxMode",
+		"label": "Create enum type \"FinancialAccountYieldTaxMode\"",
+		"operationClass": "additive",
+		"postcheck": [],
+		"precheck": [],
+		"target": {
+			"details": {
+				"name": "FinancialAccountYieldTaxMode",
+				"objectType": "type",
+				"schema": "public"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxMode\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccount\" ADD COLUMN \"yieldTaxMode\" \"FinancialAccountYieldTaxMode\" DEFAULT 'DAILY'::\"FinancialAccountYieldTaxMode\" NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccount.yieldTaxMode",
+		"label": "Add column \"yieldTaxMode\" to \"FinancialAccount\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxMode\" exists",
+				"params": ["public", "FinancialAccount", "yieldTaxMode"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxMode\" is missing",
+				"params": ["public", "FinancialAccount", "yieldTaxMode"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxMode",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccount"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxMode\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialAccountYieldRateHistory\" ADD COLUMN \"yieldTaxMode\" \"FinancialAccountYieldTaxMode\" DEFAULT 'DAILY'::\"FinancialAccountYieldTaxMode\" NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialAccountYieldRateHistory.yieldTaxMode",
+		"label": "Add column \"yieldTaxMode\" to \"FinancialAccountYieldRateHistory\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxMode\" exists",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxMode"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxMode\" is missing",
+				"params": ["public", "FinancialAccountYieldRateHistory", "yieldTaxMode"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxMode",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialAccountYieldRateHistory"
+			},
+			"id": "postgres"
+		}
+	},
+	{
+		"execute": [
+			{
+				"description": "add column \"yieldTaxMode\"",
+				"sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" ADD COLUMN \"yieldTaxMode\" \"FinancialAccountYieldTaxMode\" DEFAULT 'DAILY'::\"FinancialAccountYieldTaxMode\" NOT NULL"
+			}
+		],
+		"id": "column.public.FinancialInstitutionYieldPolicy.yieldTaxMode",
+		"label": "Add column \"yieldTaxMode\" to \"FinancialInstitutionYieldPolicy\"",
+		"operationClass": "additive",
+		"postcheck": [
+			{
+				"description": "verify column \"yieldTaxMode\" exists",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxMode"],
+				"sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"precheck": [
+			{
+				"description": "ensure column \"yieldTaxMode\" is missing",
+				"params": ["public", "FinancialInstitutionYieldPolicy", "yieldTaxMode"],
+				"sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\""
+			}
+		],
+		"target": {
+			"details": {
+				"name": "yieldTaxMode",
+				"objectType": "column",
+				"schema": "public",
+				"table": "FinancialInstitutionYieldPolicy"
+			},
+			"id": "postgres"
+		}
+	}
+]

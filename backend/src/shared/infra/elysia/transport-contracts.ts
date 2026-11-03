@@ -99,6 +99,7 @@ export const FinancialInstitutionYieldPolicyReturn = t.Object({
 	status: t.Optional(t.Union([t.Literal("PENDING"), t.Literal("APPROVED"), t.Literal("REJECTED")])),
 	yieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
+	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialInstitutionYieldPolicyReturn = typeof FinancialInstitutionYieldPolicyReturn.static;
@@ -186,6 +187,7 @@ export const FinancialAccountYieldRateHistoryReturn = t.Object({
 		t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]),
 	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
+	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialAccountYieldRateHistoryReturn = typeof FinancialAccountYieldRateHistoryReturn.static;
@@ -346,6 +348,7 @@ export const FinancialAccountReturn = t.Object({
 		t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]),
 	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
+	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialAccountReturn = typeof FinancialAccountReturn.static;

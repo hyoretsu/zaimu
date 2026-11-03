@@ -442,7 +442,7 @@ test("same-day withdrawal and replacement deposit restart only replacement contr
 			{ amount: 100, date: new Date("2025-02-01"), destinationFinancialAccountId: "a", id: "3" },
 		],
 	});
-	expect(snapshots.get("a")).toEqual([{ balance: 100, date: "2025-02-01" }]);
+	expect(snapshots.get("a")).toEqual([{ balance: 100, date: "2025-02-01", principal: 100 }]);
 });
 
 test("unavailable calendar keeps automatic fixed yield pending but preserves recorded adjustments", () => {

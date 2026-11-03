@@ -7,6 +7,7 @@ interface TimelinePolicy {
 	id: string;
 	yieldPeriod: null | string;
 	yieldTaxIds: string[] | null;
+	yieldTaxMode: null | string;
 	yieldTaxRate: null | number | string;
 }
 
@@ -31,6 +32,7 @@ function signature(policy: TimelinePolicy, rules: TimelineRule[]) {
 			rule.yieldReferenceType,
 		]),
 		taxIds: [...(policy.yieldTaxIds ?? [])].sort(),
+		taxMode: policy.yieldTaxMode ?? "DAILY",
 		taxRate: num(policy.yieldTaxRate),
 	});
 }
@@ -58,7 +60,7 @@ export async function consolidateYieldPolicyTimeline(
 	},
 ) {
 	const policies = (await query(
-		`SELECT "id","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId" IS NOT DISTINCT FROM $2 AND "countryCode" IS NOT DISTINCT FROM $3 AND "currency" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $5 AND "status"='APPROVED' ORDER BY "effectiveDate" ASC FOR UPDATE`,
+		`SELECT "id","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxMode","yieldTaxRate" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId" IS NOT DISTINCT FROM $2 AND "countryCode" IS NOT DISTINCT FROM $3 AND "currency" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $5 AND "status"='APPROVED' ORDER BY "effectiveDate" ASC FOR UPDATE`,
 		[financialInstitutionId, profileId, countryCode, currency, accountType],
 	)) as TimelinePolicy[];
 	if (policies.length === 0) return;
@@ -89,7 +91,7 @@ export async function consolidateYieldPolicyTimeline(
 	}
 	for (const clone of after.filter(entry => entry.sourceId)) {
 		await query(
-			`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","status","yieldPeriod","yieldTaxIds","yieldTaxRate","updatedAt") SELECT $2,"financialInstitutionId","profileId","countryCode","currency","accountType",$3,$4,"status","yieldPeriod","yieldTaxIds","yieldTaxRate",NOW() FROM "FinancialInstitutionYieldPolicy" WHERE "id"=$1`,
+			`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","status","yieldPeriod","yieldTaxIds","yieldTaxMode","yieldTaxRate","updatedAt") SELECT $2,"financialInstitutionId","profileId","countryCode","currency","accountType",$3,$4,"status","yieldPeriod","yieldTaxIds","yieldTaxMode","yieldTaxRate",NOW() FROM "FinancialInstitutionYieldPolicy" WHERE "id"=$1`,
 			[clone.sourceId, clone.id, clone.start, clone.until],
 		);
 		await query(

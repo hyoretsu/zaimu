@@ -466,6 +466,7 @@ namespace public {
     effectiveDate          Date
     yieldPeriod            pg.enum(FinancialAccountYieldPeriod)?
     yieldTaxIds            VarChar(36)[] @default([])
+    yieldTaxMode           pg.enum(FinancialAccountYieldTaxMode) @default("DAILY")
     yieldTaxRate           Numeric(5, 2)?
     createdAt              TimestampJsDate(3)                             @default(now())
     updatedAt              TimestampJsDate(3)                             @default(now())
@@ -608,6 +609,7 @@ namespace public {
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
     yieldTaxIds            VarChar(36)[] @default([])
+    yieldTaxMode           pg.enum(FinancialAccountYieldTaxMode) @default("DAILY")
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
     createdAt               TimestampJsDate(3)                  @default(now())
@@ -708,6 +710,7 @@ namespace public {
     yieldReferencePercentage Numeric(7, 4)?
     yieldFixedRate           Numeric(7, 4)?
     yieldTaxIds            VarChar(36)[] @default([])
+    yieldTaxMode           pg.enum(FinancialAccountYieldTaxMode) @default("DAILY")
     yieldTaxRate             Numeric(5, 2)?
     yieldPeriod              pg.enum(FinancialAccountYieldPeriod)?
     createdAt          TimestampJsDate(3)                        @default(now())
@@ -1792,6 +1795,11 @@ namespace public {
   native_enum FinancialAccountYieldPeriod {
     MONTHLY = "MONTHLY"
     YEARLY = "YEARLY"
+  }
+
+  native_enum FinancialAccountYieldTaxMode {
+    DAILY = "DAILY"
+    ON_REDEMPTION = "ON_REDEMPTION"
   }
 
   native_enum FinancialAccountYieldKind {

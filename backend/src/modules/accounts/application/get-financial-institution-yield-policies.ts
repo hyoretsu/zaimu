@@ -22,6 +22,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			"yieldPeriod",
 			"yieldTaxIds",
 			"yieldTaxRate",
+			"yieldTaxMode",
 		)
 			.where((fields, functions) => functions.in(fields.financialInstitutionId, institutionIds))
 			.orderBy("effectiveDate", { direction: "asc" })
@@ -72,6 +73,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			status: policy.status as "APPROVED" | "PENDING" | "REJECTED",
 			yieldPeriod: policy.yieldPeriod as null | YieldPeriod,
 			yieldTaxIds: policy.yieldTaxIds as string[] | null,
+			yieldTaxMode: policy.yieldTaxMode as "DAILY" | "ON_REDEMPTION",
 			yieldTaxRate: policy.yieldTaxRate === null ? null : Number(policy.yieldTaxRate),
 		});
 		policiesByInstitutionId.set(policy.financialInstitutionId, institutionPolicies);

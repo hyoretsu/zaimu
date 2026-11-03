@@ -9,8 +9,8 @@ import {
 	primaryKey,
 	sql,
 } from "@prisma/orm-postgres/migration";
-import type { Contract as End } from "../../snapshots/e15dbe7f999388cc745849f8ad489efd47fded20f72115b5aaa2f654271b09ce/contract";
-import endContract from "../../snapshots/e15dbe7f999388cc745849f8ad489efd47fded20f72115b5aaa2f654271b09ce/contract.json" with { type: "json" };
+import type { Contract as End } from "../../snapshots/7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad/contract";
+import endContract from "../../snapshots/7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad/contract.json" with { type: "json" };
 
 export default class M extends Migration<never, End> {
 	override readonly endContractJson = endContract;
@@ -77,6 +77,11 @@ export default class M extends Migration<never, End> {
 				members: ["MONTHLY", "YEARLY"],
 				schema: "public",
 				typeName: "FinancialAccountYieldPeriod",
+			}),
+			this.createNativeEnumType({
+				members: ["DAILY", "ON_REDEMPTION"],
+				schema: "public",
+				typeName: "FinancialAccountYieldTaxMode",
 			}),
 			this.createNativeEnumType({
 				members: ["DEBIT", "CREDIT", "PIX", "CASH", "TRANSFER", "BOLETO"],
@@ -1732,6 +1737,14 @@ export default class M extends Migration<never, End> {
 						default: lit([]),
 						notNull: true,
 					}),
+					col("yieldTaxMode", '"FinancialAccountYieldTaxMode"', {
+						codecRef: {
+							codecId: "pg/enum@1",
+							typeParams: { typeName: "FinancialAccountYieldTaxMode" },
+						},
+						default: lit("DAILY"),
+						notNull: true,
+					}),
 					col("yieldTaxRate", "numeric(5,2)", {
 						codecRef: { codecId: "pg/numeric@1", typeParams: { precision: 5, scale: 2 } },
 					}),
@@ -1882,6 +1895,14 @@ export default class M extends Migration<never, End> {
 					col("yieldTaxIds", "character varying(36)[]", {
 						codecRef: { codecId: "sql/varchar@1", many: true, typeParams: { length: 36 } },
 						default: lit([]),
+						notNull: true,
+					}),
+					col("yieldTaxMode", '"FinancialAccountYieldTaxMode"', {
+						codecRef: {
+							codecId: "pg/enum@1",
+							typeParams: { typeName: "FinancialAccountYieldTaxMode" },
+						},
+						default: lit("DAILY"),
 						notNull: true,
 					}),
 					col("yieldTaxRate", "numeric(5,2)", {
@@ -2224,6 +2245,14 @@ export default class M extends Migration<never, End> {
 					col("yieldTaxIds", "character varying(36)[]", {
 						codecRef: { codecId: "sql/varchar@1", many: true, typeParams: { length: 36 } },
 						default: lit([]),
+						notNull: true,
+					}),
+					col("yieldTaxMode", '"FinancialAccountYieldTaxMode"', {
+						codecRef: {
+							codecId: "pg/enum@1",
+							typeParams: { typeName: "FinancialAccountYieldTaxMode" },
+						},
+						default: lit("DAILY"),
 						notNull: true,
 					}),
 					col("yieldTaxRate", "numeric(5,2)", {
