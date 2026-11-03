@@ -57,11 +57,17 @@ export function InstitutionYieldEditor({
 	const currencies = useCurrencyStore(state => state.currencies);
 	const currency = (countryCode ? countryCurrency(countryCode, currencies) : null) ?? preferredCurrency;
 	const profiles = useQuery({
-		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfiles({ path: { id: institution.id } }).then(
+				result => result.data,
+			),
 		queryKey: ["identity", identity, "institution-profiles", institution.id],
 	});
 	const policies = useQuery({
-		queryFn: () => getFinancialInstitutionsByIdPolicies(institution.id),
+		queryFn: () =>
+			getFinancialInstitutionsByIdPolicies({ path: { id: institution.id } }).then(
+				result => result.data,
+			),
 		queryKey: ["identity", identity, "institution-policies", institution.id],
 	});
 	const selectedProfile =

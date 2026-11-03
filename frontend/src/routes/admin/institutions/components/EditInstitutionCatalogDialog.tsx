@@ -45,15 +45,18 @@ export function EditInstitutionCatalogDialog({ institution }: { institution: Adm
 		const start = captureCacheMutation();
 		setPending(true);
 		try {
-			await patchFinancialInstitutionsReviewCatalogById(institution.id, {
-				aliases: aliases
-					.split(",")
-					.map(alias => alias.trim())
-					.filter(Boolean),
-				creditStatementClosingInclusive: closingInclusive,
-				name: trimmedName,
-				operatingCountryCodes: Object.keys(mapping),
-			});
+			await patchFinancialInstitutionsReviewCatalogById({
+				body: {
+					aliases: aliases
+						.split(",")
+						.map(alias => alias.trim())
+						.filter(Boolean),
+					creditStatementClosingInclusive: closingInclusive,
+					name: trimmedName,
+					operatingCountryCodes: Object.keys(mapping),
+				},
+				path: { id: institution.id },
+			}).then(result => result.data);
 			await invalidateMutationCache(queryClient, start, {
 				...mutationCacheMeta("institution"),
 				awaitRefetch: true,

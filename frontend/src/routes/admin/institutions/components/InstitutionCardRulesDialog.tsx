@@ -48,7 +48,10 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 	const client = useQueryClient();
 	const profiles = useQuery({
 		enabled: open,
-		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfiles({ path: { id: institution.id } }).then(
+				result => result.data,
+			),
 		queryKey: ["admin-institution-card-profiles", identity, institution.id],
 	});
 	const choose = (id: string) => {
@@ -76,7 +79,11 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<DialogTrigger asChild>
-						<Button aria-label={`Regras dos cartões de ${institution.name}`} size="icon-sm" variant="outline">
+						<Button
+							aria-label={`Regras dos cartões de ${institution.name}`}
+							size="icon-sm"
+							variant="outline"
+						>
 							<LuCreditCard />
 						</Button>
 					</DialogTrigger>
@@ -87,7 +94,8 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 				<DialogHeader>
 					<DialogTitle>Regras dos cartões - {institution.name}</DialogTitle>
 					<DialogDescription>
-						Defina cashback e vencimento padrão. Perfis podem herdar as regras ou liberar benefícios próprios.
+						Defina cashback e vencimento padrão. Perfis podem herdar as regras ou liberar
+						benefícios próprios.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -104,10 +112,13 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 							loadingMessage: "Salvando regras dos cartões...",
 							recovery: { entityId: institution.id, kind: conflictKey, payload: draft },
 							run: () =>
-								patchFinancialInstitutionsReviewCatalogByIdCardRules(institution.id, {
-									profileId: draft.scope === INSTITUTION ? undefined : draft.scope,
-									rules: draft.inherit ? null : draft.rules,
-								}),
+								patchFinancialInstitutionsReviewCatalogByIdCardRules({
+									body: {
+										profileId: draft.scope === INSTITUTION ? undefined : draft.scope,
+										rules: draft.inherit ? null : draft.rules,
+									},
+									path: { id: institution.id },
+								}).then(result => result.data),
 							successMessage: "Regras dos cartões salvas.",
 						});
 					}}
@@ -122,7 +133,11 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 							) : profiles.isError ? (
 								<p role="alert">
 									Não foi possível carregar os perfis.{" "}
-									<Button onClick={() => void profiles.refetch()} type="button" variant="outline">
+									<Button
+										onClick={() => void profiles.refetch()}
+										type="button"
+										variant="outline"
+									>
 										Tentar novamente
 									</Button>
 								</p>
@@ -132,8 +147,15 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 										label="Aplicar regras a"
 										onValueChange={choose}
 										options={[
-											{ label: "Padrão da instituição", special: true, value: INSTITUTION },
-											...(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id })),
+											{
+												label: "Padrão da instituição",
+												special: true,
+												value: INSTITUTION,
+											},
+											...(profiles.data ?? []).map(profile => ({
+												label: profile.name,
+												value: profile.id,
+											})),
 										]}
 										placeholder="Ex: Padrão da instituição"
 										searchable
@@ -164,7 +186,10 @@ export function InstitutionCardRulesDialog({ institution }: { institution: Admin
 						<Button onClick={() => setOpen(false)} type="button" variant="outline">
 							Descartar
 						</Button>
-						<Button disabled={pending || !profiles.isSuccess || (!inherit && !!invalid)} type="submit">
+						<Button
+							disabled={pending || !profiles.isSuccess || (!inherit && !!invalid)}
+							type="submit"
+						>
 							Salvar
 						</Button>
 					</DialogFooter>

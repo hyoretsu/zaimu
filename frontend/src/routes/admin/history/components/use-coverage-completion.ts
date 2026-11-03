@@ -18,11 +18,15 @@ export function useCoverageCompletion(data: HistoryCoverageSeries) {
 		enabled: !!collectionId,
 		queryFn: () => {
 			if (!collectionId) throw new Error("Coleta indisponível.");
-			return getFinancialHistoryCollectionsById(collectionId);
+			return getFinancialHistoryCollectionsById({ path: { id: collectionId } }).then(
+				result => result.data,
+			);
 		},
 		queryKey: ["admin-history-completion", userId, collectionId],
 		refetchInterval: query =>
-			query.state.data && !["PENDING", "RUNNING"].includes(query.state.data.progress.state) ? false : 2000,
+			query.state.data && !["PENDING", "RUNNING"].includes(query.state.data.progress.state)
+				? false
+				: 2000,
 	});
 	useEffect(() => {
 		if (!collection.data) return;
@@ -32,10 +36,12 @@ export function useCoverageCompletion(data: HistoryCoverageSeries) {
 		meta: mutationCacheMeta("history"),
 		mutationFn: async (range: { startDate: string; endDate: string }) => {
 			const value = await postFinancialHistoryAdminCoverageComplete({
-				...range,
-				kind: data.kind,
-				series: data.series,
-			});
+				body: {
+					...range,
+					kind: data.kind,
+					series: data.series,
+				},
+			}).then(result => result.data);
 			if (!value) throw new Error("Coleta indisponível. Tente novamente.");
 			return value;
 		},
@@ -50,7 +56,9 @@ export function useCoverageCompletion(data: HistoryCoverageSeries) {
 		meta: mutationCacheMeta("history"),
 		mutationFn: () => {
 			if (!collectionId) throw new Error("Coleta indisponível.");
-			return postFinancialHistoryCollectionsByIdRetry(collectionId);
+			return postFinancialHistoryCollectionsByIdRetry({ path: { id: collectionId } }).then(
+				result => result.data,
+			);
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: value => {

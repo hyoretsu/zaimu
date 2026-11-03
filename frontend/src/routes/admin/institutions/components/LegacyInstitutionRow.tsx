@@ -26,10 +26,10 @@ export function LegacyInstitutionRow({
 		const start = captureCacheMutation();
 		setPending(true);
 		try {
-			await postFinancialInstitutionsReviewLegacyById(
-				institution.id,
-				publish ? {} : { targetId: target },
-			);
+			await postFinancialInstitutionsReviewLegacyById({
+				body: publish ? {} : { targetId: target },
+				path: { id: institution.id },
+			}).then(result => result.data);
 			showToast(
 				publish
 					? "Instituição publicada no catálogo global"

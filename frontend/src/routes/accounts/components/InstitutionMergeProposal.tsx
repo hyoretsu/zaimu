@@ -63,7 +63,10 @@ export function InstitutionMergeProposal({
 								payload: draft,
 							},
 							run: () =>
-								postFinancialInstitutionsByIdMergeProposal(institution.id, { targetId: draft.target }),
+								postFinancialInstitutionsByIdMergeProposal({
+									body: { targetId: draft.target },
+									path: { id: institution.id },
+								}).then(result => result.data),
 							successMessage: "Associação enviada para revisão.",
 						});
 					}}

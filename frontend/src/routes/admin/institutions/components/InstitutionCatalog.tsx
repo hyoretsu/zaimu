@@ -17,7 +17,7 @@ export function InstitutionCatalog() {
 	const [search, setSearch] = useUrlViewState("search", "", viewString);
 	const [input, setInput] = useDebouncedInput(search, setSearch);
 	const query = useQuery({
-		queryFn: () => getFinancialInstitutionsReviewCatalog(),
+		queryFn: () => getFinancialInstitutionsReviewCatalog({}).then(result => result.data),
 		queryKey: ["admin-institution-catalog", userId],
 	});
 	const catalog = query.data?.filter(

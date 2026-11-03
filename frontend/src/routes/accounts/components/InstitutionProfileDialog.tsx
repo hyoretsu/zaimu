@@ -27,12 +27,18 @@ export function InstitutionProfileDialog({ institution }: { institution: Financi
 	const guest = useAuthStore(state => state.isGuestMode);
 	const profiles = useQuery({
 		enabled: open && !guest,
-		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfiles({ path: { id: institution.id } }).then(
+				result => result.data,
+			),
 		queryKey: ["institution-profiles", userId, institution.id],
 	});
 	const history = useQuery({
 		enabled: open && !guest,
-		queryFn: () => getFinancialInstitutionsByIdProfileHistory(institution.id),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfileHistory({ path: { id: institution.id } }).then(
+				result => result.data,
+			),
 		queryKey: ["institution-profile-history", userId, institution.id],
 	});
 	const changeOpen = (next: boolean) => {

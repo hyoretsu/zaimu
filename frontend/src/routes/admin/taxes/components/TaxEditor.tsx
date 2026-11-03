@@ -34,7 +34,9 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 		meta: mutationCacheMeta("tax"),
 		mutationFn: () => {
 			const data = { applicationOrder: Number(order), brackets, name: name.trim() };
-			return tax ? putAdminTaxesById(tax.id, data) : postAdminTaxes(data);
+			return tax
+				? putAdminTaxesById({ body: data, path: { id: tax.id } }).then(result => result.data)
+				: postAdminTaxes({ body: data }).then(result => result.data);
 		},
 		onError: error => setError(error.message),
 		onSuccess: () => {
@@ -52,7 +54,9 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{tax ? "Editar imposto" : "Cadastrar imposto"}</DialogTitle>
-					<DialogDescription>IOF antes do IR. Alterações nas faixas passam a valer amanhã.</DialogDescription>
+					<DialogDescription>
+						IOF antes do IR. Alterações nas faixas passam a valer amanhã.
+					</DialogDescription>
 				</DialogHeader>
 				<form
 					className="flex min-h-0 flex-1 flex-col"
@@ -94,7 +98,10 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 								/>
 							</FormFieldRow>
 							<div className="grid gap-2">
-								<div aria-hidden="true" className="grid grid-cols-2 gap-4 font-medium text-sm">
+								<div
+									aria-hidden="true"
+									className="grid grid-cols-2 gap-4 text-sm font-medium"
+								>
 									<span>
 										Até quantos dias <RequiredMark />
 									</span>
@@ -110,7 +117,9 @@ export function TaxEditor({ tax, onClose }: { tax: TaxDefinition | null; onClose
 										last={index === brackets.length - 1}
 										onChange={value =>
 											setBrackets(current =>
-												current.map((item, position) => (position === index ? value : item)),
+												current.map((item, position) =>
+													position === index ? value : item,
+												),
 											)
 										}
 									/>

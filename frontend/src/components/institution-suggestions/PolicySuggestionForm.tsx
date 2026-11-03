@@ -26,10 +26,10 @@ export function PolicySuggestionForm({ onClose }: { onClose: () => void }) {
 					onUpdate={async (item, policy) => {
 						const start = captureCacheMutation();
 						try {
-							await postFinancialInstitutionsByIdPolicies(
-								item.id,
-								toPolicyProposalBody(policy),
-							);
+							await postFinancialInstitutionsByIdPolicies({
+								body: toPolicyProposalBody(policy),
+								path: { id: item.id },
+							}).then(result => result.data);
 							showToast("Sugestão enviada para revisão administrativa", "positive");
 							await invalidateMutationCache(queryClient, start, {
 								...mutationCacheMeta("institution"),

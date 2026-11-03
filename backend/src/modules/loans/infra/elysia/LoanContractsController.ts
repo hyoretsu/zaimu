@@ -58,7 +58,7 @@ const booking = async (
 	);
 	return { accountAmount: accountAmount ?? null, accountCurrency, accountId: body.accountId, id: body.id };
 };
-export const LoanContractsController = new Elysia({ prefix: "/loans" })
+export const LoanContractsController = new Elysia({ detail: { tags: ["Loans"] }, prefix: "/loans" })
 	.get(
 		"/planner/context",
 		async ({ request, query }) => loanPlannerContext(await requireUserId(request), query.currency),

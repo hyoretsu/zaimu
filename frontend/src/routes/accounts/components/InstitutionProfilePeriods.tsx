@@ -223,7 +223,11 @@ export function InstitutionProfilePeriods({
 								kind: `institution-periods:${institutionId}`,
 								payload: {},
 							},
-							run: () => putFinancialInstitutionsByIdProfilePeriods(institutionId, { periods }),
+							run: () =>
+								putFinancialInstitutionsByIdProfilePeriods({
+									body: { periods },
+									path: { id: institutionId },
+								}).then(result => result.data),
 							successMessage: "Períodos de perfil salvos.",
 						});
 					}}

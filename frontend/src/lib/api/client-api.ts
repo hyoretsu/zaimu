@@ -1,5 +1,6 @@
 import {
 	createClient,
+	createOperationClient,
 	type RequestConfig as KubbRequestConfig,
 	type ResponseConfig,
 } from "@hyoretsu/kubb/client";
@@ -16,7 +17,7 @@ export type RequestConfig<TVariables = unknown> = KubbRequestConfig<TVariables> 
 	authenticated?: boolean;
 	batch?: boolean;
 };
-export type Client = typeof client;
+export type Client = typeof legacyClient;
 
 export class ConnectivityError extends Error {}
 export class SessionChangedError extends Error {
@@ -66,7 +67,7 @@ export async function drainActionBatches(path?: string) {
 	);
 }
 
-export default async function client<TData, TError = unknown, TVariables = unknown>(
+export default async function legacyClient<TData, TError = unknown, TVariables = unknown>(
 	config: RequestConfig<TVariables>,
 	options?: Options,
 ): Promise<ResponseConfig<TData, TVariables>> {
@@ -202,3 +203,6 @@ export default async function client<TData, TError = unknown, TVariables = unkno
 		throw error;
 	}
 }
+
+export const client = createOperationClient(legacyClient);
+export type { OperationOptions as Options, RequestResult } from "@hyoretsu/kubb/client";

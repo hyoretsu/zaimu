@@ -45,16 +45,17 @@ export function FinancialSourceCoverage({
 	const userId = useAuthStore(state => state.user?.id);
 	const [pending, setPending] = useState<string[]>([]);
 	const query = useQuery({
-		queryFn: () => getFinancialHistoryCoverage({ endDate, startDate }),
+		queryFn: () =>
+			getFinancialHistoryCoverage({ query: { endDate, startDate } }).then(result => result.data),
 		queryKey: ["financial-source-coverage", userId, startDate, endDate],
 	});
 	const groups = groupCoverageItems(query.data?.items ?? []);
 	return (
-		<section className="grid min-w-0 gap-4 rounded-2xl border bg-card p-4 sm:p-6">
-			<h2 className="font-semibold text-lg">Fontes e vigências</h2>
+		<section className="bg-card grid min-w-0 gap-4 rounded-2xl border p-4 sm:p-6">
+			<h2 className="text-lg font-semibold">Fontes e vigências</h2>
 			<p className="text-muted-foreground text-sm">
-				Consulta somente leitura da cobertura de fontes externas. Calendários completos sem eventos continuam
-				completos.
+				Consulta somente leitura da cobertura de fontes externas. Calendários completos sem eventos
+				continuam completos.
 			</p>
 			{query.isPending ? (
 				<div className="space-y-3">
@@ -77,10 +78,10 @@ export function FinancialSourceCoverage({
 									<h3 className="font-semibold">
 										{kinds[item.kind] ?? item.kind} - {item.name}
 									</h3>
-									<p className="break-words text-muted-foreground text-sm">
+									<p className="text-muted-foreground text-sm break-words">
 										{states[item.status] ?? item.status} - Fonte: {item.source} - Versão:{" "}
-										{item.version ?? "Não registrada"} - {item.startDate ?? "Sem início"} a{" "}
-										{item.endDate ?? "Sem término"}
+										{item.version ?? "Não registrada"} - {item.startDate ?? "Sem início"}{" "}
+										a {item.endDate ?? "Sem término"}
 									</p>
 									{item.gaps.map(gap => (
 										<p className="text-sm" key={`${gap.startDate}:${gap.endDate}`}>
@@ -99,15 +100,29 @@ export function FinancialSourceCoverage({
 														if (!item.countryCode || !item.startDate) return;
 														setPending(ids => [...ids, item.id]);
 														void postAdminYieldCalendarCountriesByCodeCoverageByYear(
-															item.countryCode,
-															item.startDate.slice(0, 4),
+															{
+																path: {
+																	code: item.countryCode,
+																	year: item.startDate.slice(0, 4),
+																},
+															},
 														)
+															.then(result => result.data)
 															.then(async () => {
 																await query.refetch();
-																showToast("Calendário processado", "positive");
+																showToast(
+																	"Calendário processado",
+																	"positive",
+																);
 															})
-															.catch(error => showToast(error.message, "negative"))
-															.finally(() => setPending(ids => ids.filter(id => id !== item.id)));
+															.catch(error =>
+																showToast(error.message, "negative"),
+															)
+															.finally(() =>
+																setPending(ids =>
+																	ids.filter(id => id !== item.id),
+																),
+															);
 													}}
 													variant="outline"
 												>
@@ -121,15 +136,29 @@ export function FinancialSourceCoverage({
 															if (!item.countryCode || !item.startDate) return;
 															setPending(ids => [...ids, item.id]);
 															void postAdminYieldCalendarCountriesByCodeCoverageByYearConfirm(
-																item.countryCode,
-																item.startDate.slice(0, 4),
+																{
+																	path: {
+																		code: item.countryCode,
+																		year: item.startDate.slice(0, 4),
+																	},
+																},
 															)
+																.then(result => result.data)
 																.then(async () => {
 																	await query.refetch();
-																	showToast("Calendário administrativo confirmado", "positive");
+																	showToast(
+																		"Calendário administrativo confirmado",
+																		"positive",
+																	);
 																})
-																.catch(error => showToast(error.message, "negative"))
-																.finally(() => setPending(ids => ids.filter(id => id !== item.id)));
+																.catch(error =>
+																	showToast(error.message, "negative"),
+																)
+																.finally(() =>
+																	setPending(ids =>
+																		ids.filter(id => id !== item.id),
+																	),
+																);
 														}}
 														variant="outline"
 													>

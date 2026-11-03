@@ -8,8 +8,12 @@ export function InstitutionAssociationProfile({ institutionId }: { institutionId
 		enabled: !guest && navigator.onLine,
 		queryFn: async () => {
 			const [profiles, history] = await Promise.all([
-				getFinancialInstitutionsByIdProfiles(institutionId),
-				getFinancialInstitutionsByIdProfileHistory(institutionId),
+				getFinancialInstitutionsByIdProfiles({ path: { id: institutionId } }).then(
+					result => result.data,
+				),
+				getFinancialInstitutionsByIdProfileHistory({ path: { id: institutionId } }).then(
+					result => result.data,
+				),
 			]);
 			if (profiles.length <= 1) return null;
 			const day = new Date().toLocaleDateString("sv-SE");
@@ -30,8 +34,8 @@ export function InstitutionAssociationProfile({ institutionId }: { institutionId
 		<div className="rounded-xl border p-3 text-sm">
 			<p>Perfil do vínculo: {query.data}</p>
 			<p className="text-muted-foreground">
-				Perfil e mudanças agendadas valem para todas as contas desta instituição. Consulte e altere histórico
-				no grupo após salvar.
+				Perfil e mudanças agendadas valem para todas as contas desta instituição. Consulte e altere
+				histórico no grupo após salvar.
 			</p>
 		</div>
 	);

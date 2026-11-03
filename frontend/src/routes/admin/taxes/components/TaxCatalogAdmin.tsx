@@ -18,7 +18,10 @@ export function TaxCatalogAdmin({ header }: { header: ComponentProps<typeof Page
 	const [pending, setPending] = useState<string[]>([]);
 	const toggle = useMutation({
 		meta: mutationCacheMeta("tax"),
-		mutationFn: (tax: TaxDefinition) => patchAdminTaxesById(tax.id, { isActive: !tax.isActive }),
+		mutationFn: (tax: TaxDefinition) =>
+			patchAdminTaxesById({ body: { isActive: !tax.isActive }, path: { id: tax.id } }).then(
+				result => result.data,
+			),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: tax => setPending(current => [...current, tax.id]),
 		onSettled: (_data, _error, tax) => setPending(current => current.filter(id => id !== tax.id)),
@@ -31,10 +34,15 @@ export function TaxCatalogAdmin({ header }: { header: ComponentProps<typeof Page
 			<PageHeader
 				{...header}
 				actions={[
-					{ icon: LuPlus, label: "Cadastrar imposto", onClick: () => setEditing(null), variant: "default" },
+					{
+						icon: LuPlus,
+						label: "Cadastrar imposto",
+						onClick: () => setEditing(null),
+						variant: "default",
+					},
 				]}
 			/>
-			<section className="grid gap-3 rounded-2xl border bg-card p-4 sm:p-6">
+			<section className="bg-card grid gap-3 rounded-2xl border p-4 sm:p-6">
 				{catalog.isPending ? (
 					<Skeleton className="h-32 w-full" />
 				) : catalog.isError ? (
@@ -42,17 +50,22 @@ export function TaxCatalogAdmin({ header }: { header: ComponentProps<typeof Page
 				) : (
 					catalog.data.map(tax => (
 						<div
-							className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/50 p-4"
+							className="bg-background/50 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"
 							key={tax.id}
 						>
 							<div>
 								<p className="font-medium">{tax.name}</p>
 								<p className="text-muted-foreground text-sm">
-									{tax.isActive ? "Disponível" : "Desativado"} - {tax.versions.at(-1)?.brackets.length} faixas
+									{tax.isActive ? "Disponível" : "Desativado"} -{" "}
+									{tax.versions.at(-1)?.brackets.length} faixas
 								</p>
 							</div>
 							<ActionGroup>
-								<Button disabled={pending.includes(tax.id)} onClick={() => setEditing(tax)} variant="outline">
+								<Button
+									disabled={pending.includes(tax.id)}
+									onClick={() => setEditing(tax)}
+									variant="outline"
+								>
 									<LuPencil />
 									Editar
 								</Button>

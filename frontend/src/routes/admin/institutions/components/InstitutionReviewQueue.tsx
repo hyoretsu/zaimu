@@ -4,11 +4,13 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { getFinancialInstitutionsReviewProposals } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionProposalRow } from "./InstitutionProposalRow";
-export type InstitutionProposal = Awaited<ReturnType<typeof getFinancialInstitutionsReviewProposals>>[number];
+export type InstitutionProposal = Awaited<
+	ReturnType<typeof getFinancialInstitutionsReviewProposals>
+>["data"][number];
 export function InstitutionReviewQueue() {
 	const userId = useAuthStore(state => state.user?.id);
 	const query = useQuery({
-		queryFn: () => getFinancialInstitutionsReviewProposals(),
+		queryFn: () => getFinancialInstitutionsReviewProposals({}).then(result => result.data),
 		queryKey: ["institution-review", userId],
 	});
 	const proposals = query.data?.filter(item => item.status !== "APPROVED" && item.status !== "ASSOCIATED");

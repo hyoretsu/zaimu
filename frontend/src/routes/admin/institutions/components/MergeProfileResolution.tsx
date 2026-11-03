@@ -27,7 +27,8 @@ export function MergeProfileResolution({
 	const [profile, setProfile] = useState<string>();
 	const [date, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
 	const profiles = useQuery({
-		queryFn: () => getFinancialInstitutionsByIdProfiles(targetId),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfiles({ path: { id: targetId } }).then(result => result.data),
 		queryKey: ["merge-profiles", identity, targetId],
 	});
 	return (

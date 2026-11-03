@@ -31,7 +31,10 @@ function CardRulesDraft({
 	const conflictKey = `institution-suggestion:card-rules:${institution.id}`;
 	const pending = useModalRecoveryStore(state => !!state.pending[`${identity}:${conflictKey}`]);
 	const profiles = useQuery({
-		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfiles({ path: { id: institution.id } }).then(
+				result => result.data,
+			),
 		queryKey: ["identity", identity, "institution-profiles", institution.id],
 	});
 	const choose = (id: string) => {
@@ -74,7 +77,11 @@ function CardRulesDraft({
 							failureMessage: "Não foi possível enviar a sugestão.",
 							loadingMessage: "Enviando sugestão...",
 							recovery: { entityId: institution.id, kind: conflictKey, payload: draft },
-							run: () => postFinancialInstitutionsByIdCardRulesProposal(institution.id, draft),
+							run: () =>
+								postFinancialInstitutionsByIdCardRulesProposal({
+									body: draft,
+									path: { id: institution.id },
+								}).then(result => result.data),
 							successMessage: "Regras de cartão sugeridas para revisão.",
 						});
 					}}

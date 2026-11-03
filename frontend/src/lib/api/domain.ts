@@ -70,5 +70,4 @@ export interface LocalFinancialAccountFields {
 
 export type FinancialAccount = FinancialAccountReturn & LocalFinancialAccountFields;
 
-export type FinancialAccountOption =
-	import("./generated/api").GetFinancialAccountsOptionsQueryResponse[number];
+export type FinancialAccountOption = import("./generated/api").GetFinancialAccountsOptionsResponse[number];

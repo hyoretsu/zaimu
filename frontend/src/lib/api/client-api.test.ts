@@ -171,8 +171,7 @@ describe("shared SDK transport", () => {
 	});
 
 	it("uploads typed generated multipart fields without JSON encoding", async () => {
-		const { postCreditCardImports } =
-			await import("./generated/api/hooks/creditCardImportsController/usePostCreditCardImports");
+		const { postCreditCardImports } = await import("./generated/api");
 		mockFetch(async input => {
 			const request = input instanceof Request ? input : new Request(input);
 			const body = await request.formData();
@@ -184,10 +183,12 @@ describe("shared SDK transport", () => {
 			return Response.json({ creditCardImport: null, ignoredCount: 0 });
 		});
 		await postCreditCardImports({
-			creditCardId: "card",
-			file: new File(["pdf"], "statement.pdf"),
-			password: "1234",
-			provider: "INTER",
+			body: {
+				creditCardId: "card",
+				file: new File(["pdf"], "statement.pdf"),
+				password: "1234",
+				provider: "INTER",
+			},
 		});
 	});
 });

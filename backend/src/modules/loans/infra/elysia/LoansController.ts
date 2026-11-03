@@ -185,7 +185,7 @@ function calculateEarlyPayoff(
 	};
 }
 
-const LegacyLoansController = new Elysia({ prefix: "/loans" })
+const LegacyLoansController = new Elysia({ detail: { tags: ["Loans"] }, prefix: "/loans" })
 	.get(
 		"/",
 		async ({ request, set }) => {

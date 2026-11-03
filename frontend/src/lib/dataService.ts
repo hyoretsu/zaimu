@@ -282,10 +282,10 @@ import { prepareUploadFile } from "./upload-file";
 import { cachedYieldCalendar } from "./yield-calendar";
 
 export type FinancialAccountYieldPage = Omit<
-	Awaited<ReturnType<typeof getFinancialAccountYields>>,
+	Awaited<ReturnType<typeof getFinancialAccountYields>>["data"],
 	"items"
 > & { items: FinancialAccountYield[] };
-export type DebtEventPage = Omit<Awaited<ReturnType<typeof getDebtsPeopleByIdEvents>>, "items"> & {
+export type DebtEventPage = Omit<Awaited<ReturnType<typeof getDebtsPeopleByIdEvents>>["data"], "items"> & {
 	items: DebtEvent[];
 };
 
@@ -513,24 +513,26 @@ export const dataService = {
 				return newAccount;
 			}
 			const account = await postFinancialAccounts({
-				...data,
-				countryCode: data.countryCode ?? undefined,
-				creditCard: data.creditCard
-					? {
-							...data.creditCard,
-							cashbackAccountId: data.creditCard.cashbackAccountId ?? undefined,
-							cashbackRate: data.creditCard.cashbackRate ?? undefined,
-							securityDeposit: data.creditCard.securityDeposit ?? undefined,
-						}
-					: undefined,
-				rewardsAccount: data.rewardsAccount
-					? {
-							...data.rewardsAccount,
-							conversionAmount: data.rewardsAccount.conversionAmount ?? undefined,
-							conversionPoints: data.rewardsAccount.conversionPoints ?? undefined,
-						}
-					: undefined,
-			});
+				body: {
+					...data,
+					countryCode: data.countryCode ?? undefined,
+					creditCard: data.creditCard
+						? {
+								...data.creditCard,
+								cashbackAccountId: data.creditCard.cashbackAccountId ?? undefined,
+								cashbackRate: data.creditCard.cashbackRate ?? undefined,
+								securityDeposit: data.creditCard.securityDeposit ?? undefined,
+							}
+						: undefined,
+					rewardsAccount: data.rewardsAccount
+						? {
+								...data.rewardsAccount,
+								conversionAmount: data.rewardsAccount.conversionAmount ?? undefined,
+								conversionPoints: data.rewardsAccount.conversionPoints ?? undefined,
+							}
+						: undefined,
+				},
+			}).then(result => result.data);
 			cacheRemoteData(localAccounts.put(account, account.id));
 			return account;
 		},
@@ -543,7 +545,7 @@ export const dataService = {
 						await localCreditCards.put({ ...card.data, paymentAccountId: null }, card.localId);
 				return;
 			}
-			await deleteFinancialAccountsById(id);
+			await deleteFinancialAccountsById({ path: { id } }).then(result => result.data);
 			cacheRemoteData(localAccounts.delete(id));
 		},
 		async getAll(): Promise<FinancialAccount[]> {
@@ -576,7 +578,7 @@ export const dataService = {
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
-			const accounts = await getFinancialAccounts();
+			const accounts = await getFinancialAccounts({}).then(result => result.data);
 			cacheRemoteData(
 				localAccounts.replaceSnapshot(
 					accounts.map(a => ({ data: a, localId: a.id, syncedAt: Date.now() })),
@@ -593,7 +595,7 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			try {
-				return await getFinancialAccountsById(id);
+				return await getFinancialAccountsById({ path: { id } }).then(result => result.data);
 			} catch (error) {
 				if (!isConnectivityError(error) || getCurrentCacheIdentity() !== owner) throw error;
 				// Fallback to local cache
@@ -614,11 +616,13 @@ export const dataService = {
 						type: data.type,
 					}));
 			}
-			return getFinancialAccountsOptions(type ? { type } : undefined);
+			return getFinancialAccountsOptions({ query: type ? { type } : undefined }).then(
+				result => result.data,
+			);
 		},
 		async setPrimary(financialAccountId: string | null) {
 			if (isGuestMode()) return setLocalPrimaryAccount(financialAccountId);
-			return putFinancialAccountsPrimary({ financialAccountId });
+			return putFinancialAccountsPrimary({ body: { financialAccountId } }).then(result => result.data);
 		},
 
 		async update(id: string, data: FinancialAccountUpdateDraft): Promise<FinancialAccount> {
@@ -824,17 +828,20 @@ export const dataService = {
 				}
 				return updated;
 			}
-			const account = await patchFinancialAccountsById(id, {
-				...data,
-				creditCard: data.creditCard
-					? {
-							...data.creditCard,
-							cashbackAccountId: data.creditCard.cashbackAccountId ?? undefined,
-							cashbackRate: data.creditCard.cashbackRate ?? undefined,
-							securityDeposit: data.creditCard.securityDeposit ?? undefined,
-						}
-					: undefined,
-			});
+			const account = await patchFinancialAccountsById({
+				body: {
+					...data,
+					creditCard: data.creditCard
+						? {
+								...data.creditCard,
+								cashbackAccountId: data.creditCard.cashbackAccountId ?? undefined,
+								cashbackRate: data.creditCard.cashbackRate ?? undefined,
+								securityDeposit: data.creditCard.securityDeposit ?? undefined,
+							}
+						: undefined,
+				},
+				path: { id },
+			}).then(result => result.data);
 			cacheRemoteData(localAccounts.put(account, account.id));
 			return account;
 		},
@@ -860,7 +867,9 @@ export const dataService = {
 			time?: string | null;
 		}): Promise<FinancialAccountYield> {
 			if (!isGuestMode()) {
-				return postFinancialAccountYields({ ...data, kind: "MANUAL" });
+				return postFinancialAccountYields({ body: { ...data, kind: "MANUAL" } }).then(
+					result => result.data,
+				);
 			}
 			const yields =
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
@@ -891,7 +900,7 @@ export const dataService = {
 		},
 		async delete(id: string): Promise<void> {
 			if (!isGuestMode()) {
-				await deleteFinancialAccountYieldsById(id);
+				await deleteFinancialAccountYieldsById({ path: { id } }).then(result => result.data);
 				return;
 			}
 			const yields =
@@ -1018,11 +1027,13 @@ export const dataService = {
 		): Promise<FinancialAccountYieldPage> {
 			if (!isGuestMode()) {
 				return getFinancialAccountYields({
-					...filters,
-					cursor: cursor ?? undefined,
-					financialAccountId,
-					limit,
-				});
+					query: {
+						...filters,
+						cursor: cursor ?? undefined,
+						financialAccountId,
+						limit,
+					},
+				}).then(result => result.data);
 			}
 			const yields =
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
@@ -1057,7 +1068,9 @@ export const dataService = {
 			data: { amount: number; date: string; isHidden: boolean; time: string | null },
 		): Promise<void> {
 			if (!isGuestMode()) {
-				await patchFinancialAccountYieldsById(id, data);
+				await patchFinancialAccountYieldsById({ body: data, path: { id } }).then(
+					result => result.data,
+				);
 				return;
 			}
 			const yields =
@@ -1085,7 +1098,9 @@ export const dataService = {
 			isExcluded?: boolean;
 		}): Promise<FinancialAccountYield> {
 			if (!isGuestMode()) {
-				return postFinancialAccountYields({ ...data, kind: "AUTOMATIC" });
+				return postFinancialAccountYields({ body: { ...data, kind: "AUTOMATIC" } }).then(
+					result => result.data,
+				);
 			}
 			const yields =
 				((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
@@ -1117,11 +1132,11 @@ export const dataService = {
 	balanceAdjustments: {
 		async create(data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
 			if (isGuestMode()) return mutateLocalBalanceAdjustment(data);
-			return postBalanceAdjustments(data);
+			return postBalanceAdjustments({ body: data }).then(result => result.data);
 		},
 		async delete(id: string) {
 			if (isGuestMode()) return mutateLocalBalanceAdjustment({ id }, true);
-			return deleteBalanceAdjustmentsById(id);
+			return deleteBalanceAdjustmentsById({ path: { id } }).then(result => result.data);
 		},
 		async getAll(): Promise<BalanceAdjustment[]> {
 			if (isGuestMode()) {
@@ -1156,11 +1171,11 @@ export const dataService = {
 					}),
 				);
 			}
-			return getBalanceAdjustments();
+			return getBalanceAdjustments({}).then(result => result.data);
 		},
 		async update(id: string, data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
 			if (isGuestMode()) return mutateLocalBalanceAdjustment({ ...data, id });
-			return patchBalanceAdjustmentsById(id, data);
+			return patchBalanceAdjustmentsById({ body: data, path: { id } }).then(result => result.data);
 		},
 	},
 
@@ -1182,11 +1197,13 @@ export const dataService = {
 				return newCategory;
 			}
 			const category = await postCategories({
-				...data,
-				color: data.color ?? undefined,
-				icon: data.icon ?? undefined,
-				parentId: data.parentId ?? undefined,
-			});
+				body: {
+					...data,
+					color: data.color ?? undefined,
+					icon: data.icon ?? undefined,
+					parentId: data.parentId ?? undefined,
+				},
+			}).then(result => result.data);
 			cacheRemoteData(localCategories.put(category, category.id));
 			return category;
 		},
@@ -1196,7 +1213,7 @@ export const dataService = {
 				await localCategories.delete(id);
 				return;
 			}
-			await deleteCategoriesById(id);
+			await deleteCategoriesById({ path: { id } }).then(result => result.data);
 			cacheRemoteData(localCategories.delete(id));
 		},
 		async getByIds(ids: string[]): Promise<Category[]> {
@@ -1206,7 +1223,7 @@ export const dataService = {
 				return (await localCategories.getAll())
 					.map(row => row.data)
 					.filter(row => selected.includes(row.id));
-			return getCategoriesLookup({ ids: selected.join(",") });
+			return getCategoriesLookup({ query: { ids: selected.join(",") } }).then(result => result.data);
 		},
 		async getPage(options: CatalogPageOptions = {}): Promise<CategoryPage> {
 			if (isGuestMode())
@@ -1217,7 +1234,7 @@ export const dataService = {
 					options,
 				);
 
-			return getCategories(options);
+			return getCategories({ query: options }).then(result => result.data);
 		},
 
 		async update(id: string, data: Partial<Category>): Promise<Category> {
@@ -1228,7 +1245,9 @@ export const dataService = {
 				await localCategories.put(updated, id);
 				return updated;
 			}
-			const category = await patchCategoriesById(id, data);
+			const category = await patchCategoriesById({ body: data, path: { id } }).then(
+				result => result.data,
+			);
 			cacheRemoteData(localCategories.put(category, category.id));
 			return category;
 		},
@@ -1237,7 +1256,9 @@ export const dataService = {
 	creditCardImports: {
 		async approve(id: string, includeUnmatched = true): Promise<{ created: number }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			return postCreditCardImportsByIdApprove(id, { includeUnmatched });
+			return postCreditCardImportsByIdApprove({ body: { includeUnmatched }, path: { id } }).then(
+				result => result.data,
+			);
 		},
 		async approveItem(
 			importId: string,
@@ -1245,12 +1266,11 @@ export const dataService = {
 			data?: { recurrence: { recurrenceId: string; date: string } },
 		): Promise<{ created: number }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			return postCreditCardImportsByIdItemsByItemIdApprove(
-				importId,
-				itemId,
-				data ?? {},
-				data ? { authenticated: true, batch: false, responseType: "json" } : undefined,
-			);
+			return postCreditCardImportsByIdItemsByItemIdApprove({
+				body: data ?? {},
+				path: { id: importId, itemId },
+				...(data ? { authenticated: true, batch: false, responseType: "json" } : undefined),
+			}).then(result => result.data);
 		},
 		async approveRefund(
 			importId: string,
@@ -1269,7 +1289,10 @@ export const dataService = {
 			},
 		): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
-			return postCreditCardImportsByIdItemsByItemIdApproveRefund(importId, itemId, data);
+			return postCreditCardImportsByIdItemsByItemIdApproveRefund({
+				body: data,
+				path: { id: importId, itemId },
+			}).then(result => result.data);
 		},
 
 		async create({
@@ -1288,7 +1311,9 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 			const uploadFile = await prepareUploadFile(file);
 			if (provider === "MEUPLUGGY") throw new Error("Selecione um provedor de arquivo válido.");
-			return postCreditCardImports({ creditCardId, file: uploadFile, password, provider, statementId });
+			return postCreditCardImports({
+				body: { creditCardId, file: uploadFile, password, provider, statementId },
+			}).then(result => result.data);
 		},
 
 		async createBatch(data: {
@@ -1306,28 +1331,36 @@ export const dataService = {
 				`${getCurrentCacheIdentity()}:CreditCard:${data.creditCardId}:${data.files.map(file => `${file.name}:${file.size}:${file.lastModified}`).join("|")}`,
 				() =>
 					postCreditCardImportsBatch({
-						creditCardId: data.creditCardId,
-						files,
-						password: data.password,
-						provider: data.provider as Exclude<typeof data.provider, "MEUPLUGGY">,
-						statementId: data.statementId,
-					}),
+						body: {
+							creditCardId: data.creditCardId,
+							files,
+							password: data.password,
+							provider: data.provider as Exclude<typeof data.provider, "MEUPLUGGY">,
+							statementId: data.statementId,
+						},
+					}).then(result => result.data),
 				batchId =>
-					waitForImportBatch(() => getCreditCardImportsBatchByBatchId(batchId), data.onProgress),
+					waitForImportBatch(
+						() =>
+							getCreditCardImportsBatchByBatchId({ path: { batchId } }).then(
+								result => result.data,
+							),
+						data.onProgress,
+					),
 			);
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			await deleteCreditCardImportsById(id);
+			await deleteCreditCardImportsById({ path: { id } }).then(result => result.data);
 		},
 		async get(id: string, cursor?: string): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
 
-			return getCreditCardImportsById(id, { cursor });
+			return getCreditCardImportsById({ path: { id }, query: { cursor } }).then(result => result.data);
 		},
 		async getPending(): Promise<CreditCardImportSummary[]> {
 			if (isGuestMode()) return [];
-			return getCreditCardImports();
+			return getCreditCardImports({}).then(result => result.data);
 		},
 		async reconcileItem(
 			importId: string,
@@ -1343,7 +1376,10 @@ export const dataService = {
 			},
 		): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			return postCreditCardImportsByIdItemsByItemIdReconcile(importId, itemId, data);
+			return postCreditCardImportsByIdItemsByItemIdReconcile({
+				body: data,
+				path: { id: importId, itemId },
+			}).then(result => result.data);
 		},
 		async refundSources(importId: string): Promise<
 			Array<{
@@ -1356,15 +1392,20 @@ export const dataService = {
 			}>
 		> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
-			return getCreditCardImportsByIdRefundSources(importId);
+			return getCreditCardImportsByIdRefundSources({ path: { id: importId } }).then(
+				result => result.data,
+			);
 		},
 		async saveRefundReview(
 			importId: string,
 			itemId: string,
-			data: Parameters<typeof postCreditCardImportsByIdItemsByItemIdApproveRefund>[2],
+			data: Parameters<typeof postCreditCardImportsByIdItemsByItemIdApproveRefund>[0]["body"],
 		) {
 			if (isGuestMode()) throw new Error("Conecte sua conta para revisar reembolsos.");
-			return patchCreditCardImportsByIdItemsByItemIdRefundReview(importId, itemId, data);
+			return patchCreditCardImportsByIdItemsByItemIdRefundReview({
+				body: data,
+				path: { id: importId, itemId },
+			}).then(result => result.data);
 		},
 		async updateItem(
 			importId: string,
@@ -1394,7 +1435,10 @@ export const dataService = {
 			},
 		): Promise<CreditCardImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar faturas.");
-			return patchCreditCardImportsByIdItemsByItemId(importId, itemId, data);
+			return patchCreditCardImportsByIdItemsByItemId({
+				body: data,
+				path: { id: importId, itemId },
+			}).then(result => result.data);
 		},
 	},
 
@@ -1423,7 +1467,9 @@ export const dataService = {
 			},
 		): Promise<CreditPurchase[]> {
 			if (!isGuestMode()) {
-				return postCreditCardsByIdPurchases(cardId, data);
+				return postCreditCardsByIdPurchases({ body: data, path: { id: cardId } }).then(
+					result => result.data,
+				);
 			}
 			const card = (await localCreditCards.getById(cardId))?.data;
 			if (!card) throw new Error("Cartão não encontrado");
@@ -1519,7 +1565,10 @@ export const dataService = {
 			},
 		): Promise<void> {
 			if (!isGuestMode()) {
-				await postCreditCardsByIdRefundReviewsByReviewIdApprove(cardId, reviewId, data);
+				await postCreditCardsByIdRefundReviewsByReviewIdApprove({
+					body: data,
+					path: { id: cardId, reviewId },
+				}).then(result => result.data);
 				return;
 			}
 			const review = (await localCreditRefundReviews.getById(reviewId))?.data;
@@ -1563,7 +1612,9 @@ export const dataService = {
 			},
 		): Promise<{ transaction: Pick<Transaction, "id"> }> {
 			if (isGuestMode()) return confirmLocalSuggestedPayment(cardId, input);
-			return postCreditCardsByIdPaymentSuggestionsConfirm(cardId, input);
+			return postCreditCardsByIdPaymentSuggestionsConfirm({ body: input, path: { id: cardId } }).then(
+				result => result.data,
+			);
 		},
 		async createFromAccount(
 			account: FinancialAccount,
@@ -1600,7 +1651,9 @@ export const dataService = {
 		},
 		async deletePurchase(cardId: string, purchaseId: string): Promise<void> {
 			if (!isGuestMode()) {
-				await deleteCreditCardsByIdPurchasesByPurchaseId(cardId, purchaseId);
+				await deleteCreditCardsByIdPurchasesByPurchaseId({ path: { id: cardId, purchaseId } }).then(
+					result => result.data,
+				);
 				return;
 			}
 			await mutateLocalCreditBook(cardId, book => {
@@ -1664,7 +1717,7 @@ export const dataService = {
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
-			const cards = await getCreditCards();
+			const cards = await getCreditCards({}).then(result => result.data);
 			cacheRemoteData(
 				localCreditCards.replaceSnapshot(
 					cards.map(card => ({ data: card, localId: card.id, syncedAt: Date.now() })),
@@ -1674,10 +1727,12 @@ export const dataService = {
 			return cards;
 		},
 		async getBook(cardId: string): Promise<CreditBook> {
-			return isGuestMode() ? readLocalCreditBook(cardId) : getCreditCardsByIdBook(cardId);
+			return isGuestMode()
+				? readLocalCreditBook(cardId)
+				: getCreditCardsByIdBook({ path: { id: cardId } }).then(result => result.data);
 		},
 		async getPaymentSuggestions(): Promise<import("./api").PaymentSuggestion[]> {
-			if (!isGuestMode()) return getCreditCardsPaymentSuggestions();
+			if (!isGuestMode()) return getCreditCardsPaymentSuggestions({}).then(result => result.data);
 			const [cards, accounts] = await Promise.all([
 				dataService.creditCards.getAll(),
 				dataService.accounts.getAll(),
@@ -1713,7 +1768,9 @@ export const dataService = {
 		},
 		async getPurchaseEditDetails(cardId: string, purchaseId: string): Promise<CreditPurchaseEditDetails> {
 			if (!isGuestMode()) {
-				const purchase = await getCreditCardsByIdPurchasesByPurchaseId(cardId, purchaseId);
+				const purchase = await getCreditCardsByIdPurchasesByPurchaseId({
+					path: { id: cardId, purchaseId },
+				}).then(result => result.data);
 				if (!purchase) throw new Error("Compra não encontrada");
 				return purchase;
 			}
@@ -1746,7 +1803,11 @@ export const dataService = {
 			cardId: string,
 		): Promise<Array<{ id: string; original: CreditPurchase; creditCardId: string }>> {
 			if (!isGuestMode())
-				return (await getCreditCardsByIdRefundReviews(cardId)).map(row => ({
+				return (
+					await getCreditCardsByIdRefundReviews({ path: { id: cardId } }).then(
+						result => result.data,
+					)
+				).map(row => ({
 					...row,
 					creditCardId: cardId,
 				}));
@@ -1755,7 +1816,10 @@ export const dataService = {
 				.map(row => ({ creditCardId: cardId, id: row.localId, original: row.data.original }));
 		},
 		async getStatement(cardId: string, statementId: string): Promise<CreditCardStatementDetail> {
-			if (!isGuestMode()) return getCreditCardsByIdStatementsByStatementId(cardId, statementId);
+			if (!isGuestMode())
+				return getCreditCardsByIdStatementsByStatementId({ path: { id: cardId, statementId } }).then(
+					result => result.data,
+				);
 			const book = await projectGuestRecurrenceCreditBook(
 				await readLocalCreditBook(cardId),
 				await dataService.recurrences.getAll(),
@@ -1846,7 +1910,9 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 
-			const page = await getCreditCardsByIdStatements(cardId, options);
+			const page = await getCreditCardsByIdStatements({ path: { id: cardId }, query: options }).then(
+				result => result.data,
+			);
 			cacheRemoteData(
 				localCreditCardStatements.bulkPut(
 					page.items.map(statement => ({
@@ -1892,7 +1958,9 @@ export const dataService = {
 			data: { amount: number; date: string; financialAccountId: string; time?: string | null },
 		): Promise<{ transaction: Pick<Transaction, "id"> }> {
 			if (!isGuestMode()) {
-				const result = await postCreditCardsByIdPayments(cardId, data);
+				const result = await postCreditCardsByIdPayments({ body: data, path: { id: cardId } }).then(
+					result => result.data,
+				);
 				cacheRemoteData(localTransactions.put(result.transaction, result.transaction.id));
 				return result;
 			}
@@ -1944,7 +2012,10 @@ export const dataService = {
 					),
 				};
 			}
-			return postCreditCardsByIdPurchasesByPurchaseIdRefinance(cardId, purchaseId, data);
+			return postCreditCardsByIdPurchasesByPurchaseIdRefinance({
+				body: data,
+				path: { id: cardId, purchaseId },
+			}).then(result => result.data);
 		},
 		async refundPurchase(
 			cardId: string,
@@ -1958,12 +2029,15 @@ export const dataService = {
 		): Promise<CreditPurchase> {
 			const date = data.date;
 			if (!isGuestMode())
-				return postCreditCardsByIdPurchasesByPurchaseIdRefunds(cardId, purchaseId, {
-					amount: data.amount,
-					canceledInstallmentNumbers: data.canceledInstallmentNumbers,
-					policy: data.policy,
-					purchaseDate: date,
-				});
+				return postCreditCardsByIdPurchasesByPurchaseIdRefunds({
+					body: {
+						amount: data.amount,
+						canceledInstallmentNumbers: data.canceledInstallmentNumbers,
+						policy: data.policy,
+						purchaseDate: date,
+					},
+					path: { id: cardId, purchaseId },
+				}).then(result => result.data);
 			const refund = await mutateLocalCreditBook(cardId, book =>
 				addBookRefund(book, resolveBookInstallment(book, purchaseId)?.purchaseId ?? purchaseId, {
 					amount: data.amount,
@@ -1978,7 +2052,10 @@ export const dataService = {
 		},
 		async setPayer(cardId: string, paymentAccountId: string | null, paymentSuggestionsEnabled: boolean) {
 			if (!isGuestMode())
-				return putCreditCardsByIdPayer(cardId, { paymentAccountId, paymentSuggestionsEnabled });
+				return putCreditCardsByIdPayer({
+					body: { paymentAccountId, paymentSuggestionsEnabled },
+					path: { id: cardId },
+				}).then(result => result.data);
 			const [card, accounts] = await Promise.all([
 				localCreditCards.getById(cardId),
 				dataService.accounts.getAll(),
@@ -2007,7 +2084,10 @@ export const dataService = {
 				);
 				return;
 			}
-			await patchCreditCardsByIdStatementsByStatementIdAmount(cardId, statementId, { amount, dates });
+			await patchCreditCardsByIdStatementsByStatementIdAmount({
+				body: { amount, dates },
+				path: { id: cardId, statementId },
+			}).then(result => result.data);
 		},
 
 		async setStatementCutoff(cardId: string, statementDate: string | null): Promise<void> {
@@ -2029,7 +2109,9 @@ export const dataService = {
 				);
 				return;
 			}
-			await patchCreditCardsByIdStatementCutoff(cardId, { statementDate });
+			await patchCreditCardsByIdStatementCutoff({ body: { statementDate }, path: { id: cardId } }).then(
+				result => result.data,
+			);
 		},
 		async updatePurchase(
 			cardId: string,
@@ -2055,7 +2137,10 @@ export const dataService = {
 				  },
 		): Promise<CreditPurchase> {
 			if (!isGuestMode()) {
-				return patchCreditCardsByIdPurchasesByPurchaseId(cardId, purchaseId, data);
+				return patchCreditCardsByIdPurchasesByPurchaseId({
+					body: data,
+					path: { id: cardId, purchaseId },
+				}).then(result => result.data);
 			}
 			const destinationCardId = "creditCardId" in data ? (data.creditCardId ?? cardId) : cardId;
 			let money: Awaited<ReturnType<typeof convertLocalMoney>> | undefined;
@@ -2236,16 +2321,14 @@ export const dataService = {
 			data: { amount: number; date: string; canceledInstallmentNumbers?: number[] },
 		): Promise<CreditPurchase> {
 			if (!isGuestMode())
-				return patchCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId(
-					cardId,
-					purchaseId,
-					refundId,
-					{
+				return patchCreditCardsByIdPurchasesByPurchaseIdRefundsByRefundId({
+					body: {
 						amount: data.amount,
 						canceledInstallmentNumbers: data.canceledInstallmentNumbers,
 						purchaseDate: data.date,
 					},
-				);
+					path: { id: cardId, purchaseId, refundId },
+				}).then(result => result.data);
 			await mutateLocalCreditBook(cardId, book =>
 				updateBookRefund(book, purchaseId, refundId, {
 					amount: data.amount,
@@ -2268,7 +2351,10 @@ export const dataService = {
 				);
 				return;
 			}
-			await patchCreditCardsByIdStatementsByStatementId(cardId, statementId, dates);
+			await patchCreditCardsByIdStatementsByStatementId({
+				body: dates,
+				path: { id: cardId, statementId },
+			}).then(result => result.data);
 		},
 	},
 
@@ -2668,7 +2754,7 @@ export const dataService = {
 				}
 			}
 
-			return getDashboard(dateRange);
+			return getDashboard({ query: dateRange }).then(result => result.data);
 		},
 		async getComparison(parameters: DashboardComparisonParameters): Promise<DashboardPeriod[]> {
 			if (isGuestMode()) {
@@ -2676,7 +2762,7 @@ export const dataService = {
 				return getGuestDashboardComparison(parameters);
 			}
 
-			return getDashboardComparison(parameters);
+			return getDashboardComparison({ query: parameters }).then(result => result.data);
 		},
 	},
 
@@ -2684,7 +2770,9 @@ export const dataService = {
 	debts: {
 		async acceptInvitation(id: string, personId?: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para aceitar convites.");
-			await postDebtsInvitationsByIdAccept(id, { personId });
+			await postDebtsInvitationsByIdAccept({ body: { personId }, path: { id } }).then(
+				result => result.data,
+			);
 		},
 		async createOrigin(data: {
 			amount: number;
@@ -2724,7 +2812,7 @@ export const dataService = {
 				);
 				return;
 			}
-			await postDebtsEvents(data);
+			await postDebtsEvents({ body: data }).then(result => result.data);
 		},
 		async createPerson(name: string): Promise<Pick<DebtPerson, "id" | "name">> {
 			if (isGuestMode()) {
@@ -2745,11 +2833,11 @@ export const dataService = {
 				await localDebtPeople.put(person, person.id);
 				return person;
 			}
-			return postDebtsPeople({ name });
+			return postDebtsPeople({ body: { name } }).then(result => result.data);
 		},
 		async declineInvitation(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para recusar convites.");
-			await postDebtsInvitationsByIdDecline(id);
+			await postDebtsInvitationsByIdDecline({ path: { id } }).then(result => result.data);
 		},
 
 		async deleteEvent(id: string): Promise<void> {
@@ -2760,18 +2848,21 @@ export const dataService = {
 				await localDebtEvents.delete(id);
 				return;
 			}
-			await deleteDebtsEventsByEventId(id);
+			await deleteDebtsEventsByEventId({ path: { eventId: id } }).then(result => result.data);
 		},
 		async deletePerson(id: string): Promise<void> {
 			if (isGuestMode()) {
 				await localDebtPeople.delete(id);
 				return;
 			}
-			await deleteDebtsPeopleById(id);
+			await deleteDebtsPeopleById({ path: { id } }).then(result => result.data);
 		},
 		async getEventPage(personId: string, cursor?: null | string, limit = 50): Promise<DebtEventPage> {
 			if (!isGuestMode()) {
-				return getDebtsPeopleByIdEvents(personId, { cursor: cursor ?? undefined, limit });
+				return getDebtsPeopleByIdEvents({
+					path: { id: personId },
+					query: { cursor: cursor ?? undefined, limit },
+				}).then(result => result.data);
 			}
 			const person = (await this.getLedger()).people.find(item => item.id === personId);
 			const events = person?.events ?? [];
@@ -2786,17 +2877,19 @@ export const dataService = {
 		async getInvitationPreview(id: string, cursor?: string, limit = 50): Promise<DebtInvitationPreview> {
 			if (isGuestMode()) throw new Error("Convite não encontrado.");
 
-			return getDebtsInvitationsByIdPreview(id, { cursor, limit });
+			return getDebtsInvitationsByIdPreview({ path: { id }, query: { cursor, limit } }).then(
+				result => result.data,
+			);
 		},
 		async getInvitations(): Promise<DebtInvitation[]> {
 			if (isGuestMode()) return [];
-			return getDebtsInvitations();
+			return getDebtsInvitations({}).then(result => result.data);
 		},
 		async getLedger(): Promise<DebtLedger> {
 			if (!isGuestMode()) {
 				const owner = getCurrentCacheIdentity();
 				if (!owner) throw new Error("Identidade local indisponível.");
-				const summary = await getDebts();
+				const summary = await getDebts({}).then(result => result.data);
 				const ledger: DebtLedger = {
 					...summary,
 					people: summary.people.map(person => ({ ...person, events: [] })),
@@ -2990,7 +3083,7 @@ export const dataService = {
 		},
 		async invitePerson(id: string, email: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para associar usuários Zaimu.");
-			await postDebtsPeopleByIdInvite(id, { email });
+			await postDebtsPeopleByIdInvite({ body: { email }, path: { id } }).then(result => result.data);
 		},
 
 		async updateOrigin(
@@ -3029,7 +3122,9 @@ export const dataService = {
 				);
 				return;
 			}
-			await patchDebtsEventsByEventId(id, data);
+			await patchDebtsEventsByEventId({ body: data, path: { eventId: id } }).then(
+				result => result.data,
+			);
 		},
 		async updatePerson(id: string, data: { accountEmail?: null | string; name: string }): Promise<void> {
 			if (isGuestMode()) {
@@ -3038,7 +3133,7 @@ export const dataService = {
 				await localDebtPeople.put({ ...existing.data, ...data }, id);
 				return;
 			}
-			await patchDebtsPeopleById(id, data);
+			await patchDebtsPeopleById({ body: data, path: { id } }).then(result => result.data);
 		},
 	},
 	financialInstitutions: {
@@ -3064,7 +3159,7 @@ export const dataService = {
 				);
 				return;
 			}
-			await deleteFinancialInstitutionsById(id);
+			await deleteFinancialInstitutionsById({ path: { id } }).then(result => result.data);
 		},
 		async getAll(): Promise<FinancialInstitution[]> {
 			const owner = getCurrentCacheIdentity();
@@ -3093,7 +3188,7 @@ export const dataService = {
 					getLocalFinancialInstitutions((await localAccounts.getAll()).map(item => item.data))
 				);
 			try {
-				const rows = await getFinancialInstitutions();
+				const rows = await getFinancialInstitutions({}).then(result => result.data);
 				if (owner) await localMeta.set("institution-catalog", rows, owner);
 				return rows;
 			} catch (error) {
@@ -3153,31 +3248,36 @@ export const dataService = {
 			}
 			if (!navigator.onLine) throw new Error("Propostas institucionais exigem conexão");
 			if (data.yieldPolicy) {
-				const profiles = await getFinancialInstitutionsByIdProfiles(id);
+				const profiles = await getFinancialInstitutionsByIdProfiles({ path: { id } }).then(
+					result => result.data,
+				);
 				const profileId =
 					data.yieldPolicy.profileId ?? profiles.find(profile => profile.isDefault)?.id;
 				if (!profileId) throw new Error("Perfil Padrão indisponível");
 				const date = new Date();
 				date.setDate(date.getDate() + 1);
-				await postFinancialInstitutionsByIdPolicies(id, {
-					...data.yieldPolicy,
-					accountType: data.yieldPolicy.accountType ?? undefined,
-					countryCode: data.yieldPolicy.countryCode ?? undefined,
-					effectiveDate:
-						data.yieldPolicy.requestedEffectiveDate ?? date.toLocaleDateString("sv-SE"),
-					effectiveUntil: data.yieldPolicy.effectiveUntil ?? undefined,
-					profileId,
-					rules: data.yieldPolicy.rules.map(rule => ({
-						...rule,
-						upToBalance: rule.upToBalance ?? null,
-					})),
-					yieldTaxIds: data.yieldPolicy.yieldTaxIds ?? undefined,
-				});
+				await postFinancialInstitutionsByIdPolicies({
+					body: {
+						...data.yieldPolicy,
+						accountType: data.yieldPolicy.accountType ?? undefined,
+						countryCode: data.yieldPolicy.countryCode ?? undefined,
+						effectiveDate:
+							data.yieldPolicy.requestedEffectiveDate ?? date.toLocaleDateString("sv-SE"),
+						effectiveUntil: data.yieldPolicy.effectiveUntil ?? undefined,
+						profileId,
+						rules: data.yieldPolicy.rules.map(rule => ({
+							...rule,
+							upToBalance: rule.upToBalance ?? null,
+						})),
+						yieldTaxIds: data.yieldPolicy.yieldTaxIds ?? undefined,
+					},
+					path: { id },
+				}).then(result => result.data);
 			} else {
 				throw new Error("O nome da instituição só pode ser alterado pela administração");
 			}
 			showToast("Proposta enviada para revisão", "info");
-			const institutions = await getFinancialInstitutions();
+			const institutions = await getFinancialInstitutions({}).then(result => result.data);
 			const unchanged = institutions.find(institution => institution.id === id);
 			if (!unchanged) throw new Error("Instituição indisponível");
 			return unchanged;
@@ -3196,14 +3296,17 @@ export const dataService = {
 			expectedPaymentId?: string,
 		) {
 			if (!isGuestMode())
-				return postLoansByIdAdvance(id, {
-					accountAmount,
-					advanceType,
-					expectedPaymentId,
-					financialAccountId,
-					installmentsToAdvance: count,
-					paidDate,
-				});
+				return postLoansByIdAdvance({
+					body: {
+						accountAmount,
+						advanceType,
+						expectedPaymentId,
+						financialAccountId,
+						installmentsToAdvance: count,
+						paidDate,
+					},
+					path: { id },
+				}).then(result => result.data);
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade indisponível");
 			const loan = await localLoans.getById(id, owner);
@@ -3263,10 +3366,12 @@ export const dataService = {
 				return newLoan;
 			}
 			const loan = await postLoans({
-				...data,
-				description: data.description ?? undefined,
-				institutionId: data.institutionId,
-			});
+				body: {
+					...data,
+					description: data.description ?? undefined,
+					institutionId: data.institutionId,
+				},
+			}).then(result => result.data);
 			cacheRemoteData(localLoans.put(loan, loan.id));
 			return loan;
 		},
@@ -3296,7 +3401,7 @@ export const dataService = {
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
-			const loans = await getLoans();
+			const loans = await getLoans({}).then(result => result.data);
 			cacheRemoteData(
 				localLoans.replaceSnapshot(
 					loans.map(l => ({ data: l, localId: l.id, syncedAt: Date.now() })),
@@ -3306,7 +3411,10 @@ export const dataService = {
 			return loans;
 		},
 		async getEarlyPayoff(id: string) {
-			if (!isGuestMode()) return getLoansByIdEarlyPayoff(id, { advanceType: "BACK" });
+			if (!isGuestMode())
+				return getLoansByIdEarlyPayoff({ path: { id }, query: { advanceType: "BACK" } }).then(
+					result => result.data,
+				);
 			const loan = await localLoans.getById(id);
 			if (!loan || loan.data.needsPaymentReview)
 				throw new Error("Revise histórico antes de calcular quitação");
@@ -3321,7 +3429,10 @@ export const dataService = {
 			};
 		},
 		async getNextPayment(id: string, advanceType: "FRONT" | "BACK"): Promise<LoanPayment | null> {
-			if (!isGuestMode()) return getLoansByIdNextPayment(id, { advanceType });
+			if (!isGuestMode())
+				return getLoansByIdNextPayment({ path: { id }, query: { advanceType } }).then(
+					result => result.data,
+				);
 			const rows = (await localLoanPayments.getAll())
 				.map(row => row.data)
 				.filter(row => row.loanId === id && !row.paidDate)
@@ -3338,7 +3449,7 @@ export const dataService = {
 			options: { cursor?: string; limit?: number } = {},
 		): Promise<LoanPaymentPage> {
 			if (!isGuestMode()) {
-				return getLoansByIdPayments(id, options);
+				return getLoansByIdPayments({ path: { id }, query: options }).then(result => result.data);
 			}
 			if (!(await localLoans.getById(id))) throw new Error("Empréstimo não encontrado");
 			const rows = (await localLoanPayments.getAll())
@@ -3385,11 +3496,14 @@ export const dataService = {
 			accountAmount?: number,
 		): Promise<LoanPayment> {
 			if (!isGuestMode())
-				return postLoansByIdPaymentsByInstallmentNumberPay(id, String(number), {
-					accountAmount,
-					financialAccountId,
-					paidDate,
-				});
+				return postLoansByIdPaymentsByInstallmentNumberPay({
+					body: {
+						accountAmount,
+						financialAccountId,
+						paidDate,
+					},
+					path: { id, installmentNumber: String(number) },
+				}).then(result => result.data);
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade indisponível");
 			const loan = await localLoans.getById(id, owner);
@@ -3449,7 +3563,7 @@ export const dataService = {
 				await localStores.put(store, store.id);
 				return store;
 			}
-			const store = await postStores({ name });
+			const store = await postStores({ body: { name } }).then(result => result.data);
 			cacheRemoteData(localStores.put(store, store.id));
 			return store;
 		},
@@ -3463,7 +3577,7 @@ export const dataService = {
 					options,
 				);
 
-			return getStores(options);
+			return getStores({ query: options }).then(result => result.data);
 		},
 	},
 
@@ -3507,12 +3621,14 @@ export const dataService = {
 				if (pending.some(row => row.id.startsWith("mapping:")))
 					await (
 						await import("./upgrades/resolve-recurrence-ids")
-					).resolveUpgradeRecurrenceIds(database, owner, ids => postUpgradesRecurrenceIds({ ids }));
+					).resolveUpgradeRecurrenceIds(database, owner, ids =>
+						postUpgradesRecurrenceIds({ body: { ids } }).then(result => result.data),
+					);
 				if (pending.some(row => row.id.startsWith("debt-proof:")))
 					await (
 						await import("./upgrades/resolve-debt-events")
 					).resolveDebtEventUpgrade(database, owner, records =>
-						postUpgradesDebtOrigins({ records }),
+						postUpgradesDebtOrigins({ body: { records } }).then(result => result.data),
 					);
 				// Get all local data
 				const [
@@ -3564,60 +3680,64 @@ export const dataService = {
 					);
 				// Send to server
 				const response = await postSync({
-					categories: categories.map(c => c.data),
-					creditBooks: creditBooks.map(row => ({
-						...row.data,
-						purchases: row.data.purchases.map(purchase => ({
-							...purchase,
-							installmentAmountsCents: [...purchase.installmentAmountsCents],
-							tagIds: [...purchase.tagIds],
+					body: {
+						categories: categories.map(c => c.data),
+						creditBooks: creditBooks.map(row => ({
+							...row.data,
+							purchases: row.data.purchases.map(purchase => ({
+								...purchase,
+								installmentAmountsCents: [...purchase.installmentAmountsCents],
+								tagIds: [...purchase.tagIds],
+							})),
 						})),
-					})),
-					creditCardStatements: creditCardStatements.map(statement => statement.data),
-					creditCards: creditCards.map(card => card.data),
-					debtEvents: debts.map(row => ({
-						...row.data,
-						deletedAt: row.deleted ? new Date(row.modifiedAt).toISOString() : row.data.deletedAt,
-						updatedAt: new Date(row.modifiedAt).toISOString(),
-					})),
-					debtPeople: debtPeople.map(person => ({
-						...person.data,
-						hiddenAt: person.deleted ? new Date(person.modifiedAt).toISOString() : undefined,
-					})),
-					financialAccounts: accounts.map(a => a.data),
-					financialAccountYieldHolidays: [],
-					financialAccountYields: ((yields as FinancialAccountYield[] | null) ?? []).filter(
-						yieldEntry => yieldEntry.origin !== "SYSTEM",
-					),
-					loanPayments: loanPayments.map(row => row.data),
-					loanScenarios: owner.startsWith("guest:")
-						? (((await localMeta.get("loan-scenarios", owner)) as
-								import("./api").SavedLoanScenario[] | undefined) ?? [])
-						: [],
-					loans: loans.map(l => l.data),
-					monthlyBudgets: monthlyBudgets.map(row => ({
-						...row.data,
-						baseUpdatedAt:
-							row.data.baseUpdatedAt ?? (row.syncedAt ? row.data.updatedAt : undefined),
-						createdAt: row.data.createdAt ?? new Date(row.modifiedAt).toISOString(),
-						deletedAt: row.deleted ? new Date(row.modifiedAt).toISOString() : null,
-						updatedAt: new Date(row.modifiedAt).toISOString(),
-					})),
-					recurrenceOccurrences: recurrenceOccurrences.map(row => row.data),
-					recurrences: recurrences.map(row => ({
-						...row.data,
-						currency: row.data.currency ?? activeCurrency(),
-						debtSplit: row.data.debtSplit ? debtSplitToInput(row.data.debtSplit) : null,
-						needsConfiguration: row.data.needsConfiguration ?? false,
-						tagIds: row.data.tagIds ?? [],
-						tags: (row.data.tags ?? []).map(tag => ({
-							...tag,
-							color: tag.color ?? null,
-							icon: tag.icon ?? null,
+						creditCardStatements: creditCardStatements.map(statement => statement.data),
+						creditCards: creditCards.map(card => card.data),
+						debtEvents: debts.map(row => ({
+							...row.data,
+							deletedAt: row.deleted
+								? new Date(row.modifiedAt).toISOString()
+								: row.data.deletedAt,
+							updatedAt: new Date(row.modifiedAt).toISOString(),
 						})),
-					})),
-					transactions: transactions.map(t => t.data),
-				});
+						debtPeople: debtPeople.map(person => ({
+							...person.data,
+							hiddenAt: person.deleted ? new Date(person.modifiedAt).toISOString() : undefined,
+						})),
+						financialAccounts: accounts.map(a => a.data),
+						financialAccountYieldHolidays: [],
+						financialAccountYields: ((yields as FinancialAccountYield[] | null) ?? []).filter(
+							yieldEntry => yieldEntry.origin !== "SYSTEM",
+						),
+						loanPayments: loanPayments.map(row => row.data),
+						loanScenarios: owner.startsWith("guest:")
+							? (((await localMeta.get("loan-scenarios", owner)) as
+									import("./api").SavedLoanScenario[] | undefined) ?? [])
+							: [],
+						loans: loans.map(l => l.data),
+						monthlyBudgets: monthlyBudgets.map(row => ({
+							...row.data,
+							baseUpdatedAt:
+								row.data.baseUpdatedAt ?? (row.syncedAt ? row.data.updatedAt : undefined),
+							createdAt: row.data.createdAt ?? new Date(row.modifiedAt).toISOString(),
+							deletedAt: row.deleted ? new Date(row.modifiedAt).toISOString() : null,
+							updatedAt: new Date(row.modifiedAt).toISOString(),
+						})),
+						recurrenceOccurrences: recurrenceOccurrences.map(row => row.data),
+						recurrences: recurrences.map(row => ({
+							...row.data,
+							currency: row.data.currency ?? activeCurrency(),
+							debtSplit: row.data.debtSplit ? debtSplitToInput(row.data.debtSplit) : null,
+							needsConfiguration: row.data.needsConfiguration ?? false,
+							tagIds: row.data.tagIds ?? [],
+							tags: (row.data.tags ?? []).map(tag => ({
+								...tag,
+								color: tag.color ?? null,
+								icon: tag.icon ?? null,
+							})),
+						})),
+						transactions: transactions.map(t => t.data),
+					},
+				}).then(result => result.data);
 
 				await acknowledgeRecurrenceSync(
 					recurrences,
@@ -3749,19 +3869,19 @@ export const dataService = {
 	transactionImports: {
 		async acceptTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept(
-				importId,
-				itemId,
-				counterpartItemId,
-			);
+			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept({
+				path: { counterpartItemId: importId, id: itemId, itemId: counterpartItemId },
+			}).then(result => result.data);
 		},
 		async approve(id: string): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdApprove(id);
+			return postTransactionImportsByIdApprove({ path: { id } }).then(result => result.data);
 		},
 		async approveDay(importId: string, date: string): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdDaysByDateApprove(date, importId);
+			return postTransactionImportsByIdDaysByDateApprove({ path: { date, id: importId } }).then(
+				result => result.data,
+			);
 		},
 		async approveItem(
 			importId: string,
@@ -3769,12 +3889,11 @@ export const dataService = {
 			data?: { recurrence: { recurrenceId: string; date: string } },
 		): Promise<{ created: number; finished: boolean }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdItemsByItemIdApprove(
-				importId,
-				itemId,
-				data ?? {},
-				data ? { authenticated: true, batch: false, responseType: "json" } : undefined,
-			);
+			return postTransactionImportsByIdItemsByItemIdApprove({
+				body: data ?? {},
+				path: { id: importId, itemId },
+				...(data ? { authenticated: true, batch: false, responseType: "json" } : undefined),
+			}).then(result => result.data);
 		},
 
 		async create({
@@ -3788,7 +3907,9 @@ export const dataService = {
 		}): Promise<TransactionImportCreateResult> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			const uploadFile = await prepareUploadFile(file);
-			return postTransactionImports({ file: uploadFile, financialAccountId, provider });
+			return postTransactionImports({ body: { file: uploadFile, financialAccountId, provider } }).then(
+				result => result.data,
+			);
 		},
 		async createBatch(data: {
 			files: File[];
@@ -3802,26 +3923,34 @@ export const dataService = {
 				`${getCurrentCacheIdentity()}:Transaction:${data.financialAccountId}:${data.files.map(file => `${file.name}:${file.size}:${file.lastModified}`).join("|")}`,
 				() =>
 					postTransactionImportsBatch({
-						files,
-						financialAccountId: data.financialAccountId,
-						provider: data.provider as Exclude<typeof data.provider, "MEUPLUGGY">,
-					}),
+						body: {
+							files,
+							financialAccountId: data.financialAccountId,
+							provider: data.provider as Exclude<typeof data.provider, "MEUPLUGGY">,
+						},
+					}).then(result => result.data),
 				batchId =>
-					waitForImportBatch(() => getTransactionImportsBatchByBatchId(batchId), data.onProgress),
+					waitForImportBatch(
+						() =>
+							getTransactionImportsBatchByBatchId({ path: { batchId } }).then(
+								result => result.data,
+							),
+						data.onProgress,
+					),
 			);
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			await deleteTransactionImportsById(id);
+			await deleteTransactionImportsById({ path: { id } }).then(result => result.data);
 		},
 		async get(id: string, cursor?: string): Promise<TransactionImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 
-			return getTransactionImportsById(id, { cursor });
+			return getTransactionImportsById({ path: { id }, query: { cursor } }).then(result => result.data);
 		},
 		async getPending(): Promise<TransactionImportSummary[]> {
 			if (isGuestMode()) return [];
-			return getTransactionImports();
+			return getTransactionImports({}).then(result => result.data);
 		},
 		async reconcileItem(
 			importId: string,
@@ -3833,15 +3962,16 @@ export const dataService = {
 			},
 		): Promise<TransactionImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdItemsByItemIdReconcile(importId, itemId, data);
+			return postTransactionImportsByIdItemsByItemIdReconcile({
+				body: data,
+				path: { id: importId, itemId },
+			}).then(result => result.data);
 		},
 		async rejectTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
-			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject(
-				importId,
-				itemId,
-				counterpartItemId,
-			);
+			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject({
+				path: { counterpartItemId: importId, id: itemId, itemId: counterpartItemId },
+			}).then(result => result.data);
 		},
 		async updateItem(
 			importId: string,
@@ -3871,7 +4001,10 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			if (data.type === "REFUND")
 				throw new Error("Reembolsos não são aceitos nesta edição de importação");
-			return patchTransactionImportsByIdItemsByItemId(importId, itemId, { ...data, type: data.type });
+			return patchTransactionImportsByIdItemsByItemId({
+				body: { ...data, type: data.type },
+				path: { id: importId, itemId },
+			}).then(result => result.data);
 		},
 	},
 
@@ -3879,7 +4012,9 @@ export const dataService = {
 	transactions: {
 		async acceptTransferSuggestion(id: string, counterpartId: string): Promise<{ success: true }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para combinar transferências.");
-			return postTransactionsByIdTransferSuggestionsByCounterpartIdAccept(id, counterpartId);
+			return postTransactionsByIdTransferSuggestionsByCounterpartIdAccept({
+				path: { counterpartId: id, id: counterpartId },
+			}).then(result => result.data);
 		},
 		async create(
 			data: Omit<Transaction, "createdAt" | "debtSplit" | "id"> & {
@@ -3966,19 +4101,21 @@ export const dataService = {
 			if (data.type === "REFUND")
 				throw new Error("Use o fluxo de reembolso para registrar esta operação");
 			const transaction = await postTransactions({
-				...data,
-				destinationAmount: data.destinationAmount ?? undefined,
-				destinationFinancialAccountId: data.destinationFinancialAccountId ?? undefined,
-				feeAmount: data.feeAmount ?? undefined,
-				feeDescription: data.feeDescription ?? undefined,
-				originFinancialAccountId: data.originFinancialAccountId ?? undefined,
-				paymentAmount: data.paymentAmount ?? undefined,
-				paymentCreditCardId: data.paymentCreditCardId ?? undefined,
-				recurrenceId: data.recurrenceId ?? undefined,
-				recurrenceOccurrenceDate: data.recurrenceOccurrenceDate ?? undefined,
-				storeName: data.storeName ?? undefined,
-				type: data.type,
-			});
+				body: {
+					...data,
+					destinationAmount: data.destinationAmount ?? undefined,
+					destinationFinancialAccountId: data.destinationFinancialAccountId ?? undefined,
+					feeAmount: data.feeAmount ?? undefined,
+					feeDescription: data.feeDescription ?? undefined,
+					originFinancialAccountId: data.originFinancialAccountId ?? undefined,
+					paymentAmount: data.paymentAmount ?? undefined,
+					paymentCreditCardId: data.paymentCreditCardId ?? undefined,
+					recurrenceId: data.recurrenceId ?? undefined,
+					recurrenceOccurrenceDate: data.recurrenceOccurrenceDate ?? undefined,
+					storeName: data.storeName ?? undefined,
+					type: data.type,
+				},
+			}).then(result => result.data);
 			cacheRemoteData(localTransactions.put(transaction, transaction.id));
 			return transaction;
 		},
@@ -3988,7 +4125,7 @@ export const dataService = {
 				await localTransactions.delete(id);
 				return;
 			}
-			await deleteTransactionsById(id);
+			await deleteTransactionsById({ path: { id } }).then(result => result.data);
 			cacheRemoteData(localTransactions.delete(id));
 		},
 		async getAll(params?: {
@@ -4231,10 +4368,10 @@ export const dataService = {
 				};
 			}
 
-			return getTransactions(params);
+			return getTransactions({ query: params }).then(result => result.data);
 		},
 		async getDetail(id: string): Promise<Transaction> {
-			if (!isGuestMode()) return getTransactionsById(id);
+			if (!isGuestMode()) return getTransactionsById({ path: { id } }).then(result => result.data);
 			const row = await localTransactions.getById(id);
 			if (!row) throw new Error("Transação não encontrada");
 			return row.data;
@@ -4243,11 +4380,13 @@ export const dataService = {
 			Array<{ counterpart: Transaction; transaction: Transaction }>
 		> {
 			if (isGuestMode()) return [];
-			return getTransactionsTransferSuggestions();
+			return getTransactionsTransferSuggestions({}).then(result => result.data);
 		},
 		async rejectTransferSuggestion(id: string, counterpartId: string): Promise<{ success: true }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para ignorar sugestões de transferência.");
-			return postTransactionsByIdTransferSuggestionsByCounterpartIdReject(id, counterpartId);
+			return postTransactionsByIdTransferSuggestionsByCounterpartIdReject({
+				path: { counterpartId: id, id: counterpartId },
+			}).then(result => result.data);
 		},
 
 		async update(
@@ -4341,14 +4480,17 @@ export const dataService = {
 				return updated;
 			}
 			if (data.type === "REFUND") throw new Error("Use o fluxo de reembolso para editar esta operação");
-			const transaction = await patchTransactionsById(id, {
-				...data,
-				destinationAmount: data.destinationAmount ?? undefined,
-				feeAmount: data.feeAmount ?? undefined,
-				feeDescription: data.feeDescription ?? undefined,
-				paymentAmount: data.paymentAmount ?? undefined,
-				type: data.type,
-			});
+			const transaction = await patchTransactionsById({
+				body: {
+					...data,
+					destinationAmount: data.destinationAmount ?? undefined,
+					feeAmount: data.feeAmount ?? undefined,
+					feeDescription: data.feeDescription ?? undefined,
+					paymentAmount: data.paymentAmount ?? undefined,
+					type: data.type,
+				},
+				path: { id },
+			}).then(result => result.data);
 			cacheRemoteData(localTransactions.put(transaction, transaction.id));
 			return transaction;
 		},

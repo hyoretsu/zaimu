@@ -37,7 +37,10 @@ export function NewInstitutionSuggestionForm({ onClose }: { onClose: () => void 
 							failureMessage: "Não foi possível enviar a sugestão.",
 							loadingMessage: "Enviando sugestão...",
 							recovery: { kind: "institution-suggestion:new", payload: { name: trimmed } },
-							run: () => postFinancialInstitutions({ name: trimmed }),
+							run: () =>
+								postFinancialInstitutions({ body: { name: trimmed } }).then(
+									result => result.data,
+								),
 							successMessage: "Instituição sugerida para revisão.",
 						})
 					}

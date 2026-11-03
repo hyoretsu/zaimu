@@ -124,7 +124,10 @@ async function resolveSides(...args: Parameters<typeof resolveTransactionMoneySi
 	}
 }
 
-export const TransactionsController = new Elysia({ prefix: "/transactions" })
+export const TransactionsController = new Elysia({
+	detail: { tags: ["Transactions"] },
+	prefix: "/transactions",
+})
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
 	})

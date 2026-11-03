@@ -60,7 +60,7 @@ export function AccountTransferDialog({
 			)
 			.map(account => account.id) ?? [];
 	const related = useGetAccountTransfersRelatedAccounts(
-		{ accountIds: baseIds.join(",") },
+		{ query: { accountIds: baseIds.join(",") } },
 		{
 			query: {
 				enabled: open && authenticated && baseIds.length > 0,

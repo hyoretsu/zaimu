@@ -71,7 +71,10 @@ export function CreateInstitutionProfileDialog({
 						setError("");
 						try {
 							const start = captureCacheMutation();
-							await postFinancialInstitutionsByIdProfiles(institutionId, { name: submitted });
+							await postFinancialInstitutionsByIdProfiles({
+								body: { name: submitted },
+								path: { id: institutionId },
+							}).then(result => result.data);
 							await invalidateMutationCache(
 								queryClient,
 								start,

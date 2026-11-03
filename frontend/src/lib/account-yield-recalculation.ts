@@ -17,7 +17,9 @@ export function prepareGuestYieldRecalculation(
 		customSettings,
 	);
 	if (settingsRequireReference(settings))
-		throw new Error("Recálculo com CDI ou SELIC exige histórico oficial disponível em uma conta conectada");
+		throw new Error(
+			"Recálculo com CDI ou SELIC exige histórico oficial disponível em uma conta conectada",
+		);
 	return { settings, today };
 }
 
@@ -39,12 +41,15 @@ export async function recalculateAccountYield(
 	const { useAuthStore } = await import("@/stores/auth");
 	if (!useAuthStore.getState().isGuestMode) {
 		const { postFinancialAccountsByIdRecalculateYields } = await import("./api");
-		return postFinancialAccountsByIdRecalculateYields(accountId, {
-			customSettings: customSettings
-				? { ...customSettings, yieldTaxIds: customSettings.yieldTaxIds ?? undefined }
-				: undefined,
-			profileId,
-		});
+		return postFinancialAccountsByIdRecalculateYields({
+			body: {
+				customSettings: customSettings
+					? { ...customSettings, yieldTaxIds: customSettings.yieldTaxIds ?? undefined }
+					: undefined,
+				profileId,
+			},
+			path: { id: accountId },
+		}).then(result => result.data);
 	}
 	const { localAccounts, localMeta } = await import("./localStorage");
 	const stored = await localAccounts.getById(accountId);
@@ -55,7 +60,8 @@ export async function recalculateAccountYield(
 		undefined,
 		customSettings,
 	);
-	const yields = ((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
+	const yields =
+		((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
 	const updated: FinancialAccount = {
 		...stored.data,
 		historicalYieldSettings: { settings, throughDate: today },

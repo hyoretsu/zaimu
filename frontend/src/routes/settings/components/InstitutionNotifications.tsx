@@ -22,7 +22,7 @@ export function InstitutionNotifications() {
 	const [pending, setPending] = useState<string[]>([]);
 	const query = useQuery({
 		enabled: !guest,
-		queryFn: () => getFinancialInstitutionsNotifications(),
+		queryFn: () => getFinancialInstitutionsNotifications({}).then(result => result.data),
 		queryKey: ["institution-notifications", userId],
 	});
 	if (guest) return null;
@@ -44,7 +44,9 @@ export function InstitutionNotifications() {
 								? "Proposta institucional aguarda revisão"
 								: `Resultado da proposta: ${statusNames[item.payload.status ?? ""] ?? "Revisada"}`}
 						</p>
-						{item.payload.reason && <p className="text-muted-foreground text-sm">{item.payload.reason}</p>}
+						{item.payload.reason && (
+							<p className="text-muted-foreground text-sm">{item.payload.reason}</p>
+						)}
 						<p className="text-muted-foreground text-xs">
 							{item.createdAt.slice(0, 10)} - {item.payload.proposalId}
 						</p>
@@ -54,13 +56,18 @@ export function InstitutionNotifications() {
 									disabled={pending.includes(item.id)}
 									onClick={() => {
 										setPending(ids => [...ids, item.id]);
-										void postFinancialInstitutionsNotificationsByIdRead(item.id)
+										void postFinancialInstitutionsNotificationsByIdRead({
+											path: { id: item.id },
+										})
+											.then(result => result.data)
 											.then(async () => {
 												await query.refetch();
 												showToast("Notificação marcada como lida", "info");
 											})
 											.catch(error => showToast(error.message, "negative"))
-											.finally(() => setPending(ids => ids.filter(id => id !== item.id)));
+											.finally(() =>
+												setPending(ids => ids.filter(id => id !== item.id)),
+											);
 									}}
 									size="sm"
 									variant="outline"
