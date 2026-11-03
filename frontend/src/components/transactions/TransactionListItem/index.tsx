@@ -127,13 +127,18 @@ export function TransactionListItem({
 			: []),
 	];
 	const allActionItems = actionItems ?? [...(additionalActionItems ?? []), ...defaultActionItems];
+	const showAssociateRecurrence =
+		Boolean(onEdit || onDelete) && !transaction.isRefund && !transaction.detachedKind;
+	// The recurrence link button is always icon-only, so it counts toward the 3+ actions rule.
+	const compactActions =
+		forceCompactActions || allActionItems.length + (showAssociateRecurrence ? 1 : 0) >= 3;
 
 	return (
 		<ListItemLayout
 			actions={
 				allActionItems.length ? (
 					<div className="flex flex-wrap items-center justify-end gap-2">
-						{(onEdit || onDelete) && !transaction.isRefund && !transaction.detachedKind && (
+						{showAssociateRecurrence && (
 							<AssociateRecurrenceButton
 								date={transaction.date}
 								disabled={deleting}
@@ -146,7 +151,7 @@ export function TransactionListItem({
 								}}
 							/>
 						)}
-						<ItemActions actions={allActionItems} forceCompact={forceCompactActions} />
+						<ItemActions actions={allActionItems} forceCompact={compactActions} />
 					</div>
 				) : undefined
 			}
