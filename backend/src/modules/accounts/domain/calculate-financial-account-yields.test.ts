@@ -729,3 +729,39 @@ for (const [day, expected] of [
 		).toBe(103.3);
 	});
 }
+
+test("bases a day's yield snapshot on the opening balance, ignoring same-day withdrawals", () => {
+	const snapshots = new Map<string, import("@zaimu/finance/yield-tax").YieldLot[]>();
+	calculateFinancialAccountYieldBalances({
+		accounts: [
+			{
+				createdAt: new Date("2026-01-01T12:00:00"),
+				id: "account",
+				type: "SAVINGS",
+				yieldFixedRate: 10,
+				yieldPeriod: "MONTHLY" as const,
+			},
+		],
+		beforeYieldDay: "2026-01-06",
+		cashbackCredits: [],
+		holidays: [],
+		initialRewardsBalances: new Map(),
+		lotSnapshots: snapshots,
+		today: new Date("2026-01-06T12:00:00"),
+		transactions: [
+			{
+				amount: 100,
+				date: new Date("2026-01-02T12:00:00"),
+				destinationFinancialAccountId: "account",
+			},
+			{
+				amount: 40,
+				date: new Date("2026-01-06T12:00:00"),
+				originFinancialAccountId: "account",
+			},
+		],
+	});
+
+	const opening = (snapshots.get("account") ?? []).reduce((sum, lot) => sum + lot.balance, 0);
+	expect(opening).toBeGreaterThanOrEqual(100);
+});

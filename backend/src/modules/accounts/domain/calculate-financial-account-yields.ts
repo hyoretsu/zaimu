@@ -283,6 +283,8 @@ function calculateYieldedBalance(
 	for (let day = new Date(`${firstDay}T12:00:00`); dateKey(day) <= todayKey; day = addDays(day, 1)) {
 		const key = dateKey(day);
 		const dayYields = yieldsByDay.get(key) ?? [];
+		// Yield accrues overnight on the balance the day opened with: same-day withdrawals must not shrink it.
+		const openingLedger = events?.has(key) || cashbackEvents?.has(key) ? ledger.clone() : ledger;
 		for (const movement of events?.get(key) ?? []) ledger.applyCashFlow(movement, key);
 		balance = ledger.balance;
 		for (const credit of cashbackEvents?.get(key) ?? []) {
@@ -319,15 +321,15 @@ function calculateYieldedBalance(
 		if (key === beforeYieldDay)
 			lotSnapshots?.set(
 				account.id,
-				ledger.lots.map(lot => ({ ...lot })),
+				openingLedger.lots.map(lot => ({ ...lot })),
 			);
 		const yieldSettings = getYieldSettings(account, key);
 		const automaticYield = dayYields.find(yieldEntry => yieldEntry.kind === "AUTOMATIC");
-		if (balance > 0 && !hasManualYield && !automaticYield?.isExcluded) {
+		if ((balance > 0 || openingLedger.balance > 0) && !hasManualYield && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
 			const grossAmount = hasReference
 				? 0
-				: calculateGrossYield(ledger.eligibleBalance(key), yieldSettings, {});
+				: calculateGrossYield(openingLedger.eligibleBalance(key), yieldSettings, {});
 
 			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined) {
 				if (automaticYield.origin === "SYSTEM")

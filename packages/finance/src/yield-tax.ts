@@ -140,6 +140,9 @@ export class YieldTaxLedger {
 		this.lots = lots.map(lot => ({ ...lot })).sort((a, b) => a.date.localeCompare(b.date));
 		this.debt = debt;
 	}
+	clone() {
+		return new YieldTaxLedger(this.lots, this.debt);
+	}
 	get balance() {
 		return this.debt + this.lots.reduce((sum, lot) => sum + lot.balance, 0);
 	}
