@@ -277,7 +277,12 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			await query(
 				`LOCK TABLE "FinancialAccount", "Transaction", "LoanPayment", "FinancialAccountYield", "BalanceAdjustment" IN SHARE ROW EXCLUSIVE MODE`,
 			);
-			if ((await balanceAdjustmentSourceVersion(query, account.id)) !== sourceVersion) return;
+			if ((await balanceAdjustmentSourceVersion(query, account.id)) !== sourceVersion) {
+				console.warn(
+					`Account ${account.id} changed during recalculation; adjustments left for the next job`,
+				);
+				return;
+			}
 			await reconcileBalanceAdjustments(
 				query,
 				(account as YieldAccount & { userId: string }).userId,
