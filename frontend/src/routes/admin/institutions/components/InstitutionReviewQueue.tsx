@@ -11,8 +11,9 @@ export function InstitutionReviewQueue() {
 		queryFn: () => getFinancialInstitutionsReviewProposals(),
 		queryKey: ["institution-review", userId],
 	});
-	const total = query.data?.length ?? 0;
-	const pending = query.data?.filter(item => item.status === "PENDING").length ?? 0;
+	const proposals = query.data?.filter(item => item.status !== "APPROVED" && item.status !== "ASSOCIATED");
+	const total = proposals?.length ?? 0;
+	const pending = proposals?.filter(item => item.status === "PENDING").length ?? 0;
 	return (
 		<CollapsibleListingSection
 			description="Revise propostas de instituições, perfis e políticas de rendimento."
@@ -32,8 +33,8 @@ export function InstitutionReviewQueue() {
 				</div>
 			) : query.isError ? (
 				<p role="alert">{query.error.message}</p>
-			) : query.data?.length ? (
-				query.data.map(proposal => <InstitutionProposalRow key={proposal.id} proposal={proposal} />)
+			) : proposals?.length ? (
+				proposals.map(proposal => <InstitutionProposalRow key={proposal.id} proposal={proposal} />)
 			) : (
 				<p>Nenhuma proposta registrada.</p>
 			)}
