@@ -82,15 +82,25 @@ export function CreateTransactionDialog({
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	useEffect(() => {
 		if (!open) return;
-		setDraft(current => ({
-			...current,
-			currency:
-				!current.amount && !currencyExplicit.current
-					? (account?.currency ?? current.currency)
-					: current.currency,
-			originFinancialAccountId: account?.id ?? current.originFinancialAccountId,
-			time: getCurrentLocalTime(),
-		}));
+		setDraft(current => {
+			const isSavingsDestination = account?.type === "SAVINGS" && current.type === "TRANSFER";
+			return {
+				...current,
+				currency:
+					!current.amount && !currencyExplicit.current
+						? (account?.currency ?? current.currency)
+						: current.currency,
+				destinationFinancialAccountId: isSavingsDestination
+					? account.id
+					: current.destinationFinancialAccountId,
+				originFinancialAccountId: isSavingsDestination
+					? current.originFinancialAccountId === account.id
+						? ""
+						: current.originFinancialAccountId
+					: (account?.id ?? current.originFinancialAccountId),
+				time: getCurrentLocalTime(),
+			};
+		});
 	}, [account?.id, open]);
 	const accountsQuery = useQuery({
 		enabled: identity !== null && open,
