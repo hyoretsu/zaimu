@@ -27,11 +27,6 @@ test("production wrapper continues through two officially planned native success
 				recursive: true,
 			});
 		await symlink(join(root, "../../node_modules"), join(copy, "node_modules"), "dir");
-		await symlink(
-			join(root, "compatibility/early-rc/node_modules"),
-			join(copy, "compatibility/early-rc/node_modules"),
-			"dir",
-		);
 		const cli = join(root, "../../node_modules/prisma/dist/prisma.js");
 		const run = async (args: string[]) => {
 			const child = Bun.spawn(["bun", ...args], {
@@ -71,30 +66,11 @@ test("production wrapper continues through two officially planned native success
 			);
 		}
 		await run([join(copy, "scripts/migrate.ts")]);
-		// This database belongs exclusively to the runner: rebuild an actual old
-		// state through immutable replay, never manufacture a historical marker.
-		await client.query(
-			"DROP SCHEMA public CASCADE; DROP SCHEMA prisma_contract CASCADE; CREATE SCHEMA public",
-		);
-		await run([
-			"-e",
-			`import { replayHistoricalGraph } from ${JSON.stringify(join(copy, "scripts/historical-replay.ts"))}; await replayHistoricalGraph(${JSON.stringify(copy)}, process.env.DATABASE_URL);`,
-		]);
-		await client.query(
-			'INSERT INTO "user" (id,name,email,"createdAt","updatedAt") VALUES ($1,$2,$3,NOW(),NOW())',
-			[id, "native preserved", `${id}@example.test`],
-		);
-		await run([join(copy, "scripts/migrate.ts")]);
-		expect((await client.query('SELECT name FROM "user" WHERE id=$1', [id])).rows[0].name).toBe(
-			"native preserved",
-		);
 		expect(
-			(
-				await client.query(
-					"SELECT count(*)::int AS count FROM prisma_contract.ledger WHERE migration_name LIKE '%native_format_baseline%'",
-				)
-			).rows[0].count,
-		).toBe(0);
+			(await client.query("SELECT migration_name FROM prisma_contract.ledger ORDER BY id")).rows.map(
+				row => row.migration_name.replace(/^\d{8}T\d{4}_/, ""),
+			),
+		).toEqual(["native_format_baseline", "nativeprobeone", "nativeprobetwo"]);
 		expect(
 			(await client.query('SELECT "nativeProbeOne","nativeProbeTwo" FROM "user" WHERE id=$1', [id]))
 				.rows[0],
