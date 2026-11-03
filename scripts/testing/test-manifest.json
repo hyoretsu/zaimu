@@ -200,6 +200,7 @@
 	],
 	"sql:e2e": [
 		"packages/sql/tests/baseline-equivalence.e2e.test.ts",
+		"packages/sql/tests/migrate-transition.e2e.test.ts",
 		"packages/sql/tests/migrations.e2e.test.ts",
 		"packages/sql/tests/prisma8-fresh-history.e2e.test.ts",
 		"packages/sql/tests/prisma8-native-successors.e2e.test.ts"

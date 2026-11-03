@@ -108,3 +108,24 @@ export async function replayHistoricalGraph(root: string, url: string) {
 		await rm(temporary, { force: true, recursive: true });
 	}
 }
+
+/**
+ * Databases migrated between 20260928T1340 and 20261001T0542 carry an integrity function that still
+ * names the retired "Subscription" table; it fails as soon as a pending migration touches a card row.
+ * Repair it before replaying anything.
+ */
+export async function repairStaleIntegrityFunction(url: string) {
+	const client = new Client({ connectionString: url });
+	await client.connect();
+	try {
+		const stale = await client.query<{ stale: boolean }>(
+			`SELECT coalesce(pg_get_functiondef(to_regprocedure('public.enforce_credit_purchase_integrity()')) LIKE '%"Subscription"%', false) AS stale`,
+		);
+		if (!stale.rows[0].stale) return;
+		await client.query(
+			await Bun.file(new URL("./repair-credit-recurrence-integrity.sql", import.meta.url)).text(),
+		);
+	} finally {
+		await client.end();
+	}
+}

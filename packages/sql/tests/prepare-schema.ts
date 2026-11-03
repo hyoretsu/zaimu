@@ -18,6 +18,8 @@ export async function prepareSchema(
 	onChild?: (child: ReturnType<typeof Bun.spawn> | undefined) => void,
 ) {
 	const fresh =
+		file.endsWith("baseline-equivalence.e2e.test.ts") ||
+		file.endsWith("migrate-transition.e2e.test.ts") ||
 		file.endsWith("prisma8-fresh-history.e2e.test.ts") ||
 		file.endsWith("prisma8-native-successors.e2e.test.ts");
 	const full =
