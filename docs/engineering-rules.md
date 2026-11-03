@@ -72,7 +72,7 @@ Never label form fields as "(opcional)", "(optional)", or add redundant optional
 
 ## Database migration references
 
-`packages/sql/migrations/app/refs/db.json` is versioned migration state. Whenever database work changes this file, always include it in the corresponding database commit alongside relevant migrations and snapshots. Verify that its hash points to a committed or staged snapshot. Preserve the recorded reference; do not advance it merely to match the newest snapshot. This rule does not authorize running migrations or other commands against remote/shared databases.
+`packages/sql/migrations/app/refs/db.json` is versioned migration state: it records the contract hash and data invariants at the end of the migration chain. A commit that adds or changes migrations or snapshots must also update this file, in the same commit, so it reflects that commit's work; its hash must point to a committed or staged snapshot. Confirm the value by applying the chain to a disposable test database (never a remote or shared one), as the SQL test runner does in a temporary copy (`packages/sql/tests/prepare-schema.ts`); `migrate --advance-ref db` writes the resulting reference. Do not advance it for work outside the commit (another task's uncommitted migrations or snapshots), and never commit the temporary `deploy-*.json` references that interrupted runs leave beside it. This rule does not authorize running migrations or other commands against remote/shared databases.
 
 ## Collapsible headers
 
