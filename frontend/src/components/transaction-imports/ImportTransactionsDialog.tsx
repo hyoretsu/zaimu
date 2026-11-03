@@ -132,8 +132,9 @@ export function ImportTransactionsDialog({
 				return;
 			}
 			onOpenChange(false);
+			// Only open the review automatically for a single file; with several, the user picks from the pending list.
 			const imported = result.results.find(item => item.importId);
-			if (imported?.importId) onImported(imported.importId);
+			if (result.results.length === 1 && imported?.importId) onImported(imported.importId);
 			showToast(
 				imported
 					? "Importação concluída. Revise cada arquivo antes de aprovar."
