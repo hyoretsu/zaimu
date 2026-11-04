@@ -14,7 +14,7 @@ export function InstallmentPurchaseDetails({
 		<span className="whitespace-nowrap font-semibold text-foreground text-sm">
 			{installments > 1
 				? `${installments}x de ${currency.format(installmentAmount)}`
-				: `À vista · ${currency.format(totalAmount)}`}
+				: currency.format(totalAmount)}
 		</span>
 	);
 }
