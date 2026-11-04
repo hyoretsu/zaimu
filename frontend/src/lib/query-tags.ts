@@ -58,6 +58,7 @@ export const auxiliaryQueryTags = {
 	"merge-history": getFinancialInstitutionsQueryKey()[0],
 	"merge-profiles": getFinancialInstitutionsQueryKey()[0],
 	"open-finance": getOpenFinanceQueryKey()[0],
+	"suggestion-institutions": getFinancialInstitutionsQueryKey()[0],
 	"tax-definitions": getTaxDefinitionsQueryKey()[0],
 } as const;
 export type ApiTag =

@@ -9,14 +9,22 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { CardRulesSuggestionForm } from "./CardRulesSuggestionForm";
+import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { type CardRulesSuggestionDraft, CardRulesSuggestionForm } from "./CardRulesSuggestionForm";
 import { MergeSuggestionForm } from "./MergeSuggestionForm";
 import { NewInstitutionSuggestionForm } from "./NewInstitutionSuggestionForm";
 import { PolicySuggestionForm } from "./PolicySuggestionForm";
 import { ProfileSuggestionForm } from "./ProfileSuggestionForm";
 import { SUGGESTION_TYPES, type SuggestionType } from "./suggestion-types";
 
-const FORMS: Record<SuggestionType, (props: { onClose: () => void }) => ReactNode> = {
+const FORMS: Record<
+	SuggestionType,
+	(props: {
+		onClose: () => void;
+		recoveredName?: string;
+		recoveredCardRules?: CardRulesSuggestionDraft;
+	}) => ReactNode
+> = {
 	CARD_RULES: CardRulesSuggestionForm,
 	MERGE: MergeSuggestionForm,
 	NEW_INSTITUTION: NewInstitutionSuggestionForm,
@@ -34,7 +42,21 @@ export function SuggestionHubDialog({
 	types: SuggestionType[];
 }) {
 	const [selected, setSelected] = useState<SuggestionType>();
+	const [recoveredName, setRecoveredName] = useState<string>();
+	const [recoveredCardRules, setRecoveredCardRules] = useState<CardRulesSuggestionDraft>();
+	useBackgroundModalRecovery<{ name: string }>("institution-suggestion:new", entry => {
+		setRecoveredName(entry.payload.name);
+		setSelected("NEW_INSTITUTION");
+		onOpenChange(true);
+	});
+	useBackgroundModalRecovery<CardRulesSuggestionDraft>("institution-suggestion:card-rules", entry => {
+		setRecoveredCardRules(entry.payload);
+		setSelected("CARD_RULES");
+		onOpenChange(true);
+	});
 	const close = () => {
+		setRecoveredName(undefined);
+		setRecoveredCardRules(undefined);
 		setSelected(undefined);
 		onOpenChange(false);
 	};
@@ -71,7 +93,11 @@ export function SuggestionHubDialog({
 								<LuArrowLeft />
 								Voltar
 							</Button>
-							<Form onClose={close} />
+							<Form
+								onClose={close}
+								recoveredCardRules={recoveredCardRules}
+								recoveredName={recoveredName}
+							/>
 						</div>
 					) : (
 						<ul className="grid gap-2">
