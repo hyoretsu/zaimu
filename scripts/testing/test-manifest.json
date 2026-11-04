@@ -23,6 +23,7 @@
 		"backend/src/modules/reference-rates/tests/reference-rate-averages.test.ts",
 		"backend/src/modules/reference-rates/tests/reference-rate-repair.test.ts",
 		"backend/src/shared/infra/broker/tests/RabbitMqBroker.integration.test.ts",
+		"backend/src/shared/infra/DistributedCircuitBreaker.test.ts",
 		"backend/src/shared/infra/cache/RedisCache.test.ts",
 		"backend/src/shared/tests/pdf-worker.test.ts",
 		"backend/src/modules/debts/tests/debt-event-page.integration.test.ts",
