@@ -108,16 +108,11 @@ export function addDebtSplitParticipant(split: DebtSplitInput): DebtSplitInput {
 	return { ...split, participants: [...split.participants, participant] } as DebtSplitInput;
 }
 
-export function formatDebtSplitBadge(
-	split: DebtSplit | import("./api").DebtSplitSummary | null | undefined,
-	formatAmount: (amount: number) => string,
-) {
+export function formatDebtSplitBadge(split: DebtSplit | import("./api").DebtSplitSummary | null | undefined) {
 	if (!split) return undefined;
-	if (split.participants.length === 1 && split.ownerAmount === 0)
-		return split.participants[0].debtPersonName;
 	return split.participants
 		.toSorted((left, right) => compareDebtPersonNames(left.debtPersonName, right.debtPersonName))
-		.map(item => `${item.debtPersonName}: ${formatAmount(item.amount)}`)
+		.map(item => item.debtPersonName)
 		.join(" · ");
 }
 

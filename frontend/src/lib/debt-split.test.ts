@@ -219,53 +219,27 @@ describe("formatDebtSplitNames", () => {
 });
 
 describe("formatDebtSplitBadge", () => {
-	const formatAmount = (amount: number) => `R$ ${amount.toFixed(2)}`;
-
-	test("sorts people by name without changing their amounts or the source order", () => {
+	test("shows only the people names, sorted, without changing the source order", () => {
 		const participants = [
 			{ amount: 6.66, debtPersonId: "p", debtPersonName: "Painho", shares: 1 },
 			{ amount: 13.33, debtPersonId: "v", debtPersonName: "Vitória", shares: 2 },
 			{ amount: 5, debtPersonId: "a", debtPersonName: "Álvaro", shares: 1 },
 		];
 		expect(
-			formatDebtSplitBadge(
-				{ mode: "SHARES", ownerAmount: 0, ownerShares: null, participants },
-				formatAmount,
-			),
-		).toBe("Álvaro: R$ 5.00 · Painho: R$ 6.66 · Vitória: R$ 13.33");
+			formatDebtSplitBadge({ mode: "SHARES", ownerAmount: 0, ownerShares: null, participants }),
+		).toBe("Álvaro · Painho · Vitória");
 		expect(participants.map(person => person.debtPersonId)).toEqual(["p", "v", "a"]);
 	});
 
-	test("hides the amount when a single person owes the entire transaction", () => {
+	test("shows only the name when the debt is partial", () => {
 		expect(
-			formatDebtSplitBadge(
-				{
-					mode: "SHARES",
-					ownerAmount: 0,
-					ownerShares: null,
-					participants: [
-						{ amount: 119, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 1 },
-					],
-				},
-				formatAmount,
-			),
+			formatDebtSplitBadge({
+				mode: "SHARES",
+				ownerAmount: 20,
+				ownerShares: 1,
+				participants: [{ amount: 80, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 4 }],
+			}),
 		).toBe("Vitória");
-	});
-
-	test("keeps values when the debt is partial or split between people", () => {
-		expect(
-			formatDebtSplitBadge(
-				{
-					mode: "SHARES",
-					ownerAmount: 20,
-					ownerShares: 1,
-					participants: [
-						{ amount: 80, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 4 },
-					],
-				},
-				formatAmount,
-			),
-		).toBe("Vitória: R$ 80.00");
 	});
 });
 

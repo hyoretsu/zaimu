@@ -215,7 +215,6 @@ export function TransactionListItem({
 						creditCardPayment={creditCardPayment}
 						debtPersonName={formatDebtSplitBadge(
 							transaction.debtSplitSummary ?? transaction.debtSplit,
-							formatCurrency,
 						)}
 						isRecurring={Boolean(transaction.recurrenceId)}
 						isSynced={transaction.isSynced ?? Boolean(transaction.externalIds?.length)}
