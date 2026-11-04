@@ -23,7 +23,7 @@ export function FormField({
 	...inputProps
 }: FormFieldProps) {
 	return (
-		<div className="grid content-start gap-2">
+		<div className="grid min-w-0 content-start gap-2">
 			<Label htmlFor={id}>
 				<span>
 					{label} {required && <RequiredMark />}
@@ -31,7 +31,7 @@ export function FormField({
 			</Label>
 			<div className="relative">
 				{leading && (
-					<span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">
+					<span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2">
 						{leading}
 					</span>
 				)}
