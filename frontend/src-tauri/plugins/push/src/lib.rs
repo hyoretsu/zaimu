@@ -26,9 +26,17 @@ async fn pending<R: Runtime>(app: tauri::AppHandle<R>) -> Result<serde_json::Val
     { let _ = app; Ok(serde_json::json!({"url": null})) }
 }
 
+#[tauri::command]
+async fn clock<R: Runtime>(app: tauri::AppHandle<R>) -> Result<serde_json::Value, String> {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    { app.state::<Push<R>>().0.run_mobile_plugin("clock", serde_json::json!({})).map_err(|error| error.to_string()) }
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    { let _ = app; Ok(serde_json::json!({"twentyFourHour": null})) }
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("push")
-        .invoke_handler(tauri::generate_handler![register, pending])
+        .invoke_handler(tauri::generate_handler![register, pending, clock])
         .setup(|app, api| {
             #[cfg(target_os = "android")]
             let handle = api.register_android_plugin("com.hyolabs.zaimu.push", "PushPlugin")?;

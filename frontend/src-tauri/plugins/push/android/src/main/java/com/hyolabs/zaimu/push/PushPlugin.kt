@@ -26,6 +26,7 @@ class RegisterArgs { var android: AndroidConfig? = null }
 class PushPlugin(private val host: Activity): Plugin(host) {
  companion object { var instance: PushPlugin? = null }
  private var pendingUrl: String? = null
+ @Command fun clock(invoke: Invoke) { invoke.resolve(JSObject().put("twentyFourHour", android.text.format.DateFormat.is24HourFormat(host))) }
  @Command fun pending(invoke: Invoke) { invoke.resolve(JSObject().put("url", pendingUrl)); pendingUrl = null }
  override fun load(webView: android.webkit.WebView) { instance = this; open(host.intent) }
  @Command

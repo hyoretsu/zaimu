@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-clock"
+description = "Enables the clock command without any pre-configured scope."
+commands.allow = ["clock"]
+
+[[permission]]
+identifier = "deny-clock"
+description = "Denies the clock command without any pre-configured scope."
+commands.deny = ["clock"]

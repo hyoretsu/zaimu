@@ -10,6 +10,7 @@ final class PushPlugin: Plugin, UNUserNotificationCenterDelegate {
  private var pendingUrl: String?
  private var tokenObserver: NSObjectProtocol?
  private var failureObserver: NSObjectProtocol?
+ @objc func clock(_ invoke: Invoke) { let template = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: Locale.current) ?? ""; invoke.resolve(["twentyFourHour": !template.contains("a")]) }
  @objc func pending(_ invoke: Invoke) { var result: [String: Any] = ["url": NSNull()]; if let url = pendingUrl { result["url"] = url }; invoke.resolve(result); pendingUrl = nil }
  override func load(webview: WKWebView) {
   installAPNsCallbacks()

@@ -1,7 +1,8 @@
-import { type ComponentProps, useMemo, useState } from "react";
+import { type ComponentProps, useState } from "react";
 import { LuClock, LuX } from "react-icons/lu";
 import { caretAfterSlots, useMaskCaret } from "@/hooks/use-mask-caret";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useTwelveHourClock } from "@/hooks/use-twelve-hour-clock";
 import { fixedMaskBeforeInput, fixedMaskKeyDown, fixedMaskPaste } from "@/lib/fixed-mask";
 import {
 	DIGIT_SLOT,
@@ -13,7 +14,6 @@ import {
 	from12Hour,
 	to12Hour,
 	TWELVE_HOUR_SLOT,
-	usesTwelveHourClock,
 } from "@/lib/time-mask";
 import { showToast } from "@/stores";
 import { Button } from "./Button";
@@ -32,7 +32,7 @@ type TimeFieldProps = Omit<ComponentProps<typeof FormField>, "onChange" | "type"
  */
 export function TimeField({ onValueChange, value, disabled, className, ...props }: TimeFieldProps) {
 	const isTouch = useMediaQuery("(hover: none), (pointer: coarse)");
-	const twelveHour = useMemo(() => usesTwelveHourClock(), []);
+	const twelveHour = useTwelveHourClock();
 	const [draft, setDraft] = useState<Draft12Hour | null>(null);
 	const { ref, placeCaret } = useMaskCaret();
 
