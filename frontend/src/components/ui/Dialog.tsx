@@ -101,6 +101,10 @@ function DialogContent({
 					onFocusOutside?.(event);
 				}}
 				onInteractOutside={event => {
+					const target = event.detail.originalEvent.target;
+					// Toasts live outside the dialog; interacting with them must not dismiss it.
+					if (target instanceof Element && target.closest("[data-sonner-toaster]"))
+						event.preventDefault();
 					if (!isTopmost()) event.preventDefault();
 					onInteractOutside?.(event);
 				}}
