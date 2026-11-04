@@ -3687,6 +3687,9 @@ export const dataService = {
 							purchases: row.data.purchases.map(purchase => ({
 								...purchase,
 								installmentAmountsCents: [...purchase.installmentAmountsCents],
+								// Kubb v5 types the request without the nulls the server may return for unplanned installments.
+								installmentStatementDates: purchase.installmentStatementDates as
+									{ dueDate: string; statementDate: string }[] | undefined,
 								tagIds: [...purchase.tagIds],
 							})),
 						})),
