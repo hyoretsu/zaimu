@@ -17,7 +17,11 @@ export function TransactionsGroupToggle({
 	const singularDescription =
 		kind === "yield" ? "rendimento" : kind === "future" ? "movimentação futura" : "movimentação oculta";
 	const pluralDescription =
-		kind === "yield" ? "rendimentos" : kind === "future" ? "movimentações futuras" : "movimentações ocultas";
+		kind === "yield"
+			? "rendimentos"
+			: kind === "future"
+				? "movimentações futuras"
+				: "movimentações ocultas";
 	const countLabel = `${entryCount} ${entryCount === 1 ? singularDescription : pluralDescription}`;
 	const actionLabel = `${expanded ? "Minimizar" : "Expandir"} ${pluralDescription}`;
 	const Icon = kind === "yield" ? LuTrendingUp : kind === "future" ? LuCalendarClock : LuEyeOff;
@@ -26,7 +30,7 @@ export function TransactionsGroupToggle({
 		<Button
 			aria-expanded={expanded}
 			aria-label={actionLabel}
-			className="h-auto min-h-9 w-full cursor-pointer justify-between whitespace-normal text-muted-foreground hover:text-foreground"
+			className="text-muted-foreground hover:text-foreground h-auto min-h-9 w-full cursor-pointer justify-between whitespace-normal transition-none"
 			onClick={onClick}
 			variant="outline"
 		>
@@ -40,7 +44,9 @@ export function TransactionsGroupToggle({
 						{totals.map(({ currency, amount }) => (
 							<span className="tabular-nums" key={currency}>
 								{amount > 0 ? "+" : ""}
-								{new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(amount)}
+								{new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(
+									amount,
+								)}
 							</span>
 						))}
 					</span>
