@@ -40,7 +40,6 @@ import { useCurrencyStore } from "@/stores/currency";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CardCalendarTransitionFields } from "./CardCalendarTransitionFields";
 import { CardPayerFields } from "./CardPayerFields";
-import { InstitutionAssociationProfile } from "./InstitutionAssociationProfile";
 import { RecalculateCurrentDayYieldDialog } from "./RecalculateCurrentDayYieldDialog";
 
 const types = [
@@ -455,9 +454,6 @@ export function CreateFinancialAccountDialog({
 							searchable
 							value={institutionId}
 						/>
-						{institution && institutionId && (
-							<InstitutionAssociationProfile institutionId={institutionId} />
-						)}
 						<CustomSelect
 							disabled={!institution}
 							label="País da conta"
