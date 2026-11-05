@@ -32,7 +32,9 @@ export function transferSuggestionTimeSeconds(value: string | null | undefined) 
 	const match = value?.match(timePattern);
 	if (!match?.groups) return null;
 	return (
-		Number(match.groups.hours) * 3_600 + Number(match.groups.minutes) * 60 + Number(match.groups.seconds ?? 0)
+		Number(match.groups.hours) * 3_600 +
+		Number(match.groups.minutes) * 60 +
+		Number(match.groups.seconds ?? 0)
 	);
 }
 
@@ -44,6 +46,18 @@ export function areTransferSuggestionTimesCompatible(
 	const leftTime = transferSuggestionTimeSeconds(left.time);
 	const rightTime = transferSuggestionTimeSeconds(right.time);
 	return leftTime !== null && rightTime !== null && Math.abs(leftTime - rightTime) <= 60;
+}
+
+// Statements such as Nubank and Banco PAN carry no time, so a missing time on either side falls back to the date match.
+function areTransferSuggestionPairTimesCompatible(
+	left: Pick<TransferSuggestionItem, "date" | "time">,
+	right: Pick<TransferSuggestionItem, "date" | "time">,
+) {
+	if (dateKey(left.date) !== dateKey(right.date)) return false;
+	const leftTime = transferSuggestionTimeSeconds(left.time);
+	const rightTime = transferSuggestionTimeSeconds(right.time);
+	if (leftTime === null || rightTime === null) return true;
+	return Math.abs(leftTime - rightTime) <= 60;
 }
 
 export function transferSuggestionRejectionKey(rejection: TransferSuggestionRejection) {
@@ -62,7 +76,10 @@ export function getTransferSuggestionPair<Item extends TransferSuggestionItem>(
 	if (!left.externalId || !right.externalId) return null;
 	if (left.financialAccountId === right.financialAccountId) return null;
 	if (left.transferCounterpartExternalId || right.transferCounterpartExternalId) return null;
-	if (Number(left.amount) !== Number(right.amount) || !areTransferSuggestionTimesCompatible(left, right))
+	if (
+		Number(left.amount) !== Number(right.amount) ||
+		!areTransferSuggestionPairTimesCompatible(left, right)
+	)
 		return null;
 	if (left.type === "EXPENSE" && right.type === "INCOME") return { incoming: right, outgoing: left };
 	if (left.type === "INCOME" && right.type === "EXPENSE") return { incoming: left, outgoing: right };
@@ -76,7 +93,7 @@ export function getTransferSuggestions<Item extends TransferSuggestionItem>(
 ) {
 	return candidates.flatMap(candidate => {
 		if (candidate.id === item.id) return [];
-		if (item.source !== "IMPORT_ITEM" || candidate.source !== "TRANSACTION") return [];
+		if (item.source !== "IMPORT_ITEM") return [];
 		const pair = getTransferSuggestionPair(item, candidate);
 		if (!pair?.outgoing.externalId || !pair.incoming.externalId) return [];
 		return rejectedPairs.has(

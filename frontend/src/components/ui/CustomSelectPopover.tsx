@@ -53,7 +53,11 @@ export function CustomSelectPopover({
 	const listId = useId();
 	const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
 	const filteredOptions = options.filter(
-		option => option.special || option.label.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
+		option =>
+			option.special ||
+			[option.label, ...(option.keywords ?? [])].some(text =>
+				text.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
+			),
 	);
 	const selectedOption = options.find(option =>
 		values ? values.includes(option.value) : option.value === value,

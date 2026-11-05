@@ -58,6 +58,10 @@ Modais bloqueantes exibem progresso dentro do próprio modal, sem toast de carre
 
 Redis and RabbitMQ instances are shared between production and development. Every Redis key (including cache epochs, locks, fences, registries, and cleanup queues) and RabbitMQ exchange/queue (including retry and DLQ) must use the environment namespace from `backend/src/shared/infra/service-namespace.ts`. API and worker must use the same `SERVICE_NAMESPACE`: `zaimu` in production and `zaimu_dev` in development. Defaults follow `NODE_ENV`; only `production` uses `zaimu`. Keep routing keys and event payload contracts unchanged. Preserve legacy production queue names to retain pending messages; development queues must always be prefixed. Never connect development consumers to production queues or share cache keys across environments.
 
+## External service circuit breaker
+
+External service calls may use the shared Redis-backed `DistributedCircuitBreaker` (`backend/src/shared/infra/DistributedCircuitBreaker.ts`). Name each dependency with a stable service identifier, explicitly classify successes/failures/ignored outcomes, and configure rolling window, minimum samples, failure ratio, open interval and probe lease. State is shared across workers and namespaced by `SERVICE_NAMESPACE`; Redis unavailability denies calls rather than silently bypassing the breaker. A half-open permit is single-probe and leased, with fenced completions; expiry reopens the breaker for another cooldown, but does not cancel an in-flight operation. Closed-state permit completions are idempotent within the rolling window. Breakers do not retry operations, especially mutations. Use `inspect()` and transition callbacks for diagnostics, not as a substitute for handling denied calls.
+
 ## Date selectors
 
 Every date selector must use the project's custom components: `DateField` for single dates and `DateRangePicker` for date ranges, on desktop, mobile, and touch devices. Never use native date inputs (`date`, `datetime-local`, `month`, or `week`), `showPicker()`, or hidden native date inputs over custom triggers. Responsive behavior must preserve the custom calendar instead of switching to the browser or operating system picker.
@@ -69,10 +73,6 @@ All single-line form controls must share `inputControlClassName` from `frontend/
 ## Optional form fields
 
 Never label form fields as "(opcional)", "(optional)", or add redundant optional-field notices. Fields without a required marker are implicitly optional. Mark required fields with `RequiredMark` instead.
-
-## Database migration references
-
-`packages/sql/migrations/app/refs/db.json` is versioned migration state. Whenever database work changes this file, always include it in the corresponding database commit alongside relevant migrations and snapshots. Verify that its hash points to a committed or staged snapshot. Preserve the recorded reference; do not advance it merely to match the newest snapshot. This rule does not authorize running migrations or other commands against remote/shared databases.
 
 ## Collapsible headers
 
@@ -130,6 +130,22 @@ default. Explicit per-request deadlines and cancellation remain supported. Never
 automatically retry mutations after transport failures: a missing response does
 not prove that the backend rolled back the operation.
 
+## Adding a migration
+
+A database created from nothing is built by one baseline migration (`packages/sql/migrations/app/*_native_format_baseline`) followed by its successors. `packages/sql/migrations` is the only migration graph; each `migration.json` records its `from`/`to` contract hashes and provided invariants, and `migrate` writes no references.
+
+- New migrations: `migration plan` from the latest migration's `to` hash, authored under `packages/sql/migrations`.
+- The baseline is hand-maintained source (`custom-objects.ts` adds the functions, triggers, views, CHECK constraints, trigram indexes, extensions, seed rows and marker invariants). Never regenerate it with `migration plan`, never change its `to` hash, and never change its operations after a successor exists.
+- A database with an unknown marker, or tables but no marker, is refused by `scripts/migrate.ts` before any mutation.
+
+## Prisma 8 RC compatibility
+
+Application tooling pins `prisma` rc29 and `@prisma/orm-postgres` rc22 independently. Root overrides align the CLI's older transitive toolchain/framework with rc22: rc21 does not understand rc22 authoring type-choice descriptors. Contract generation uses the standard CLI without package source patches.
+
+The early-RC migration history was squashed into the native baseline and its replay toolchain was removed after every database passed the historical head. Empty databases are built by the extended baseline, and the explicit migration wrapper applies later migrations from `packages/sql/migrations`. Disposable E2E covers empty-database build, repeat deployment, and unknown-marker and marker-less refusal. Full application query adoption remains in progress under plan 0039.
+
+The native contract explicitly preserves JavaScript `Date` timestamp codecs, lowercase physical tax-table mappings and existing scalar JSON-string defaults. Do not silently turn JSON strings containing `[]` or `{}` into arrays or objects during emission upgrades.
+
 ## Development migration reload
 
 `docker compose up -d` runs migration monitoring inside the development container
@@ -160,6 +176,13 @@ external/noncanonical paths and client-supplied operation credentials.
 Import row approvals use `completionGroup` in the shared background action runner.
 Keep row locks until grouped refresh finishes, aggregate final feedback, and retain
 individual failure recovery. Closing a dialog must not discard its queued actions.
+PDF statement and invoice imports use dedicated multipart `/transaction-imports/batch` and
+`/credit-card-imports/batch` endpoints, not the JSON action queue. Each selected file
+is durably queued with its own outcome; workers bound processing concurrency and
+serialize imports per destination. Upload acceptance is not completion: the frontend
+polls owner-scoped job status and retries only failed files. There is no selection
+count limit; ordinary multipart byte limits still apply.
+
 Guest actions keep local persistence and never use the backend batch endpoint.
 
 ## Mobile keyboard avoidance
@@ -206,6 +229,12 @@ Historical bootstrap coverage is not a publication freshness guarantee. From 6h 
 CDI/Selic/IPCA/TR, bypassing completed/no-data history units. Empty responses preserve
 stored rates; newly published or corrected values trigger dependent account recalculation.
 Missing rates or calendar coverage remain pending until a subsequent recovery command.
+
+Work finished by the worker after the HTTP response (yield recalculation, statement and import jobs) reaches
+open clients through `GET /realtime/stream` (SSE, cookie-authenticated, hidden from the SDK): the worker's
+`CacheInvalidationConsumer` publishes each domain event on a per-user Redis channel once the server cache is
+fresh, and the frontend (`lib/realtime.ts`) refetches the matching cache operations. A new asynchronous side
+effect needs its aggregate mapped in `lib/realtime-operations.ts`.
 
 ## Assets and quotes
 

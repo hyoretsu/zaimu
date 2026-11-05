@@ -79,23 +79,37 @@ export const FinancialInstitutionYieldRuleReturn = t.Object({
 });
 export type FinancialInstitutionYieldRuleReturn = typeof FinancialInstitutionYieldRuleReturn.static;
 
+export const YieldAccountTypeDTO = t.Union([
+	t.Literal("CHECKING"),
+	t.Literal("SAVINGS"),
+	t.Literal("INVESTMENT"),
+	t.Literal("CASH"),
+]);
+
 export const FinancialInstitutionYieldPolicyReturn = t.Object({
+	accountType: t.Optional(t.Nullable(YieldAccountTypeDTO)),
 	countryCode: t.Optional(t.Union([t.Null(), t.String()])),
 	currency: t.Optional(t.Nullable(t.String())),
 	effectiveDate: t.String(),
 	effectiveUntil: t.Optional(t.Union([t.Null(), t.String()])),
 	profileId: t.Optional(t.Union([t.Null(), t.String()])),
+	replacesEffectiveDate: t.Optional(t.String()),
 	requestedEffectiveDate: t.Optional(t.String()),
 	rules: t.Array(FinancialInstitutionYieldRuleReturn),
 	status: t.Optional(t.Union([t.Literal("PENDING"), t.Literal("APPROVED"), t.Literal("REJECTED")])),
 	yieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
+	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+	yieldTaxModes: t.Optional(
+		t.Union([t.Null(), t.Record(t.String(), t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))]),
+	),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialInstitutionYieldPolicyReturn = typeof FinancialInstitutionYieldPolicyReturn.static;
 
 export const FinancialInstitutionReturn = t.Object({
 	accountCurrenciesByCountry: t.Optional(t.Record(t.String(), t.Array(t.String()))),
+	aliases: t.Optional(t.Array(t.String())),
 	cardRulesProfiles: t.Optional(
 		t.Array(
 			t.Object({
@@ -177,6 +191,10 @@ export const FinancialAccountYieldRateHistoryReturn = t.Object({
 		t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]),
 	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
+	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+	yieldTaxModes: t.Optional(
+		t.Union([t.Null(), t.Record(t.String(), t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))]),
+	),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialAccountYieldRateHistoryReturn = typeof FinancialAccountYieldRateHistoryReturn.static;
@@ -337,6 +355,10 @@ export const FinancialAccountReturn = t.Object({
 		t.Union([t.Null(), t.Literal("CDI"), t.Literal("SELIC"), t.Literal("IPCA"), t.Literal("TR")]),
 	),
 	yieldTaxIds: t.Optional(t.Union([t.Null(), t.Array(t.String())])),
+	yieldTaxMode: t.Optional(t.Union([t.Null(), t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+	yieldTaxModes: t.Optional(
+		t.Union([t.Null(), t.Record(t.String(), t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))]),
+	),
 	yieldTaxRate: t.Optional(t.Union([t.Null(), t.Number()])),
 });
 export type FinancialAccountReturn = typeof FinancialAccountReturn.static;
@@ -1451,7 +1473,9 @@ export const TransactionImportReturn = t.Object({
 		t.Literal("INTER"),
 		t.Literal("NUBANK"),
 		t.Literal("PICPAY"),
+		t.Literal("BANCO_PAN"),
 		t.Literal("BANCO_DO_BRASIL"),
+		t.Literal("BTG_PACTUAL"),
 	]),
 	status: t.Union([t.Literal("PENDING"), t.Literal("APPROVED")]),
 	updatedAt: t.String(),
@@ -1660,6 +1684,7 @@ export const CreditPurchaseEditDetailsReturn = t.Object({
 	purchaseDate: t.String(),
 	refinancedFromPurchaseId: t.Optional(t.Union([t.Null(), t.String()])),
 	refinancingPurchaseIds: t.Optional(t.Array(t.String())),
+	time: t.Nullable(t.String()),
 	totalAmountCents: t.Number(),
 });
 export type CreditPurchaseEditDetailsReturn = typeof CreditPurchaseEditDetailsReturn.static;

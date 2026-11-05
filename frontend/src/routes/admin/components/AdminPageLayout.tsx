@@ -25,7 +25,7 @@ export function AdminPageLayout({
 	const userId = useAuthStore(state => state.user?.id);
 	const access = useQuery({
 		enabled: authenticated,
-		queryFn: () => getAdminAccess(),
+		queryFn: () => getAdminAccess({}).then(result => result.data),
 		queryKey: ["admin-access", userId],
 		retry: false,
 	});
@@ -44,13 +44,17 @@ export function AdminPageLayout({
 					title="Acesso administrativo"
 				/>
 			) : access.isPending ? (
-				<div aria-label="Carregando administração" className="grid gap-4 sm:grid-cols-2" role="status">
+				<div
+					aria-label="Carregando administração"
+					className="grid gap-4 sm:grid-cols-2"
+					role="status"
+				>
 					{[0, 1, 2, 3].map(item => (
 						<Skeleton className="h-36 w-full rounded-2xl" key={item} />
 					))}
 				</div>
 			) : access.isError ? (
-				<div className="space-y-4 rounded-2xl border bg-card p-6">
+				<div className="bg-card space-y-4 rounded-2xl border p-6">
 					<p role="alert">{access.error.message}</p>
 					<ActionGroup>
 						<Button onClick={() => void access.refetch()} variant="outline">

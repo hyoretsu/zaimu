@@ -52,7 +52,7 @@ While any request needed to decide what to render is pending, render skeletons t
 
 ## Toasts
 
-Use Sonner through `src/lib/toast.ts` and render with `src/components/ui/Sonner.tsx`. At most five active notifications globally (`MAX_TOASTS`); a new one permanently dismisses the oldest, no hidden queue. Group repeated errors and keep the latest recovery action; never resurrect dismissed notifications when an operation completes. Loading toasts are dismissible without cancelling the operation. Every toast dismisses left, right and toward the top edge. Toasts stay fixed at the top on desktop and mobile. The close button is desktop-only. Keep them compact, safe-area aware, clear of modal footer actions, and show actionable errors without raw request URLs or technical IDs.
+Use Sonner through `src/lib/toast.ts` and render with `src/components/ui/Sonner.tsx`. At most five active notifications globally (`MAX_TOASTS`); a new one permanently dismisses the oldest, no hidden queue. Group repeated errors and keep the latest recovery action; never resurrect dismissed notifications when an operation completes. Loading toasts are dismissible without cancelling the operation. Every toast dismisses left, right and toward its nearest vertical viewport edge (follows the rendered position, never the device type). Toasts stay fixed at the top on desktop and mobile; do not move them to the bottom at mobile breakpoints. The close button is desktop-only. Keep them compact, safe-area aware, clear of modal footer actions, and show actionable errors without raw request URLs or technical IDs.
 
 ## Auth guards
 

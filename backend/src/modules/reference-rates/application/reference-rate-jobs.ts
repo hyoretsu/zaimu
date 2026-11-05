@@ -1,5 +1,5 @@
 import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
-import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 import {
 	balanceAdjustmentSourceVersion,
@@ -87,6 +87,18 @@ export async function enqueueReferenceRateFetch(
 		referenceType: type,
 		startDate: dateKey(startDate),
 	});
+}
+/** Yield needs balance, which only comes from transactions, loan payments or balance adjustments. */
+export async function accountFirstBalanceDate(accountId: string) {
+	const [row] = await queryRaw<{ date: Date | null }>(
+		`SELECT MIN("date") AS "date" FROM (
+			SELECT "date" FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1
+			UNION ALL SELECT "date" FROM "BalanceAdjustment" WHERE "financialAccountId"=$1
+			UNION ALL SELECT "paidDate" FROM "LoanPayment" WHERE "financialAccountId"=$1
+		) movement`,
+		[accountId],
+	);
+	return row?.date ?? null;
 }
 export async function enqueueAccountYieldRecalculation(
 	accountId: string,
@@ -256,14 +268,41 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
 	const account = await loadYieldAccount(job.financialAccountId);
 	if (!account) return;
-	const fromDate = startOfDay(job.fromDate > account.createdAt ? job.fromDate : account.createdAt);
+	const firstBalance = await accountFirstBalanceDate(account.id);
+	if (!firstBalance) return;
+	const reconcile = (from: string, before: string | null = null) =>
+		withRawTransaction(async query => {
+			// Brief source locks close the gap between version validation and deletion.
+			// Any mutation during yield calculation leaves checkpoints for the next job.
+			await query(
+				`LOCK TABLE "FinancialAccount", "Transaction", "LoanPayment", "FinancialAccountYield", "BalanceAdjustment" IN SHARE ROW EXCLUSIVE MODE`,
+			);
+			if ((await balanceAdjustmentSourceVersion(query, account.id)) !== sourceVersion) {
+				console.warn(
+					`Account ${account.id} changed during recalculation; adjustments left for the next job`,
+				);
+				return;
+			}
+			await reconcileBalanceAdjustments(
+				query,
+				(account as YieldAccount & { userId: string }).userId,
+				account.id,
+				from,
+				before,
+			);
+		});
+	const fromDate = startOfDay(job.fromDate > firstBalance ? job.fromDate : firstBalance);
 	const endDate = startOfDay(job.endDate ?? yieldSchedulerClock().date);
 	if (fromDate > endDate) return;
 	const years = Array.from(
 		{ length: endDate.getFullYear() - fromDate.getFullYear() + 1 },
 		(_, index) => fromDate.getFullYear() + index,
 	);
-	if (!(await ensureAccountCoverage(account.currency ?? "BRL", account.countryCode, years))) return;
+	if (!(await ensureAccountCoverage(account.currency ?? "BRL", account.countryCode, years))) {
+		// Without a country no yield is ever generated, so the balance only depends on movements.
+		if (!account.countryCode) await reconcile(dateKey(fromDate));
+		return;
+	}
 	await loadTaxCatalog();
 	await executeRaw(
 		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2 AND "date" <= $3`,
@@ -273,7 +312,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	const loaded = await loadFinancialAccountBalanceInput([account.id]);
 	if (!loaded.input) return;
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };
-	let complete = true;
+	let firstGap: string | null = null;
 	for (let day = fromDate; day <= endDate; day = addDays(day, 1)) {
 		const key = dateKey(day);
 		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidayKeys.has(key))) continue;
@@ -290,7 +329,14 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			[key, types],
 		);
 		if (rows.length !== types.length) {
-			complete = false;
+			// A day without a published rate that is followed by later ones is a non-business day
+			// the calendar does not know about, not a pending rate: nothing to compute and nothing to wait for.
+			const missing = types.filter(type => !rows.some(row => row.type === type));
+			const [later] = await queryRaw<{ count: string }>(
+				`SELECT count(DISTINCT "type") AS "count" FROM "public"."ReferenceRate" WHERE "type" = ANY($2::"ReferenceRateType"[]) AND "date" > $1::date`,
+				[key, missing],
+			);
+			if (Number(later?.count) !== missing.length) firstGap ??= key;
 			continue;
 		}
 		const override = await queryFirst(
@@ -298,7 +344,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				.where((fields, functions) =>
 					functions.and(
 						functions.eq(fields.financialAccountId, account.id),
-						functions.eq(fields.date, day),
+						functions.eq(fields.date, key),
 						functions.eq(fields.origin, "USER"),
 					),
 				)
@@ -317,9 +363,14 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		if (ledger.balance <= 0) continue;
 		const rates = Object.fromEntries(rows.map(row => [row.type, Number(row.value)]));
 		const amount = Number(
-			ledger
-				.netYield(calculateGrossYield(ledger.eligibleBalance(key), settings, rates), settings, key)
-				.toFixed(4),
+			roundDailyYield(
+				account.type,
+				ledger.netYield(
+					calculateGrossYield(ledger.eligibleBalance(key), settings, rates),
+					settings,
+					key,
+				),
+			).toFixed(4),
 		);
 		if (amount === 0) continue;
 		input.yields.push({
@@ -335,7 +386,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				{
 					amount: numeric<12, 4>(amount),
 					currency: account.currency,
-					date: day,
+					date: key,
 					financialAccountId: account.id,
 					isExcluded: false,
 					kind: "AUTOMATIC",
@@ -344,21 +395,8 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			]).build(),
 		);
 	}
-	if (complete)
-		await withRawTransaction(async query => {
-			// Brief source locks close the gap between version validation and deletion.
-			// Any mutation during yield calculation leaves checkpoints for the next job.
-			await query(
-				`LOCK TABLE "FinancialAccount", "Transaction", "LoanPayment", "FinancialAccountYield", "BalanceAdjustment" IN SHARE ROW EXCLUSIVE MODE`,
-			);
-			if ((await balanceAdjustmentSourceVersion(query, account.id)) !== sourceVersion) return;
-			await reconcileBalanceAdjustments(
-				query,
-				(account as YieldAccount & { userId: string }).userId,
-				account.id,
-				dateKey(fromDate),
-			);
-		});
+	// A checkpoint only depends on days before it, so missing rates later on do not block it.
+	await reconcile(dateKey(fromDate), firstGap);
 	await outbox.append(
 		createEventEnvelope({
 			aggregateId: account.id,

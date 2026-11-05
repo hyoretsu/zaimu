@@ -42,7 +42,15 @@ import { transferCandidatePairs } from "~/modules/transactions/application/trans
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
-import { db, executeStatement, queryFirst, queryRaw, queryRows, withTransaction } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	nullableNumeric,
+	numeric,
+	queryFirst,
+	queryRows,
+	withTransaction,
+} from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -71,6 +79,17 @@ const transactionColumns = [
 	"createdAt",
 	"updatedAt",
 ] as const;
+
+/** Date-only columns arrive as `YYYY-MM-DD`; the API contract keeps serializing them as UTC-midnight instants. */
+const withDateInstants = <Row extends { date: string; recurrenceOccurrenceDate: string | null }>(
+	row: Row,
+) => ({
+	...row,
+	date: new Date(`${row.date}T00:00:00Z`),
+	recurrenceOccurrenceDate: row.recurrenceOccurrenceDate
+		? new Date(`${row.recurrenceOccurrenceDate}T00:00:00Z`)
+		: null,
+});
 
 const TransactionFilterType = t.Union([
 	t.Literal("INCOME"),
@@ -105,7 +124,10 @@ async function resolveSides(...args: Parameters<typeof resolveTransactionMoneySi
 	}
 }
 
-export const TransactionsController = new Elysia({ prefix: "/transactions" })
+export const TransactionsController = new Elysia({
+	detail: { tags: ["Transactions"] },
+	prefix: "/transactions",
+})
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
 	})
@@ -193,6 +215,21 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						).build(),
 					);
 			});
+			const changedCards = [
+				...new Set(
+					[left.paymentCreditCardId, right.paymentCreditCardId].filter((id): id is string =>
+						Boolean(id),
+					),
+				),
+			];
+			if (changedCards.length) await refreshCardPayments(changedCards);
+			const recalculationDate = left.date < right.date ? left.date : right.date;
+			for (const accountId of [outgoingAccountId, incomingAccountId])
+				await enqueueAccountYieldRecalculation(
+					accountId,
+					new Date(recalculationDate),
+					`transfer-suggestion:${retained.id}`,
+				);
 			return { success: true };
 		},
 		{
@@ -431,7 +468,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						getDebtSplitReturn({ transactionId: transaction.id }, Number(transaction.amount)),
 					]);
 					const tags = tagsByTransaction.get(transaction.id) ?? [];
-					return { ...transaction, debtSplit, tagIds: tags.map(tag => tag.id), tags };
+					return {
+						...withDateInstants(transaction),
+						debtSplit,
+						tagIds: tags.map(tag => tag.id),
+						tags,
+					};
 				},
 			);
 			set.headers.etag = cached.etag;
@@ -538,7 +580,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 			if (storeName) await resolveStore(userId, storeName);
 			const recurrenceOccurrenceDate = body.recurrenceId
-				? new Date(body.recurrenceOccurrenceDate ?? body.date)
+				? (body.recurrenceOccurrenceDate ?? body.date)
 				: undefined;
 			const findExistingOccurrence = () => {
 				if (body.recurrenceId && recurrenceOccurrenceDate) {
@@ -557,7 +599,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				return Promise.resolve(undefined);
 			};
 			if (body.recurrenceId && recurrenceOccurrenceDate) {
-				const scheduledDate = recurrenceOccurrenceDate.toISOString().slice(0, 10);
+				const scheduledDate = recurrenceOccurrenceDate;
 				await materializeRecurrence(userId, body.recurrenceId, scheduledDate, {
 					from: scheduledDate,
 					through: scheduledDate,
@@ -613,23 +655,21 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					transaction = await queryFirst(
 						db.sql.public.Transaction.insert([
 							{
-								amount: String(money.amount),
+								amount: numeric(money.amount),
 								bookingCurrency: money.bookingCurrency,
 								conversionSource: sides.conversionSource,
 								currency: money.currency,
-								date: new Date(body.date),
+								date: body.date,
 								description: body.description ?? undefined,
-								destinationAmount:
-									sides.destinationAmount == null ? null : String(sides.destinationAmount),
+								destinationAmount: nullableNumeric(sides.destinationAmount),
 								destinationCurrency: sides.destinationCurrency,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
-								exchangeRate: String(money.exchangeRate),
+								exchangeRate: numeric(money.exchangeRate),
 								fees: money.fees,
 								isHidden: body.isHidden ?? false,
-								originalAmount: String(money.originalAmount),
+								originalAmount: numeric(money.originalAmount),
 								originFinancialAccountId,
-								paymentAmount:
-									sides.paymentAmount == null ? null : String(sides.paymentAmount),
+								paymentAmount: nullableNumeric(sides.paymentAmount),
 								paymentCreditCardId: body.paymentCreditCardId,
 								paymentCurrency: sides.paymentCurrency,
 								recurrenceId: body.recurrenceId,
@@ -687,12 +727,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					if (accountId)
 						await enqueueAccountYieldRecalculation(
 							accountId,
-							transaction.date,
+							new Date(transaction.date),
 							`transaction:${transaction.id}`,
 						);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
 			return {
-				...transaction,
+				...withDateInstants(transaction),
 				amount: Number(transaction.amount),
 				debtSplit: await getDebtSplitReturn(
 					{ transactionId: transaction.id },
@@ -910,29 +950,26 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 
 			if (historyEntries.length > 0) {
-				await executeStatement(
-					db.sql.public.TransactionHistory.insert(historyEntries as never).build(),
-				);
+				await executeStatement(db.sql.public.TransactionHistory.insert(historyEntries).build());
 			}
 			const transaction = await queryFirst(
 				db.sql.public.Transaction.update({
 					...(sides && {
 						conversionSource: sides.conversionSource,
-						destinationAmount:
-							sides.destinationAmount == null ? null : String(sides.destinationAmount),
+						destinationAmount: nullableNumeric(sides.destinationAmount),
 						destinationCurrency: sides.destinationCurrency,
-						paymentAmount: sides.paymentAmount == null ? null : String(sides.paymentAmount),
+						paymentAmount: nullableNumeric(sides.paymentAmount),
 						paymentCurrency: sides.paymentCurrency,
 					}),
 					...(money && {
-						amount: String(money.amount),
+						amount: numeric(money.amount),
 						bookingCurrency: money.bookingCurrency,
 						currency: money.currency,
-						exchangeRate: String(money.exchangeRate),
+						exchangeRate: numeric(money.exchangeRate),
 						fees: money.fees,
-						originalAmount: String(money.originalAmount),
+						originalAmount: numeric(money.originalAmount),
 					}),
-					...(body.date && { date: new Date(body.date) }),
+					...(body.date && { date: body.date }),
 					...(body.time !== undefined && { time: body.time }),
 					...(body.description !== undefined && { description: body.description }),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
@@ -948,7 +985,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						destinationFinancialAccountId: body.destinationFinancialAccountId,
 					}),
 					updatedAt: new Date(),
-				} as never)
+				})
 					.where((f, fn) => fn.eq(f.id, params.id))
 					.returning(...transactionColumns)
 					.build(),
@@ -964,10 +1001,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (changedCards.length) await refreshCardPayments(changedCards);
 			await syncTransactionDebtEvent({
 				amount: Number(transaction.amount),
-				date: transaction.date.toISOString().slice(0, 10),
+				date: transaction.date,
 				debtSplit: await convertFixedSplitAtDate(
 					body.debtSplit,
-					transaction.date,
+					new Date(transaction.date),
 					transaction.currency ?? "BRL",
 					transaction.bookingCurrency ?? "BRL",
 					ensureCurrencyRates,
@@ -996,14 +1033,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			))
 				await enqueueAccountYieldRecalculation(
 					accountId,
-					recalculationDate,
+					new Date(recalculationDate),
 					`transaction:${transaction.id}:${Date.now()}`,
 				);
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
 			return {
-				...transaction,
+				...withDateInstants(transaction),
 				amount: Number(transaction.amount),
 				debtSplit: await getDebtSplitReturn(
 					{ transactionId: transaction.id },
@@ -1083,7 +1120,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				if (accountId)
 					await enqueueAccountYieldRecalculation(
 						accountId,
-						existing.date,
+						new Date(existing.date),
 						`transaction-delete:${existing.id}`,
 					);
 			return { success: true };
@@ -1097,7 +1134,18 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 	);
 
 async function lockPaymentResources(cardId: string | null | undefined, accountId: string | null | undefined) {
-	if (cardId) await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [cardId]);
+	if (cardId)
+		await queryRows(
+			db.sql.public.CreditCard.select("id")
+				.where((fields, ops) => ops.eq(fields.id, cardId))
+				.forUpdate()
+				.build(),
+		);
 	if (accountId)
-		await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [accountId]);
+		await queryRows(
+			db.sql.public.FinancialAccount.select("id")
+				.where((fields, ops) => ops.eq(fields.id, accountId))
+				.forUpdate()
+				.build(),
+		);
 }

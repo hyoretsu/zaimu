@@ -99,7 +99,7 @@ export function MorePage() {
 	const userId = useAuthStore(state => state.user?.id);
 	const access = useQuery({
 		enabled: authenticated,
-		queryFn: () => getAdminAccess(),
+		queryFn: () => getAdminAccess({}).then(result => result.data),
 		queryKey: ["admin-access", userId],
 		retry: false,
 	});

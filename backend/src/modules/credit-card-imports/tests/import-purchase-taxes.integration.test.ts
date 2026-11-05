@@ -32,6 +32,23 @@ afterAll(async () => {
 	await (await import("~/shared/infra/sql")).closeDatabase();
 });
 
+test("import builder dates retain UTC instants and nullable amounts across time zones", async () => {
+	const previousTimeZone = process.env.TZ;
+	try {
+		const { getImport } = await import("../application/import-service");
+		for (const timeZone of ["UTC", "America/Recife"]) {
+			process.env.TZ = timeZone;
+			const imported = await getImport("import-tax-user", "import-tax-batch");
+			expect(imported.statementDate.toISOString()).toBe("2026-06-10T00:00:00.000Z");
+			expect(imported.dueDate.toISOString()).toBe("2026-06-20T00:00:00.000Z");
+			expect(imported.reportedPreviousBalance).toBeNull();
+		}
+	} finally {
+		if (previousTimeZone === undefined) delete process.env.TZ;
+		else process.env.TZ = previousTimeZone;
+	}
+});
+
 test("association enforces ownership and rejects self-linking without losing rows", async () => {
 	await expect(
 		associate("another-user", "import-tax-batch", "import-tax-source", "import-tax-purchase"),

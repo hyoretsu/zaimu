@@ -1,11 +1,12 @@
 import { HttpException } from "~/shared/errors";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 
 export async function detachedRewardHistory(userId: string, accountId: string, cursor?: string) {
-	const owned = await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2`, [
-		accountId,
-		userId,
-	]);
+	const owned = await queryRows(
+		db.sql.public.FinancialAccount.select("id")
+			.where((f, fn) => fn.and(fn.eq(f.id, accountId), fn.eq(f.userId, userId)))
+			.build(),
+	);
 	if (!owned.length) throw new HttpException("Conta não encontrada", 404);
 	let after: { date: string; id: string } | null = null;
 	if (cursor) {
@@ -17,6 +18,7 @@ export async function detachedRewardHistory(userId: string, accountId: string, c
 			throw new HttpException("Cursor inválido", 400);
 		}
 	}
+	// PostgreSQL tuple seek preserves date/id pagination; to_char retains the date-only DTO contract.
 	const rows = await queryRaw<{ id: string; date: string; amount: number }>(
 		`SELECT "id",to_char("date",'YYYY-MM-DD') AS "date","amount" FROM "DetachedRewardCredit" WHERE "financialAccountId"=$1 AND ($2::date IS NULL OR ("date","id")<($2::date,$3::varchar)) ORDER BY "date" DESC,"id" DESC LIMIT 101`,
 		[accountId, after?.date ?? null, after?.id ?? null],

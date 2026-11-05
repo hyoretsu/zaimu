@@ -75,9 +75,9 @@
 		},
 		"frontend#generate": {
 			"dependsOn": ["^export"],
-			"inputs": ["kubb.config.ts"],
+			"inputs": ["kubb.config.ts", "scripts/generate-sdk.ts", "scripts/sdk-generation-cache.ts"],
 			"outputLogs": "new-only",
-			"outputs": ["src/lib/api/generated/**"],
+			"outputs": ["src/lib/api/generated/**", ".cache/kubb-generation.json"],
 		},
 		"frontend#performance:test": {
 			"cache": false,

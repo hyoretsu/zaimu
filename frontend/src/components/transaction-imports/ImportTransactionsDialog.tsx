@@ -18,6 +18,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { institutionOption } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { StatementFilePicker } from "./StatementFilePicker";
@@ -40,7 +41,9 @@ export function ImportTransactionsDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
-	const [file, setFile] = useState<File | null>(null);
+	const [files, setFiles] = useState<File[]>([]);
+	const [fileErrors, setFileErrors] = useState<string[]>([]);
+	const [progress, setProgress] = useState({ completed: 0, total: 0 });
 	const [financialAccountId, setFinancialAccountId] = useState(defaultFinancialAccountId ?? "");
 	const [institutionId, setInstitutionId] = useState("");
 	const accounts = useQuery({
@@ -55,12 +58,14 @@ export function ImportTransactionsDialog({
 	});
 	useEffect(() => {
 		if (!open) return;
-		setFile(null);
+		setFiles([]);
+		setFileErrors([]);
 		setFinancialAccountId(defaultFinancialAccountId ?? "");
 		setInstitutionId("");
 	}, [defaultFinancialAccountId, open]);
 	useDialogCloseReset(open, () => {
-		setFile(null);
+		setFiles([]);
+		setFileErrors([]);
 		setFinancialAccountId("");
 		setInstitutionId("");
 	});
@@ -75,15 +80,17 @@ export function ImportTransactionsDialog({
 	}, [accounts.data, financialAccountId, institutions.data, open]);
 	const selectedInstitution = institutions.data?.find(institution => institution.id === institutionId);
 	const provider = getTransactionImportProvider(selectedInstitution) ?? "";
-	const handleOpenChange = onOpenChange;
+	const handleOpenChange = (value: boolean) => {
+		if (!createImport.isPending) onOpenChange(value);
+	};
 	const createImport = useMutation({
 		meta: { cacheOperations: ["transaction"] },
 		mutationFn: ({
-			file,
+			files,
 			financialAccountId,
 			provider,
 		}: {
-			file: File;
+			files: File[];
 			financialAccountId: string;
 			provider: TransactionImportProvider | "";
 		}) => {
@@ -96,29 +103,43 @@ export function ImportTransactionsDialog({
 			) {
 				throw new Error("Selecione uma conta da instituição do extrato.");
 			}
-			return dataService.transactionImports.create({ file, financialAccountId, provider });
+			return dataService.transactionImports.createBatch({
+				files,
+				financialAccountId,
+				onProgress: setProgress,
+				provider,
+			});
 		},
 		onError: error => {
 			showToast(error.message, "negative");
 		},
-		onSuccess: async result => {
-			setFile(null);
-			setFinancialAccountId("");
-			setInstitutionId("");
-			handleOpenChange(false);
-			if (!result.transactionImport) {
-				showToast("Nenhuma transação nova encontrada no extrato.", "info");
-				return;
-			}
+		onSuccess: async (result, variables) => {
+			const failures = result.results.filter(item => !item.success);
+			setFileErrors(failures.map(item => `${item.index + 1}. ${item.fileName}: ${item.error}`));
+			setFiles(
+				variables.files.filter((file, index) =>
+					failures.some(item => item.index === index && item.fileName === file.name),
+				),
+			);
 			await queryClient.invalidateQueries({
 				queryKey: queryKeys.transactionImports.pending(identity!),
 				refetchType: "active",
 			});
-			onImported(result.transactionImport.id);
+			if (failures.length) {
+				showToast(
+					`${result.results.length - failures.length} arquivo(s) importado(s). Tente novamente apenas os arquivos com erro.`,
+					"negative",
+				);
+				return;
+			}
+			onOpenChange(false);
+			// Only open the review automatically for a single file; with several, the user picks from the pending list.
+			const imported = result.results.find(item => item.importId);
+			if (result.results.length === 1 && imported?.importId) onImported(imported.importId);
 			showToast(
-				result.ignoredCount
-					? `${result.ignoredCount} ${result.ignoredCount === 1 ? "transação já importada foi ignorada" : "transações já importadas foram ignoradas"}.`
-					: "Extrato importado para revisão.",
+				imported
+					? "Importação concluída. Revise cada arquivo antes de aprovar."
+					: "Arquivos sincronizados por completo.",
 				"positive",
 			);
 		},
@@ -137,15 +158,16 @@ export function ImportTransactionsDialog({
 					<DialogDescription>Selecione a conta ou a instituição do extrato.</DialogDescription>
 				</DialogHeader>
 				<form
-					className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 gap-5"
+					className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
 					onSubmit={event => {
 						event.preventDefault();
-						if (!file) return;
-						createImport.mutate({ file, financialAccountId, provider });
+						if (!files.length) return;
+						createImport.mutate({ files, financialAccountId, provider });
 					}}
 				>
 					<DialogBody>
 						<CustomSelect
+							disabled={createImport.isPending}
 							isLoading={accounts.isPending || institutions.isPending}
 							label="Instituição"
 							onValueChange={value => {
@@ -159,13 +181,14 @@ export function ImportTransactionsDialog({
 							}}
 							options={(institutions.data ?? [])
 								.filter(institution => getTransactionImportProvider(institution))
-								.map(institution => ({ label: institution.name, value: institution.id }))}
+								.map(institutionOption)}
 							placeholder="Selecione a instituição"
 							required
 							searchable
 							value={institutionId}
 						/>
 						<CustomSelect
+							disabled={createImport.isPending}
 							isLoading={accounts.isPending || institutions.isPending}
 							label="Conta que receberá as transações"
 							onValueChange={value => {
@@ -182,7 +205,25 @@ export function ImportTransactionsDialog({
 							searchable
 							value={financialAccountId}
 						/>
-						<StatementFilePicker file={file} onFileChange={setFile} />
+						{createImport.isPending && (
+							<p className="text-muted-foreground text-sm" role="status">
+								Processando arquivos: {progress.completed} de {progress.total || files.length}
+								. Aguarde os jobs de importação.
+							</p>
+						)}
+						<StatementFilePicker
+							disabled={createImport.isPending}
+							files={files}
+							onFilesChange={value => {
+								setFiles(value);
+								setFileErrors([]);
+							}}
+						/>
+						{fileErrors.map((error, index) => (
+							<p className="text-destructive text-sm" key={index} role="alert">
+								{error}
+							</p>
+						))}
 					</DialogBody>
 					<DialogFooter>
 						<Button
@@ -196,7 +237,7 @@ export function ImportTransactionsDialog({
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
 							disabled={
-								!file ||
+								!files.length ||
 								!financialAccountId ||
 								!provider ||
 								accounts.isPending ||

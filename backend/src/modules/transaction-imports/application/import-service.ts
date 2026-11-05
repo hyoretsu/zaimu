@@ -9,7 +9,7 @@ import { financialAccountCurrency } from "~/modules/currencies/application/finan
 import { settleExternalReview } from "~/modules/open-finance/application/review-tracking";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
-import { db, queryFirst, queryRaw, queryRows, type SqlExecutor } from "~/shared/infra/sql";
+import { db, numeric, queryFirst, queryRaw, queryRows, type SqlExecutor } from "~/shared/infra/sql";
 import { importedMoney } from "./imported-money";
 
 const importItemTagEntityType = "TRANSACTION_IMPORT_ITEM";
@@ -129,8 +129,8 @@ export async function persistImportItem(
 		transaction.db.sql.public.Transaction.insert([
 			{
 				...money,
-				amount: String(item.amount),
-				date: item.date,
+				amount: numeric(item.amount),
+				date: item.date.toISOString().slice(0, 10),
 				description: item.description,
 				destinationFinancialAccountId: item.destinationFinancialAccountId,
 				isHidden: item.isHidden,
@@ -188,8 +188,8 @@ export async function persistReconciledImportItem(
 ): Promise<ReconciledImportTarget> {
 	await lockImportPayment(item);
 	const values = {
-		amount: String(item.amount),
-		date: item.date,
+		amount: numeric(item.amount),
+		date: item.date.toISOString().slice(0, 10),
 		description: item.description,
 		destinationFinancialAccountId: item.destinationFinancialAccountId,
 		isHidden: item.isHidden,
@@ -215,9 +215,15 @@ export async function persistReconciledImportItem(
 		if (previous?.paymentCreditCardId && previous.paymentCreditCardId !== item.paymentCreditCardId)
 			await recalculateStatementPayments(transaction, [previous.paymentCreditCardId]);
 		if (item.externalId) {
-			const [reference] = await queryRaw<{ transactionId: string }>(
-				`SELECT "transactionId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=$2`,
-				[financialAccountId, item.externalId],
+			const reference = await queryFirst(
+				db.sql.public.TransactionExternalReference.select("transactionId")
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.financialAccountId, financialAccountId),
+							functions.eq(fields.externalId, item.externalId),
+						),
+					)
+					.build(),
 			);
 			if (reference && reference.transactionId !== item.reconciledTransactionId)
 				throw new HttpException("Identidade externa já vinculada a outra transação", 409);
@@ -323,9 +329,17 @@ export async function finalizeImportWhenEmpty(transaction: SqlExecutor, importId
 
 async function lockImportPayment(item: ImportItemToApprove) {
 	if (item.paymentCreditCardId)
-		await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [item.paymentCreditCardId]);
+		await queryRows(
+			db.sql.public.CreditCard.select("id")
+				.where((fields, ops) => ops.eq(fields.id, item.paymentCreditCardId))
+				.forUpdate()
+				.build(),
+		);
 	if (item.originFinancialAccountId)
-		await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [
-			item.originFinancialAccountId,
-		]);
+		await queryRows(
+			db.sql.public.FinancialAccount.select("id")
+				.where((fields, ops) => ops.eq(fields.id, item.originFinancialAccountId))
+				.forUpdate()
+				.build(),
+		);
 }

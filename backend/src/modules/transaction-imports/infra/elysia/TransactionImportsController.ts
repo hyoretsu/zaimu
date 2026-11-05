@@ -25,13 +25,18 @@ import { getStoredRecurrence } from "~/modules/recurring/application/recurrences
 import { ApproveImportItemBody } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
 import { enqueueUserYieldRecalculations } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
-import { createTransactionBatch } from "~/modules/transaction-imports/application/import-batches";
+import { enqueueImportBatch, getImportBatch } from "~/modules/transaction-imports/application/jobs";
+import {
+	BatchUploadAccepted,
+	BatchUploadReturn,
+} from "~/modules/transaction-imports/infra/elysia/BatchUploadDTO";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
 import {
 	db,
 	executeStatement,
+	numeric,
 	queryFirst,
 	queryRaw,
 	queryRows,
@@ -52,14 +57,11 @@ import {
 	removeImportItem,
 	validateItemAccounts,
 } from "../../application/import-service";
-import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
-import { filterZeroValueTransactions } from "../../domain/filter-zero-value-transactions";
+import { CreateTransactionImportBody, createUploadedTransactionImport } from "../../application/upload";
 import {
 	matchesDuplicateTransactionShape,
 	uniqueTransactionMatches,
 } from "../../domain/import-reconciliation";
-import { assignStableExternalIds, statementImportId } from "../../domain/statement-identity";
-import { parseStatementPdf } from "../../domain/statement-parser";
 import {
 	getTransferSuggestions,
 	type TransferSuggestion,
@@ -131,7 +133,7 @@ interface TransferSuggestionCandidate extends TransferSuggestionItem {
 }
 
 async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
-	const [items, candidates, rejections] = await Promise.all([
+	const [pendingItems, candidates, rejections] = await Promise.all([
 		queryRows(
 			db.sql.public.TransactionImportItem.innerJoin(
 				db.sql.public.TransactionImport,
@@ -158,7 +160,6 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 					functions.and(
 						functions.eq(fields.TransactionImport.userId, userId),
 						functions.eq(fields.TransactionImport.status, "PENDING"),
-						functions.in(fields.TransactionImportItem.id, itemIds),
 					),
 				)
 				.build(),
@@ -193,7 +194,7 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 				.where((fields, functions) =>
 					functions.and(
 						functions.eq(fields.FinancialAccount.userId, userId),
-						functions.eq(fields.Transaction.type, "INCOME"),
+						functions.in(fields.Transaction.type, ["INCOME", "EXPENSE"]),
 					),
 				)
 				.build(),
@@ -210,7 +211,7 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 		),
 	]);
 	const rejectedPairs = new Set(rejections.map(transferSuggestionRejectionKey));
-	const activeItems: TransferSuggestionCandidate[] = items
+	const pendingCandidates: TransferSuggestionCandidate[] = pendingItems
 		.filter(candidate => !candidate.isReconciled)
 		.map(({ isReconciled: _, ...candidate }) => ({
 			...candidate,
@@ -218,6 +219,8 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 			source: "IMPORT_ITEM" as const,
 			type: candidate.type as ImportItemType,
 		}));
+	const requestedItemIds = new Set(itemIds);
+	const activeItems = pendingCandidates.filter(candidate => requestedItemIds.has(candidate.id));
 	const transactionTags = await getTagsByEntity(
 		tagEntityType.transaction,
 		candidates.map(candidate => candidate.id),
@@ -242,7 +245,16 @@ async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
 	return new Map<string, TransferSuggestion<TransferSuggestionCandidate>[]>(
 		itemIds.map(itemId => {
 			const item = activeItems.find(candidate => candidate.id === itemId);
-			return [itemId, item ? getTransferSuggestions(item, materializedCandidates, rejectedPairs) : []];
+			return [
+				itemId,
+				item
+					? getTransferSuggestions(
+							item,
+							[...materializedCandidates, ...pendingCandidates],
+							rejectedPairs,
+						)
+					: [],
+			];
 		}),
 	);
 }
@@ -270,8 +282,8 @@ async function getImport(userId: string, importId: string) {
 	return transactionImport;
 }
 
-function getAccountTransactions(financialAccountId: string) {
-	return queryRows(
+async function getAccountTransactions(financialAccountId: string) {
+	const rows = await queryRows(
 		db.sql.public.Transaction.select(
 			"id",
 			"amount",
@@ -294,6 +306,7 @@ function getAccountTransactions(financialAccountId: string) {
 			)
 			.build(),
 	);
+	return rows.map(row => ({ ...row, date: new Date(row.date) }));
 }
 
 async function getPotentialDuplicates(
@@ -371,9 +384,15 @@ async function getPotentialDuplicates(
 			importItemTagEntityType,
 			pendingItems.map(item => item.id),
 		),
-		queryRaw<{ transactionId: string; externalId: string }>(
-			`SELECT "transactionId", "externalId" FROM "TransactionExternalReference" WHERE "transactionId"=ANY($1::varchar[])`,
-			[transactions.map(transaction => transaction.id)],
+		queryRows(
+			db.sql.public.TransactionExternalReference.select("transactionId", "externalId")
+				.where((fields, ops) =>
+					ops.in(
+						fields.transactionId,
+						transactions.map(transaction => transaction.id),
+					),
+				)
+				.build(),
 		),
 	]);
 	const externalIdsByTransaction = new Map<string, string[]>();
@@ -405,6 +424,7 @@ async function getPotentialDuplicates(
 				const tags = importItemTags.get(item.id) ?? [];
 				return {
 					...item,
+					date: new Date(item.date),
 					externalIds: item.externalId ? [item.externalId] : [],
 					source: "IMPORT_ITEM" as const,
 					sourceImportId: item.transactionImportId,
@@ -509,8 +529,8 @@ async function reconcileUniqueTransactions(userId: string, importId: string, fin
 		)) {
 			await executeStatement(
 				db.sql.public.TransactionImportItem.update({
-					amount: String(original.amount),
-					date: original.date,
+					amount: numeric(original.amount),
+					date: toDateKey(original.date),
 					description: original.description,
 					destinationFinancialAccountId: original.destinationFinancialAccountId,
 					isHidden: original.isHidden,
@@ -634,7 +654,7 @@ async function getImportReturn(
 		),
 		getPotentialDuplicates(
 			transactionImport.financialAccountId,
-			items.map(item => ({ ...item, type: item.type as ImportItemType })),
+			items.map(item => ({ ...item, date: new Date(item.date), type: item.type as ImportItemType })),
 		),
 		getTransferSuggestionPairs(
 			userId,
@@ -706,7 +726,7 @@ async function getImportReturn(
 					return {
 						amount: Number(counterpart.amount),
 						createdAt: counterpart.createdAt ?? item.createdAt,
-						date: toDateKey(counterpart.date),
+						date: counterpart.date,
 						debtSplit: counterpart.debtSplit,
 						description: counterpart.description,
 						destinationFinancialAccountId: counterpart.destinationFinancialAccountId,
@@ -739,6 +759,8 @@ async function getImportReturn(
 	};
 }
 
+const { file: _fileSchema, ...batchUploadProperties } = CreateTransactionImportBody.properties;
+
 export const TransactionImportsController = new Elysia({ prefix: "/transaction-imports" })
 	.onTransform(({ body }) => {
 		rejectLegacyFinancialFields(body);
@@ -760,7 +782,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 			 GROUP BY import."id", import."fileName", import."createdAt"
-			 ORDER BY import."createdAt" DESC`,
+			 ORDER BY "pendingItemCount" ASC, import."createdAt" DESC`,
 						[userId],
 					),
 			);
@@ -801,141 +823,47 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			}),
 		},
 	)
+	.get(
+		"/batch/:batchId",
+		async ({ params, request }) => getImportBatch(await requireUserId(request), params.batchId),
+		{
+			detail: { operationId: "getTransactionImportsBatchByBatchId" },
+			params: t.Object({ batchId: t.String({ maxLength: 36, minLength: 1 }) }),
+			response: BatchUploadReturn,
+		},
+	)
+	.post(
+		"/batch",
+		async ({ body, request }) => {
+			const userId = await requireUserId(request);
+			await assertBalanceAccountOwnership(body.financialAccountId, userId);
+			return enqueueImportBatch(userId, "account", body.financialAccountId, body.files, {
+				provider: body.provider,
+			});
+		},
+		{
+			body: t.Object({ ...batchUploadProperties, files: t.Files({ minItems: 1 }) }),
+			detail: { operationId: "postTransactionImportsBatch" },
+			parse: "multipart/form-data",
+			response: BatchUploadAccepted,
+		},
+	)
+
 	.post(
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			await assertBalanceAccountOwnership(body.financialAccountId, userId);
-			if (body.file.type !== "application/pdf" && !body.file.name.toLowerCase().endsWith(".pdf"))
-				throw new HttpException("Envie um arquivo PDF", 400);
-			const fileBytes = new Uint8Array(await body.file.arrayBuffer());
-			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
-				throw new HttpException("Envie um PDF válido", 400);
-			const statement = await parseStatementPdf(fileBytes.buffer, body.provider);
-			const statementTransactions = assignStableExternalIds(
-				filterZeroValueTransactions(statement.transactions),
-				{
-					financialAccountId: body.financialAccountId,
-					provider: statement.provider,
-					userId,
-				},
-			);
-			const importId = statementImportId(
-				userId,
-				body.financialAccountId,
-				statement.provider,
-				statementTransactions.map(item => item.externalId),
-			);
-			return withRawTransaction(async query => {
-				await query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
-					`statement-import:${userId}:${body.financialAccountId}`,
-				]);
-				const imported = await query<{ id: string; status: string }>(
-					'SELECT "id", "status" FROM "TransactionImport" WHERE "id"=$1',
-					[importId],
-				);
-				if (imported[0])
-					return {
-						ignoredCount: imported[0].status === "PENDING" ? 0 : statementTransactions.length,
-						transactionImport:
-							imported[0].status === "PENDING"
-								? await getImportReturn(userId, imported[0].id)
-								: null,
-					};
-
-				const [existingTransactions, existingYields] = await Promise.all([
-					queryRaw<{ externalId: string | null }>(
-						`SELECT "externalId" FROM "TransactionExternalReference" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-						[
-							body.financialAccountId,
-							statementTransactions.map(transaction => transaction.externalId),
-						],
-					),
-					queryRaw<{ externalId: string | null }>(
-						`SELECT "externalId" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "externalId"=ANY($2::varchar[])`,
-						[
-							body.financialAccountId,
-							statementTransactions.map(transaction => transaction.externalId),
-						],
-					),
-				]);
-				const existingExternalIds = new Set(
-					[...existingTransactions, ...existingYields].flatMap(transaction =>
-						transaction.externalId ? [transaction.externalId] : [],
-					),
-				);
-				const transactions = filterExistingTransactions(statementTransactions, existingExternalIds);
-				const ignoredCount = statementTransactions.length - transactions.length;
-				if (transactions.length === 0) return { ignoredCount, transactionImport: null };
-				const pending = await queryRaw<{ id: string }>(
-					`SELECT b."id" FROM "TransactionImport" b
-				 WHERE b."userId"=$1 AND b."financialAccountId"=$2 AND b."provider"=$3 AND b."status"='PENDING'
-				 AND EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id")
-				 AND NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND (i."externalId" IS NULL OR NOT (i."externalId"=ANY($4::varchar[]))))
-				 AND NOT EXISTS (SELECT 1 FROM unnest($4::varchar[]) e WHERE NOT EXISTS (SELECT 1 FROM "TransactionImportItem" i WHERE i."transactionImportId"=b."id" AND i."externalId"=e))
-				 ORDER BY b."createdAt" LIMIT 1`,
-					[
-						userId,
-						body.financialAccountId,
-						statement.provider,
-						transactions.map(item => item.externalId),
-					],
-				);
-				const existing = pending[0];
-				if (existing)
-					return { ignoredCount, transactionImport: await getImportReturn(userId, existing.id) };
-
-				const transactionImport = await createTransactionBatch({
-					fileName: body.file.name.slice(0, 255),
-					financialAccountId: body.financialAccountId,
-					id: importId,
-					periodEnd: statement.periodEnd ? new Date(statement.periodEnd) : undefined,
-					periodStart: statement.periodStart ? new Date(statement.periodStart) : undefined,
-					provider: statement.provider,
-					userId,
-				});
-				if (!transactionImport) throw new HttpException("Não foi possível criar a importação", 500);
-				await executeStatement(
-					db.sql.public.TransactionImportItem.insert(
-						transactions.map(transaction => ({
-							amount: String(transaction.amount),
-							balanceAfter:
-								transaction.balanceAfter === undefined
-									? undefined
-									: String(transaction.balanceAfter),
-							date: new Date(transaction.date),
-							description: transaction.description,
-							destinationFinancialAccountId:
-								transaction.type === "INCOME" || transaction.type === "YIELD"
-									? body.financialAccountId
-									: undefined,
-							externalId: transaction.externalId,
-							originFinancialAccountId:
-								transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
-							time: transaction.time,
-							transactionImportId: transactionImport.id,
-							type: transaction.type as ImportItemType,
-						})),
-					).build(),
-				);
-				return {
-					ignoredCount,
-					transactionImport: await getImportReturn(userId, transactionImport.id),
-				};
-			});
+			const result = await createUploadedTransactionImport(userId, body);
+			return {
+				...result,
+				transactionImport: result.transactionImport
+					? await getImportReturn(userId, result.transactionImport.id)
+					: null,
+			};
 		},
 		{
-			body: t.Object({
-				file: t.File(),
-				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
-				provider: t.Union([
-					t.Literal("MERCADO_PAGO"),
-					t.Literal("NUBANK"),
-					t.Literal("BANCO_DO_BRASIL"),
-					t.Literal("INTER"),
-					t.Literal("PICPAY"),
-				]),
-			}),
+			body: CreateTransactionImportBody,
 			detail: { operationId: "postTransactionImports" },
 			parse: "multipart/form-data",
 		},
@@ -1024,8 +952,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			await executeStatement(
 				db.sql.public.TransactionImportItem.update({
 					...next,
-					amount: String(next.amount),
-					date: new Date(next.date),
+					amount: numeric(next.amount),
+					date: toDateKey(next.date),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, current.id))
@@ -1066,59 +994,109 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					candidate.incoming.id === params.counterpartItemId,
 			);
 			const requestedItem = pair?.outgoing.id === params.itemId ? pair.outgoing : pair?.incoming;
-			if (
-				!pair ||
-				!requestedItem ||
-				requestedItem.transactionImportId !== transactionImport.id ||
-				pair.incoming.source !== "TRANSACTION"
-			)
+			if (!pair || !requestedItem || requestedItem.transactionImportId !== transactionImport.id)
 				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const savedSide = [pair.outgoing, pair.incoming].find(side => side.source === "TRANSACTION");
+			const importSides = [pair.outgoing, pair.incoming].filter(side => side.source === "IMPORT_ITEM");
 			const debtSplits = await queryRows(
 				db.sql.public.DebtSplit.select("id")
 					.where((fields, functions) =>
 						functions.or(
-							functions.eq(fields.transactionImportItemId, pair.outgoing.id),
-							functions.eq(fields.transactionId, pair.incoming.id),
+							functions.in(
+								fields.transactionImportItemId,
+								importSides.map(side => side.id),
+							),
+							functions.in(fields.transactionId, savedSide ? [savedSide.id] : []),
 						),
 					)
 					.build(),
 			);
 			if (debtSplits.length)
 				throw new HttpException("Remova o rateio de dívida antes de combinar a transferência", 400);
-			await withTransaction(async transaction => {
-				await transaction.executeStatement(
-					transaction.db.sql.public.Transaction.update({
-						destinationFinancialAccountId: pair.incoming.financialAccountId,
-						originFinancialAccountId: pair.outgoing.financialAccountId,
-						paymentCreditCardId: null,
-						storeName: null,
-						type: "TRANSFER",
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, pair.incoming.id))
-						.build(),
-				);
-				await transaction.executeStatement(
-					transaction.db.sql.public.TransactionExternalReference.insert([
-						{
-							externalId: pair.outgoing.externalId!,
-							financialAccountId: pair.outgoing.financialAccountId,
-							transactionId: pair.incoming.id,
-						},
-					]).build(),
-				);
-				await transaction.executeStatement(
-					transaction.db.sql.public.TagAssignment.delete()
-						.where((fields, functions) =>
-							functions.and(
-								functions.eq(fields.entityType, tagEntityType.transaction),
-								functions.eq(fields.entityId, pair.incoming.id),
-							),
+			for (const side of importSides) await assertImportItemIsNotReconciliationTarget(side.id);
+			const transferAccounts = {
+				destinationFinancialAccountId: pair.incoming.financialAccountId,
+				originFinancialAccountId: pair.outgoing.financialAccountId,
+			};
+			const outgoingImportItem =
+				pair.outgoing.source === "IMPORT_ITEM"
+					? await queryFirst(
+							db.sql.public.TransactionImportItem.select(
+								"id",
+								"amount",
+								"date",
+								"description",
+								"externalId",
+								"time",
+							)
+								.where((fields, functions) => functions.eq(fields.id, pair.outgoing.id))
+								.limit(1)
+								.build(),
 						)
-						.build(),
-				);
-				await removeImportItem(transaction, pair.outgoing.id);
-				await finalizeImportWhenEmpty(transaction, transactionImport.id);
+					: null;
+			await withTransaction(async transaction => {
+				if (savedSide) {
+					const importSide = importSides[0]!;
+					await transaction.executeStatement(
+						transaction.db.sql.public.Transaction.update({
+							...transferAccounts,
+							paymentCreditCardId: null,
+							storeName: null,
+							type: "TRANSFER",
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.id, savedSide.id))
+							.build(),
+					);
+					await transaction.executeStatement(
+						transaction.db.sql.public.TransactionExternalReference.insert([
+							{
+								externalId: importSide.externalId!,
+								financialAccountId: importSide.financialAccountId,
+								transactionId: savedSide.id,
+							},
+						]).build(),
+					);
+					await transaction.executeStatement(
+						transaction.db.sql.public.TagAssignment.delete()
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.entityType, tagEntityType.transaction),
+									functions.eq(fields.entityId, savedSide.id),
+								),
+							)
+							.build(),
+					);
+				} else {
+					if (!outgoingImportItem)
+						throw new HttpException("Item da importação não encontrado", 404);
+					await persistImportItem(
+						transaction,
+						{
+							...outgoingImportItem,
+							...transferAccounts,
+							amount: Number(outgoingImportItem.amount),
+							date: new Date(outgoingImportItem.date),
+							isHidden: false,
+							isReconciled: false,
+							paymentCreditCardId: null,
+							reconciledImportItemId: null,
+							reconciledTransactionId: null,
+							storeName: null,
+							transferCounterpartExternalId: pair.incoming.externalId,
+							type: "TRANSFER",
+						},
+						[],
+						pair.outgoing.financialAccountId,
+						userId,
+					);
+				}
+				const importIds = new Set<string>();
+				for (const side of importSides) {
+					await removeImportItem(transaction, side.id);
+					importIds.add((side as TransferSuggestionCandidate).transactionImportId!);
+				}
+				for (const importId of importIds) await finalizeImportWhenEmpty(transaction, importId);
 			});
 			return { removedImportId: transactionImport.id, success: true };
 		},
@@ -1148,7 +1126,6 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				!pair ||
 				!requestedItem ||
 				requestedItem.transactionImportId !== transactionImport.id ||
-				pair.incoming.source !== "TRANSACTION" ||
 				!pair.outgoing.externalId ||
 				!pair.incoming.externalId
 			)
@@ -1218,7 +1195,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				);
 				if (!item) throw new HttpException("Item da importação não encontrado", 404);
 				await assertImportItemIsNotReconciliationTarget(item.id);
-				const importItem = { ...item, type: item.type as ImportItemType };
+				const importItem = { ...item, date: new Date(item.date), type: item.type as ImportItemType };
 				const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [
 					importItem,
 				]);
@@ -1338,7 +1315,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			const itemsForDay = items
 				.filter(item => toDateKey(item.date) === params.date)
-				.map(item => ({ ...item, type: item.type as ImportItemType }));
+				.map(item => ({ ...item, date: new Date(item.date), type: item.type as ImportItemType }));
 			const duplicates = await getPotentialDuplicates(
 				transactionImport.financialAccountId,
 				itemsForDay,
@@ -1449,7 +1426,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const transactionImport = await getImport(userId, params.id);
 			if (transactionImport.status !== "PENDING")
 				throw new HttpException("Esta importação já foi aprovada", 400);
-			const [item] = await queryRows(
+			const [itemRow] = await queryRows(
 				db.sql.public.TransactionImportItem.select(
 					"id",
 					"amount",
@@ -1474,9 +1451,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					.limit(1)
 					.build(),
 			);
-			if (!item) throw new HttpException("Item da importação não encontrado", 404);
+			if (!itemRow) throw new HttpException("Item da importação não encontrado", 404);
+			const item = { ...itemRow, date: new Date(itemRow.date) };
 			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [
-				{ ...item, type: item.type as ImportItemType },
+				{ ...item, date: new Date(item.date), type: item.type as ImportItemType },
 			]);
 			const duplicate = duplicates
 				.get(item.id)
@@ -1540,8 +1518,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				await transaction.executeStatement(
 					transaction.db.sql.public.TransactionImportItem.update({
 						...values,
-						amount: String(values.amount),
-						date: new Date(values.date),
+						amount: numeric(values.amount),
+						date: toDateKey(values.date),
 						isReconciled: true,
 						reconciledImportItemId: duplicate.source === "IMPORT_ITEM" ? duplicate.id : null,
 						reconciledTransactionId: duplicate.source === "TRANSACTION" ? duplicate.id : null,
@@ -1602,7 +1580,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						)
 						.build(),
 				)
-			).map(item => ({ ...item, type: item.type as ImportItemType }));
+			).map(item => ({ ...item, date: new Date(item.date), type: item.type as ImportItemType }));
 			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, items);
 			const reconciliationTargetIds = await getReconciliationTargetIds(items.map(item => item.id));
 			const approvableItems = items.filter(

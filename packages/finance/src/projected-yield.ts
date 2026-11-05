@@ -1,5 +1,5 @@
 import { indicatorDailyRate } from "./financial-indicators";
-import { type YieldLot, YieldTaxLedger } from "./yield-tax";
+import { roundDailyYield, type YieldLot, YieldTaxLedger } from "./yield-tax";
 export interface LegacyYieldCalendar {
 	throughDate: string;
 	holidays: string[];
@@ -34,6 +34,8 @@ export interface YieldAccount {
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldRateHistories?: YieldRateHistory[];
 }
 
@@ -43,6 +45,7 @@ export interface InstitutionProfileChange {
 }
 
 export interface InstitutionYieldPolicy {
+	accountType?: null | string;
 	profileId?: null | string;
 	countryCode?: null | string;
 	effectiveUntil?: null | Date | string;
@@ -53,6 +56,8 @@ export interface InstitutionYieldPolicy {
 	yieldPeriod?: null | YieldPeriod;
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }
 
 export interface InstitutionYieldRule {
@@ -70,6 +75,8 @@ export interface YieldRateHistory {
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
 	yieldTaxIds?: string[] | null;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }
 
 export interface HistoricalYieldSettings {
@@ -166,6 +173,8 @@ function getYieldSettings(account: YieldAccount, day: string) {
 		yieldReferencePercentage: account.yieldReferencePercentage,
 		yieldReferenceType: account.yieldReferenceType,
 		yieldTaxIds: account.yieldTaxIds,
+		yieldTaxMode: account.yieldTaxMode,
+		yieldTaxModes: account.yieldTaxModes,
 		yieldTaxRate: account.yieldTaxRate,
 	};
 	if (
@@ -199,11 +208,13 @@ function getYieldSettings(account: YieldAccount, day: string) {
 					(policy.profileId === profileId &&
 						account.globalRulesFrom !== null &&
 						(!account.globalRulesFrom || day >= dateKey(account.globalRulesFrom)))) &&
+				(!policy.accountType || policy.accountType === account.type) &&
 				(!policy.countryCode || policy.countryCode === account.countryCode) &&
 				(policy.currency === null || (policy.currency ?? "BRL") === (account.currency ?? "BRL")),
 		)
 		.toSorted(
 			(left, right) =>
+				Number(Boolean(left.accountType)) - Number(Boolean(right.accountType)) ||
 				Number(Boolean(left.countryCode)) - Number(Boolean(right.countryCode)) ||
 				dateKey(left.effectiveDate).localeCompare(dateKey(right.effectiveDate)) ||
 				Number(left.currency === null) - Number(right.currency === null),
@@ -278,10 +289,13 @@ export function projectedNetYield(
 		previousDay.setUTCDate(previousDay.getUTCDate() - 1);
 		contributions.adjustBalance(balance, previousDay.toISOString().slice(0, 10));
 	}
-	return contributions.netYield(
-		calculateGrossYield(contributions.eligibleBalance(day), settings, averages),
-		settings,
-		day,
+	return roundDailyYield(
+		account.type,
+		contributions.netYield(
+			calculateGrossYield(contributions.eligibleBalance(day), settings, averages),
+			settings,
+			day,
+		),
 	);
 }
 

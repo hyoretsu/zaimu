@@ -1,15 +1,19 @@
-import { type ComponentProps, useMemo, useState } from "react";
-import { LuX } from "react-icons/lu";
+import { type ComponentProps, useState } from "react";
+import { LuClock, LuX } from "react-icons/lu";
+import { caretAfterSlots, useMaskCaret } from "@/hooks/use-mask-caret";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useTwelveHourClock } from "@/hooks/use-twelve-hour-clock";
+import { fixedMaskBeforeInput, fixedMaskKeyDown, fixedMaskPaste } from "@/lib/fixed-mask";
 import {
-	type DayPeriod,
+	DIGIT_SLOT,
+	type Draft12Hour,
+	edit12Hour,
+	edit24Hour,
 	format12Hour,
 	format24Hour,
 	from12Hour,
-	mask24Hour,
-	parse12Hour,
 	to12Hour,
-	usesTwelveHourClock,
+	TWELVE_HOUR_SLOT,
 } from "@/lib/time-mask";
 import { showToast } from "@/stores";
 import { Button } from "./Button";
@@ -28,12 +32,13 @@ type TimeFieldProps = Omit<ComponentProps<typeof FormField>, "onChange" | "type"
  */
 export function TimeField({ onValueChange, value, disabled, className, ...props }: TimeFieldProps) {
 	const isTouch = useMediaQuery("(hover: none), (pointer: coarse)");
-	const twelveHour = useMemo(() => usesTwelveHourClock(), []);
-	const [draft, setDraft] = useState<{ digits: string; period: DayPeriod } | null>(null);
+	const twelveHour = useTwelveHourClock();
+	const [draft, setDraft] = useState<Draft12Hour | null>(null);
+	const { ref, placeCaret } = useMaskCaret();
 
 	// Keep the in-progress 12-hour draft only while it has not produced a different committed value.
 	const committed = twelveHour ? to12Hour(value) : null;
-	const current = draft && from12Hour(draft.digits, draft.period) === value ? draft : committed;
+	const current = draft && from12Hour(draft.digits, draft.period ?? "AM") === value ? draft : committed;
 
 	const clear = () => {
 		setDraft(null);
@@ -62,13 +67,18 @@ export function TimeField({ onValueChange, value, disabled, className, ...props 
 				</TooltipTrigger>
 				<TooltipContent>Limpar horário</TooltipContent>
 			</Tooltip>
-		) : null;
+		) : (
+			<LuClock
+				aria-hidden
+				className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
+			/>
+		);
 
 	if (isTouch) {
 		return (
 			<FormField
 				{...props}
-				className={`pr-11 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 ${className ?? ""}`}
+				className={`w-full min-w-0 appearance-none pr-11 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:bg-none [&::-webkit-calendar-picker-indicator]:opacity-0 ${className ?? ""}`}
 				disabled={disabled}
 				onChange={event => onValueChange(event.currentTarget.value)}
 				trailing={disabled ? null : clearButton}
@@ -82,27 +92,36 @@ export function TimeField({ onValueChange, value, disabled, className, ...props 
 		<FormField
 			autoComplete="off"
 			inputMode="numeric"
+			onBeforeInput={fixedMaskBeforeInput}
+			onKeyDown={fixedMaskKeyDown}
+			onPaste={fixedMaskPaste}
 			placeholder={twelveHour ? "hh:mm AM" : "HH:MM"}
+			ref={ref}
 			{...props}
 			className={`pr-11 ${className ?? ""}`}
 			disabled={disabled}
 			onChange={event => {
-				const raw = event.currentTarget.value;
+				const { value: raw, selectionStart } = event.currentTarget;
+				const caret = selectionStart ?? raw.length;
 				if (!twelveHour) {
-					onValueChange(mask24Hour(raw, value, raw.length < format24Hour(value).length));
+					const { next, caretSlots } = edit24Hour(raw, caret, value);
+					placeCaret(caretAfterSlots(format24Hour(next), DIGIT_SLOT, caretSlots));
+					onValueChange(next);
 					return;
 				}
-				const previous = current ?? { digits: "", period: "AM" as DayPeriod };
-				const deleting = raw.length < format12Hour(previous.digits, previous.period).length;
-				const next = parse12Hour(raw, previous.period, previous.digits, deleting);
+				const previous = current ?? { digits: "", period: "AM" as const };
+				const { next, caretSlots } = edit12Hour(raw, caret, previous);
+				placeCaret(
+					caretAfterSlots(format12Hour(next.digits, next.period), TWELVE_HOUR_SLOT, caretSlots),
+				);
 				setDraft(next);
-				onValueChange(from12Hour(next.digits, next.period));
+				onValueChange(from12Hour(next.digits, next.period ?? "AM"));
 			}}
 			trailing={disabled ? null : clearButton}
 			type="text"
 			value={
 				twelveHour
-					? format12Hour(current?.digits ?? "", current?.period ?? "AM")
+					? format12Hour(current?.digits ?? "", current ? current.period : "AM")
 					: format24Hour(value)
 			}
 		/>

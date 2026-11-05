@@ -11,3 +11,7 @@ export function getFinancialInstitutions(accounts: FinancialAccount[]): Financia
 	}
 	return [...institutions.values()].sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
 }
+
+export function institutionOption(institution: FinancialInstitution) {
+	return { keywords: institution.aliases ?? [], label: institution.name, value: institution.id };
+}

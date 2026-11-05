@@ -33,6 +33,8 @@ export async function reconcileBalanceAdjustments(
 	userId: string,
 	accountId: string,
 	fromDate = "0001-01-01",
+	/** Exclusive upper bound: only checkpoints before it have settled inputs. */
+	beforeDate: string | null = null,
 ) {
 	const adjustments = await query<{
 		id: string;
@@ -42,9 +44,9 @@ export async function reconcileBalanceAdjustments(
 		currency: string;
 	}>(
 		`SELECT "id", "financialAccountId", "date"::text, "balance", "currency"
-		 FROM "BalanceAdjustment" WHERE "userId"=$1 AND "financialAccountId"=$2 AND "date"<=CURRENT_DATE AND "date">=$3::date
+		 FROM "BalanceAdjustment" WHERE "userId"=$1 AND "financialAccountId"=$2 AND "date"<=CURRENT_DATE AND "date">=$3::date AND ($4::date IS NULL OR "date"<$4::date)
 		 ORDER BY "date", "id" FOR UPDATE`,
-		[userId, accountId, fromDate],
+		[userId, accountId, fromDate, beforeDate],
 	);
 	const removed: string[] = [];
 	for (const adjustment of adjustments) {

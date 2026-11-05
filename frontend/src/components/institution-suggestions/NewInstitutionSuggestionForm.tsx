@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuSend } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -7,9 +8,16 @@ import { postFinancialInstitutions } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { useCacheIdentity } from "@/lib/query-cache";
 
-export function NewInstitutionSuggestionForm({ onClose }: { onClose: () => void }) {
-	const [name, setName] = useState("");
+export function NewInstitutionSuggestionForm({
+	onClose,
+	recoveredName,
+}: {
+	onClose: () => void;
+	recoveredName?: string;
+}) {
+	const [name, setName] = useState(recoveredName ?? "");
 	const identity = useCacheIdentity();
+	const client = useQueryClient();
 	const pending = useModalRecoveryStore(state => !!state.pending[`${identity}:institution-suggestion:new`]);
 	const trimmed = name.trim();
 	return (
@@ -32,12 +40,16 @@ export function NewInstitutionSuggestionForm({ onClose }: { onClose: () => void 
 					disabled={pending || !trimmed || trimmed.length > 100}
 					onClick={() =>
 						runBackgroundModalAction({
+							cache: { client, operations: ["institution"] },
 							close: onClose,
 							conflictKey: "institution-suggestion:new",
 							failureMessage: "Não foi possível enviar a sugestão.",
 							loadingMessage: "Enviando sugestão...",
-							recovery: { kind: "institution-suggestion:new", payload: { name: trimmed } },
-							run: () => postFinancialInstitutions({ name: trimmed }),
+							recovery: { kind: "institution-suggestion:new", payload: { name } },
+							run: () =>
+								postFinancialInstitutions({ body: { name: trimmed } }).then(
+									result => result.data,
+								),
 							successMessage: "Instituição sugerida para revisão.",
 						})
 					}

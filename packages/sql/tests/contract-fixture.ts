@@ -2,10 +2,11 @@ import type { Client } from "pg";
 import { assertFixtureUrl } from "../../../scripts/testing/fixture";
 
 interface Column {
-	many?: boolean;
-	nativeType: string;
+	many?: boolean | { elementNullable: boolean };
+	nativeType?: string;
+	dataType?: string;
 	nullable: boolean;
-	typeParams?: { length?: number; precision?: number; scale?: number };
+	typeParams?: { length?: number; precision?: number; scale?: number; typeName?: string };
 	default?: { kind: string; value?: unknown; expression?: string };
 }
 interface Table {
@@ -53,8 +54,13 @@ export async function installContractFixture(client: Client, input: unknown) {
 		await client.query(`CREATE TYPE ${quote(name)} AS ENUM (${value.members.map(literal).join(",")})`);
 	for (const [name, table] of Object.entries(tables)) {
 		const columns = Object.entries(table.columns).map(([name, column]) => {
-			let type = column.nativeType;
 			const params = column.typeParams;
+			let type =
+				column.nativeType ??
+				(column.dataType === "pg/enum" ? params?.typeName : column.dataType?.replace(/^pg\//, ""));
+			if (!type) throw new Error(`Missing physical type for fixture column ${name}`);
+			if (column.dataType && !column.dataType.startsWith("pg/"))
+				throw new Error(`Unsupported fixture physical type ${column.dataType}`);
 			if (enums[type]) type = quote(type);
 			else if (params?.length) type += `(${params.length})`;
 			else if (type === "numeric" && params?.precision)

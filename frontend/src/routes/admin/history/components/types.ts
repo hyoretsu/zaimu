@@ -1,4 +1,4 @@
-import type { GetFinancialHistoryAdminCoverageQueryResponse } from "@/lib/api";
+import type { GetFinancialHistoryAdminCoverageResponse } from "@/lib/api";
 
-export type HistoryCoverage = GetFinancialHistoryAdminCoverageQueryResponse;
+export type HistoryCoverage = GetFinancialHistoryAdminCoverageResponse;
 export type HistoryCoverageSeries = HistoryCoverage["series"][number];

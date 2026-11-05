@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { PostFinancialInstitutionsReviewProposalsByIdMutationRequest } from "@/lib/api";
+import type { PostFinancialInstitutionsReviewProposalsByIdBody } from "@/lib/api";
 import { getFinancialInstitutions, postFinancialInstitutionsReviewProposalsById } from "@/lib/api";
 import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
@@ -35,7 +35,7 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 	const userId = useAuthStore(state => state.user?.id);
 	const institutions = useQuery({
 		enabled: proposal.status === "PENDING",
-		queryFn: () => getFinancialInstitutions(),
+		queryFn: () => getFinancialInstitutions({}).then(result => result.data),
 		queryKey: ["institutions", userId],
 	});
 	const current = institutions.data?.find(item => item.id === proposal.institutionId);
@@ -43,16 +43,20 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 		proposal.baseVersion !== null &&
 		proposal.version !== null &&
 		proposal.baseVersion !== proposal.version;
-	const review = (action: PostFinancialInstitutionsReviewProposalsByIdMutationRequest["action"]) => {
+	const review = (action: PostFinancialInstitutionsReviewProposalsByIdBody["action"]) => {
 		const start = captureCacheMutation();
 		setPending(true);
-		void postFinancialInstitutionsReviewProposalsById(proposal.id, {
-			action,
-			confirmedVersion: confirmed ? (proposal.version ?? undefined) : undefined,
-			profileResolution: resolution,
-			reason: reason.trim() || undefined,
-			targetId: target,
+		void postFinancialInstitutionsReviewProposalsById({
+			body: {
+				action,
+				confirmedVersion: confirmed ? (proposal.version ?? undefined) : undefined,
+				profileResolution: resolution,
+				reason: reason.trim() || undefined,
+				targetId: target,
+			},
+			path: { id: proposal.id },
 		})
+			.then(result => result.data)
 			.then(() => {
 				showToast("Revisão registrada", "positive");
 				void invalidateMutationCache(queryClient, start, mutationCacheMeta("institution"));

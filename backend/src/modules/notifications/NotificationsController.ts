@@ -1,7 +1,7 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, executeStatement, queryRaw } from "~/shared/infra/sql";
 
 export const NotificationsController = new Elysia({ prefix: "/notifications" })
 	.get(
@@ -87,9 +87,11 @@ export const NotificationsController = new Elysia({ prefix: "/notifications" })
 	.delete(
 		"/devices/:id",
 		async ({ request, params }) => {
-			await queryRaw(
-				`UPDATE "PushDevice" SET "enabled"=false,"updatedAt"=now() WHERE "id"=$1 AND "userId"=$2`,
-				[params.id, await requireUserId(request)],
+			const userId = await requireUserId(request);
+			await executeStatement(
+				db.sql.public.PushDevice.update({ enabled: false, updatedAt: new Date() })
+					.where((f, fn) => fn.and(fn.eq(f.id, params.id), fn.eq(f.userId, userId)))
+					.build(),
 			);
 			return { success: true };
 		},

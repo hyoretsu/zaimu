@@ -46,7 +46,10 @@ export function FinancialHistoryAdmin({ header }: { header: ComponentProps<typeo
 		!!startDate && !!endDate && startDate <= endDate && endDate < format(new Date(), "yyyy-MM-dd");
 	const query = useQuery({
 		enabled: valid,
-		queryFn: () => getFinancialHistoryAdminCoverage({ endDate, kind, series, startDate }),
+		queryFn: () =>
+			getFinancialHistoryAdminCoverage({ query: { endDate, kind, series, startDate } }).then(
+				result => result.data,
+			),
 		queryKey: ["admin-history-coverage", userId, startDate, endDate, kind, series],
 		retry: false,
 	});

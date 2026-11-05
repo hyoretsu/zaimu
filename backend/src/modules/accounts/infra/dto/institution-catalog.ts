@@ -4,6 +4,7 @@ import { InstitutionCardRulesDTO } from "./institution-card-rules";
 export const InstitutionCatalogResult = t.Object(
 	{
 		accountCurrenciesByCountry: t.Record(t.String(), t.Array(t.String())),
+		aliases: t.Optional(t.Array(t.String())),
 		cardRulesProfiles: t.Optional(
 			t.Array(
 				t.Object({

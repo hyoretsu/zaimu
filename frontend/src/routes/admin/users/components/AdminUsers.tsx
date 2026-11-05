@@ -18,13 +18,13 @@ export function AdminUsers() {
 	const [local, setLocal] = useDebouncedInput(search, setSearch);
 	const users = useQuery({
 		enabled: search.trim().length >= 3,
-		queryFn: () => getAdminUsers({ email: search }),
+		queryFn: () => getAdminUsers({ query: { email: search } }).then(result => result.data),
 		queryKey: ["admin-users", identity, search],
 	});
 	const [pending, setPending] = useState<string[]>([]);
 	const promote = useMutation({
 		meta: mutationCacheMeta("adminUser"),
-		mutationFn: (id: string) => postAdminUsersByIdPromote(id),
+		mutationFn: (id: string) => postAdminUsersByIdPromote({ path: { id } }).then(result => result.data),
 		onError: error => showToast(error.message, "negative"),
 		onMutate: id => setPending(current => [...current, id]),
 		onSettled: (_data, _error, id) => setPending(current => current.filter(value => value !== id)),

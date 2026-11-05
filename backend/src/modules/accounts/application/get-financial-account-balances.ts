@@ -50,6 +50,8 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"yieldPeriod",
 			"yieldTaxIds",
 			"yieldTaxRate",
+			"yieldTaxMode",
+			"yieldTaxModes",
 		)
 			.where((fields, functions) => functions.in(fields.id, accountIds))
 			.build(),
@@ -94,6 +96,8 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			"yieldPeriod",
 			"yieldTaxIds",
 			"yieldTaxRate",
+			"yieldTaxMode",
+			"yieldTaxModes",
 		)
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
@@ -147,7 +151,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	const startYear = Math.min(
 		new Date().getFullYear(),
 		...accounts.map(account => account.createdAt.getFullYear()),
-		...transactions.map(transaction => transaction.date.getFullYear()),
+		...transactions.map(transaction => new Date(transaction.date).getFullYear()),
 	);
 	const years = Array.from(
 		{ length: new Date().getFullYear() - startYear + 1 },
@@ -188,6 +192,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 				yieldPeriod: account.yieldPeriod as null | YieldPeriod,
 				yieldRateHistories: (yieldRateHistoriesByAccountId.get(account.id) ?? []).map(history => ({
 					...history,
+					effectiveDate: new Date(history.effectiveDate),
 					yieldPeriod: history.yieldPeriod as null | YieldPeriod,
 					yieldReferenceType: history.yieldReferenceType as "CDI" | "SELIC" | "IPCA" | "TR" | null,
 				})),
@@ -196,6 +201,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			adjustments: adjustments.map(adjustment => ({
 				...adjustment,
 				balance: Number(adjustment.balance),
+				date: new Date(adjustment.date),
 			})),
 			cashbackCredits: cashbackPurchases.map(purchase => ({
 				...purchase,
@@ -220,12 +226,14 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			].map(transaction => ({
 				...transaction,
 				amount: Number(transaction.amount),
+				date: new Date(transaction.date),
 				destinationAmount:
 					transaction.destinationAmount == null ? null : Number(transaction.destinationAmount),
 			})),
 			yields: yields.map(yieldEntry => ({
 				...yieldEntry,
 				amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
+				date: new Date(yieldEntry.date),
 				kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
 				origin: yieldEntry.origin as "SYSTEM" | "USER",
 			})),

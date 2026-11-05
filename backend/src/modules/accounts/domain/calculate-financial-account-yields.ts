@@ -4,7 +4,7 @@ import {
 	legacyCalendarHoliday,
 	type LegacyYieldCalendar,
 } from "@zaimu/finance/projected-yield";
-import { type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
 export type YieldPeriod = "MONTHLY" | "YEARLY";
@@ -29,11 +29,16 @@ export interface YieldAccount {
 	yieldReferencePercentage?: null | number;
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldTaxIds?: string[] | null;
 	yieldRateHistories?: YieldRateHistory[];
 }
 
+export type YieldAccountType = "CASH" | "CHECKING" | "INVESTMENT" | "SAVINGS";
+
 export interface InstitutionYieldPolicy {
+	accountType?: null | YieldAccountType;
 	profileId?: null | string;
 	countryCode?: null | string;
 	effectiveUntil?: null | Date | string;
@@ -44,6 +49,8 @@ export interface InstitutionYieldPolicy {
 	yieldPeriod?: null | YieldPeriod;
 
 	yieldTaxRate?: null | number;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldTaxIds?: string[] | null;
 }
 
@@ -61,6 +68,8 @@ export interface YieldRateHistory {
 	yieldReferencePercentage?: null | number;
 	yieldReferenceType?: null | ReferenceRateType;
 	yieldTaxRate?: null | number;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 	yieldTaxIds?: string[] | null;
 }
 
@@ -277,6 +286,8 @@ function calculateYieldedBalance(
 	for (let day = new Date(`${firstDay}T12:00:00`); dateKey(day) <= todayKey; day = addDays(day, 1)) {
 		const key = dateKey(day);
 		const dayYields = yieldsByDay.get(key) ?? [];
+		// Yield accrues overnight on the balance the day opened with: same-day withdrawals must not shrink it.
+		const openingLedger = events?.has(key) || cashbackEvents?.has(key) ? ledger.clone() : ledger;
 		for (const movement of events?.get(key) ?? []) ledger.applyCashFlow(movement, key);
 		balance = ledger.balance;
 		for (const credit of cashbackEvents?.get(key) ?? []) {
@@ -313,22 +324,27 @@ function calculateYieldedBalance(
 		if (key === beforeYieldDay)
 			lotSnapshots?.set(
 				account.id,
-				ledger.lots.map(lot => ({ ...lot })),
+				openingLedger.lots.map(lot => ({ ...lot })),
 			);
 		const yieldSettings = getYieldSettings(account, key);
 		const automaticYield = dayYields.find(yieldEntry => yieldEntry.kind === "AUTOMATIC");
-		if (balance > 0 && !hasManualYield && !automaticYield?.isExcluded) {
+		if ((balance > 0 || openingLedger.balance > 0) && !hasManualYield && !automaticYield?.isExcluded) {
 			const hasReference = settingsRequireReference(yieldSettings);
 			const grossAmount = hasReference
 				? 0
-				: calculateGrossYield(ledger.eligibleBalance(key), yieldSettings, {});
+				: calculateGrossYield(openingLedger.eligibleBalance(key), yieldSettings, {});
 
 			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined) {
 				if (automaticYield.origin === "SYSTEM")
 					ledger.accrueRecordedNet(automaticYield.amount, yieldSettings, key);
 				else ledger.accrueNet(automaticYield.amount, key);
-			} else if (!hasReference && (calendarCovered?.(key) ?? true))
-				ledger.accrueGross(grossAmount, yieldSettings, key);
+			} else if (!hasReference && (calendarCovered?.(key) ?? true)) {
+				ledger.accrueRecordedNet(
+					roundDailyYield(account.type, ledger.netYield(grossAmount, yieldSettings, key)),
+					yieldSettings,
+					key,
+				);
+			}
 			balance = ledger.balance;
 		}
 		for (const [rate, cashbackBalance] of cashbackBalances) {

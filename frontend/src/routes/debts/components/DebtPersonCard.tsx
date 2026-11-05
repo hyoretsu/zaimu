@@ -66,17 +66,27 @@ export function DebtPersonCard({
 		onLoadMore: eventsQuery.fetchNextPage,
 	});
 	const balanceSummary = (
-		<strong
-			className={
-				person.balance > 0
-					? "whitespace-nowrap text-emerald-600"
-					: person.balance < 0
-						? "whitespace-nowrap text-rose-600"
-						: "text-muted-foreground whitespace-nowrap"
-			}
-		>
-			<PreferredMoneyAmount values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]} />
-		</strong>
+		<div className="text-right">
+			<strong
+				className={
+					person.balance > 0
+						? "whitespace-nowrap text-emerald-600"
+						: person.balance < 0
+							? "whitespace-nowrap text-rose-600"
+							: "text-muted-foreground whitespace-nowrap"
+				}
+			>
+				<PreferredMoneyAmount
+					debt="absolute"
+					values={person.balances ?? [{ amount: person.balance, currency: "BRL" }]}
+				/>
+			</strong>
+			{person.balance !== 0 ? (
+				<p className="text-muted-foreground text-sm">
+					{person.balance > 0 ? "Te deve" : "Você deve"}
+				</p>
+			) : null}
+		</div>
 	);
 	return (
 		<article className="bg-card max-w-full min-w-0 overflow-x-clip rounded-2xl border p-4 shadow-sm">
@@ -96,11 +106,9 @@ export function DebtPersonCard({
 					<p className="text-muted-foreground text-sm">
 						{person.balances?.some(row => row.amount !== 0)
 							? "Saldos por moeda"
-							: person.balance > 0
-								? "Deve a você"
-								: person.balance < 0
-									? "Você deve"
-									: "Saldo quitado"}
+							: person.balance === 0
+								? "Saldo quitado"
+								: null}
 					</p>
 				</div>
 				{balanceSummary}

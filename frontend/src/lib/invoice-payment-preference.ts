@@ -9,7 +9,7 @@ export async function readInvoicePaymentPreference(): Promise<InvoicePaymentTimi
 	const owner = getCurrentCacheIdentity();
 	if (!owner) throw new Error("Sessão indisponível");
 	if (!useAuthStore.getState().isGuestMode) {
-		const result = await getInvoicePaymentPreferences();
+		const result = await getInvoicePaymentPreferences({}).then(result => result.data);
 		return result.invoicePaymentTiming;
 	}
 	const stored = await localMeta.get("invoice-payment-preference", owner);
@@ -19,6 +19,7 @@ export async function saveInvoicePaymentPreference(invoicePaymentTiming: Invoice
 	const owner = getCurrentCacheIdentity();
 	if (!owner) throw new Error("Sessão indisponível");
 	if (!["CLOSING_DATE", "DUE_DATE"].includes(invoicePaymentTiming)) throw new Error("Preferência inválida");
-	if (!useAuthStore.getState().isGuestMode) await patchInvoicePaymentPreferences({ invoicePaymentTiming });
+	if (!useAuthStore.getState().isGuestMode)
+		await patchInvoicePaymentPreferences({ body: { invoicePaymentTiming } }).then(result => result.data);
 	else await localMeta.set("invoice-payment-preference", invoicePaymentTiming, owner);
 }

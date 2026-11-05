@@ -2,9 +2,9 @@ import { hasBudgetConflict, validateBudgetHierarchy } from "@zaimu/finance/month
 import { useAuthStore } from "@/stores/auth";
 import {
 	deleteMonthlyBudgetsById,
-	type GetMonthlyBudgetsSummaryQueryResponse,
 	getMonthlyBudgets,
 	getMonthlyBudgetsSummary,
+	type GetMonthlyBudgetsSummaryResponse,
 	postMonthlyBudgets,
 	putMonthlyBudgetsById,
 } from "./api";
@@ -13,7 +13,7 @@ import { type MonthlyBudget, type MonthlyBudgetInput, validateMonthlyBudget } fr
 import { type CacheIdentity, getCurrentCacheIdentity } from "./query-cache";
 
 export type { MonthlyBudget, MonthlyBudgetInput } from "./monthly-budget";
-export type MonthlyBudgetSummary = GetMonthlyBudgetsSummaryQueryResponse;
+export type MonthlyBudgetSummary = GetMonthlyBudgetsSummaryResponse;
 
 function context() {
 	const owner = getCurrentCacheIdentity();
@@ -49,7 +49,7 @@ export const monthlyBudgetService = {
 			await localMonthlyBudgets.put(budget, budget.id, owner);
 			return budget;
 		}
-		const budget = await postMonthlyBudgets(data);
+		const budget = await postMonthlyBudgets({ body: data }).then(result => result.data);
 		cache(budget, owner);
 		return budget;
 	},
@@ -67,7 +67,7 @@ export const monthlyBudgetService = {
 		if (local) {
 			for (const budgetId of [...ids].reverse()) await localMonthlyBudgets.delete(budgetId, owner);
 		} else {
-			await deleteMonthlyBudgetsById(id);
+			await deleteMonthlyBudgetsById({ path: { id } }).then(result => result.data);
 			await Promise.all([...ids].map(budgetId => hardDelete("monthlyBudgets", budgetId, owner))).catch(
 				() => undefined,
 			);
@@ -76,7 +76,7 @@ export const monthlyBudgetService = {
 	async getAll(): Promise<MonthlyBudget[]> {
 		const { owner, local } = context();
 		if (local) return (await localMonthlyBudgets.getAll(owner)).map(row => row.data);
-		const budgets = await getMonthlyBudgets();
+		const budgets = await getMonthlyBudgets({}).then(result => result.data);
 		void localMonthlyBudgets
 			.replaceSnapshot(
 				budgets.map(data => ({ data, localId: data.id, syncedAt: Date.now() })),
@@ -89,7 +89,7 @@ export const monthlyBudgetService = {
 		if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("Informe um mês válido.");
 		const { local } = context();
 		if (local) return (await import("./monthly-budget-summary")).guestMonthlyBudgetSummary(month);
-		return getMonthlyBudgetsSummary({ month });
+		return getMonthlyBudgetsSummary({ query: { month } }).then(result => result.data);
 	},
 	async update(id: string, input: MonthlyBudgetInput): Promise<MonthlyBudget> {
 		const { owner, local } = context();
@@ -107,7 +107,7 @@ export const monthlyBudgetService = {
 			await localMonthlyBudgets.put(budget, id, owner);
 			return budget;
 		}
-		const budget = await putMonthlyBudgetsById(id, data);
+		const budget = await putMonthlyBudgetsById({ body: data, path: { id } }).then(result => result.data);
 		cache(budget, owner);
 		return budget;
 	},

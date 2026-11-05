@@ -5,7 +5,7 @@ import { tomorrow } from "~/modules/accounts/application/schedule-financial-acco
 import { requireUserId } from "~/modules/auth";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
-import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows, withRawTransaction } from "~/shared/infra/sql";
 import { requireAdmin } from "./admin-access";
 import { loadTaxCatalog } from "./catalog";
 
@@ -41,19 +41,26 @@ async function saveTax(body: typeof SaveTax.static, id?: string) {
 	const date = tomorrow().toISOString().slice(0, 10);
 	await withRawTransaction(async query => {
 		if (id) {
-			const rows = await query(`UPDATE "taxDefinition" SET "name"=$2 WHERE "id"=$1 RETURNING "id"`, [
-				id,
-				name,
-			]);
+			const rows = await queryRows(
+				db.sql.public.taxDefinition
+					.update({ name })
+					.where((fields, functions) => functions.eq(fields.id, id))
+					.returning("id")
+					.build(),
+			);
 			if (!rows.length) throw new HttpException("Imposto não encontrado", 404);
 		} else
-			await query(`INSERT INTO "taxDefinition" ("id","name","isActive") VALUES ($1,$2,true)`, [taxId, name]);
+			await executeStatement(
+				db.sql.public.taxDefinition.insert([{ id: taxId, isActive: true, name }]).build(),
+			);
 		await query(
 			`INSERT INTO "taxDefinitionVersion" ("id","taxDefinitionId","effectiveDate","applicationOrder","brackets") VALUES ($1,$2,$3,$4,$5::json) ON CONFLICT ("taxDefinitionId","effectiveDate") DO UPDATE SET "applicationOrder"=EXCLUDED."applicationOrder","brackets"=EXCLUDED."brackets"`,
 			[randomUUID(), taxId, date, body.applicationOrder, JSON.stringify(body.brackets)],
 		);
-		const accounts = await query<{ id: string }>(
-			`SELECT "id" FROM "FinancialAccount" WHERE "type" <> 'CREDIT_CARD'`,
+		const accounts = await queryRows(
+			db.sql.public.FinancialAccount.select("id")
+				.where((fields, functions) => functions.ne(fields.type, "CREDIT_CARD"))
+				.build(),
 		);
 		for (const account of accounts)
 			await enqueueAccountYieldRecalculation(account.id, tomorrow(), `tax:${taxId}:${Date.now()}`);
@@ -66,7 +73,13 @@ export const TaxesController = new Elysia()
 		"/admin/access",
 		async ({ request }) => {
 			const id = await requireUserId(request);
-			const [user] = await queryRaw<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [id]);
+			const user = await queryFirst(
+				db.sql.public.user
+					.select("role")
+					.where((fields, functions) => functions.eq(fields.id, id))
+					.limit(1)
+					.build(),
+			);
 			return { role: user?.role ?? "USER" };
 		},
 		{ response: t.Object({ role: t.String() }) },
@@ -91,10 +104,13 @@ export const TaxesController = new Elysia()
 		"/admin/taxes/:id",
 		async ({ request, params, body }) => {
 			await requireAdmin(request);
-			const rows = await queryRaw(`UPDATE "taxDefinition" SET "isActive"=$2 WHERE "id"=$1 RETURNING "id"`, [
-				params.id,
-				body.isActive,
-			]);
+			const rows = await queryRows(
+				db.sql.public.taxDefinition
+					.update({ isActive: body.isActive })
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.returning("id")
+					.build(),
+			);
 			if (!rows.length) throw new HttpException("Imposto não encontrado", 404);
 			return { success: true };
 		},
@@ -106,23 +122,36 @@ export const TaxesController = new Elysia()
 			await requireAdmin(request);
 			const search = query.email.trim();
 			if (search.length < 3) return [];
-			return queryRaw<{ id: string; email: string; name: string; role: string }>(
-				`SELECT "id","email","name","role" FROM "user" WHERE strpos(lower("email"),lower($1))>0 ORDER BY "email" LIMIT 20`,
-				[search],
+			return queryRows(
+				db.sql.public.user
+					.select("id", "email", "name", "role")
+					.where((fields, functions) =>
+						functions.raw`strpos(lower(${fields.email}), lower(${search})) > 0`.returns(
+							"pg/bool@1",
+						),
+					)
+					.orderBy("email", { direction: "asc" })
+					.limit(20)
+					.build(),
 			);
 		},
 		{
 			query: t.Object({ email: t.String({ maxLength: 320 }) }),
-			response: t.Array(t.Object({ email: t.String(), id: t.String(), name: t.String(), role: t.String() })),
+			response: t.Array(
+				t.Object({ email: t.String(), id: t.String(), name: t.String(), role: t.String() }),
+			),
 		},
 	)
 	.post(
 		"/admin/users/:id/promote",
 		async ({ request, params }) => {
 			await requireAdmin(request);
-			const rows = await queryRaw(
-				`UPDATE "user" SET "role"='ADMIN',"updatedAt"=now() WHERE "id"=$1 RETURNING "id"`,
-				[params.id],
+			const rows = await queryRows(
+				db.sql.public.user
+					.update({ role: "ADMIN", updatedAt: new Date() })
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.returning("id")
+					.build(),
 			);
 			if (!rows.length) throw new HttpException("Usuário não encontrado", 404);
 			return { success: true };

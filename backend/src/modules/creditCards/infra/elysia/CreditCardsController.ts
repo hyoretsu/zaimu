@@ -70,6 +70,7 @@ import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchang
 import { getDebtSplitReturn, linkPurchaseToDebt } from "~/modules/debts/application";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { projectRecurringCreditBook } from "~/modules/recurring/application/project-credit-book";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
 import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-body";
@@ -382,10 +383,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.creditCardId, params.id),
-								functions.eq(
-									fields.statementDate,
-									new Date(`${body.statementDate}T12:00:00Z`),
-								),
+								functions.eq(fields.statementDate, body.statementDate),
 							),
 						)
 						.limit(1)
@@ -396,7 +394,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const cutoff = body.statementDate ? statementCutoffAfter(body.statementDate) : null;
 			await executeStatement(
 				db.sql.public.CreditCard.update({
-					ignoreStatementsBefore: cutoff ? new Date(`${cutoff}T12:00:00Z`) : null,
+					ignoreStatementsBefore: cutoff,
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -502,12 +500,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const cached = await distributedCache.remember(
 				userId,
 				"credit-cards:overview",
-				{ domain: "purchase-edit", format: 3, ...params },
+				{ domain: "purchase-edit", format: 4, ...params },
 				async () => {
 					const rows = await queryRaw<{
 						id: string;
 						totalAmount: number;
 						purchaseDate: Date;
+						time: string | null;
 						externalId: string | null;
 						feeAmount: number | null;
 						currency: string;
@@ -522,7 +521,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						`
 				SELECT (SELECT i."purchaseId" FROM "CreditInstallmentRecord" i WHERE i."settledByPurchaseId"=p."id" LIMIT 1) AS "refinancedFromPurchaseId",
 COALESCE((SELECT jsonb_agg(DISTINCT i."settledByPurchaseId") FROM "CreditInstallmentRecord" i WHERE i."purchaseId"=p."id" AND i."settledByPurchaseId" IS NOT NULL), '[]'::jsonb) AS "refinancingPurchaseIds",
-p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", p."feeAmount", p."currency", p."originalAmount", p."exchangeRate", p."fees",
+p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."externalId", p."feeAmount", p."currency", p."originalAmount", p."exchangeRate", p."fees",
 				COALESCE((SELECT jsonb_agg(plan."number" ORDER BY plan."number") FROM "CreditInstallmentPlan" plan WHERE plan."purchaseId"=p."id" AND plan."hasImportedAmount"), '[]'::jsonb) AS "installmentImportedNumbers"
 				FROM "CreditPurchaseRecord" p WHERE p."id"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,
 						[params.purchaseId, params.id, userId],
@@ -545,6 +544,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 						purchaseDate: row.purchaseDate.toISOString().slice(0, 10),
 						refinancedFromPurchaseId: row.refinancedFromPurchaseId,
 						refinancingPurchaseIds: row.refinancingPurchaseIds,
+						time: row.time,
 						totalAmountCents: moneyCents(Number(row.totalAmount), 1, row.bookingCurrency),
 					};
 				},
@@ -1155,7 +1155,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 					executor.db.sql.public.Transaction.insert([
 						{
 							amount: String(body.amount),
-							date: new Date(body.date),
+							date: body.date,
 							originFinancialAccountId: body.financialAccountId,
 							paymentCreditCardId: params.id,
 							time: resolvePurchaseTime(body.time),
@@ -1180,6 +1180,11 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."externalId", 
 				await recalculateStatementPayments(executor, [params.id]);
 				return payment;
 			});
+			await enqueueAccountYieldRecalculation(
+				body.financialAccountId,
+				new Date(body.date),
+				`transaction:${transaction.id}`,
+			);
 			return { transaction };
 		},
 		{

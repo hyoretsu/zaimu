@@ -46,7 +46,11 @@ export function ProfileProposalForm({
 								kind: `institution-profile:${institutionId}`,
 								payload: draft,
 							},
-							run: () => postFinancialInstitutionsByIdProfiles(institutionId, draft),
+							run: () =>
+								postFinancialInstitutionsByIdProfiles({
+									body: draft,
+									path: { id: institutionId },
+								}).then(result => result.data),
 							successMessage: "Perfil proposto para revisão.",
 						});
 					}}

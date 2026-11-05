@@ -8,12 +8,15 @@ export function assertFinancialAccountYieldSettings(settings: {
 	yieldReferenceType?: null | string;
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }) {
 	const hasFixedRate = settings.yieldFixedRate !== undefined && settings.yieldFixedRate !== null;
 	const hasPeriod = settings.yieldPeriod !== undefined && settings.yieldPeriod !== null;
 	const hasReferencePercentage =
 		settings.yieldReferencePercentage !== undefined && settings.yieldReferencePercentage !== null;
-	const hasReferenceType = settings.yieldReferenceType !== undefined && settings.yieldReferenceType !== null;
+	const hasReferenceType =
+		settings.yieldReferenceType !== undefined && settings.yieldReferenceType !== null;
 	const hasTaxType = Boolean(settings.yieldTaxIds?.length);
 	const hasTaxRate = settings.yieldTaxRate !== undefined && settings.yieldTaxRate !== null;
 	const hasYield = hasFixedRate || hasReferencePercentage || hasReferenceType;

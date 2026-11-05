@@ -1,6 +1,6 @@
 import { resolveBookInstallment } from "@zaimu/finance/credit-book";
 import { recurrencePeriodStart, validateRecurrenceAssociation } from "@zaimu/finance/recurrence";
-import type { PostRecurringByIdAssociateMutationRequest } from "./api";
+import type { PostRecurringByIdAssociateBody } from "./api";
 import {
 	commitLocalRecurrenceChanges,
 	localCreditBooks,
@@ -14,7 +14,7 @@ import {
 export async function associateLocalRecurrence(
 	owner: StorageOwner,
 	id: string,
-	input: PostRecurringByIdAssociateMutationRequest,
+	input: PostRecurringByIdAssociateBody,
 ) {
 	const record = await localRecurrences.getById(id, owner);
 	if (!record) throw new Error("Recorrência não encontrada.");

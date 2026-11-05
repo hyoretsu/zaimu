@@ -21,6 +21,22 @@ async function sources(directory: string): Promise<string[]> {
 
 test("every consumed SDK operation has a concrete response contract", async () => {
 	const root = resolve(import.meta.dir, "../../..");
+	// Validate the current source contract in fresh worktrees and CI too.
+	// Ignored output may be absent or belong to an earlier checkout.
+	const exporter = Bun.spawn([process.execPath, "scripts/export-openapi.ts"], {
+		cwd: resolve(root, "backend"),
+		env: {
+			...process.env,
+			DATABASE_URL: "postgresql://unavailable:unavailable@127.0.0.1:1/unavailable",
+			RABBITMQ_URL: "amqp://127.0.0.1:1",
+			REDIS_URL: "redis://127.0.0.1:1",
+		},
+		stderr: "pipe",
+		stdout: "ignore",
+	});
+	const [exitCode, error] = await Promise.all([exporter.exited, new Response(exporter.stderr).text()]);
+	expect(error).not.toContain("ECONNREFUSED");
+	expect(exitCode).toBe(0);
 	const document = await Bun.file(resolve(root, "backend/out/openapi.json")).json();
 	const operations = new Map<
 		string,
@@ -32,7 +48,10 @@ test("every consumed SDK operation has a concrete response contract", async () =
 				string,
 				{
 					operationId: string;
-					responses: Record<string, { content?: Record<string, { schema?: Record<string, unknown> }> }>;
+					responses: Record<
+						string,
+						{ content?: Record<string, { schema?: Record<string, unknown> }> }
+					>;
 				}
 			>,
 		)) {
@@ -66,4 +85,4 @@ test("every consumed SDK operation has a concrete response contract", async () =
 			expect(schema && Object.keys(schema).length > 0, name).toBe(true);
 		}
 	}
-});
+}, 120_000);

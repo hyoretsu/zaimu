@@ -11,7 +11,8 @@ export function cachedTaxCatalog(): TaxDefinition[] {
 	try {
 		const stored = JSON.parse(localStorage.getItem(key) ?? "null") as TaxDefinition[] | null;
 		if (stored?.length) {
-			for (const tax of stored) for (const version of tax.versions) validateTaxBrackets(version.brackets);
+			for (const tax of stored)
+				for (const version of tax.versions) validateTaxBrackets(version.brackets);
 			return stored;
 		}
 	} catch {
@@ -20,7 +21,7 @@ export function cachedTaxCatalog(): TaxDefinition[] {
 	return defaultTaxDefinitions;
 }
 export async function fetchTaxCatalog() {
-	const definitions = await getTaxDefinitions({ authenticated: false });
+	const definitions = await getTaxDefinitions({ ...{ authenticated: false } }).then(result => result.data);
 	setTaxDefinitions(definitions);
 	localStorage.setItem(key, JSON.stringify(definitions));
 	return definitions;

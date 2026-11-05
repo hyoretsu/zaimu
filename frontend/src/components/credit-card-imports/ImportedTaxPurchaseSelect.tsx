@@ -28,7 +28,9 @@ export function ImportedTaxPurchaseSelect({
 				items.push(...page.items);
 				cursor = page.hasMore ? (page.nextCursor ?? undefined) : undefined;
 			} while (cursor);
-			const existing = await getCreditCardImportsByIdTaxSources(encodeURIComponent(importId));
+			const existing = await getCreditCardImportsByIdTaxSources({
+				path: { id: encodeURIComponent(importId) },
+			}).then(result => result.data);
 			return [
 				...existing.filter(
 					purchase => !items.some(item => item.reconciledCreditPurchaseId === purchase.id),

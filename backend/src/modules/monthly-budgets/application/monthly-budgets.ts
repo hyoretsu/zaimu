@@ -1,16 +1,34 @@
 import { validateBudgetHierarchy } from "@zaimu/finance/monthly-budget";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { HttpException } from "~/shared/errors";
-import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { db, numeric, param, queryFirst, queryRaw, queryRows, withRawTransaction } from "~/shared/infra/sql";
 import type { MonthlyBudgetBody, MonthlyBudgetReturn, SyncMonthlyBudget } from "../infra/MonthlyBudgetsDTO";
 import { validateMonthlyBudgetFields } from "./validate-monthly-budget";
 
-type BudgetRow = Omit<MonthlyBudgetReturn, "createdAt" | "updatedAt" | "deletedAt"> & {
+type BudgetRow = Omit<MonthlyBudgetReturn, "amount" | "createdAt" | "updatedAt" | "deletedAt"> & {
+	amount: number | string;
 	createdAt: Date;
 	updatedAt: Date;
 	deletedAt: Date | null;
 };
-const columns = `"id","userId","name","source","categoryId","parentBudgetId","amount","currency","startMonth","endMonth","createdAt","updatedAt","deletedAt"`;
+const columns = [
+	"id",
+	"userId",
+	"name",
+	"source",
+	"categoryId",
+	"parentBudgetId",
+	"amount",
+	"currency",
+	"startMonth",
+	"endMonth",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+] as const;
+// PostgreSQL advisory locks have no builder equivalent; this is the only raw statement kept for serialization.
+const lockUserBudgets = (userId: string) =>
+	queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
 const serialize = (row: BudgetRow): MonthlyBudgetReturn => ({
 	...row,
 	amount: Number(row.amount),
@@ -19,29 +37,47 @@ const serialize = (row: BudgetRow): MonthlyBudgetReturn => ({
 	updatedAt: row.updatedAt.toISOString(),
 });
 export async function listMonthlyBudgets(userId: string, includeDeleted = false) {
-	return (
-		await queryRaw<BudgetRow>(
-			`SELECT ${columns} FROM "MonthlyBudget" WHERE "userId"=$1 AND ($2 OR "deletedAt" IS NULL) ORDER BY "name","id"`,
-			[userId, includeDeleted],
-		)
-	).map(serialize);
+	const rows = await queryRows(
+		db.sql.public.MonthlyBudget.select(...columns)
+			.where((f, fn) =>
+				includeDeleted
+					? fn.eq(f.userId, userId)
+					: fn.and(fn.eq(f.userId, userId), fn.eq(f.deletedAt, null)),
+			)
+			.orderBy("name", { direction: "asc" })
+			.orderBy("id", { direction: "asc" })
+			.build(),
+	);
+	return (rows as unknown as BudgetRow[]).map(serialize);
 }
 export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: string, id?: string) {
 	validateMonthlyBudgetFields(body);
-	await queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
+	await lockUserBudgets(userId);
 	if (body.source !== "CUSTOM") {
-		const [overlap] = await queryRaw<{ id: string }>(
-			`SELECT "id" FROM "MonthlyBudget" WHERE "userId"=$1 AND "deletedAt" IS NULL AND "source"=$2 AND "currency"=$3 AND "categoryId" IS NOT DISTINCT FROM $4::varchar AND ($5::varchar IS NULL OR "id"<>$5) AND ($2 NOT IN ('CUSTOM','RESERVE','UNCATEGORIZED') OR "name"=$8) AND (COALESCE("endMonth"="startMonth",false) = COALESCE($6=$7,false)) AND "startMonth"<=COALESCE($6,'9999-12') AND COALESCE("endMonth",'9999-12')>=$7`,
-			[
-				userId,
-				body.source,
-				body.currency,
-				body.categoryId ?? null,
-				id ?? null,
-				body.endMonth ?? null,
-				body.startMonth,
-				body.name.trim(),
-			],
+		const name = body.name.trim();
+		const newEnd = body.endMonth ?? null;
+		const overlap = await queryFirst(
+			db.sql.public.MonthlyBudget.select("id")
+				.where((f, fn) =>
+					fn.and(
+						fn.eq(f.userId, userId),
+						fn.eq(f.deletedAt, null),
+						fn.eq(f.source, body.source),
+						fn.eq(f.currency, body.currency),
+						fn.eq(f.categoryId, body.categoryId ?? null),
+						...(id ? [fn.ne(f.id, id)] : []),
+						// RESERVE and UNCATEGORIZED budgets only collide when the name matches; other sources ignore it.
+						...(body.source === "RESERVE" || body.source === "UNCATEGORIZED"
+							? [fn.eq(f.name, name)]
+							: []),
+						newEnd === body.startMonth
+							? fn.eq(f.endMonth, f.startMonth)
+							: fn.or(fn.eq(f.endMonth, null), fn.ne(f.endMonth, f.startMonth)),
+						fn.lte(f.startMonth, newEnd ?? "9999-12"),
+						fn.or(fn.eq(f.endMonth, null), fn.gte(f.endMonth, body.startMonth)),
+					),
+				)
+				.build(),
 		);
 		if (overlap) throw new HttpException("Já existe planejamento desta origem no período", 409);
 	}
@@ -61,9 +97,11 @@ export async function validateMonthlyBudget(body: MonthlyBudgetBody, userId: str
 	}
 	await assertSupportedCurrency(body.currency);
 	if (body.categoryId) {
-		const [category] = await queryRaw<{ id: string }>(
-			'SELECT "id" FROM "Category" WHERE "id"=$1 AND "userId"=$2',
-			[body.categoryId, userId],
+		const categoryId = body.categoryId;
+		const category = await queryFirst(
+			db.sql.public.Category.select("id")
+				.where((f, fn) => fn.and(fn.eq(f.id, categoryId), fn.eq(f.userId, userId)))
+				.build(),
 		);
 		if (!category) throw new HttpException("Tag não encontrada", 404);
 	}
@@ -73,34 +111,58 @@ export async function saveMonthlyBudget(userId: string, body: MonthlyBudgetBody,
 }
 async function saveMonthlyBudgetInTransaction(userId: string, body: MonthlyBudgetBody, id?: string) {
 	await validateMonthlyBudget(body, userId, id);
-	const values = [
-		userId,
-		body.name.trim(),
-		body.source,
-		body.categoryId ?? null,
-		body.amount ?? 0,
-		body.currency,
-		body.startMonth,
-		body.endMonth ?? null,
-		body.parentBudgetId ?? null,
-	];
+	const values = {
+		amount: numeric<20, 6>(body.amount ?? 0),
+		categoryId: body.categoryId ?? null,
+		currency: body.currency,
+		endMonth: body.endMonth ?? null,
+		name: body.name.trim(),
+		parentBudgetId: body.parentBudgetId ?? null,
+		source: body.source,
+		startMonth: body.startMonth,
+	};
 	const [row] = id
-		? await queryRaw<BudgetRow>(
-				`UPDATE "MonthlyBudget" SET "name"=$2,"source"=$3,"categoryId"=$4,"amount"=$5,"currency"=$6,"startMonth"=$7,"endMonth"=$8,"parentBudgetId"=$9,"updatedAt"=clock_timestamp() WHERE "userId"=$1 AND "id"=$10 AND "deletedAt" IS NULL RETURNING ${columns}`,
-				[...values, id],
+		? await queryRows(
+				db.sql.public.MonthlyBudget.update((_f, fn) => {
+					const varchar = (value: string | null) =>
+						fn.raw`${param(value, { codecId: "sql/varchar@1" })}`.returns({
+							codecId: "sql/varchar@1",
+							nullable: value === null,
+						});
+					return {
+						amount: fn.raw`${param(values.amount, { codecId: "pg/numeric@1" })}`.returns(
+							"pg/numeric@1",
+						),
+						categoryId: varchar(values.categoryId),
+						currency: varchar(values.currency),
+						endMonth: varchar(values.endMonth),
+						name: varchar(values.name),
+						parentBudgetId: varchar(values.parentBudgetId),
+						source: varchar(values.source),
+						startMonth: varchar(values.startMonth),
+						updatedAt: fn.raw`clock_timestamp()`.returns("pg/timestamp-date@1"),
+					};
+				})
+					.where((f, fn) =>
+						fn.and(fn.eq(f.userId, userId), fn.eq(f.id, id), fn.eq(f.deletedAt, null)),
+					)
+					.returning(...columns)
+					.build(),
 			)
-		: await queryRaw<BudgetRow>(
-				`INSERT INTO "MonthlyBudget" ("userId","name","source","categoryId","amount","currency","startMonth","endMonth","parentBudgetId") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${columns}`,
-				values,
+		: await queryRows(
+				db.sql.public.MonthlyBudget.insert([{ ...values, userId }])
+					.returning(...columns)
+					.build(),
 			);
 	if (!row) throw new HttpException("Planejamento não encontrado", 404);
-	return serialize(row);
+	return serialize(row as unknown as BudgetRow);
 }
 export async function deleteMonthlyBudget(userId: string, id: string) {
 	return withRawTransaction(() => deleteMonthlyBudgetInTransaction(userId, id));
 }
 async function deleteMonthlyBudgetInTransaction(userId: string, id: string) {
-	await queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
+	await lockUserBudgets(userId);
+	// Recursive CTE (walks through already-deleted nodes) has no builder equivalent; kept as one statement.
 	const rows = await queryRaw<{ id: string }>(
 		'WITH RECURSIVE descendants AS (SELECT "id" FROM "MonthlyBudget" WHERE "id"=$1 AND "userId"=$2 AND "deletedAt" IS NULL UNION SELECT child."id" FROM "MonthlyBudget" child JOIN descendants parent ON child."parentBudgetId"=parent."id" WHERE child."userId"=$2) UPDATE "MonthlyBudget" SET "deletedAt"=clock_timestamp(),"updatedAt"=clock_timestamp() WHERE "id" IN (SELECT "id" FROM descendants) AND "userId"=$2 AND "deletedAt" IS NULL RETURNING "id"',
 		[id, userId],
@@ -109,10 +171,12 @@ async function deleteMonthlyBudgetInTransaction(userId: string, id: string) {
 	return { success: true };
 }
 export async function syncMonthlyBudget(userId: string, entity: typeof SyncMonthlyBudget.static) {
-	await queryRaw("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`monthly-budget:${userId}`]);
-	const [existing] = await queryRaw<{ userId: string; deletedAt: Date | null; updatedAt: Date }>(
-		'SELECT "userId","deletedAt","updatedAt" FROM "MonthlyBudget" WHERE "id"=$1 FOR UPDATE',
-		[entity.id],
+	await lockUserBudgets(userId);
+	const existing = await queryFirst(
+		db.sql.public.MonthlyBudget.select("userId", "deletedAt", "updatedAt")
+			.where((f, fn) => fn.eq(f.id, entity.id))
+			.forUpdate()
+			.build(),
 	);
 	if (existing && existing.userId !== userId)
 		throw new HttpException("Planejamento pertence a outro usuário", 403);

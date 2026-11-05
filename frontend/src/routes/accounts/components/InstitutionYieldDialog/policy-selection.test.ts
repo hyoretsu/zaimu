@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { FinancialInstitutionYieldPolicy } from "@/lib/api";
-import { selectEditablePolicy } from "./policy-selection";
+import { policyTimeline, selectEditablePolicy } from "./policy-selection";
 const base: FinancialInstitutionYieldPolicy = {
 	currency: null,
 	effectiveDate: "2026-01-01",
@@ -23,4 +23,16 @@ test("editor respects legacy currency but favors universal replacement", () => {
 	const legacy = { ...base, currency: "BRL" };
 	expect(selectEditablePolicy([legacy], "standard", undefined, "2026-04-01", "USD")).toBeUndefined();
 	expect(selectEditablePolicy([base, legacy], "standard", undefined, "2026-04-01", "BRL")).toBe(base);
+});
+test("timeline lists the approved periods of one scope in date order", () => {
+	const later = { ...base, effectiveDate: "2026-06-01" };
+	const pending = { ...base, effectiveDate: "2026-03-01", status: "PENDING" as const };
+	const plus = { ...base, profileId: "plus" };
+	expect(policyTimeline([later, pending, plus, base], "standard", undefined, "BRL")).toEqual([base, later]);
+});
+
+test("account type policies form separate timelines", () => {
+	const savings = { ...base, accountType: "SAVINGS" as const };
+	expect(policyTimeline([base, savings], "standard", undefined, "BRL", "SAVINGS")).toEqual([savings]);
+	expect(policyTimeline([base, savings], "standard", undefined, "BRL")).toEqual([base]);
 });

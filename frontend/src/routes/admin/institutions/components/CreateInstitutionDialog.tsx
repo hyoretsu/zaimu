@@ -36,7 +36,7 @@ export function CreateInstitutionDialog() {
 		setPending(true);
 		setError("");
 		try {
-			await postFinancialInstitutions({ name: trimmedName });
+			await postFinancialInstitutions({ body: { name: trimmedName } }).then(result => result.data);
 			await invalidateMutationCache(queryClient, start, {
 				...mutationCacheMeta("institution"),
 				awaitRefetch: true,

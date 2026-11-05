@@ -1,4 +1,4 @@
-import { toMinorUnits } from "@zaimu/finance/money";
+import { fromMinorUnits, toMinorUnits } from "@zaimu/finance/money";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
@@ -18,8 +18,9 @@ import {
 } from "~/shared/application/pagination-cursor";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
-import { DebtSplitInputDTO } from "./DebtSplitsDTO";
+import { db, executeStatement, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { requirePendingInvitationRecipient } from "./debt-invitation";
+import { normalizeDebtLedgerPerson } from "./debt-ledger-person";
 import {
 	DebtConnectionReturn,
 	DebtEventPageReturn,
@@ -32,8 +33,7 @@ import {
 	DebtSuccessReturn,
 	DebtSummaryReturn,
 } from "./DebtsDTO";
-import { requirePendingInvitationRecipient } from "./debt-invitation";
-import { normalizeDebtLedgerPerson } from "./debt-ledger-person";
+import { DebtSplitInputDTO } from "./DebtSplitsDTO";
 
 const PersonIdParams = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
 const EventIdParams = t.Object({ eventId: t.String({ maxLength: 36, minLength: 1 }) });
@@ -47,7 +47,9 @@ interface DebtEventCursor {
 const isDebtEventCursor = (value: unknown): value is DebtEventCursor => {
 	if (!value || typeof value !== "object") return false;
 	const candidate = value as Record<string, unknown>;
-	return (candidate.date === null || typeof candidate.date === "string") && typeof candidate.id === "string";
+	return (
+		(candidate.date === null || typeof candidate.date === "string") && typeof candidate.id === "string"
+	);
 };
 
 async function findOrCreatePerson(userId: string, name: string) {
@@ -96,29 +98,90 @@ async function getConnection(connectionId: string | null | undefined) {
 }
 
 async function getPeopleLedger(userId: string) {
-	const people = await queryRaw<{
-		accountEmail: null | string;
-		balance: string;
-		currency: string;
-		connectionStatus: DebtConnectionState | null;
-		id: string;
-		name: string;
-	}>(
-		`SELECT person."id", person."name", connection."status" AS "connectionStatus",
-		        linked_user."email" AS "accountEmail", COALESCE(event."currency",'BRL') AS "currency",
-		        COALESCE(SUM(CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END), 0) AS "balance"
-		 FROM "public"."DebtPerson" person
-		 LEFT JOIN "public"."DebtConnection" connection ON connection."id" = person."connectionId"
-		 LEFT JOIN "public"."user" linked_user ON linked_user."id" = CASE
-		   WHEN connection."requesterId" = $1 THEN connection."recipientId" ELSE connection."requesterId" END
-		 LEFT JOIN "public"."DebtEvent" event ON event."deletedAt" IS NULL AND (
-		   (connection."status" = 'ACCEPTED' AND event."connectionId" = connection."id") OR
-		   (connection."status" IS DISTINCT FROM 'ACCEPTED' AND event."debtPersonId" = person."id"))
-		 WHERE person."userId" = $1 AND person."hiddenAt" IS NULL
-		 GROUP BY person."id", person."name", connection."status", linked_user."email", event."currency"
-		 ORDER BY person."name" ASC, person."id" ASC`,
-		[userId],
+	const ownedPeople = await queryRows(
+		db.sql.public.DebtPerson.select("id", "name", "connectionId")
+			.where((fields, functions) =>
+				functions.and(functions.eq(fields.userId, userId), functions.eq(fields.hiddenAt, null)),
+			)
+			.orderBy("name", { direction: "asc" })
+			.orderBy("id", { direction: "asc" })
+			.build(),
 	);
+	if (!ownedPeople.length) return [];
+	const connectionIds = ownedPeople.flatMap(person => (person.connectionId ? [person.connectionId] : []));
+	const connections = connectionIds.length
+		? await queryRows(
+				db.sql.public.DebtConnection.select("id", "status", "requesterId", "recipientId")
+					.where((fields, functions) => functions.in(fields.id, connectionIds))
+					.build(),
+			)
+		: [];
+	const linkedIds = [
+		...new Set(
+			connections.map(connection =>
+				connection.requesterId === userId ? connection.recipientId : connection.requesterId,
+			),
+		),
+	];
+	const users = linkedIds.length
+		? await queryRows(
+				db.sql.public.user
+					.select("id", "email")
+					.where((fields, functions) => functions.in(fields.id, linkedIds))
+					.build(),
+			)
+		: [];
+	const acceptedIds = connections
+		.filter(connection => connection.status === "ACCEPTED")
+		.map(connection => connection.id);
+	// Aggregate in PostgreSQL before combining viewer-relative signs in integer minor units.
+	const totals = await queryRows(
+		db.sql.public.DebtEvent.select("debtPersonId", "connectionId", "currency", "createdByUserId")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.deletedAt, null),
+					functions.or(
+						functions.in(
+							fields.debtPersonId,
+							ownedPeople.map(person => person.id),
+						),
+						...(acceptedIds.length ? [functions.in(fields.connectionId, acceptedIds)] : []),
+					),
+				),
+			)
+			.select((fields, functions) => ({ balance: functions.sum(fields.effect) }))
+			.groupBy("debtPersonId", "connectionId", "currency", "createdByUserId")
+			.build(),
+	);
+	const people = ownedPeople.flatMap(person => {
+		const connection = connections.find(candidate => candidate.id === person.connectionId);
+		const accountId =
+			connection &&
+			(connection.requesterId === userId ? connection.recipientId : connection.requesterId);
+		const balances = new Map<string, number>();
+		for (const total of totals) {
+			if (
+				connection?.status === "ACCEPTED"
+					? total.connectionId !== connection.id
+					: total.debtPersonId !== person.id
+			)
+				continue;
+			const units = toMinorUnits(Number(total.balance ?? 0), total.currency, -Number.MAX_SAFE_INTEGER);
+			balances.set(
+				total.currency,
+				(balances.get(total.currency) ?? 0) + (total.createdByUserId === userId ? units : -units),
+			);
+		}
+		if (!balances.size) balances.set("BRL", 0);
+		return [...balances].map(([currency, balance]) => ({
+			accountEmail: users.find(user => user.id === accountId)?.email ?? null,
+			balance: fromMinorUnits(balance, currency),
+			connectionStatus: (connection?.status ?? null) as DebtConnectionState | null,
+			currency,
+			id: person.id,
+			name: person.name,
+		}));
+	});
 	const grouped = new Map<
 		string,
 		ReturnType<typeof normalizeDebtLedgerPerson<(typeof people)[number]>> & {
@@ -134,7 +197,7 @@ async function getPeopleLedger(userId: string) {
 	return [...grouped.values()];
 }
 
-async function getPersonEventPage(
+export async function getPersonEventPage(
 	userId: string,
 	personId: string,
 	cursorValue?: string,
@@ -150,53 +213,153 @@ async function getPersonEventPage(
 		personId,
 	});
 	const cursor = decodePaginationCursor(cursorValue, filterHash, isDebtEventCursor);
-	const rows = await queryRaw<{
-		amount: string;
-		currency: string;
-		createdByName: string;
-		createdByUserId: string;
-		date: Date | null;
-		description: null | string;
-		dueDate: Date | null;
-		effect: string;
-		id: string;
-		kind: DebtEventType;
-		time: null | string;
-	}>(
-		`SELECT event."id", event."amount", event."currency", event."createdByUserId", creator."name" AS "createdByName",
-		        event."date", event."dueDate", event."kind",
-		        CASE WHEN event."createdByUserId" = $1 THEN event."effect" ELSE -event."effect" END AS "effect",
-		        CASE WHEN income_transaction."id" IS NOT NULL THEN income_transaction."description"
-		        WHEN purchase."id" IS NOT NULL THEN COALESCE(NULLIF(purchase_participant."description", ''), NULLIF(purchase."description", ''), NULLIF(purchase."storeName", ''), 'Compra')
-		        ELSE COALESCE(NULLIF(event."description", ''), NULLIF(source_transaction."description", '')) END AS "description",
-		        COALESCE(source_transaction."time", refund."time", purchase."time") AS "time"
-		 FROM "public"."DebtEvent" event
-		 JOIN "public"."user" creator ON creator."id" = event."createdByUserId"
-		 LEFT JOIN "public"."DebtTransactionLink" transaction_link ON transaction_link."eventId" = event."id" AND transaction_link."isCreator" = true
-		 LEFT JOIN "public"."Transaction" source_transaction ON source_transaction."id" = transaction_link."transactionId"
-		 LEFT JOIN "public"."Transaction" income_transaction ON income_transaction."id" = transaction_link."transactionId" AND income_transaction."type" = 'INCOME'
-		 LEFT JOIN "public"."DebtPurchaseLink" purchase_link ON purchase_link."eventId" = event."id" AND purchase_link."isCreator" = true
-		 LEFT JOIN "public"."CreditEntryReference" purchase_reference ON purchase_reference."id" = purchase_link."creditPurchaseId"
-		 LEFT JOIN "public"."CreditPurchaseRecord" purchase ON purchase."id" = purchase_reference."purchaseId"
-		 LEFT JOIN "public"."CreditRefundRecord" refund ON refund."id" = purchase_reference."refundId"
-		 LEFT JOIN "public"."DebtSplit" purchase_split ON purchase_split."creditPurchaseId"=purchase."id" AND purchase_split."userId"=event."createdByUserId"
-		 LEFT JOIN "public"."DebtSplitParticipant" purchase_participant ON purchase_participant."debtSplitId"=purchase_split."id" AND purchase_participant."debtPersonId"=event."debtPersonId"
-		 WHERE ${connectionId ? 'event."connectionId" = $2' : 'event."debtPersonId" = $2'}
-		   AND event."deletedAt" IS NULL
-		   AND ($4 = '' OR
-		        ($3::date IS NULL AND event."date" IS NULL AND event."id" < $4) OR
-		        ($3::date IS NOT NULL AND (event."date" IS NULL OR (event."date", event."id") < ($3::date, $4))))
-		 ORDER BY event."date" DESC NULLS LAST, event."id" DESC
-		 LIMIT $5`,
-		[userId, connectionId ?? personId, cursor?.date ?? null, cursor?.id ?? "", pageLimit + 1],
+	// Only the raw columns are selected here; the viewer-relative effect and the per-event description/time
+	// CASE/COALESCE logic are applied below because the builder has no CASE/COALESCE/NULLIF.
+	const creator = db.sql.public.user.select("id", "name").as("creator");
+	const transactionLink = db.sql.public.DebtTransactionLink.select(
+		"eventId",
+		"isCreator",
+		"transactionId",
+	).as("transactionLink");
+	const sourceTransaction = db.sql.public.Transaction.select("id", "description", "time", "type").as(
+		"sourceTransaction",
+	);
+	const purchaseLink = db.sql.public.DebtPurchaseLink.select("creditPurchaseId", "eventId", "isCreator").as(
+		"purchaseLink",
+	);
+	const purchaseReference = db.sql.public.CreditEntryReference.select("id", "purchaseId", "refundId").as(
+		"purchaseReference",
+	);
+	const purchase = db.sql.public.CreditPurchaseRecord.select("id", "description", "storeName", "time").as(
+		"purchase",
+	);
+	const refund = db.sql.public.CreditRefundRecord.select("id", "time").as("refund");
+	const purchaseSplit = db.sql.public.DebtSplit.select("creditPurchaseId", "id", "userId").as(
+		"purchaseSplit",
+	);
+	const purchaseParticipant = db.sql.public.DebtSplitParticipant.select(
+		"debtPersonId",
+		"debtSplitId",
+		"description",
+	).as("purchaseParticipant");
+	const cursorDate = cursor?.date ? cursor.date.slice(0, 10) : null;
+	const cursorId = cursor?.id ?? "";
+	const rows = await queryRows(
+		db.sql.public.DebtEvent.innerJoin(creator, (fields, functions) =>
+			functions.eq(fields.creator.id, fields.DebtEvent.createdByUserId),
+		)
+			.outerLeftJoin(transactionLink, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.transactionLink.eventId, fields.DebtEvent.id),
+					functions.eq(fields.transactionLink.isCreator, true),
+				),
+			)
+			.outerLeftJoin(sourceTransaction, (fields, functions) =>
+				functions.eq(fields.sourceTransaction.id, fields.transactionLink.transactionId),
+			)
+			.outerLeftJoin(purchaseLink, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.purchaseLink.eventId, fields.DebtEvent.id),
+					functions.eq(fields.purchaseLink.isCreator, true),
+				),
+			)
+			.outerLeftJoin(purchaseReference, (fields, functions) =>
+				functions.eq(fields.purchaseReference.id, fields.purchaseLink.creditPurchaseId),
+			)
+			.outerLeftJoin(purchase, (fields, functions) =>
+				functions.eq(fields.purchase.id, fields.purchaseReference.purchaseId),
+			)
+			.outerLeftJoin(refund, (fields, functions) =>
+				functions.eq(fields.refund.id, fields.purchaseReference.refundId),
+			)
+			.outerLeftJoin(purchaseSplit, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.purchaseSplit.creditPurchaseId, fields.purchase.id),
+					functions.eq(fields.purchaseSplit.userId, fields.DebtEvent.createdByUserId),
+				),
+			)
+			.outerLeftJoin(purchaseParticipant, (fields, functions) =>
+				functions.and(
+					functions.eq(fields.purchaseParticipant.debtSplitId, fields.purchaseSplit.id),
+					functions.eq(fields.purchaseParticipant.debtPersonId, fields.DebtEvent.debtPersonId),
+				),
+			)
+			.select(fields => ({
+				amount: fields.DebtEvent.amount,
+				createdByName: fields.creator.name,
+				createdByUserId: fields.DebtEvent.createdByUserId,
+				currency: fields.DebtEvent.currency,
+				date: fields.DebtEvent.date,
+				description: fields.DebtEvent.description,
+				dueDate: fields.DebtEvent.dueDate,
+				effect: fields.DebtEvent.effect,
+				id: fields.DebtEvent.id,
+				kind: fields.DebtEvent.kind,
+				participantDescription: fields.purchaseParticipant.description,
+				purchaseDescription: fields.purchase.description,
+				purchaseId: fields.purchase.id,
+				purchaseStoreName: fields.purchase.storeName,
+				purchaseTime: fields.purchase.time,
+				refundTime: fields.refund.time,
+				sourceDescription: fields.sourceTransaction.description,
+				sourceTime: fields.sourceTransaction.time,
+				sourceType: fields.sourceTransaction.type,
+			}))
+			.where((fields, functions) =>
+				functions.and(
+					connectionId
+						? functions.eq(fields.DebtEvent.connectionId, connectionId)
+						: functions.eq(fields.DebtEvent.debtPersonId, personId),
+					functions.eq(fields.DebtEvent.deletedAt, null),
+					...(cursorId
+						? [
+								cursorDate === null
+									? functions.and(
+											functions.eq(fields.DebtEvent.date, null),
+											functions.lt(fields.DebtEvent.id, cursorId),
+										)
+									: functions.or(
+											functions.eq(fields.DebtEvent.date, null),
+											functions.lt(fields.DebtEvent.date, cursorDate),
+											functions.and(
+												functions.eq(fields.DebtEvent.date, cursorDate),
+												functions.lt(fields.DebtEvent.id, cursorId),
+											),
+										),
+							]
+						: []),
+				),
+			)
+			.orderBy(fields => fields.DebtEvent.date, { direction: "desc", nulls: "last" })
+			.orderBy(fields => fields.DebtEvent.id, { direction: "desc" })
+			.limit(pageLimit + 1)
+			.build(),
 	);
 	const hasMore = rows.length > pageLimit;
-	const items = rows.slice(0, pageLimit).map(row => ({
-		...row,
-		amount: Number(row.amount),
-		createdByMe: row.createdByUserId === userId,
-		effect: Number(row.effect),
-	}));
+	const dateOnly = (value: null | string) => (value ? new Date(`${value}T00:00:00.000Z`) : null);
+	const items = rows.slice(0, pageLimit).map(row => {
+		const createdByMe = row.createdByUserId === userId;
+		const isIncome = row.sourceType === "INCOME";
+		const description = isIncome
+			? row.sourceDescription
+			: row.purchaseId
+				? row.participantDescription || row.purchaseDescription || row.purchaseStoreName || "Compra"
+				: row.description || row.sourceDescription || null;
+		return {
+			amount: Number(row.amount),
+			createdByMe,
+			createdByName: row.createdByName,
+			createdByUserId: row.createdByUserId,
+			currency: row.currency,
+			date: dateOnly(row.date),
+			description: description ?? null,
+			dueDate: dateOnly(row.dueDate),
+			effect: createdByMe ? Number(row.effect) : 0 - Number(row.effect),
+			id: row.id,
+			kind: row.kind as DebtEventType,
+			time: row.sourceTime ?? row.refundTime ?? row.purchaseTime ?? null,
+		};
+	});
 	const last = items.at(-1);
 	return {
 		hasMore,
@@ -211,19 +374,66 @@ async function getPersonEventPage(
 	};
 }
 
-async function getInvitationPreview(
+export async function getInvitationPreview(
 	connectionId: string,
 	requesterId: string,
 	viewerId: string,
 	cursor?: string,
 	limit = 50,
 ) {
-	const rows = await queryRaw<{ id: string; currency: string; balance: string; eventCount: string }>(
-		`SELECT person."id", COALESCE(event."currency",'BRL') AS "currency", COALESCE(SUM(CASE WHEN event."createdByUserId"=$3 THEN event."effect" ELSE -event."effect" END),0) AS "balance", COUNT(event."id") AS "eventCount"
- FROM "DebtPerson" person LEFT JOIN "DebtEvent" event ON event."debtPersonId"=person."id" AND event."deletedAt" IS NULL
- WHERE person."connectionId"=$1 AND person."userId"=$2 AND person."hiddenAt" IS NULL GROUP BY person."id", event."currency"`,
-		[connectionId, requesterId, viewerId],
+	const people = await queryRows(
+		db.sql.public.DebtPerson.select("id")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.connectionId, connectionId),
+					functions.eq(fields.userId, requesterId),
+					functions.eq(fields.hiddenAt, null),
+				),
+			)
+			.orderBy("id", { direction: "asc" })
+			.build(),
 	);
+	// Signed numeric(20,6) SUM computed exactly in PostgreSQL, as in the original query.
+	const totals = people.length
+		? await queryRows(
+				db.sql.public.DebtEvent.select("debtPersonId", "currency")
+					.where((fields, functions) =>
+						functions.and(
+							functions.in(
+								fields.debtPersonId,
+								people.map(candidate => candidate.id),
+							),
+							functions.eq(fields.deletedAt, null),
+						),
+					)
+					.select((fields, functions) => ({
+						balance: functions.sum(
+							functions.raw`CASE WHEN ${fields.createdByUserId} = ${param(viewerId, { codecId: "sql/varchar@1" })} THEN ${fields.effect} ELSE -${fields.effect} END`.returns(
+								"pg/numeric@1",
+							),
+						),
+						eventCount: functions.count(fields.id),
+					}))
+					.groupBy("debtPersonId", "currency")
+					.build(),
+			)
+		: [];
+	const rows = people.flatMap(candidate => {
+		const byCurrency = new Map<string, { balance: number; eventCount: number }>();
+		for (const total of totals.filter(entry => entry.debtPersonId === candidate.id)) {
+			byCurrency.set(total.currency, {
+				balance: Number(total.balance ?? 0),
+				eventCount: Number(total.eventCount),
+			});
+		}
+		if (!byCurrency.size) byCurrency.set("BRL", { balance: 0, eventCount: 0 });
+		return [...byCurrency].map(([currency, entry]) => ({
+			balance: entry.balance,
+			currency,
+			eventCount: entry.eventCount,
+			id: candidate.id,
+		}));
+	});
 	const person = rows[0];
 	if (!person)
 		return { balance: 0, balances: [], eventCount: 0, hasMore: false, items: [], nextCursor: null };
@@ -247,37 +457,47 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		"/",
 		async ({ request, set }) => {
 			const userId = await requireUserId(request);
-			const cached = await distributedCache.remember(userId, "debts:overview", { version: 3 }, async () => {
-				const people = await getPeopleLedger(userId);
-				const totals = people.reduce(
-					(result, person) => {
-						if (person.balance > 0) result.owedToMe += person.balance;
-						if (person.balance < 0) result.iOwe += Math.abs(person.balance);
-						result.net += person.balance;
-						return result;
-					},
-					{ iOwe: 0, net: 0, owedToMe: 0 },
-				);
-				const native = new Map<string, { currency: string; iOwe: number; net: number; owedToMe: number }>();
-				for (const person of people)
-					for (const balance of person.balances) {
-						const total = native.get(balance.currency) ?? {
-							currency: balance.currency,
-							iOwe: 0,
-							net: 0,
-							owedToMe: 0,
-						};
-						total.net += balance.amount;
-						if (balance.amount > 0) total.owedToMe += balance.amount;
-						if (balance.amount < 0) total.iOwe -= balance.amount;
-						native.set(balance.currency, total);
-					}
-				return {
-					people,
-					totals,
-					totalsByCurrency: [...native.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
-				};
-			});
+			const cached = await distributedCache.remember(
+				userId,
+				"debts:overview",
+				{ version: 3 },
+				async () => {
+					const people = await getPeopleLedger(userId);
+					const totals = people.reduce(
+						(result, person) => {
+							if (person.balance > 0) result.owedToMe += person.balance;
+							if (person.balance < 0) result.iOwe += Math.abs(person.balance);
+							result.net += person.balance;
+							return result;
+						},
+						{ iOwe: 0, net: 0, owedToMe: 0 },
+					);
+					const native = new Map<
+						string,
+						{ currency: string; iOwe: number; net: number; owedToMe: number }
+					>();
+					for (const person of people)
+						for (const balance of person.balances) {
+							const total = native.get(balance.currency) ?? {
+								currency: balance.currency,
+								iOwe: 0,
+								net: 0,
+								owedToMe: 0,
+							};
+							total.net += balance.amount;
+							if (balance.amount > 0) total.owedToMe += balance.amount;
+							if (balance.amount < 0) total.iOwe -= balance.amount;
+							native.set(balance.currency, total);
+						}
+					return {
+						people,
+						totals,
+						totalsByCurrency: [...native.values()].sort((a, b) =>
+							a.currency.localeCompare(b.currency),
+						),
+					};
+				},
+			);
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
 			return cached.value;
@@ -374,7 +594,10 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					const connection = await queryFirst(
 						db.sql.public.DebtConnection.select("id", "requesterId", "recipientId", "status")
 							.where((fields, functions) =>
-								functions.and(functions.eq(fields.id, params.id), functions.eq(fields.recipientId, userId)),
+								functions.and(
+									functions.eq(fields.id, params.id),
+									functions.eq(fields.recipientId, userId),
+								),
 							)
 							.limit(1)
 							.build(),
@@ -462,7 +685,8 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.build(),
 			);
 			if (!recipient?.emailVerified) throw new HttpException("Conta Zaimu não encontrada", 404);
-			if (recipient.id === userId) throw new HttpException("Você não pode associar sua própria conta", 400);
+			if (recipient.id === userId)
+				throw new HttpException("Você não pode associar sua própria conta", 400);
 			const existing = await queryFirst(
 				db.sql.public.DebtConnection.select("id", "requesterId", "recipientId", "status")
 					.where((fields, functions) =>
@@ -497,7 +721,9 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 							.build(),
 					)
 				: await queryFirst(
-						db.sql.public.DebtConnection.insert([{ recipientId: recipient.id, requesterId: userId }])
+						db.sql.public.DebtConnection.insert([
+							{ recipientId: recipient.id, requesterId: userId },
+						])
 							.returning("id", "requesterId", "recipientId", "status")
 							.build(),
 					);
@@ -538,7 +764,10 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const connection = await queryFirst(
 				db.sql.public.DebtConnection.select("id", "requesterId", "recipientId", "status")
 					.where((fields, functions) =>
-						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.recipientId, userId)),
+						functions.and(
+							functions.eq(fields.id, params.id),
+							functions.eq(fields.recipientId, userId),
+						),
 					)
 					.limit(1)
 					.build(),
@@ -605,7 +834,10 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) =>
-						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.recipientId, userId)),
+						functions.and(
+							functions.eq(fields.id, params.id),
+							functions.eq(fields.recipientId, userId),
+						),
 					)
 					.returning("id")
 					.build(),
@@ -638,7 +870,9 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			);
 			const calculated = calculateDebtSplitOrThrow(body.amount, split, currency);
 			await Promise.all(
-				calculated.participants.map(participant => getOwnedDebtPerson(participant.debtPersonId, userId)),
+				calculated.participants.map(participant =>
+					getOwnedDebtPerson(participant.debtPersonId, userId),
+				),
 			);
 			return Promise.all(
 				calculated.participants.map(participant =>
@@ -727,18 +961,35 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				db.sql.public.DebtEvent.update({
 					amount: String(amount),
 					connectionId: connectionId ?? null,
-					date: body.date === undefined ? event.date : body.date ? new Date(body.date) : null,
+					date: body.date === undefined ? event.date : (body.date ?? null),
 					debtPersonId: personId,
 					description: body.description,
-					dueDate: body.dueDate ? new Date(body.dueDate) : null,
-					effect: String((body.isOwedToMe === undefined ? direction : body.isOwedToMe ? 1 : -1) * amount),
+					dueDate: body.dueDate ?? null,
+					effect: String(
+						(body.isOwedToMe === undefined ? direction : body.isOwedToMe ? 1 : -1) * amount,
+					),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, event.id))
-					.returning("id", "amount", "currency", "effect", "date", "description", "kind", "debtPersonId")
+					.returning(
+						"id",
+						"amount",
+						"currency",
+						"effect",
+						"date",
+						"description",
+						"kind",
+						"debtPersonId",
+					)
 					.build(),
 			);
-			return updated ? { ...updated, kind: updated.kind as DebtEventType } : updated;
+			return updated
+				? {
+						...updated,
+						date: updated.date ? new Date(updated.date) : null,
+						kind: updated.kind as DebtEventType,
+					}
+				: updated;
 		},
 		{
 			body: t.Object({

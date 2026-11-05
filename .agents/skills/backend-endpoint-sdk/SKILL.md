@@ -18,4 +18,4 @@ Rules:
 - A hook for an endpoint not yet in the generated SDK goes in `frontend/src/lib/api/` (outside `generated/`) and is re-exported through `frontend/src/lib/api/index.ts`.
 - If a generated type is `any`, the controller is probably missing `response:` or uses `result:`.
 - Independent list mutations that should batch must be registered in `shared/batch-policy.ts` (see `docs/engineering-rules.md` "Action batching").
-- Database changes: include `packages/sql/migrations/app/refs/db.json` with the migration commit; never run migrations against a remote/shared database without explicit authorization.
+- Database changes: include the new `packages/sql/migrations/app/*` migration and its snapshot with the commit; never run migrations against a remote/shared database without explicit authorization.

@@ -1,5 +1,5 @@
 import { sendEmail } from "~/modules/auth/email";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
 import {
 	PushConfigurationMissing,
 	PushDestinationExpired,
@@ -21,9 +21,13 @@ export async function deliverNotifications(adapters = { sendEmail, sendPush }) {
 	);
 	for (const delivery of deliveries) {
 		try {
-			const [context] = await queryRaw<{ status: string; email: string }>(
-				`SELECT invitation."status",recipient."email" FROM "AccountTransfer" invitation JOIN "user" recipient ON recipient."id"=$2 WHERE invitation."id"=$1`,
-				[delivery.transferId, delivery.userId],
+			const [context] = await queryRows(
+				db.sql.public.AccountTransfer.innerJoin(db.sql.public.user, (f, fn) =>
+					fn.eq(f.user.id, delivery.userId),
+				)
+					.select(f => ({ email: f.user.email, status: f.AccountTransfer.status }))
+					.where((f, fn) => fn.eq(f.AccountTransfer.id, delivery.transferId))
+					.build(),
 			);
 			if (!context || context.status !== delivery.event) {
 				await complete(delivery.id, "SKIPPED");
@@ -49,24 +53,44 @@ export async function deliverNotifications(adapters = { sendEmail, sendPush }) {
 					url,
 				});
 			else {
-				const [device] = await queryRaw<
-					PushTarget & Record<string, unknown> & { userId: string; enabled: boolean }
-				>(`SELECT * FROM "PushDevice" WHERE "id"=$1`, [delivery.deviceId]);
+				const device = delivery.deviceId
+					? await queryFirst(
+							db.sql.public.PushDevice.select(
+								"userId",
+								"enabled",
+								"platform",
+								"address",
+								"credentials",
+							)
+								.where((f, fn) => fn.eq(f.id, delivery.deviceId!))
+								.limit(1)
+								.build(),
+						)
+					: undefined;
 				if (!device?.enabled || device.userId !== delivery.userId) {
 					await complete(delivery.id, "SKIPPED");
 					continue;
 				}
-				await adapters.sendPush(device, { body, tag: `transfer:${delivery.transferId}`, title, url });
+				await adapters.sendPush(device as PushTarget, {
+					body,
+					tag: `transfer:${delivery.transferId}`,
+					title,
+					url,
+				});
 			}
 			await complete(delivery.id, "SENT");
 		} catch (error) {
 			if (error instanceof PushDestinationExpired) {
-				await queryRaw(`UPDATE "PushDevice" SET "enabled"=false WHERE "id"=$1 AND "userId"=$2`, [
-					delivery.deviceId,
-					delivery.userId,
-				]);
+				await executeStatement(
+					db.sql.public.PushDevice.update({ enabled: false })
+						.where((f, fn) =>
+							fn.and(fn.eq(f.id, delivery.deviceId!), fn.eq(f.userId, delivery.userId)),
+						)
+						.build(),
+				);
 				await complete(delivery.id, "SKIPPED");
 			} else
+				// Retry delay uses the database clock; kept raw (interval arithmetic on now()).
 				await queryRaw(
 					`UPDATE "NotificationDelivery" SET "lockedUntil"=NULL,"nextAttemptAt"=now()+($2*interval '1 second'),"lastError"=$3,"updatedAt"=now() WHERE "id"=$1`,
 					[
@@ -83,8 +107,14 @@ export async function deliverNotifications(adapters = { sendEmail, sendPush }) {
 	}
 }
 async function complete(id: string, status: string) {
-	await queryRaw(
-		`UPDATE "NotificationDelivery" SET "status"=$2,"lockedUntil"=NULL,"lastError"=NULL,"updatedAt"=now() WHERE "id"=$1`,
-		[id, status],
+	await executeStatement(
+		db.sql.public.NotificationDelivery.update({
+			lastError: null,
+			lockedUntil: null,
+			status,
+			updatedAt: new Date(),
+		})
+			.where((f, fn) => fn.eq(f.id, id))
+			.build(),
 	);
 }

@@ -13,13 +13,47 @@ export interface TaxDefinition {
 	isActive: boolean;
 	versions: TaxVersion[];
 }
+const centCreditedAccountTypes = new Set(["CHECKING", "SAVINGS"]);
+/** Checking and savings credit their daily net yield in whole cents; other accounts keep full precision. */
+export function roundDailyYield(accountType: string | undefined, amount: number) {
+	return centCreditedAccountTypes.has(accountType ?? "") ? Math.round(amount * 100 + 1e-9) / 100 : amount;
+}
+/** DAILY taxes each day's yield inside the balance; ON_REDEMPTION keeps the balance gross and taxes only on withdrawal. */
+export type YieldTaxMode = "DAILY" | "ON_REDEMPTION";
 export interface TaxSettings {
 	yieldTaxIds?: string[] | null;
+	yieldTaxMode?: null | string;
+	/** Per-tax application keyed by tax id (and `fixed` for the flat rate); missing keys fall back to `yieldTaxMode`. */
+	yieldTaxModes?: unknown;
 	yieldTaxRate?: number | null;
+}
+export const fixedTaxKey = "fixed";
+export function taxModeOf(settings: TaxSettings | undefined, key: string): YieldTaxMode {
+	const modes = settings?.yieldTaxModes;
+	const keyed = modes && typeof modes === "object" ? (modes as Record<string, unknown>)[key] : undefined;
+	const mode = keyed ?? settings?.yieldTaxMode;
+	return mode === "ON_REDEMPTION" ? "ON_REDEMPTION" : "DAILY";
+}
+/** Explicit mode for every selected tax (and the flat rate), resolving legacy single-mode settings. */
+export function resolveTaxModes(settings: TaxSettings | undefined, keys: string[]) {
+	return Object.fromEntries(keys.map(key => [key, taxModeOf(settings, key)])) as Record<
+		string,
+		YieldTaxMode
+	>;
+}
+export function pickTaxModes(modes: Record<string, YieldTaxMode>, keys: string[]) {
+	return Object.fromEntries(keys.map(key => [key, modes[key] ?? "DAILY"])) as Record<string, YieldTaxMode>;
+}
+export function hasRedemptionTax(settings: TaxSettings | undefined) {
+	return [...(settings?.yieldTaxIds ?? []), ...(settings?.yieldTaxRate ? [fixedTaxKey] : [])].some(
+		key => taxModeOf(settings, key) === "ON_REDEMPTION",
+	);
 }
 export interface YieldLot {
 	date: string;
 	balance: number;
+	/** Contributed amount still in the lot; the taxable gain is `balance - principal`. Absent means no gain. */
+	principal?: number;
 }
 const iofRates = [
 	100, 96, 93, 90, 86, 83, 80, 76, 73, 70, 66, 63, 60, 56, 53, 50, 46, 43, 40, 36, 33, 30, 26, 23, 20, 16,
@@ -85,13 +119,25 @@ export function validateTaxBrackets(brackets: TaxBracket[]) {
 export function contributionAge(date: string, day: string) {
 	return Math.max(0, Math.round((Date.parse(day.slice(0, 10)) - Date.parse(date.slice(0, 10))) / 86400000));
 }
+/** Fraction kept after the daily taxes; ON_REDEMPTION taxes are deferred to the withdrawal. */
 export function retainedYieldFraction(
 	settings: TaxSettings | undefined,
 	contributionDate: string,
 	day: string,
 	definitions = catalog,
 ) {
+	return retainedFraction(settings, contributionDate, day, definitions, "DAILY");
+}
+/** Fraction of a lot's gain kept once the taxes of `mode` (or every tax when omitted) are applied. */
+export function retainedFraction(
+	settings: TaxSettings | undefined,
+	contributionDate: string,
+	day: string,
+	definitions = catalog,
+	mode?: YieldTaxMode,
+) {
 	const taxes = [...new Set(settings?.yieldTaxIds ?? [])]
+		.filter(id => !mode || taxModeOf(settings, id) === mode)
 		.map(id => {
 			const definition = definitions.find(tax => tax.id === id);
 			if (!definition) throw new Error(`Imposto indisponível: ${id}`);
@@ -113,7 +159,17 @@ export function retainedYieldFraction(
 			(tax.version.brackets.find(bracket => bracket.upToDays === null || age <= bracket.upToDays)
 				?.rate ?? 0) /
 				100;
-	return retained * (1 - (settings?.yieldTaxRate ?? 0) / 100);
+	return !mode || taxModeOf(settings, fixedTaxKey) === mode
+		? retained * (1 - (settings?.yieldTaxRate ?? 0) / 100)
+		: retained;
+}
+export function redemptionRetainedFraction(
+	settings: TaxSettings | undefined,
+	contributionDate: string,
+	day: string,
+	definitions = catalog,
+) {
+	return retainedFraction(settings, contributionDate, day, definitions);
 }
 /** NET daily compounding. Profits retain contribution age; withdrawals use FIFO. */
 export class YieldTaxLedger {
@@ -122,6 +178,9 @@ export class YieldTaxLedger {
 	constructor(lots: YieldLot[] = [], debt = 0) {
 		this.lots = lots.map(lot => ({ ...lot })).sort((a, b) => a.date.localeCompare(b.date));
 		this.debt = debt;
+	}
+	clone() {
+		return new YieldTaxLedger(this.lots, this.debt);
 	}
 	get balance() {
 		return this.debt + this.lots.reduce((sum, lot) => sum + lot.balance, 0);
@@ -140,7 +199,7 @@ export class YieldTaxLedger {
 			const paid = Math.min(amount, -this.debt);
 			this.debt += paid;
 			if (amount > paid) {
-				this.lots.push({ balance: amount - paid, date: day });
+				this.lots.push({ balance: amount - paid, date: day, principal: amount - paid });
 				this.lots.sort((a, b) => a.date.localeCompare(b.date));
 			}
 		} else {
@@ -148,6 +207,7 @@ export class YieldTaxLedger {
 			while (remaining > 0 && this.lots.length) {
 				const lot = this.lots[0]!;
 				const used = Math.min(remaining, lot.balance);
+				if (lot.principal !== undefined) lot.principal -= (lot.principal * used) / lot.balance;
 				lot.balance -= used;
 				remaining -= used;
 				if (lot.balance <= 0) this.lots.shift();
@@ -202,6 +262,20 @@ export class YieldTaxLedger {
 			return;
 		}
 		for (const lot of this.lots) lot.balance += (amount * lot.balance) / total;
+	}
+	/** Tax owed if every lot were redeemed on `day`; zero unless taxes are deferred to redemption. */
+	deferredTax(settings: TaxSettings | undefined, day: string, definitions = catalog) {
+		if (!hasRedemptionTax(settings)) return 0;
+		return this.lots.reduce(
+			(sum, lot) =>
+				sum +
+				Math.max(0, lot.balance - (lot.principal ?? lot.balance)) *
+					(1 - retainedFraction(settings, lot.date, day, definitions, "ON_REDEMPTION")),
+			0,
+		);
+	}
+	netBalance(settings: TaxSettings | undefined, day: string, definitions = catalog) {
+		return this.balance - this.deferredTax(settings, day, definitions);
 	}
 	adjustBalance(balance: number, day: string) {
 		this.applyCashFlow(balance - this.balance, day);

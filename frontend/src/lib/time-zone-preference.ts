@@ -10,7 +10,7 @@ export async function readTimeZonePreference() {
 	const owner = getCurrentCacheIdentity();
 	if (!owner) throw new Error("Sessão indisponível");
 	if (!useAuthStore.getState().isGuestMode && navigator.onLine) {
-		const result = await getTimeZonePreferences();
+		const result = await getTimeZonePreferences({}).then(result => result.data);
 		await Promise.all([
 			localMeta.set("time-zone-preference", result.preferredTimeZone, owner),
 			localMeta.set("country-preference", result.preferredCountry, owner),
@@ -37,7 +37,9 @@ export async function saveTimeZonePreference(preferredTimeZone: string | null) {
 	if (preferredTimeZone !== null && !isTimeZone(preferredTimeZone))
 		throw new Error("Fuso horário inválido");
 	if (!useAuthStore.getState().isGuestMode) {
-		const result = await patchTimeZonePreferences({ preferredTimeZone });
+		const result = await patchTimeZonePreferences({ body: { preferredTimeZone } }).then(
+			result => result.data,
+		);
 		await localMeta.set("time-zone-preference", result.preferredTimeZone, owner);
 		await localMeta.set("country-preference", result.preferredCountry, owner);
 		return result;

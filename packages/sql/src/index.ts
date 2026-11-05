@@ -4,13 +4,13 @@ import type { ResultType } from "@prisma/orm-postgres/components/runtime";
 import type { SqlOrmPlan } from "@prisma/orm-postgres/relational-core";
 import { param } from "@prisma/orm-postgres/relational-core/expression";
 import postgres from "@prisma/orm-postgres/runtime";
-
+import { contractFromJson } from "@prisma/orm-postgres/static";
 import { getQueryMetrics, startOperation, startQuery } from "./query-metrics";
 
 export { and, or } from "@prisma/orm-postgres/orm-client";
 export * from "./query-metrics";
 
-import type { Numeric, Timestamp, Timestamptz } from "@prisma/orm-postgres/target/codec-types";
+import type { Numeric } from "@prisma/orm-postgres/target/codec-types";
 import type { PoolClient, QueryResultRow } from "pg";
 import { Pool, types } from "pg";
 import type { Contract } from "../out/prisma/contract";
@@ -19,17 +19,15 @@ import contractJson from "../out/prisma/contract.json" with { type: "json" };
 type NormalizeDatabaseValue<T> =
 	T extends Numeric<infer _Precision, infer _Scale>
 		? number
-		: T extends Timestamp<infer _Precision> | Timestamptz<infer _Precision>
+		: T extends Date
 			? Date
-			: T extends Date
-				? Date
-				: T extends string
-					? string
-					: T extends readonly (infer Item)[]
-						? NormalizeDatabaseValue<Item>[]
-						: T extends object
-							? { [Key in keyof T]: NormalizeDatabaseValue<T[Key]> }
-							: T;
+			: T extends string
+				? string
+				: T extends readonly (infer Item)[]
+					? NormalizeDatabaseValue<Item>[]
+					: T extends object
+						? { [Key in keyof T]: NormalizeDatabaseValue<T[Key]> }
+						: T;
 
 types.setTypeParser(types.builtins.NUMERIC, value => Number(value));
 
@@ -167,31 +165,87 @@ export const withRawTransaction = async <Result>(
 	}
 };
 
-export const db = postgres<Contract>({ contractJson, pg: transactionalPool });
+export const contract = contractFromJson<Contract>(contractJson);
+export const db = postgres({ contract, pg: transactionalPool });
 
 type QueryPlan = SqlOrmPlan<unknown>;
 type StatementPlan = Parameters<ReturnType<typeof db.runtime>["execute"]>[0];
 type ExecutorClient = Pick<typeof db, "sql"> & Pick<ReturnType<typeof db.runtime>, "query" | "execute">;
+interface PlanSource {
+	alias?: string;
+	kind?: string;
+	name?: string;
+	source?: PlanSource;
+}
+interface ProjectionItem {
+	alias?: string;
+	codec?: { codecId?: string };
+	expr?: { column?: string; kind?: string; name?: string; table?: string };
+}
 interface ProjectedPlan {
 	ast?: {
-		projection?: readonly {
-			alias?: string;
-			codec?: { codecId?: string };
-		}[];
-		returning?: readonly {
-			alias?: string;
-			codec?: { codecId?: string };
-		}[];
+		from?: PlanSource;
+		joins?: readonly PlanSource[];
+		projection?: readonly ProjectionItem[];
+		returning?: readonly ProjectionItem[];
+		table?: PlanSource;
 	};
 }
 
-const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
-	const numericColumns = new Set(
-		((plan as ProjectedPlan).ast?.projection ?? (plan as ProjectedPlan).ast?.returning ?? [])
-			.filter(item => item.codec?.codecId === "pg/numeric@1")
-			.flatMap(item => (item.alias ? [item.alias] : [])),
-	);
-	if (numericColumns.size === 0) return rows;
+// Some json columns were created by historical migrations with a double-encoded default (the JSON string "[]" or
+// "{}", see the CreditCardImportItem.metadataMissing, OpenFinanceRun.errors and OutboxEvent.payload column defaults).
+// Rows written with that default are decoded here, only for the exact physical table/column and only when the value
+// is exactly the default sentinel, so genuine scalar JSON strings elsewhere are returned untouched. This applies to
+// builder (`db.sql`) plans, whose provenance is resolved from the plan AST; `db.orm` results and raw queries are
+// not normalized by this function and return the stored JSON value as is.
+const legacyJsonDefaults: Record<string, Record<string, string>> = {
+	CreditCardImportItem: { metadataMissing: "[]" },
+	OpenFinanceRun: { errors: "[]" },
+	OutboxEvent: { payload: "{}" },
+};
+
+const legacyJsonSentinel = (plan: ProjectedPlan, item: ProjectionItem) => {
+	const ast = plan.ast;
+	const { expr } = item;
+	if (!ast || !expr) return undefined;
+	// Query-scope names (alias, else table name) mapped to physical tables; non-table sources are not mapped.
+	const scope = new Map<string, string>();
+	const register = (source: PlanSource | undefined) => {
+		if (source?.kind === "table-source" && source.name)
+			scope.set(source.alias ?? source.name, source.name);
+	};
+	register(ast.from ?? ast.table);
+	for (const join of ast.joins ?? []) register(join.source);
+	let table: string | undefined;
+	let column: string | undefined;
+	if (expr.kind === "column-ref" && expr.table) {
+		table = scope.get(expr.table);
+		column = expr.column;
+	} else if (expr.kind === "identifier-ref" && !ast.joins?.length && scope.size === 1) {
+		table = [...scope.values()][0];
+		column = expr.name;
+	}
+	return table && column ? legacyJsonDefaults[table]?.[column] : undefined;
+};
+
+const normalizeCodecColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
+	const projection =
+		(plan as ProjectedPlan).ast?.projection ?? (plan as ProjectedPlan).ast?.returning ?? [];
+	const aliasesFor = (codecIds: string[]) =>
+		new Set(
+			projection
+				.filter(item => item.codec?.codecId && codecIds.includes(item.codec.codecId))
+				.flatMap(item => (item.alias ? [item.alias] : [])),
+		);
+	const numericColumns = aliasesFor(["pg/numeric@1"]);
+	const legacyJson = new Map<string, string>();
+	for (const item of projection) {
+		if (!item.alias || !item.codec?.codecId || !["pg/json@1", "pg/jsonb@1"].includes(item.codec.codecId))
+			continue;
+		const sentinel = legacyJsonSentinel(plan as ProjectedPlan, item);
+		if (sentinel) legacyJson.set(item.alias, sentinel);
+	}
+	if (numericColumns.size === 0 && legacyJson.size === 0) return rows;
 	return rows.map(row => {
 		if (!row || typeof row !== "object") return row;
 		const normalized = { ...row } as Record<string, unknown>;
@@ -199,6 +253,8 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 			const value = normalized[column];
 			if (typeof value === "string") normalized[column] = Number(value);
 		}
+		for (const [column, sentinel] of legacyJson)
+			if (normalized[column] === sentinel) normalized[column] = JSON.parse(sentinel) as unknown;
 		return normalized as Row;
 	});
 };
@@ -206,7 +262,7 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 const createExecutor = (client: ExecutorClient) => {
 	const queryRows = async <Plan extends QueryPlan>(plan: Plan) => {
 		const rows = await client.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
-		return normalizeNumericColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
+		return normalizeCodecColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
 	};
 	return {
 		db: client,

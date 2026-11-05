@@ -5,7 +5,8 @@ import { CurrencyLifecycle } from "@/components/currency/CurrencyLifecycle";
 import { AppShell } from "@/components/layout";
 import { useOpenFinanceAutoSync } from "@/hooks/use-open-finance";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
-import { invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { getCurrentCacheIdentity, invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
+import { connectRealtimeInvalidation } from "@/lib/realtime";
 import { materializeLocalRecurrences } from "@/lib/recurrence-service";
 import { cachedTaxCatalog, fetchTaxCatalog } from "@/lib/tax-catalog";
 import { toast } from "@/lib/toast";
@@ -20,6 +21,10 @@ function RootComponent() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
 	const previousIdentity = useRef(identity);
+	useEffect(() => {
+		if (!identity?.startsWith("user:")) return;
+		return connectRealtimeInvalidation(queryClient, identity, getCurrentCacheIdentity);
+	}, [identity, queryClient]);
 	const initializeTheme = useThemeStore(state => state.initializeTheme);
 	const {
 		initialize,

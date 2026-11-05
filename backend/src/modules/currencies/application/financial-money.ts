@@ -1,7 +1,7 @@
 import { roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { t } from "elysia";
 import { HttpException } from "~/shared/errors";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryFirst, queryRaw } from "~/shared/infra/sql";
 import { convertCurrencyAmount } from "../infra/currency-exchange";
 import { calculateFinancialFees } from "./financial-fees";
 
@@ -16,9 +16,11 @@ export const FinancialFeeDTO = t.Object({
 export type FinancialFee = typeof FinancialFeeDTO.static;
 export async function financialAccountCurrency(accountId?: string | null, fallback = "BRL") {
 	if (!accountId) return fallback;
-	const [account] = await queryRaw<{ currency: string }>(
-		`SELECT "currency" FROM "FinancialAccount" WHERE "id"=$1`,
-		[accountId],
+	const account = await queryFirst(
+		db.sql.public.FinancialAccount.select("currency")
+			.where((fields, functions) => functions.eq(fields.id, accountId))
+			.limit(1)
+			.build(),
 	);
 	return account?.currency ?? "BRL";
 }

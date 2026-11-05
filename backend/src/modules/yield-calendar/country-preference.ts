@@ -2,7 +2,7 @@ import { countryTimeZone, isTimeZone, resolveTimeZone } from "@zaimu/finance/tim
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryRows } from "~/shared/infra/sql";
 import { supportedCountryCodes } from "./calendar-source";
 
 const Country = t.String({ pattern: "^[A-Z]{2}$" });
@@ -30,9 +30,12 @@ export const CountryPreferencesController = new Elysia()
 	.get(
 		"/country-preferences",
 		async ({ request }) => {
-			const [user] = await queryRaw<{ preferredCountry: string | null }>(
-				`SELECT "preferredCountry" FROM "user" WHERE "id"=$1`,
-				[await requireUserId(request)],
+			const userId = await requireUserId(request);
+			const [user] = await queryRows(
+				db.sql.public.user
+					.select("preferredCountry")
+					.where((fields, functions) => functions.eq(fields.id, userId))
+					.build(),
 			);
 			if (!user) throw new HttpException("Usuário indisponível", 404);
 			return user;
@@ -44,13 +47,13 @@ export const CountryPreferencesController = new Elysia()
 		async ({ request, body }) => {
 			if (!supportedCountryCodes.includes(body.preferredCountry))
 				throw new HttpException("País inválido", 400);
-			const [user] = await queryRaw<{ preferredCountry: string | null }>(
-				`UPDATE "user" SET "preferredCountry"=CASE WHEN $3 THEN COALESCE("preferredCountry",$2) ELSE $2 END WHERE "id"=$1 RETURNING "preferredCountry"`,
-				[
-					await requireUserId(request),
-					body.preferredCountry,
-					request.headers.get("X-Country-Initialize") === "true",
-				],
+			const userId = await requireUserId(request);
+			const [user] = await queryRows(
+				db.sql.public.user
+					.update({ preferredCountry: body.preferredCountry })
+					.where((fields, functions) => functions.eq(fields.id, userId))
+					.returning("preferredCountry")
+					.build(),
 			);
 			if (!user) throw new HttpException("Usuário indisponível", 404);
 			return user;
@@ -60,12 +63,13 @@ export const CountryPreferencesController = new Elysia()
 	.get(
 		"/time-zone-preferences",
 		async ({ request }) => {
-			const [user] = await queryRaw<{
-				preferredCountry: string | null;
-				preferredTimeZone: string | null;
-			}>('SELECT "preferredCountry","preferredTimeZone" FROM "user" WHERE "id"=$1', [
-				await requireUserId(request),
-			]);
+			const userId = await requireUserId(request);
+			const [user] = await queryRows(
+				db.sql.public.user
+					.select("preferredCountry", "preferredTimeZone")
+					.where((fields, functions) => functions.eq(fields.id, userId))
+					.build(),
+			);
 			if (!user) throw new HttpException("Usuário indisponível", 404);
 			return presentTimeZonePreference(user);
 		},
@@ -76,12 +80,13 @@ export const CountryPreferencesController = new Elysia()
 		async ({ request, body }) => {
 			if (body.preferredTimeZone !== null && !isTimeZone(body.preferredTimeZone))
 				throw new HttpException("Fuso horário inválido", 400);
-			const [user] = await queryRaw<{
-				preferredCountry: string | null;
-				preferredTimeZone: string | null;
-			}>(
-				'UPDATE "user" SET "preferredTimeZone"=$2,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1 RETURNING "preferredCountry","preferredTimeZone"',
-				[await requireUserId(request), body.preferredTimeZone],
+			const userId = await requireUserId(request);
+			const [user] = await queryRows(
+				db.sql.public.user
+					.update({ preferredTimeZone: body.preferredTimeZone, updatedAt: new Date() })
+					.where((fields, functions) => functions.eq(fields.id, userId))
+					.returning("preferredCountry", "preferredTimeZone")
+					.build(),
 			);
 			if (!user) throw new HttpException("Usuário indisponível", 404);
 			return presentTimeZonePreference(user);

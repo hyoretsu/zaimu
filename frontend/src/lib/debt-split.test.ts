@@ -209,9 +209,9 @@ describe("formatDebtSplitNames", () => {
 			{ amount: 20, debtPersonId: "v", debtPersonName: "Vitória", shares: 2 },
 			{ amount: 10, debtPersonId: "p", debtPersonName: "Painho", shares: 1 },
 		];
-		expect(formatDebtSplitNames({ mode: "SHARES", ownerAmount: 0, ownerShares: null, participants })).toBe(
-			"Eduarda, Painho, Vitória",
-		);
+		expect(
+			formatDebtSplitNames({ mode: "SHARES", ownerAmount: 0, ownerShares: null, participants }),
+		).toBe("Eduarda, Painho, Vitória");
 		expect(participants.map(person => person.debtPersonId)).toEqual(["e", "v", "p"]);
 		expect(formatDebtSplitNames(null)).toBeUndefined();
 		expect(formatDebtSplitNames(undefined)).toBeUndefined();
@@ -219,46 +219,27 @@ describe("formatDebtSplitNames", () => {
 });
 
 describe("formatDebtSplitBadge", () => {
-	const formatAmount = (amount: number) => `R$ ${amount.toFixed(2)}`;
-
-	test("sorts people by name without changing their amounts or the source order", () => {
+	test("shows only the people names, sorted, without changing the source order", () => {
 		const participants = [
 			{ amount: 6.66, debtPersonId: "p", debtPersonName: "Painho", shares: 1 },
 			{ amount: 13.33, debtPersonId: "v", debtPersonName: "Vitória", shares: 2 },
 			{ amount: 5, debtPersonId: "a", debtPersonName: "Álvaro", shares: 1 },
 		];
 		expect(
-			formatDebtSplitBadge({ mode: "SHARES", ownerAmount: 0, ownerShares: null, participants }, formatAmount),
-		).toBe("Álvaro: R$ 5.00 · Painho: R$ 6.66 · Vitória: R$ 13.33");
+			formatDebtSplitBadge({ mode: "SHARES", ownerAmount: 0, ownerShares: null, participants }),
+		).toBe("Álvaro · Painho · Vitória");
 		expect(participants.map(person => person.debtPersonId)).toEqual(["p", "v", "a"]);
 	});
 
-	test("hides the amount when a single person owes the entire transaction", () => {
+	test("shows only the name when the debt is partial", () => {
 		expect(
-			formatDebtSplitBadge(
-				{
-					mode: "SHARES",
-					ownerAmount: 0,
-					ownerShares: null,
-					participants: [{ amount: 119, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 1 }],
-				},
-				formatAmount,
-			),
+			formatDebtSplitBadge({
+				mode: "SHARES",
+				ownerAmount: 20,
+				ownerShares: 1,
+				participants: [{ amount: 80, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 4 }],
+			}),
 		).toBe("Vitória");
-	});
-
-	test("keeps values when the debt is partial or split between people", () => {
-		expect(
-			formatDebtSplitBadge(
-				{
-					mode: "SHARES",
-					ownerAmount: 20,
-					ownerShares: 1,
-					participants: [{ amount: 80, debtPersonId: "vitoria", debtPersonName: "Vitória", shares: 4 }],
-				},
-				formatAmount,
-			),
-		).toBe("Vitória: R$ 80.00");
 	});
 });
 
@@ -340,9 +321,9 @@ describe("selectDebtSplitRemainder", () => {
 			...input,
 			participants: [{ debtPersonId: "a", fixedAmount: 20 }, input.participants[1]],
 		};
-		expect(calculateDebtSplit(30, updated as typeof input)?.participants.map(item => item.amount)).toEqual([
-			20, 10,
-		]);
+		expect(
+			calculateDebtSplit(30, updated as typeof input)?.participants.map(item => item.amount),
+		).toEqual([20, 10]);
 	});
 
 	test("returns to manual entry when unchecked without restoring the discarded amount", () => {
@@ -389,9 +370,13 @@ describe("automatic remainder across editing and mode changes", () => {
 		for (const mode of ["FIXED", "PERCENTAGE"] as const) {
 			const input = createEqualDebtSplit(mode, participants, false, 32.8, "b");
 			expect(input.participants[1]).toEqual(
-				mode === "FIXED" ? { debtPersonId: "b", fixedAmount: 0 } : { debtPersonId: "b", percentage: 0 },
+				mode === "FIXED"
+					? { debtPersonId: "b", fixedAmount: 0 }
+					: { debtPersonId: "b", percentage: 0 },
 			);
-			expect(calculateDebtSplit(32.8, input)?.participants.map(item => item.amount)).toEqual([16.4, 16.4]);
+			expect(calculateDebtSplit(32.8, input)?.participants.map(item => item.amount)).toEqual([
+				16.4, 16.4,
+			]);
 		}
 	});
 
@@ -442,16 +427,16 @@ test("native split preserves JPY remainder and KWD thousandths", () => {
 	).toBeNull();
 });
 
-test("fixed KWD split reports an excess of one minimum unit", () => {
-	expect(
-		debtSplitError(
-			1.001,
-			{
-				mode: "FIXED",
-				ownerIncluded: false,
-				participants: [{ debtPersonId: "a", fixedAmount: 1.002 }],
-			},
-			"KWD",
-		),
-	).toBe("Os valores das pessoas não podem ultrapassar o total.");
+test("fixed split may exceed the total without assigning the excess to anyone", () => {
+	const split = calculateDebtSplit(
+		51.69,
+		{
+			mode: "FIXED",
+			ownerIncluded: true,
+			participants: [{ debtPersonId: "a", fixedAmount: 71.25 }],
+		},
+		"BRL",
+	);
+	expect(split?.ownerAmount).toBe(0);
+	expect(split?.participants[0].amount).toBe(71.25);
 });

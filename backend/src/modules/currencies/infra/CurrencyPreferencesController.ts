@@ -1,6 +1,6 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryFirst, queryRaw } from "~/shared/infra/sql";
 import { supportedCurrencies } from "../application/currency-catalog";
 
 const CurrencyPreferenceReturn = t.Object({ preferredCurrency: t.Nullable(t.String()) });
@@ -9,9 +9,12 @@ export const CurrencyPreferencesController = new Elysia({ prefix: "/currency-pre
 		"/",
 		async ({ request }) => {
 			const userId = await requireUserId(request);
-			const [user] = await queryRaw<{ preferredCurrency: string | null }>(
-				'SELECT "preferredCurrency" FROM "user" WHERE "id"=$1',
-				[userId],
+			const user = await queryFirst(
+				db.sql.public.user
+					.select("preferredCurrency")
+					.where((fields, functions) => functions.eq(fields.id, userId))
+					.limit(1)
+					.build(),
 			);
 			if (!user) throw new Error("Usuário indisponível");
 			return user;

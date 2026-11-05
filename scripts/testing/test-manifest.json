@@ -1,8 +1,11 @@
 {
 	"backend:e2e": ["backend/tests/database.e2e.test.ts"],
 	"backend:integration": [
+		"backend/src/modules/transaction-imports/tests/import-file-leases.integration.test.ts",
 		"backend/src/modules/currencies/tests/currency-default-cache.integration.test.ts",
 		"backend/src/modules/accounts/tests/account-options.integration.test.ts",
+		"backend/src/modules/accounts/tests/balance-adjustments.integration.test.ts",
+		"backend/src/modules/monthly-budgets/tests/monthly-budgets.integration.test.ts",
 		"backend/src/modules/account-transfers/tests/account-transfers.integration.test.ts",
 		"backend/src/modules/credit-card-imports/tests/import-purchase-taxes.integration.test.ts",
 		"backend/src/modules/recurring/tests/time-zone-materialization.test.ts",
@@ -20,8 +23,13 @@
 		"backend/src/modules/reference-rates/tests/reference-rate-averages.test.ts",
 		"backend/src/modules/reference-rates/tests/reference-rate-repair.test.ts",
 		"backend/src/shared/infra/broker/tests/RabbitMqBroker.integration.test.ts",
+		"backend/src/shared/infra/DistributedCircuitBreaker.test.ts",
 		"backend/src/shared/infra/cache/RedisCache.test.ts",
 		"backend/src/shared/tests/pdf-worker.test.ts",
+		"backend/src/modules/debts/tests/debt-event-page.integration.test.ts",
+		"backend/src/modules/stores/tests/stores-list.integration.test.ts",
+		"backend/src/modules/categories/tests/categories-list.integration.test.ts",
+		"backend/src/modules/taxes/tests/taxes-admin.integration.test.ts",
 		"backend/src/modules/loans/tests/loan-contracts.integration.test.ts",
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],
@@ -57,6 +65,7 @@
 		"backend/src/modules/accounts/domain/calculate-financial-account-yields.test.ts",
 		"backend/src/modules/accounts/domain/daily-balance-summary.test.ts",
 		"backend/src/modules/accounts/domain/normalize-financial-institution-name.test.ts",
+		"backend/src/modules/accounts/domain/resolve-yield-policy-timeline.test.ts",
 		"backend/src/modules/accounts/infra/dto/institution-countries.test.ts",
 		"backend/src/modules/accounts/infra/dto/institution-name.test.ts",
 		"backend/src/modules/accounts/infra/elysia/FinancialAccountYieldsController.test.ts",
@@ -88,6 +97,7 @@
 		"backend/src/modules/credit-card-imports/domain/imported-purchase-total.test.ts",
 		"backend/src/modules/credit-card-imports/domain/installment-amounts.test.ts",
 		"backend/src/modules/credit-card-imports/domain/inter-credit-card.test.ts",
+		"backend/src/modules/credit-card-imports/domain/inter-global-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/invoice-payment.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-credit-card.test.ts",
 		"backend/src/modules/credit-card-imports/domain/mercado-pago-text.test.ts",
@@ -149,6 +159,8 @@
 		"backend/src/modules/transaction-imports/application/duplicate-candidate-index.test.ts",
 		"backend/src/modules/transaction-imports/application/imported-money.test.ts",
 		"backend/src/modules/transaction-imports/domain/banco-do-brasil.test.ts",
+		"backend/src/modules/transaction-imports/domain/banco-pan.test.ts",
+		"backend/src/modules/transaction-imports/domain/btg-pactual.test.ts",
 		"backend/src/modules/transaction-imports/domain/filter-existing-transactions.test.ts",
 		"backend/src/modules/transaction-imports/domain/filter-synchronized-transactions.test.ts",
 		"backend/src/modules/transaction-imports/domain/filter-zero-value-transactions.test.ts",
@@ -189,22 +201,14 @@
 		"backend/src/modules/loans/infra/elysia/LoanContractDTO.test.ts",
 		"backend/src/modules/reference-rates/domain/yield-scheduler-clock.test.ts"
 	],
-	"sql:e2e": ["packages/sql/tests/migrations.e2e.test.ts"],
-	"sql:integration": [
-		"packages/sql/src/tests/query-metrics.test.ts",
-		"packages/sql/tests/application-upgrade-audit.test.ts",
-		"packages/sql/tests/card-payments-migration.test.ts",
-		"packages/sql/tests/credit-ledger-cutover.test.ts",
-		"packages/sql/tests/credit-purchases-backfill.test.ts",
-		"packages/sql/tests/remove-debt-legacy.test.ts",
-		"packages/sql/tests/remove-financial-legacy.test.ts",
-		"packages/sql/tests/remove-recurrence-legacy.test.ts",
-		"packages/sql/tests/repair-credit-recurrence-integrity.test.ts",
-		"packages/sql/tests/unified-recurrences.test.ts"
+	"sql:e2e": [
+		"packages/sql/tests/migrate-transition.e2e.test.ts",
+		"packages/sql/tests/prisma8-fresh-history.e2e.test.ts",
+		"packages/sql/tests/prisma8-native-successors.e2e.test.ts"
 	],
-	"sql:unit": [
-		"packages/sql/src/query-metrics.test.ts",
-		"packages/sql/tests/international-money-precision.test.ts",
-		"packages/sql/tests/universal-institutions-migration.test.ts"
-	]
+	"sql:integration": [
+		"packages/sql/tests/prisma8-runtime.integration.test.ts",
+		"packages/sql/src/tests/query-metrics.test.ts"
+	],
+	"sql:unit": ["packages/sql/src/query-metrics.test.ts"]
 }

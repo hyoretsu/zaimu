@@ -1,13 +1,7 @@
-import { existsSync } from "node:fs";
-import { cp, mkdir, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { Client } from "pg";
 import { assertFixtureUrl } from "../../../scripts/testing/fixture";
-import { installContractFixture } from "./contract-fixture";
 
 const sqlRoot = resolve(import.meta.dir, "..");
-const initial = "e6f952d8b8937cd3db66ef01b911c808e91e407738cd3f63387ad6c760107756";
-const legacy = "b4da9448c1f0b792deb9ebb08526b9deb09a9a5fb51c3cf9a1691391e49137e0";
 
 /** Prepare schemas only inside the runner's disposable database and temporary migration tree. */
 export async function prepareSchema(
@@ -18,66 +12,30 @@ export async function prepareSchema(
 	onChild?: (child: ReturnType<typeof Bun.spawn> | undefined) => void,
 ) {
 	const full =
+		file.endsWith("migrate-transition.e2e.test.ts") ||
+		file.endsWith("prisma8-fresh-history.e2e.test.ts") ||
+		file.endsWith("prisma8-native-successors.e2e.test.ts") ||
 		file.endsWith("database.e2e.test.ts") ||
 		file.endsWith("migrations.e2e.test.ts") ||
+		file.endsWith("prisma8-runtime.integration.test.ts") ||
+		file.endsWith("prisma8-contract-parity.integration.test.ts") ||
 		file.endsWith("normalized-refunds.test.ts") ||
 		file.endsWith("import-purchase-taxes.integration.test.ts") ||
 		file.endsWith("src/tests/query-metrics.test.ts") ||
 		file.endsWith("RabbitMqBroker.integration.test.ts") ||
 		file.endsWith("open-finance.integration.test.ts") ||
 		file.endsWith("materialization.test.ts");
-	const backfill = file.endsWith("credit-purchases-backfill.test.ts");
-	const cutover = file.endsWith("credit-ledger-cutover.test.ts");
-	if (!full && !backfill && !cutover) return;
-	assertFixtureUrl(url, env);
-	const client = new Client({ connectionString: url });
-	await client.connect();
-	try {
-		const hash = full
-			? initial
-			: cutover
-				? "a08745da75bf1dc6481b60f5dbbb59e2bc58c5a1e5ffc7a24cd64884daa36a66"
-				: legacy;
-		await installContractFixture(
-			client,
-			await Bun.file(join(sqlRoot, "migrations/snapshots", hash, "contract.json")).json(),
-		);
-	} finally {
-		await client.end();
-	}
 	if (!full) return;
-	const copy = join(tempRoot, `migration-${crypto.randomUUID()}`);
-	await mkdir(copy, { recursive: true });
-	for (const name of ["migrations", "out", "src", "scripts", "prisma.config.ts", "package.json"])
-		await cp(join(sqlRoot, name), join(copy, name), { recursive: true });
-	// Hoisted installs keep dependencies in the workspace root instead of packages/sql.
-	const modulesDir = [join(sqlRoot, "node_modules"), resolve(sqlRoot, "../../node_modules")].find(dir =>
-		existsSync(join(dir, "@prisma/cli/dist/cli.js")),
-	);
-	if (!modulesDir) throw new Error("Disposable schema preparation failed: @prisma/cli is not installed");
-	await symlink(modulesDir, join(copy, "node_modules"), "dir");
-	const prismaCli = join(modulesDir, "@prisma/cli/dist/cli.js");
-	await Bun.write(
-		join(copy, "migrations/app/refs/db.json"),
-		JSON.stringify({ hash: initial, invariants: [] }),
-	);
-	const environment = { ...env, DATABASE_URL: url, DO_NOT_TRACK: "1", PRISMA_TELEMETRY_DISABLED: "1" };
-	for (const args of [
-		["db", "sign", "--contract", initial],
-		["migrate", "--advance-ref", "db"],
-	]) {
-		const command =
-			args[0] === "migrate" ? ["bun", join(copy, "scripts/migrate.ts")] : ["bun", prismaCli, ...args];
-		const process = Bun.spawn(command, {
-			cwd: copy,
-			env: environment,
-			stderr: "inherit",
-			stdout: "inherit",
-			timeout: 120000,
-		});
-		onChild?.(process);
-		const code = await process.exited;
-		onChild?.(undefined);
-		if (code !== 0) throw new Error(`Disposable schema preparation failed: prisma-cli ${args.join(" ")}`);
-	}
+	assertFixtureUrl(url, env);
+	const child = Bun.spawn(["bun", join(sqlRoot, "scripts/migrate.ts")], {
+		cwd: sqlRoot,
+		env: { ...env, DATABASE_URL: url },
+		stderr: "inherit",
+		stdout: "inherit",
+		timeout: 240000,
+	});
+	onChild?.(child);
+	const code = await child.exited;
+	onChild?.(undefined);
+	if (code !== 0) throw new Error("Production migration failed on empty disposable database");
 }

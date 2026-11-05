@@ -30,7 +30,7 @@ import {
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
-import { RecalculateAccountYieldDialog } from "./RecalculateAccountYieldDialog";
+import { RecalculateAccountYieldButton } from "./RecalculateAccountYieldButton";
 
 const accountType = {
 	CASH: { icon: LuBanknote },
@@ -203,6 +203,16 @@ export function FinancialAccountCard({
 								/>
 							}
 						</p>
+						{account.netBalance != null && (
+							<p className="text-muted-foreground mt-1 text-sm">
+								Saldo líquido:{" "}
+								<PreferredMoneyAmount
+									values={[
+										{ amount: account.netBalance, currency: account.currency ?? "BRL" },
+									]}
+								/>
+							</p>
+						)}
 					</>
 				)}
 			</div>
@@ -241,7 +251,7 @@ export function FinancialAccountCard({
 						/>
 					</>
 				) : null}
-				{account.type !== "CREDIT_CARD" && <RecalculateAccountYieldDialog account={account} />}
+				{account.type !== "CREDIT_CARD" && <RecalculateAccountYieldButton account={account} />}
 				{account.type !== "CREDIT_CARD" && (
 					<FinancialAccountStatementDialog
 						account={account}

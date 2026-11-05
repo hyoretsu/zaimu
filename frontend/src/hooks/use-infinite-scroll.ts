@@ -1,10 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 export function useInfiniteScroll({ enabled, onLoadMore }: { enabled: boolean; onLoadMore: () => unknown }) {
-	const sentinelRef = useRef<HTMLDivElement>(null);
+	const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
 
 	useEffect(() => {
-		const sentinel = sentinelRef.current;
 		if (!enabled || !sentinel) return;
 
 		let requested = false;
@@ -21,7 +20,7 @@ export function useInfiniteScroll({ enabled, onLoadMore }: { enabled: boolean; o
 		);
 		observer.observe(sentinel);
 		return () => observer.disconnect();
-	}, [enabled, onLoadMore]);
+	}, [enabled, onLoadMore, sentinel]);
 
-	return sentinelRef;
+	return setSentinel;
 }

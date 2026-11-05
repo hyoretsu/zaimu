@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, setSystemTime, test } from "bun:test";
 import { Client } from "pg";
 import { closeDatabase, getQueryMetrics, queryRaw, withQueryMetrics } from "sql";
 import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
+import { recalculateHistoricalAccountYields } from "~/modules/accounts/application/recalculate-historical-account-yields";
 import type { EventEnvelope } from "~/shared/application/events";
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
@@ -26,14 +27,14 @@ async function replay(now = morning) {
 	for (const event of await commands("command.account-yield-recalculation"))
 		await handleAccountYieldRecalculationCommand(event);
 }
-async function seed(id: string, fixed = false) {
+async function seed(id: string, fixed = false, principal = 1000) {
 	await queryRaw(
 		`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt","yieldReferenceType","yieldReferencePercentage","yieldFixedRate","yieldPeriod") VALUES ($1,'owner','CHECKING','BRL','BR','2026-10-01',$2,$3,$4,$5)`,
 		[id, fixed ? null : "CDI", fixed ? null : 105, fixed ? 1 : null, fixed ? "MONTHLY" : null],
 	);
 	await queryRaw(
-		`INSERT INTO "Transaction" ("id","userId","type","amount","currency","date","description","destinationFinancialAccountId") VALUES ($1,'owner','INCOME',1000,'BRL','2026-10-02','Deposit',$2)`,
-		[`${id}-deposit`, id],
+		`INSERT INTO "Transaction" ("id","userId","type","amount","currency","date","description","destinationFinancialAccountId") VALUES ($1,'owner','INCOME',$3,'BRL','2026-10-02','Deposit',$2)`,
+		[`${id}-deposit`, id, principal],
 	);
 }
 async function yields(id = "account") {
@@ -59,6 +60,7 @@ beforeAll(async () => {
 	}
 });
 afterAll(() => closeDatabase());
+afterEach(() => setSystemTime());
 beforeEach(async () => {
 	await queryRaw(`TRUNCATE "user", "ReferenceRate", "OutboxEvent" CASCADE`);
 	await queryRaw(
@@ -68,7 +70,8 @@ beforeEach(async () => {
 
 describe("daily yield recovery", () => {
 	test("late publication bypasses previously covered empty response and compounds 105% CDI", async () => {
-		await seed("account");
+		// Larger principal makes compounding visible after daily cent rounding.
+		await seed("account", false, 100_000);
 		await enqueueDailyReferenceRateFetches(morning);
 		await enqueueDailyReferenceRateFetches(new Date("2026-10-16T09:59:00Z"));
 		expect(await commands("command.reference-rate-fetch")).toHaveLength(4);
@@ -99,8 +102,8 @@ describe("daily yield recovery", () => {
 		const saved = await yields();
 		expect(downloads).toBe(2);
 		expect(saved.map(row => row.date)).toEqual(["2026-10-05", "2026-10-06"]);
-		expect(saved[0]!.amount).toBeCloseTo(0.525, 4);
-		expect(saved[1]!.amount).toBeCloseTo(0.5253, 4);
+		expect(saved[0]!.amount).toBe(52.5);
+		expect(saved[1]!.amount).toBe(52.53);
 		await handleReferenceRateFetchCommand(next, async () => []);
 		expect(await queryRaw(`SELECT * FROM "ReferenceRate"`)).toHaveLength(2);
 	});
@@ -189,7 +192,7 @@ describe("daily yield recovery", () => {
 			expect(accounts).toHaveLength(2);
 			for (const account of accounts) {
 				expect(account.countryCode).toBe("BR");
-				expect(account.yieldLots).toEqual([{ balance: 1000, date: "2026-10-02" }]);
+				expect(account.yieldLots).toEqual([{ balance: 1000, date: "2026-10-02", principal: 1000 }]);
 			}
 			const histories = accounts.find(account => account.id === "context-first")!.yieldRateHistories!;
 			expect(histories).toHaveLength(1);
@@ -211,5 +214,51 @@ describe("daily yield recovery", () => {
 		await queryRaw(`UPDATE "FinancialAccount" SET "countryCode"='BR' WHERE "id"='account'`);
 		await replay(new Date("2026-10-17T09:00:00Z"));
 		expect((await yields()).length).toBeGreaterThan(0);
+	});
+});
+
+describe("historical yield recalculation", () => {
+	test("rebuilds automatic yields for an account created after its transactions", async () => {
+		setSystemTime(new Date("2026-11-02T14:00:00Z"));
+		await queryRaw(
+			`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt") VALUES ('hist','owner','SAVINGS','BRL','BR','2026-09-13T15:00:00Z')`,
+		);
+		await queryRaw(
+			`INSERT INTO "Transaction" ("id","userId","type","amount","currency","date","description","destinationFinancialAccountId") VALUES ('hist-deposit','owner','INCOME',100,'BRL','2026-04-26','Deposit','hist')`,
+		);
+		await queryRaw(
+			`INSERT INTO "ReferenceRate" ("id","type","date","value") SELECT 'cdi-'||d::date, 'CDI', d::date, 0.05 FROM generate_series('2026-04-01'::date,'2026-10-30'::date,'1 day') d`,
+		);
+		await recalculateHistoricalAccountYields("owner", "hist", undefined, {
+			yieldReferencePercentage: 100,
+			yieldReferenceType: "CDI",
+		});
+		for (const event of await commands("command.account-yield-recalculation"))
+			await handleAccountYieldRecalculationCommand(event);
+		const automatic = (await yields("hist")).filter(row => row.origin === "SYSTEM");
+		// The account row is newer than its first movement: history must start at the deposit.
+		expect(automatic[0]!.date).toBe("2026-04-27");
+		expect(automatic.at(-1)!.date).toBe("2026-10-30");
+	});
+
+	test("starts at a balance adjustment when the account has no transactions", async () => {
+		setSystemTime(new Date("2026-11-02T14:00:00Z"));
+		await queryRaw(
+			`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt") VALUES ('adjusted','owner','SAVINGS','BRL','BR','2026-09-13T15:00:00Z')`,
+		);
+		await queryRaw(
+			`INSERT INTO "BalanceAdjustment" ("id","userId","financialAccountId","date","balance","currency","updatedAt") VALUES ('adjusted-balance','owner','adjusted','2026-05-04',100,'BRL',now())`,
+		);
+		await queryRaw(
+			`INSERT INTO "ReferenceRate" ("id","type","date","value") SELECT 'adj-cdi-'||d::date, 'CDI', d::date, 0.05 FROM generate_series('2026-04-01'::date,'2026-10-30'::date,'1 day') d ON CONFLICT DO NOTHING`,
+		);
+		await recalculateHistoricalAccountYields("owner", "adjusted", undefined, {
+			yieldReferencePercentage: 100,
+			yieldReferenceType: "CDI",
+		});
+		for (const event of await commands("command.account-yield-recalculation"))
+			await handleAccountYieldRecalculationCommand(event);
+		const automatic = (await yields("adjusted")).filter(row => row.origin === "SYSTEM");
+		expect(automatic[0]!.date).toBe("2026-05-05");
 	});
 });

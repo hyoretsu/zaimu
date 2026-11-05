@@ -1,3 +1,3 @@
-import type { GetFinancialInstitutionsReviewCatalogQueryResponse } from "@/lib/api";
+import type { GetFinancialInstitutionsReviewCatalogResponse } from "@/lib/api";
 
-export type AdminInstitution = GetFinancialInstitutionsReviewCatalogQueryResponse[number];
+export type AdminInstitution = GetFinancialInstitutionsReviewCatalogResponse[number];

@@ -1,6 +1,6 @@
 import type { FinancialInstitutionYieldPolicy, postFinancialInstitutionsByIdPolicies } from "@/lib/api";
 
-type PolicyProposalBody = Parameters<typeof postFinancialInstitutionsByIdPolicies>[1];
+type PolicyProposalBody = Parameters<typeof postFinancialInstitutionsByIdPolicies>[0]["body"];
 
 /** Maps the editor's policy draft to the proposal payload; throws when profile or date is missing. */
 export function toPolicyProposalBody(
@@ -10,6 +10,7 @@ export function toPolicyProposalBody(
 	if (!requestedEffectiveDate || !profileId) throw new Error("Selecione perfil e data de vigência.");
 	return {
 		...body,
+		accountType: body.accountType ?? undefined,
 		countryCode: body.countryCode ?? undefined,
 		effectiveDate: requestedEffectiveDate,
 		effectiveUntil: body.effectiveUntil ?? undefined,

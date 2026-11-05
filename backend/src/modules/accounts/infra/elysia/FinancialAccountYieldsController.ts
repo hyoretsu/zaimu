@@ -63,7 +63,8 @@ async function assertYieldAccount(accountId: string, userId: string) {
 			.build(),
 	);
 	if (!account) throw new HttpException("Conta não encontrada", 404);
-	if (account.type === "CREDIT_CARD") throw new HttpException("Cartão de crédito não possui rendimento", 400);
+	if (account.type === "CREDIT_CARD")
+		throw new HttpException("Cartão de crédito não possui rendimento", 400);
 	return account;
 }
 
@@ -85,7 +86,7 @@ export function serializeYield(yieldEntry: {
 	return {
 		...yieldEntry,
 		amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
-		date: yieldEntry.date.toISOString(),
+		date: new Date(yieldEntry.date).toISOString(),
 		kind: yieldEntry.kind,
 		origin: yieldEntry.origin,
 		time: yieldEntry.time?.slice(0, 5) ?? null,
@@ -214,7 +215,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					.where((fields, functions) =>
 						functions.and(
 							functions.eq(fields.financialAccountId, body.financialAccountId),
-							functions.eq(fields.date, date),
+							functions.eq(fields.date, body.date),
 						),
 					)
 					.limit(1)
@@ -223,7 +224,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			const values = {
 				amount: body.isExcluded ? null : nullableNumeric<12, 4>(body.amount ?? null),
 				currency: account.currency,
-				date,
+				date: body.date,
 				isExcluded: body.isExcluded ?? false,
 				isHidden: body.kind === "MANUAL" ? (body.isHidden ?? false) : false,
 				kind: body.kind,
@@ -258,7 +259,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 					.where((fields, functions) =>
 						functions.and(
 							functions.eq(fields.financialAccountId, body.financialAccountId),
-							functions.eq(fields.date, date),
+							functions.eq(fields.date, body.date),
 						),
 					)
 					.limit(1)
@@ -270,7 +271,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				date,
 				`yield:${saved.id}:${Date.now()}`,
 			);
-			return serializeYield(saved);
+			return serializeYield({ ...saved, date: new Date(saved.date) });
 		},
 		{
 			body: t.Object({
@@ -302,7 +303,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			await executeStatement(
 				db.sql.public.FinancialAccountYield.update({
 					amount: nullableNumeric<12, 4>(body.amount),
-					...(body.date !== undefined && { date: parseDate(body.date) }),
+					...(body.date !== undefined && { date: body.date }),
 					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
 					...(body.time !== undefined && { time: body.time }),
 					updatedAt: new Date(),
@@ -319,7 +320,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			if (changed)
 				await enqueueAccountYieldRecalculation(
 					existing.financialAccountId,
-					new Date(Math.min(existing.date.getTime(), changed.date.getTime())),
+					new Date(Math.min(new Date(existing.date).getTime(), new Date(changed.date).getTime())),
 					`yield:${existing.id}:${Date.now()}`,
 				);
 			return { success: true };
@@ -354,7 +355,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			);
 			await enqueueAccountYieldRecalculation(
 				existing.financialAccountId,
-				existing.date,
+				new Date(existing.date),
 				`yield-delete:${existing.id}`,
 			);
 			return { success: true };

@@ -48,7 +48,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			theme="system"
 			toastOptions={{
 				classNames: {
-					toast: "cn-toast select-none",
+					toast: "cn-toast pointer-events-auto select-none",
 				},
 				closeButtonAriaLabel: "Fechar notificação",
 			}}

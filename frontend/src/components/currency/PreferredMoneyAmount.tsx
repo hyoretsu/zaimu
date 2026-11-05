@@ -11,11 +11,17 @@ export function PreferredMoneyAmount({
 	date = "latest",
 	pending = false,
 	error = false,
+	debt,
 }: {
 	values: readonly MoneyPosition[];
 	date?: string;
 	pending?: boolean;
 	error?: boolean;
+	/**
+	 * "plural" renders the magnitude with a small "Te devem" (positive) / "Você deve" (negative) below;
+	 * "absolute" renders the magnitude only, for callers that label the direction themselves.
+	 */
+	debt?: "absolute" | "plural";
 }) {
 	const identity = useCacheIdentity();
 	const client = useQueryClient();
@@ -37,5 +43,19 @@ export function PreferredMoneyAmount({
 	if (error) return <span>Valores indisponíveis</span>;
 	if (query.isPending) return <Skeleton className="inline-block h-6 w-32 align-middle" />;
 	if (query.isError) return <span>Conversão indisponível</span>;
-	return <span>{createCurrencyFormatter(currency, navigator.languages).format(query.data)}</span>;
+	const formatter = createCurrencyFormatter(currency, navigator.languages);
+	if (debt === "absolute") return <span>{formatter.format(Math.abs(query.data))}</span>;
+	if (debt === "plural" && query.data !== 0) {
+		return (
+			<>
+				<span className={query.data > 0 ? "text-emerald-900" : "text-rose-900"}>
+					{formatter.format(Math.abs(query.data))}
+				</span>
+				<span className="block text-sm font-normal opacity-70">
+					{query.data > 0 ? "Te devem" : "Você deve"}
+				</span>
+			</>
+		);
+	}
+	return <span>{formatter.format(query.data)}</span>;
 }

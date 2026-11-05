@@ -46,13 +46,20 @@ On the user's machine add `-c commit.gpgsign=false`. Cloud sessions keep their p
 - On the user's machine the agent is only ever a co-author: never set it as author/committer, and do not pass `--author` or override `user.name`/`user.email`. Cloud sessions already run with the agent's own Git identity preconfigured; leave it as is and still add the trailer.
 - Conventional Commits (`feat`, `fix`, `refactor`, `docs`, `style`, `chore`) scoped by package (`feat(frontend)`, `fix(backend)`).
 - Atomic: one commit = one coherent, revertible change. Revert formatter edits outside your change. Prefer several small commits.
-- Adjustments to something just delivered amend or rebase instead of adding noise.
+- Always split hunks: when a file already has uncommitted changes you did not make, stage only your own hunks (`git add -p`, or `git apply --cached` with a filtered patch) and commit just those. Never bundle the user's work-in-progress into your commit; leave it unstaged.
+- Adjustments to something just delivered amend or rebase instead of adding noise, but only while the commits are still local. Never amend, rebase, reset or otherwise rewrite a commit that was already pushed (it exists on a remote branch, e.g. `git branch -r --contains <sha>` is non-empty); add a new commit on top instead.
 - Validation is hook-driven (`.githooks/pre-commit` → lint-staged → `scripts/validate-staged.ts`). Do not run format/lint/type-check as manual pre-commit steps; fix hook failures at the root cause and commit again. Never bypass with `--no-verify` or `LEFTHOOK=0`.
 - Never run type-checkers by hand (`tsc`, `npx tsc`, `bunx tsc`, `bun check`, `turbo run check-types`) to "verify" before committing, nor linters or formatters outside the hook: the pre-commit hook already runs them on exactly what you staged, and every extra run competes for CPU with the hooks of other concurrent sessions, slowing all commits. Commit, let the hook report errors, fix them and commit again. Only run one yourself when the user explicitly asks, or for the pre-PR/pre-merge check below.
 
 ## Agent changes
 
-Any change related to agents (instructions, skills, hooks or configuration) must support at least **Codex and Claude Code**. Keep shared behavior in agent-neutral sources and wire it into both agents; do not implement it for only one. Apply the corresponding change to the template at `/home/hyoretsu/Projects/ts-monorepo` and to the global instructions for both agents in the same task. In the template, put cross-project directives only in the root `AGENTS.md`, not in package-level guidelines. The template is the source of truth when shared rules diverge; preserve each project's actual domain and stack specifics.
+Any change related to agents (instructions, skills, hooks or configuration) must support at least **Codex and Claude Code**. Keep shared behavior in agent-neutral sources and wire it into both agents; do not implement it for only one. Apply corresponding shared behavior to the template at `/home/hyoretsu/Projects/ts-monorepo` and keep the global instructions for both agents aligned in the same task. Guideline-file edits are restricted to the template and global instructions, as specified below. In the template, put cross-project directives only in the root `AGENTS.md`, not in package-level guidelines. The template is the source of truth when shared rules diverge; preserve each project's actual domain and stack specifics.
+
+## Template change propagation
+
+- The template is `~/Projects/ts-monorepo`. For every requested template change, read `~/Projects/template-sync.txt` and propagate the completed change to each listed project in the same task, unless the user explicitly limits the scope. The file is a local, newline-separated list of project directory paths; ignore blank lines, expand a leading `~/`, and resolve relative paths against `~/Projects`. Deduplicate resolved paths and skip the template itself. Never execute file contents as shell commands. An empty file means no downstream projects; report a missing file or invalid project path rather than silently claiming propagation succeeded.
+- Adapt the change to each project's actual stack and domain; do not blindly copy template files or overwrite branding, configuration, unrelated work or project-specific behavior. Read each project's instructions first. Use an isolated task worktree per repository, validate under its own rules, commit only the propagated change with the local Git identity and agent co-author, and integrate it back into that project's original branch. Do not push or perform remote operations. Report each project's commit or any blocker; do not claim the task fully propagated while a target remains blocked.
+- **`AGENTS.md` files are always propagated; `CLAUDE.md` is never kept in projects.** Agent guideline files follow the same propagation as everything else: sync the template's root `AGENTS.md` and nested `AGENTS.md` files and delete any `CLAUDE.md` in the template and in every listed project (only the global `~/.claude/CLAUDE.md` stays) to every listed project, adapting only project-specific domain, stack and branding content, which each project keeps. The shared global instructions at `~/.agents/AGENTS.md` (used by both Codex and Claude Code) stay aligned with the template's cross-project directives, preserving global-only context.
 
 ## Plans
 
@@ -100,3 +107,11 @@ Not repeated elsewhere:
 
 - `bun run lint` (see `eslint.config.mjs`) fails on: `React.` namespace/`import * as React`, `<input type="number|checkbox|date|datetime-local|month|week">`, native `<select>`, `alert`/`confirm`, `t.Intersect`.
 - Edits to generated files (`frontend/src/lib/api/generated/`, `backend/generated/`, `frontend/src-tauri/gen/`, `packages/sql/out/`, `*.gen.ts`) are blocked before they happen by `scripts/agent-hooks/block-generated-edits.ts`, wired for Claude Code in `.claude/settings.json` and for Codex in `.codex/hooks.json`. Regenerate instead (`backend-endpoint-sdk` skill, frontend build). Keep both configs pointing at the same script.
+
+## Documentation follows implementation
+
+Shared rules describe invariants; repository-specific sections describe the actual stack and exceptions. Keep business rules in `docs/business-rules.md` and engineering rules in `docs/engineering-rules.md`.
+
+## Development guides
+
+Find development guides under `docs/development/` and read those applicable to the change; keep discovery links here when adding new ones. CD setup and release operations: [continuous delivery guide](docs/development/cd.md).

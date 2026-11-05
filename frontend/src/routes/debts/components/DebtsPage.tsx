@@ -25,7 +25,12 @@ import { showToast } from "@/stores";
 const formatTotals = (
 	rows: { currency: string; iOwe: number; net: number; owedToMe: number }[],
 	field: "net" | "iOwe" | "owedToMe",
-) => <PreferredMoneyAmount values={rows.map(row => ({ amount: row[field], currency: row.currency }))} />;
+) => (
+	<PreferredMoneyAmount
+		debt={field === "net" ? "plural" : undefined}
+		values={rows.map(row => ({ amount: row[field], currency: row.currency }))}
+	/>
+);
 export function DebtsPage() {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
@@ -127,34 +132,40 @@ export function DebtsPage() {
 		);
 
 	return (
-		<main className="mx-auto min-h-screen w-full max-w-5xl overflow-x-clip bg-background pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:py-10">
+		<main className="bg-background mx-auto min-h-screen w-full max-w-5xl overflow-x-clip pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:py-10">
 			<div className="px-4">{pageHeader}</div>
 			<QueryRefreshStatus
 				error={ledger.isError}
 				onRetry={() => ledger.refetch()}
 				pending={ledger.isFetching}
 			/>
-			<section className="mx-4 min-w-0 rounded-3xl bg-gradient-to-br from-primary to-primary/75 p-5 text-primary-foreground shadow-lg sm:p-6 lg:p-8">
+			<section className="from-primary to-primary/75 text-primary-foreground mx-4 min-w-0 rounded-3xl bg-gradient-to-br p-5 shadow-lg sm:p-6 lg:p-8">
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<p className="text-primary-foreground/70 text-sm">Saldo líquido</p>
-						<p className="font-bold text-3xl sm:text-4xl">
+						<p className="text-3xl font-bold sm:text-4xl">
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
-									{ currency: "BRL", ...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }) },
+									{
+										currency: "BRL",
+										...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }),
+									},
 								],
 								"net",
 							)}
 						</p>
 					</div>
 				</div>
-				<div className="mt-6 grid grid-cols-2 gap-4 border-primary-foreground/20 border-t pt-4">
+				<div className="border-primary-foreground/20 mt-6 grid grid-cols-2 gap-4 border-t pt-4">
 					<div>
 						<p className="text-primary-foreground/70 text-sm">A receber</p>
-						<strong>
+						<strong className="text-emerald-900">
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
-									{ currency: "BRL", ...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }) },
+									{
+										currency: "BRL",
+										...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }),
+									},
 								],
 								"owedToMe",
 							)}
@@ -162,10 +173,13 @@ export function DebtsPage() {
 					</div>
 					<div className="text-right">
 						<p className="text-primary-foreground/70 text-sm">A pagar</p>
-						<strong>
+						<strong className="text-rose-900">
 							{formatTotals(
 								ledger.data?.totalsByCurrency ?? [
-									{ currency: "BRL", ...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }) },
+									{
+										currency: "BRL",
+										...(ledger.data?.totals ?? { iOwe: 0, net: 0, owedToMe: 0 }),
+									},
 								],
 								"iOwe",
 							)}
@@ -194,8 +208,8 @@ export function DebtsPage() {
 						/>
 					))
 				) : (
-					<div className="rounded-2xl border bg-card py-12 text-center">
-						<LuUsersRound className="mx-auto size-10 text-muted-foreground" />
+					<div className="bg-card rounded-2xl border py-12 text-center">
+						<LuUsersRound className="text-muted-foreground mx-auto size-10" />
 						<p className="mt-3 font-semibold">Nenhuma dívida cadastrada</p>
 						<p className="text-muted-foreground text-sm">
 							Adicione um lançamento ou vincule uma movimentação.
@@ -239,7 +253,9 @@ export function DebtsPage() {
 						}
 					}}
 					onSaved={refresh}
-					onSubmit={draft => dataService.debts.updateOrigin(editing.event.id, draft).then(() => undefined)}
+					onSubmit={draft =>
+						dataService.debts.updateOrigin(editing.event.id, draft).then(() => undefined)
+					}
 					open
 					pending={!!pending[`${identity}:debt-event:${editing.event.id}`]}
 				/>
@@ -257,8 +273,13 @@ export function DebtsPage() {
 					onSubmit={async draft => {
 						const person = editingPerson;
 						const accountEmail = draft.accountEmail.trim().toLowerCase();
-						const current = (await dataService.debts.getLedger()).people.find(row => row.id === person.id);
-						if (current?.name !== draft.name.trim() || (current?.accountEmail ?? "") !== accountEmail)
+						const current = (await dataService.debts.getLedger()).people.find(
+							row => row.id === person.id,
+						);
+						if (
+							current?.name !== draft.name.trim() ||
+							(current?.accountEmail ?? "") !== accountEmail
+						)
 							await dataService.debts.updatePerson(person.id, {
 								accountEmail: accountEmail || null,
 								name: draft.name.trim(),

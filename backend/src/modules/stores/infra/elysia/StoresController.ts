@@ -5,7 +5,65 @@ import { normalizeStoreName } from "~/modules/stores/domain/normalize-store-name
 import { catalogFilterHash, catalogPage, decodeCatalogCursor } from "~/shared/application/catalog-pagination";
 import { HttpException } from "~/shared/errors";
 import { distributedCache } from "~/shared/infra/cache";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryRows } from "~/shared/infra/sql";
+
+const textCodec = "pg/text@1";
+const boolCodec = "pg/bool@1";
+
+/**
+ * Store catalog page rows for one user. Ownership, projection and limit use the typed builder; only the
+ * PostgreSQL-specific capabilities the builder lacks (public.normalize_search, strpos, COLLATE "C") are
+ * expressed as typed, fully parameterized raw expressions. Order and cursor are byte-wise ("C") on (name, id).
+ */
+export const listStoreRows = (
+	userId: string,
+	search: string,
+	cursor: { id: string; name: string } | undefined,
+	rowLimit: number,
+) =>
+	queryRows(
+		db.sql.public.Store.select("id", "name", "userId")
+			.where((fields, functions) => {
+				const cName = functions.raw`${fields.name} COLLATE "C"`.returns(textCodec);
+				const cId = functions.raw`${fields.id} COLLATE "C"`.returns(textCodec);
+				return functions.and(
+					functions.eq(fields.userId, userId),
+					functions.raw`strpos(public.normalize_search(${fields.name}), public.normalize_search(${search})) > 0`.returns(
+						boolCodec,
+					),
+					...(cursor
+						? [
+								functions.or(
+									functions.gt(
+										cName,
+										functions.raw`${cursor.name}::text COLLATE "C"`.returns(textCodec),
+									),
+									functions.and(
+										functions.eq(
+											cName,
+											functions.raw`${cursor.name}::text COLLATE "C"`.returns(
+												textCodec,
+											),
+										),
+										functions.gt(
+											cId,
+											functions.raw`${cursor.id}::text COLLATE "C"`.returns(textCodec),
+										),
+									),
+								),
+							]
+						: []),
+				);
+			})
+			.orderBy((fields, functions) => functions.raw`${fields.name} COLLATE "C"`.returns(textCodec), {
+				direction: "asc",
+			})
+			.orderBy((fields, functions) => functions.raw`${fields.id} COLLATE "C"`.returns(textCodec), {
+				direction: "asc",
+			})
+			.limit(rowLimit)
+			.build(),
+	);
 
 export const StoresController = new Elysia({ prefix: "/stores" })
 	.get(
@@ -21,14 +79,7 @@ export const StoresController = new Elysia({ prefix: "/stores" })
 				"stores:list",
 				{ cursor: query.cursor, limit, search, version: 2 },
 				async () => {
-					const rows = await queryRaw<{ id: string; name: string; userId: string }>(
-						`SELECT "id", "name", "userId" FROM "public"."Store"
-					 WHERE "userId" = $1
-					 AND strpos(public.normalize_search("name"), public.normalize_search($2)) > 0
-					 AND ($3::text IS NULL OR ("name" COLLATE "C", "id" COLLATE "C") > ($3::text COLLATE "C", $4::text COLLATE "C"))
-					 ORDER BY "name" COLLATE "C", "id" COLLATE "C" LIMIT $5`,
-						[userId, search, cursor?.name ?? null, cursor?.id ?? null, limit + 1],
-					);
+					const rows = await listStoreRows(userId, search, cursor ?? undefined, limit + 1);
 					return catalogPage(rows, limit, hash);
 				},
 			);

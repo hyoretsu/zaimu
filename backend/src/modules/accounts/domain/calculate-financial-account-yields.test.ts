@@ -30,7 +30,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 	const account = {
 		createdAt: new Date("2026-01-05T12:00:00"),
 		id: "account",
-		type: "CHECKING",
+		type: "INVESTMENT",
 		yieldFixedRate: 10,
 		yieldPeriod: "MONTHLY" as const,
 	};
@@ -318,6 +318,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 							yieldPeriod: "YEARLY",
 						},
 					],
+					type: "CHECKING",
 					yieldFixedRate: null,
 					yieldPeriod: null,
 				},
@@ -335,7 +336,7 @@ describe("calculateFinancialAccountYieldBalances", () => {
 			],
 		});
 		const expected = 15_000 + 10_000 * (1.1 ** (1 / 252) - 1) + 5_000 * (1.2 ** (1 / 252) - 1);
-		expect(balances.get("account")).toBeCloseTo(expected, 4);
+		expect(balances.get("account")).toBeCloseTo(expected, 2);
 	});
 
 	test("prefers the account rule over the institution policy", () => {
@@ -406,7 +407,7 @@ test("combined IOF and IR with net compounding and original contribution age", (
 	const account = {
 		createdAt: new Date("2025-01-01T12:00:00Z"),
 		id: "taxed",
-		type: "CHECKING",
+		type: "INVESTMENT",
 		yieldFixedRate: 21,
 		yieldPeriod: "MONTHLY" as const,
 		yieldTaxIds: ["ir", "iof"],
@@ -430,7 +431,7 @@ test("combined IOF and IR with net compounding and original contribution age", (
 test("same-day withdrawal and replacement deposit restart only replacement contribution", () => {
 	const snapshots = new Map<string, import("@zaimu/finance/yield-tax").YieldLot[]>();
 	calculateFinancialAccountYieldBalances({
-		accounts: [{ createdAt: new Date("2025-01-01"), id: "a", type: "CHECKING" }],
+		accounts: [{ createdAt: new Date("2025-01-01"), id: "a", type: "INVESTMENT" }],
 		cashbackCredits: [],
 		holidays: [],
 		initialRewardsBalances: new Map(),
@@ -442,7 +443,7 @@ test("same-day withdrawal and replacement deposit restart only replacement contr
 			{ amount: 100, date: new Date("2025-02-01"), destinationFinancialAccountId: "a", id: "3" },
 		],
 	});
-	expect(snapshots.get("a")).toEqual([{ balance: 100, date: "2025-02-01" }]);
+	expect(snapshots.get("a")).toEqual([{ balance: 100, date: "2025-02-01", principal: 100 }]);
 });
 
 test("unavailable calendar keeps automatic fixed yield pending but preserves recorded adjustments", () => {
@@ -452,7 +453,7 @@ test("unavailable calendar keeps automatic fixed yield pending but preserves rec
 				countryCode: "BR",
 				createdAt: new Date("2026-01-05T12:00:00"),
 				id: "a",
-				type: "CHECKING",
+				type: "INVESTMENT",
 				yieldFixedRate: 10,
 				yieldPeriod: "MONTHLY" as const,
 			},
@@ -488,7 +489,12 @@ test("calendar correction preserves a user adjusted automatic yield on the new h
 	expect(
 		calculateFinancialAccountYieldBalances({
 			accounts: [
-				{ countryCode: "BR", createdAt: new Date("2026-01-05T12:00:00"), id: "a", type: "CHECKING" },
+				{
+					countryCode: "BR",
+					createdAt: new Date("2026-01-05T12:00:00"),
+					id: "a",
+					type: "INVESTMENT",
+				},
 			],
 			cashbackCredits: [],
 			holidays: [],
@@ -517,7 +523,7 @@ test("frozen legacy calendar preserves derived history while ambiguous future co
 		createdAt: new Date("2026-01-05T12:00:00"),
 		id: "legacy",
 		legacyYieldCalendar: { holidays: ["2026-01-06"], throughDate: "2026-01-07" },
-		type: "CHECKING",
+		type: "INVESTMENT",
 		yieldFixedRate: 10,
 		yieldPeriod: "MONTHLY" as const,
 	};
@@ -544,7 +550,7 @@ test("same-day transfer starts earning on the next eligible day", () => {
 			{
 				createdAt: new Date("2026-09-26T12:00:00"),
 				id: "savings",
-				type: "SAVINGS",
+				type: "INVESTMENT",
 				yieldFixedRate: 10,
 				yieldPeriod: "MONTHLY" as const,
 			},
@@ -578,7 +584,7 @@ for (const day of ["2026-01-05", "2026-01-10"]) {
 				{
 					createdAt: date,
 					id: "account",
-					type: "CHECKING",
+					type: "INVESTMENT",
 					yieldFixedRate: 10,
 					yieldPeriod: "MONTHLY",
 				},
@@ -629,7 +635,7 @@ for (const size of [10, 10000, 100000]) {
 			origin: "USER",
 		}));
 		const balance = calculateFinancialAccountYieldBalances({
-			accounts: [{ createdAt: new Date("2026-01-01T12:00:00Z"), id: "indexed", type: "CHECKING" }],
+			accounts: [{ createdAt: new Date("2026-01-01T12:00:00Z"), id: "indexed", type: "INVESTMENT" }],
 			cashbackCredits: [],
 			holidays: [],
 			initialRewardsBalances: new Map(),
@@ -654,7 +660,7 @@ for (const [day, expected] of [
 ] as const) {
 	test(`daily yield index preserves excluded duplicate precedence on ${day}`, () => {
 		const common = {
-			accounts: [{ createdAt: new Date("2026-01-09T12:00:00Z"), id: "indexed", type: "CHECKING" }],
+			accounts: [{ createdAt: new Date("2026-01-09T12:00:00Z"), id: "indexed", type: "INVESTMENT" }],
 			cashbackCredits: [],
 			holidays: [],
 			initialRewardsBalances: new Map<string, number>(),
@@ -729,3 +735,78 @@ for (const [day, expected] of [
 		).toBe(103.3);
 	});
 }
+
+test("bases a day's yield snapshot on the opening balance, ignoring same-day withdrawals", () => {
+	const snapshots = new Map<string, import("@zaimu/finance/yield-tax").YieldLot[]>();
+	calculateFinancialAccountYieldBalances({
+		accounts: [
+			{
+				createdAt: new Date("2026-01-01T12:00:00"),
+				id: "account",
+				type: "SAVINGS",
+				yieldFixedRate: 10,
+				yieldPeriod: "MONTHLY" as const,
+			},
+		],
+		beforeYieldDay: "2026-01-06",
+		cashbackCredits: [],
+		holidays: [],
+		initialRewardsBalances: new Map(),
+		lotSnapshots: snapshots,
+		today: new Date("2026-01-06T12:00:00"),
+		transactions: [
+			{
+				amount: 100,
+				date: new Date("2026-01-02T12:00:00"),
+				destinationFinancialAccountId: "account",
+			},
+			{
+				amount: 40,
+				date: new Date("2026-01-06T12:00:00"),
+				originFinancialAccountId: "account",
+			},
+		],
+	});
+
+	const opening = (snapshots.get("account") ?? []).reduce((sum, lot) => sum + lot.balance, 0);
+	expect(opening).toBeGreaterThanOrEqual(100);
+});
+
+describe("daily yield is credited in whole cents on checking and savings", () => {
+	const base = {
+		cashbackCredits: [],
+		holidays: [],
+		initialRewardsBalances: new Map(),
+		today: new Date("2026-01-06T12:00:00"),
+		transactions: [
+			{
+				amount: 381.5,
+				date: new Date("2026-01-02T12:00:00"),
+				destinationFinancialAccountId: "account",
+			},
+		],
+	};
+	const account = {
+		createdAt: new Date("2026-01-01T12:00:00"),
+		id: "account",
+		yieldFixedRate: 10,
+		yieldPeriod: "YEARLY" as const,
+	};
+
+	for (const type of ["CHECKING", "SAVINGS"])
+		test(`rounds the ${type} daily net yield to cents and compounds the rounded value`, () => {
+			const balance = calculateFinancialAccountYieldBalances({
+				...base,
+				accounts: [{ ...account, type }],
+			}).get("account")!;
+			expect(Math.round(balance * 100) / 100).toBe(balance);
+		});
+
+	test("keeps full precision on other account types", () => {
+		const balance = calculateFinancialAccountYieldBalances({
+			...base,
+			accounts: [{ ...account, type: "INVESTMENT" }],
+		}).get("account")!;
+		expect(Math.round(balance * 100) / 100).not.toBe(balance);
+	});
+});

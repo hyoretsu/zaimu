@@ -13,6 +13,7 @@ import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/a
 import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
 import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
+import { userFinancialDate } from "~/shared/application/financial-date";
 import {
 	decodePaginationCursor,
 	encodePaginationCursor,
@@ -23,11 +24,13 @@ import { distributedCache } from "~/shared/infra/cache";
 import {
 	db,
 	executeStatement,
+	nullableNumeric,
 	queryFirst,
 	queryRaw,
 	queryRows,
 	withRawTransaction,
 } from "~/shared/infra/sql";
+import { loanPaymentTotals } from "../../application/loan-contracts";
 import { decodePaymentCursor, paymentFilterHash, paymentPage } from "./loan-payment-pagination";
 import { LoanContractsController } from "./LoanContractsController";
 import { LoanPaymentPageReturn, LoanPaymentReturn } from "./LoansDTO";
@@ -182,7 +185,7 @@ function calculateEarlyPayoff(
 	};
 }
 
-const LegacyLoansController = new Elysia({ prefix: "/loans" })
+const LegacyLoansController = new Elysia({ detail: { tags: ["Loans"] }, prefix: "/loans" })
 	.get(
 		"/",
 		async ({ request, set }) => {
@@ -294,8 +297,18 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 									functions.eq(fields.loanId, params.id),
 									...(cursor
 										? [
-												functions.raw`(${fields.installmentNumber}, ${fields.id}) > (${cursor.installmentNumber}, ${cursor.id})`.returns(
-													"pg/bool@1",
+												functions.or(
+													functions.gt(
+														fields.installmentNumber,
+														cursor.installmentNumber,
+													),
+													functions.and(
+														functions.eq(
+															fields.installmentNumber,
+															cursor.installmentNumber,
+														),
+														functions.gt(fields.id, cursor.id),
+													),
 												),
 											]
 										: []),
@@ -313,9 +326,9 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 								payment.accountAmount === null ? null : Number(payment.accountAmount),
 							advanceType: payment.advanceType as "FRONT" | "BACK" | null,
 							createdAt: payment.createdAt.toISOString(),
-							dueDate: payment.dueDate.toISOString(),
+							dueDate: new Date(payment.dueDate).toISOString(),
 							interestPaid: Number(payment.interestPaid),
-							paidDate: payment.paidDate?.toISOString() ?? null,
+							paidDate: payment.paidDate ? new Date(payment.paidDate).toISOString() : null,
 							principalPaid: Number(payment.principalPaid),
 							totalPaid: Number(payment.totalPaid),
 							updatedAt: payment.updatedAt.toISOString(),
@@ -356,13 +369,7 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 				throw new HttpException("Loan not found", 404);
 			}
 
-			const [paidPaymentCount] = await queryRaw<{ count: string; principal: string; interest: string }>(
-				`SELECT COUNT(*) FILTER (WHERE "paidDate" IS NOT NULL) AS "count",
- COALESCE(SUM("principalPaid") FILTER (WHERE "paidDate" IS NULL), 0) AS "principal",
- COALESCE(SUM("interestPaid") FILTER (WHERE "paidDate" IS NULL), 0) AS "interest"
- FROM "public"."LoanPayment" WHERE "loanId" = $1`,
-				[params.id],
-			);
+			const paidPaymentCount = await loanPaymentTotals(params.id);
 			const paidInstallments = Number(paidPaymentCount?.count ?? 0);
 
 			const targetDate = query.targetDate ? new Date(query.targetDate) : new Date();
@@ -431,13 +438,13 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 							currency,
 							description: body.description,
 							dueDay: body.dueDay,
-							firstDueDate: new Date(body.firstDueDate),
+							firstDueDate: body.firstDueDate,
 							installmentAmount: String(installmentAmount),
 							institutionId: body.institutionId,
 							interestRate: String(body.interestRate),
 							lender: body.lender,
 							principalAmount: String(body.principalAmount),
-							startDate: new Date(body.startDate),
+							startDate: body.startDate,
 							totalInstallments: body.totalInstallments,
 							userId,
 						},
@@ -449,7 +456,7 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 
 				const paymentEntries = schedule.map(inst => ({
 					currency,
-					dueDate: inst.dueDate,
+					dueDate: inst.dueDate.toISOString().slice(0, 10),
 					installmentNumber: inst.installmentNumber,
 					interestPaid: String(inst.interest),
 					loanId: loan.id,
@@ -506,9 +513,9 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 				accountAmount: payment.accountAmount === null ? null : Number(payment.accountAmount),
 				advanceType: payment.advanceType as "FRONT" | "BACK" | null,
 				createdAt: payment.createdAt.toISOString(),
-				dueDate: payment.dueDate.toISOString(),
+				dueDate: new Date(payment.dueDate).toISOString(),
 				interestPaid: Number(payment.interestPaid),
-				paidDate: payment.paidDate?.toISOString() ?? null,
+				paidDate: payment.paidDate ? new Date(payment.paidDate).toISOString() : null,
 				principalPaid: Number(payment.principalPaid),
 				totalPaid: Number(payment.totalPaid),
 				updatedAt: payment.updatedAt.toISOString(),
@@ -528,13 +535,18 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 			const userId = await requireUserId(request);
 			return withRawTransaction(async () => {
 				await assertDirectOwnership("Loan", params.id, userId);
-				await queryRaw(`SELECT "id" FROM "Loan" WHERE "id" = $1 AND "userId" = $2 FOR UPDATE`, [
-					params.id,
-					userId,
-				]);
-				const [versioned] = await queryRaw<{ contractBook: unknown }>(
-					'SELECT "contractBook" FROM "Loan" WHERE "id"=$1',
-					[params.id],
+				await queryRows(
+					db.sql.public.Loan.select("id")
+						.where((fields, ops) =>
+							ops.and(ops.eq(fields.id, params.id), ops.eq(fields.userId, userId)),
+						)
+						.forUpdate()
+						.build(),
+				);
+				const versioned = await queryFirst(
+					db.sql.public.Loan.select("contractBook")
+						.where((fields, ops) => ops.eq(fields.id, params.id))
+						.build(),
 				);
 				if (versioned?.contractBook)
 					throw new HttpException("Use os pagamentos do contrato atualizado", 409);
@@ -560,7 +572,12 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 					throw new HttpException("Payment already made", 400);
 				}
 
-				const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
+				const paidDateKey = body.paidDate
+					? new Date(body.paidDate).toISOString().slice(0, 10)
+					: await userFinancialDate(userId);
+				const paidDate = body.paidDate
+					? new Date(body.paidDate)
+					: new Date(`${paidDateKey}T00:00:00`);
 				const accountCurrency = body.financialAccountId
 					? await financialAccountCurrency(body.financialAccountId)
 					: null;
@@ -569,16 +586,16 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 					payment.currency,
 					accountCurrency,
 					body.accountAmount,
-					(from, to) => getCurrencyRate(paidDate.toISOString().slice(0, 10), from, to),
+					(from, to) => getCurrencyRate(paidDateKey, from, to),
 				);
 				const updatedPayment = await queryFirst(
 					db.sql.public.LoanPayment.update({
-						accountAmount: accountAmount === null ? null : String(accountAmount),
+						accountAmount: nullableNumeric(accountAmount),
 						accountCurrency,
 						advanceType: body.advanceType,
 						financialAccountId: body.financialAccountId,
 						isAdvanced: body.isAdvanced ?? false,
-						paidDate,
+						paidDate: paidDateKey,
 						updatedAt: new Date(),
 					})
 						.where((fields, functions) => functions.eq(fields.id, payment.id))
@@ -624,13 +641,18 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 			const userId = await requireUserId(request);
 			return withRawTransaction(async () => {
 				await assertDirectOwnership("Loan", params.id, userId);
-				await queryRaw(`SELECT "id" FROM "Loan" WHERE "id" = $1 AND "userId" = $2 FOR UPDATE`, [
-					params.id,
-					userId,
-				]);
-				const [versioned] = await queryRaw<{ contractBook: unknown }>(
-					'SELECT "contractBook" FROM "Loan" WHERE "id"=$1',
-					[params.id],
+				await queryRows(
+					db.sql.public.Loan.select("id")
+						.where((fields, ops) =>
+							ops.and(ops.eq(fields.id, params.id), ops.eq(fields.userId, userId)),
+						)
+						.forUpdate()
+						.build(),
+				);
+				const versioned = await queryFirst(
+					db.sql.public.Loan.select("contractBook")
+						.where((fields, ops) => ops.eq(fields.id, params.id))
+						.build(),
 				);
 				if (versioned?.contractBook)
 					throw new HttpException("Use os pagamentos do contrato atualizado", 409);
@@ -670,7 +692,12 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 				}
 
 				// Mark installments as paid with advance
-				const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
+				const paidDateKey = body.paidDate
+					? new Date(body.paidDate).toISOString().slice(0, 10)
+					: await userFinancialDate(userId);
+				const paidDate = body.paidDate
+					? new Date(body.paidDate)
+					: new Date(`${paidDateKey}T00:00:00`);
 
 				const accountCurrency = body.financialAccountId
 					? await financialAccountCurrency(body.financialAccountId)
@@ -680,17 +707,17 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 					loan.currency,
 					accountCurrency,
 					body.accountAmount,
-					(from, to) => getCurrencyRate(paidDate.toISOString().slice(0, 10), from, to),
+					(from, to) => getCurrencyRate(paidDateKey, from, to),
 				);
 				for (const [index, payment] of unpaidPayments.entries())
 					await executeStatement(
 						db.sql.public.LoanPayment.update({
-							accountAmount: amounts[index] === null ? null : String(amounts[index]),
+							accountAmount: nullableNumeric(amounts[index]),
 							accountCurrency,
 							advanceType: body.advanceType,
 							financialAccountId: body.financialAccountId,
 							isAdvanced: true,
-							paidDate,
+							paidDate: paidDateKey,
 							updatedAt: new Date(),
 						})
 							.where((fields, functions) => functions.eq(fields.id, payment.id))
@@ -761,8 +788,18 @@ const LegacyLoansController = new Elysia({ prefix: "/loans" })
 									functions.eq(fields.loanId, params.id),
 									...(cursor
 										? [
-												functions.raw`(${fields.changedAt}, ${fields.id}) < (${cursor.changedAt}::timestamp, ${cursor.id})`.returns(
-													"pg/bool@1",
+												functions.or(
+													functions.lt(
+														fields.changedAt,
+														new Date(cursor.changedAt),
+													),
+													functions.and(
+														functions.eq(
+															fields.changedAt,
+															new Date(cursor.changedAt),
+														),
+														functions.lt(fields.id, cursor.id),
+													),
 												),
 											]
 										: []),

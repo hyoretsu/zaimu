@@ -1,5 +1,6 @@
 import type {
 	InstitutionYieldPolicy,
+	YieldAccountType,
 	YieldPeriod,
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { db, queryRows } from "~/shared/infra/sql";
@@ -11,6 +12,7 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 		db.sql.public.FinancialInstitutionYieldPolicy.select(
 			"id",
 			"financialInstitutionId",
+			"accountType",
 			"currency",
 			"profileId",
 			"countryCode",
@@ -20,6 +22,8 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			"yieldPeriod",
 			"yieldTaxIds",
 			"yieldTaxRate",
+			"yieldTaxMode",
+			"yieldTaxModes",
 		)
 			.where((fields, functions) => functions.in(fields.financialInstitutionId, institutionIds))
 			.orderBy("effectiveDate", { direction: "asc" })
@@ -54,10 +58,11 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 	for (const policy of policies) {
 		const institutionPolicies = policiesByInstitutionId.get(policy.financialInstitutionId) ?? [];
 		institutionPolicies.push({
+			accountType: policy.accountType as YieldAccountType | null,
 			countryCode: policy.countryCode,
 			currency: policy.currency,
-			effectiveDate: policy.effectiveDate,
-			effectiveUntil: policy.effectiveUntil,
+			effectiveDate: new Date(policy.effectiveDate),
+			effectiveUntil: policy.effectiveUntil === null ? null : new Date(policy.effectiveUntil),
 			profileId: policy.profileId,
 			rules: (rulesByPolicyId.get(policy.id) ?? []).map(rule => ({
 				upToBalance: rule.upToBalance === null ? null : Number(rule.upToBalance),
@@ -69,6 +74,8 @@ export async function getFinancialInstitutionYieldPolicies(institutionIds: strin
 			status: policy.status as "APPROVED" | "PENDING" | "REJECTED",
 			yieldPeriod: policy.yieldPeriod as null | YieldPeriod,
 			yieldTaxIds: policy.yieldTaxIds as string[] | null,
+			yieldTaxMode: policy.yieldTaxMode as "DAILY" | "ON_REDEMPTION",
+			yieldTaxModes: policy.yieldTaxModes as null | Record<string, "DAILY" | "ON_REDEMPTION">,
 			yieldTaxRate: policy.yieldTaxRate === null ? null : Number(policy.yieldTaxRate),
 		});
 		policiesByInstitutionId.set(policy.financialInstitutionId, institutionPolicies);

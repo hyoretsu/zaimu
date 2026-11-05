@@ -5,7 +5,7 @@ import {
 	resolveFinancialMoney,
 } from "~/modules/currencies/application/financial-money";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
-import { queryRaw } from "~/shared/infra/sql";
+import { nullableNumeric, numeric, queryRaw } from "~/shared/infra/sql";
 import type { ImportItemToApprove } from "./import-service";
 export async function importedMoney(
 	item: Pick<
@@ -54,11 +54,11 @@ export async function importedMoney(
 		bookingCurrency: currency,
 		conversionSource: sides.conversionSource,
 		currency: sourceCurrency,
-		destinationAmount: sides.destinationAmount === null ? null : String(sides.destinationAmount),
+		destinationAmount: nullableNumeric(sides.destinationAmount),
 		destinationCurrency: sides.destinationCurrency,
-		exchangeRate: String(money.amount / originalAmount),
-		originalAmount: String(originalAmount),
-		paymentAmount: sides.paymentAmount === null ? null : String(sides.paymentAmount),
+		exchangeRate: numeric(money.amount / originalAmount),
+		originalAmount: numeric(originalAmount),
+		paymentAmount: nullableNumeric(sides.paymentAmount),
 		paymentCurrency: sides.paymentCurrency,
 	};
 }

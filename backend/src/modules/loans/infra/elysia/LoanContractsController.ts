@@ -14,8 +14,16 @@ import { Elysia, t } from "elysia";
 import { assertBalanceAccountOwnership, requireUserId } from "~/modules/auth";
 import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
 import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
+import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
-import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import {
+	db,
+	executeStatement,
+	queryFirst,
+	queryRaw,
+	queryRows,
+	withRawTransaction,
+} from "~/shared/infra/sql";
 import {
 	insertLoanBook,
 	loadLoanBook,
@@ -50,7 +58,7 @@ const booking = async (
 	);
 	return { accountAmount: accountAmount ?? null, accountCurrency, accountId: body.accountId, id: body.id };
 };
-export const LoanContractsController = new Elysia({ prefix: "/loans" })
+export const LoanContractsController = new Elysia({ detail: { tags: ["Loans"] }, prefix: "/loans" })
 	.get(
 		"/planner/context",
 		async ({ request, query }) => loanPlannerContext(await requireUserId(request), query.currency),
@@ -70,10 +78,23 @@ export const LoanContractsController = new Elysia({ prefix: "/loans" })
 	)
 	.get(
 		"/scenarios",
-		async ({ request }) =>
-			queryRaw('SELECT * FROM "LoanScenario" WHERE "userId"=$1 ORDER BY "updatedAt" DESC', [
-				await requireUserId(request),
-			]),
+		async ({ request }) => {
+			const userId = await requireUserId(request);
+			return queryRows(
+				db.sql.public.LoanScenario.select(
+					"id",
+					"userId",
+					"name",
+					"parameters",
+					"summary",
+					"createdAt",
+					"updatedAt",
+				)
+					.where((fields, ops) => ops.eq(fields.userId, userId))
+					.orderBy("updatedAt", { direction: "desc" })
+					.build(),
+			);
+		},
 		{
 			response: t.Array(
 				t.Object({
@@ -119,10 +140,14 @@ export const LoanContractsController = new Elysia({ prefix: "/loans" })
 	.delete(
 		"/scenarios/:id",
 		async ({ request, params }) => {
-			await queryRaw('DELETE FROM "LoanScenario" WHERE "id"=$1 AND "userId"=$2', [
-				params.id,
-				await requireUserId(request),
-			]);
+			const userId = await requireUserId(request);
+			await executeStatement(
+				db.sql.public.LoanScenario.delete()
+					.where((fields, ops) =>
+						ops.and(ops.eq(fields.id, params.id), ops.eq(fields.userId, userId)),
+					)
+					.build(),
+			);
 			return { success: true };
 		},
 		{ params: Params, response: t.Object({ success: t.Boolean() }) },
@@ -153,30 +178,43 @@ export const LoanContractsController = new Elysia({ prefix: "/loans" })
 					if (currency !== body.terms.currency)
 						throw new HttpException("Crédito recebido exige conta na moeda do contrato", 400);
 					const id = crypto.randomUUID();
-					await queryRaw(
-						`INSERT INTO "Transaction" ("id","userId","type","amount","date","destinationFinancialAccountId","bookingCurrency","description","updatedAt") VALUES ($1,$2,'INCOME',$3,$4::date,$5,$6,$7,NOW())`,
-						[
-							id,
-							userId,
-							body.terms.principalAmount,
-							body.terms.startDate,
-							body.disbursementAccountId,
-							currency,
-							"Crédito de empréstimo",
-						],
+					await executeStatement(
+						db.sql.public.Transaction.insert([
+							{
+								amount: String(body.terms.principalAmount),
+								bookingCurrency: currency,
+								date: body.terms.startDate,
+								description: "Crédito de empréstimo",
+								destinationFinancialAccountId: body.disbursementAccountId,
+								id,
+								type: "INCOME",
+								updatedAt: new Date(),
+								userId,
+							},
+						]).build(),
 					);
 					book.disbursementTransactionId = id;
 					await saveLoanBook(userId, book);
+					await enqueueAccountYieldRecalculation(
+						body.disbursementAccountId,
+						new Date(`${body.terms.startDate}T00:00:00`),
+						`transaction:${id}`,
+					);
 				}
 				if (body.disbursementTransactionId) {
-					const [transaction] = await queryRaw<{ id: string }>(
-						`SELECT "id" FROM "Transaction" WHERE "id"=$1 AND "userId"=$2 AND "type"='INCOME' AND "bookingCurrency"=$3 AND "amount"=$4 FOR UPDATE`,
-						[
-							body.disbursementTransactionId,
-							userId,
-							body.terms.currency,
-							body.terms.principalAmount,
-						],
+					const transaction = await queryFirst(
+						db.sql.public.Transaction.select("id")
+							.where((fields, ops) =>
+								ops.and(
+									ops.eq(fields.id, body.disbursementTransactionId!),
+									ops.eq(fields.userId, userId),
+									ops.eq(fields.type, "INCOME"),
+									ops.eq(fields.bookingCurrency, body.terms.currency),
+									ops.eq(fields.amount, String(body.terms.principalAmount)),
+								),
+							)
+							.forUpdate()
+							.build(),
 					);
 					if (!transaction) throw new HttpException("Crédito recebido incompatível", 400);
 					const [linked] = await queryRaw(

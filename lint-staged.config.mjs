@@ -7,6 +7,8 @@ const isIgnoredFile = filename => {
 		path.startsWith(".agents/") ||
 		path.startsWith(".claude/") ||
 		path.startsWith("frontend/src-tauri/gen/") ||
+		// Applied migration manifests, scripts and snapshots are immutable; tooling must never rewrite them.
+		path.startsWith("packages/sql/migrations/") ||
 		path === "skills-lock.json" ||
 		path.endsWith(".gen.ts")
 	);

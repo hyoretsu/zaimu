@@ -43,40 +43,47 @@ describe("universal institution review and calendar coverage", () => {
 		);
 	});
 	afterAll(() => closeDatabase());
-	test("new profiles require approval and preserve the standard profile", async () => {
+	test("admin profiles are created directly and preserve the standard profile", async () => {
 		const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
 			name: "Profile bank",
 		});
-		const proposal = await proposeInstitution("admin", institution.institutionId, "PROFILE", {
+		const created = await proposeInstitution("admin", institution.institutionId, "PROFILE", {
 			name: "  Premium  ",
 		});
-		expect(proposal.status).toBe("PENDING");
-		expect(
-			await queryRaw(
-				`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND "name"='Premium'`,
-				[institution.institutionId],
-			),
-		).toHaveLength(0);
-		await reviewInstitutionProposal("admin", proposal.id, "APPROVE");
+		expect(created.status).toBe("APPROVED");
 		const profiles = await queryRaw(
 			`SELECT * FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1`,
 			[institution.institutionId],
 		);
 		expect(profiles.find(profile => profile.isDefault)?.name).toBe("Padrão");
 		expect(profiles.find(profile => profile.name === "Premium")?.isDefault).toBe(false);
-		const duplicate = await proposeInstitution("admin", institution.institutionId, "PROFILE", {
-			name: "premium",
+		await expect(
+			proposeInstitution("admin", institution.institutionId, "PROFILE", { name: "premium" }),
+		).rejects.toThrow("Já existe");
+	});
+	test("user profile suggestions stay pending until an admin approves them", async () => {
+		const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
+			name: "User profile bank",
 		});
-		await expect(reviewInstitutionProposal("admin", duplicate.id, "APPROVE")).rejects.toThrow(
-			"Já existe",
-		);
+		const proposal = await proposeInstitution("owner", institution.institutionId, "PROFILE", {
+			name: "Gold",
+		});
+		expect(proposal.status).toBe("PENDING");
+		const read = () =>
+			queryRaw(
+				`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND "name"='Gold'`,
+				[institution.institutionId],
+			);
+		expect(await read()).toHaveLength(0);
+		await reviewInstitutionProposal("admin", proposal.id, "APPROVE");
+		expect(await read()).toHaveLength(1);
 	});
 	test("card rule suggestions stay pending until an admin approves them", async () => {
 		const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
 			name: "Card rules bank",
 		});
 		const rules = { ...defaultCardRules, workingDueDate: true };
-		const proposal = await proposeInstitution("admin", institution.institutionId, "CARD_RULES", {
+		const proposal = await proposeInstitution("owner", institution.institutionId, "CARD_RULES", {
 			rules,
 		});
 		expect(proposal.status).toBe("PENDING");
@@ -114,7 +121,6 @@ describe("universal institution review and calendar coverage", () => {
 			},
 			"2026-01-01",
 		);
-		await reviewInstitutionProposal("admin", legacy.id, "APPROVE");
 		for (const rate of [2, 3]) {
 			const next = await proposeInstitution(
 				"admin",
@@ -128,7 +134,6 @@ describe("universal institution review and calendar coverage", () => {
 				},
 				"2026-02-01",
 			);
-			await reviewInstitutionProposal("admin", next.id, "APPROVE");
 		}
 		const policies = await queryRaw(
 			`SELECT "currency", "effectiveDate" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 ORDER BY "effectiveDate"`,

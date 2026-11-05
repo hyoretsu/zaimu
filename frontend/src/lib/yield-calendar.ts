@@ -35,7 +35,7 @@ export function holidayDatesForCurrency(calendar: YieldCalendar, currency: strin
 }
 export async function fetchYieldCalendar(): Promise<YieldCalendar> {
 	const { getYieldCalendar } = await import("./api");
-	const response = await getYieldCalendar({ authenticated: false });
+	const response = await getYieldCalendar({ ...{ authenticated: false } }).then(result => result.data);
 	const calendar = {
 		countries: response.countries.map(({ code, name }) => ({ code, name })),
 		coverage: response.coverage ?? [],
@@ -73,7 +73,8 @@ export function accountCalendarCovered(
 	for (let year = from.getFullYear(); year <= through.getFullYear(); year++) {
 		if (
 			!calendar.coverage?.some(
-				row => row.countryCode === account.countryCode && row.year === year && row.status === "COMPLETE",
+				row =>
+					row.countryCode === account.countryCode && row.year === year && row.status === "COMPLETE",
 			)
 		)
 			return false;

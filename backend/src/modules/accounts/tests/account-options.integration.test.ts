@@ -1,10 +1,19 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { Client } from "pg";
-import { closeDatabase, getQueryMetrics, queryRaw, withQueryMetrics } from "sql";
+import {
+	closeDatabase,
+	db,
+	getQueryMetrics,
+	nullableNumeric,
+	queryRaw,
+	queryRows,
+	withQueryMetrics,
+} from "sql";
 import contract from "../../../../../packages/sql/out/prisma/contract.json";
 import { installContractFixture } from "../../../../../packages/sql/tests/contract-fixture";
 import { requireFixtureUrl } from "../../../../../scripts/testing/fixture";
 import { financialAccountContextSql } from "../application/financial-account-context-sql";
+import { getFinancialInstitutionYieldPolicies } from "../application/get-financial-institution-yield-policies";
 import { listFinancialAccountOptions } from "../application/list-financial-account-options";
 
 const url = requireFixtureUrl("DATABASE_TEST_URL");
@@ -60,4 +69,66 @@ test("full context resolves only owned accounts and never exposes internal plann
 			expect(row.account).not.toHaveProperty("balance");
 		}
 	});
+});
+
+// ORM-origin DATE values historically reached domain code as UTC-midnight Dates.
+// Keep that boundary stable even when the application's local calendar day differs.
+test("builder DATE writes and policy domain dates remain stable in UTC and non-UTC zones", async () => {
+	await queryRaw(
+		`INSERT INTO "FinancialInstitution" (id,name,"normalizedName",currency) VALUES ('date-policy-institution','Date policy institution','date-policy-institution','BRL')`,
+	);
+	const previousTimezone = process.env.TZ;
+	try {
+		for (const [index, timezone] of ["UTC", "America/Sao_Paulo"].entries()) {
+			process.env.TZ = timezone;
+			const id = `date-policy-${index}`;
+			const [written] = await queryRows(
+				db.sql.public.FinancialInstitutionYieldPolicy.insert([
+					{
+						countryCode: null,
+						currency: "BRL",
+						effectiveDate: "2026-03-01",
+						effectiveUntil: "2026-03-31",
+						financialInstitutionId: "date-policy-institution",
+						id,
+						profileId: null,
+						yieldTaxRate: nullableNumeric<5, 2>(null),
+					},
+				])
+					.returning("id", "effectiveDate", "effectiveUntil", "yieldTaxRate", "profileId")
+					.build(),
+			);
+			expect(written).toMatchObject({
+				effectiveDate: "2026-03-01",
+				effectiveUntil: "2026-03-31",
+				profileId: null,
+				yieldTaxRate: null,
+			});
+			const policies = await getFinancialInstitutionYieldPolicies(["date-policy-institution"]);
+			const policy = policies.get("date-policy-institution")?.[0];
+			expect(policy?.effectiveDate.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+			expect(
+				policy?.effectiveUntil == null ? null : new Date(policy.effectiveUntil).toISOString(),
+			).toBe("2026-03-31T00:00:00.000Z");
+			expect(policy?.yieldTaxRate).toBeNull();
+			const [cleared] = await queryRows(
+				db.sql.public.FinancialInstitutionYieldPolicy.update({ effectiveUntil: null })
+					.where((f, fn) => fn.eq(f.id, id))
+					.returning("effectiveUntil")
+					.build(),
+			);
+			expect(cleared?.effectiveUntil).toBeNull();
+			const clearedPolicies = await getFinancialInstitutionYieldPolicies(["date-policy-institution"]);
+			expect(clearedPolicies.get("date-policy-institution")?.[0]?.effectiveUntil).toBeNull();
+			await queryRows(
+				db.sql.public.FinancialInstitutionYieldPolicy.delete()
+					.where((f, fn) => fn.eq(f.id, id))
+					.returning("id")
+					.build(),
+			);
+		}
+	} finally {
+		if (previousTimezone === undefined) delete process.env.TZ;
+		else process.env.TZ = previousTimezone;
+	}
 });

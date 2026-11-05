@@ -5,6 +5,7 @@ import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/a
 import type { YieldAccount } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
 import {
+	accountFirstBalanceDate,
 	enqueueAccountYieldRecalculation,
 	loadYieldAccount,
 } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -21,6 +22,12 @@ export const HistoricalYieldCustomSettings = t.Object({
 	),
 	yieldTaxIds: t.Optional(
 		t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20, uniqueItems: true }),
+	),
+	yieldTaxMode: t.Optional(t.Nullable(t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]))),
+	yieldTaxModes: t.Optional(
+		t.Nullable(
+			t.Record(t.String({ maxLength: 36 }), t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+		),
 	),
 	yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 });
@@ -76,23 +83,29 @@ export async function recalculateHistoricalAccountYields(
 			assertFinancialAccountYieldSettings({ ...customSettings, type: account.type });
 			await assertTaxSelection(customSettings.yieldTaxIds, account.yieldTaxIds ?? [], new Date());
 		}
-		const settings = selectHistoricalYieldSettings(account, throughDate, profileId, customSettings);
+		// Without an explicit choice, a configured profile history wins over freezing today's rule.
+		const useProfileHistory =
+			!profileId && !customSettings && Boolean(account.institutionProfileChanges?.length);
+		const settings = useProfileHistory
+			? null
+			: selectHistoricalYieldSettings(account, throughDate, profileId, customSettings);
 		await query(
 			`UPDATE "FinancialAccount" SET "historicalYieldSettings"=$2::jsonb, "updatedAt"=NOW() WHERE "id"=$1`,
-			[accountId, JSON.stringify({ settings, throughDate })],
+			[accountId, settings ? JSON.stringify({ settings, throughDate }) : null],
 		);
+		const referenceRules = settings
+			? "rules" in settings
+				? settings.rules
+				: [settings]
+			: (account.institutionYieldPolicies ?? []).flatMap(policy => policy.rules);
 		const referenceTypes = [
 			...new Set(
-				"rules" in settings
-					? settings.rules.flatMap(rule =>
-							rule.yieldReferenceType ? [rule.yieldReferenceType] : [],
-						)
-					: settings.yieldReferenceType
-						? [settings.yieldReferenceType]
-						: [],
+				referenceRules.flatMap(rule => (rule.yieldReferenceType ? [rule.yieldReferenceType] : [])),
 			),
 		];
-		const collectionWindow = historicalYieldCollectionWindow(account.createdAt, now);
+		const firstBalance = await accountFirstBalanceDate(accountId);
+		if (!firstBalance) return { success: true as const };
+		const collectionWindow = historicalYieldCollectionWindow(firstBalance, now);
 		if (referenceTypes.length && collectionWindow)
 			await requestHistoryCollection(
 				"INTEREST",
@@ -101,11 +114,7 @@ export async function recalculateHistoricalAccountYields(
 				undefined,
 				collectionWindow,
 			);
-		await enqueueAccountYieldRecalculation(
-			accountId,
-			account.createdAt,
-			`historical:${crypto.randomUUID()}`,
-		);
+		await enqueueAccountYieldRecalculation(accountId, firstBalance, `historical:${crypto.randomUUID()}`);
 		return { success: true as const };
 	});
 }

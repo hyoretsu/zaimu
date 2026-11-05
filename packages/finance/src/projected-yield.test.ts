@@ -37,7 +37,7 @@ test("projection respects dated institution tiers", () => {
 		],
 		yieldReferenceType: null,
 	};
-	expect(projectedNetYield(tiered, 1000, "2026-10-05", { CDI: 0.05 })).toBeCloseTo(0.375);
+	expect(projectedNetYield(tiered, 1000, "2026-10-05", { CDI: 0.05 })).toBe(0.38);
 });
 
 test("projection excludes today's contributions from gross yield and taxes", () => {

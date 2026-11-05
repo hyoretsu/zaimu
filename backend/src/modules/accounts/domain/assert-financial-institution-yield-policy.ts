@@ -14,6 +14,8 @@ export function assertFinancialInstitutionYieldPolicy({
 	yieldPeriod?: null | YieldPeriod;
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }) {
 	if (rules.length === 0) {
 		if (yieldPeriod || yieldTaxIds?.length || (yieldTaxRate !== null && yieldTaxRate !== undefined))

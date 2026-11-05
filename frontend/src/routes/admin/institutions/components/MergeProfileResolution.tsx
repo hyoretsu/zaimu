@@ -5,10 +5,7 @@ import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
-import {
-	getFinancialInstitutionsByIdProfiles,
-	getFinancialInstitutionsReviewProposalsByIdProfileHistory,
-} from "@/lib/api";
+import { getFinancialInstitutionsByIdProfiles } from "@/lib/api";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 export interface ProfileResolution {
@@ -30,25 +27,17 @@ export function MergeProfileResolution({
 	const [profile, setProfile] = useState<string>();
 	const [date, setDate] = useState(new Date().toLocaleDateString("sv-SE"));
 	const profiles = useQuery({
-		queryFn: () => getFinancialInstitutionsByIdProfiles(targetId),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfiles({ path: { id: targetId } }).then(result => result.data),
 		queryKey: ["merge-profiles", identity, targetId],
-	});
-	const history = useQuery({
-		queryFn: () => getFinancialInstitutionsReviewProposalsByIdProfileHistory(proposalId, { targetId }),
-		queryKey: ["merge-history", identity, proposalId, targetId],
 	});
 	return (
 		<div className="grid gap-3 rounded-xl border p-3">
 			<h4 className="font-semibold">Resolução explícita do histórico</h4>
 			<p className="text-muted-foreground text-sm">
-				Históricos anteriores ficam na auditoria. Escolha mudanças do vínculo final; Padrão vale antes da
-				primeira mudança.
+				Históricos anteriores ficam na auditoria. Escolha mudanças do vínculo final; Padrão vale antes
+				da primeira mudança.
 			</p>
-			{history.data?.map((change, index) => (
-				<p className="text-sm" key={`${change.institutionId}:${index}`}>
-					{change.effectiveDate.slice(0, 10)} - {change.name}
-				</p>
-			))}
 			<CustomSelect
 				label="Perfil final"
 				onValueChange={setProfile}
@@ -93,7 +82,8 @@ export function MergeProfileResolution({
 			</ActionGroup>
 			{value?.map(change => (
 				<p className="text-sm" key={change.effectiveDate}>
-					Final: {change.effectiveDate} - {profiles.data?.find(item => item.id === change.profileId)?.name}
+					Final: {change.effectiveDate} -{" "}
+					{profiles.data?.find(item => item.id === change.profileId)?.name}
 				</p>
 			))}
 			{value && !value.length && <p className="text-sm">Final: Padrão em todo o período.</p>}

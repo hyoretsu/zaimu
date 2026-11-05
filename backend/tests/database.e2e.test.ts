@@ -9,10 +9,10 @@ interface Server {
 }
 
 let server: Server;
-let db: typeof import("sql")["db"];
+let db: (typeof import("sql"))["db"];
 let closeDatabase: () => Promise<void>;
-let executeStatement: typeof import("sql")["executeStatement"];
-let queryRows: typeof import("sql")["queryRows"];
+let executeStatement: (typeof import("sql"))["executeStatement"];
+let queryRows: (typeof import("sql"))["queryRows"];
 const userIds: string[] = [];
 
 const jsonRequest = (path: string, method: string, body?: unknown, cookie?: string) =>
@@ -52,7 +52,10 @@ async function loadLedger(response: Response, cookie: string): Promise<TestLedge
 				cookie,
 			);
 			if (pageResponse.status !== 200) throw new Error(`Debt page failed: ${pageResponse.status}`);
-			const page = (await pageResponse.json()) as { items: typeof person.events; nextCursor: string | null };
+			const page = (await pageResponse.json()) as {
+				items: typeof person.events;
+				nextCursor: string | null;
+			};
 			person.events.push(...page.items);
 			cursor = page.nextCursor;
 		} while (cursor);
@@ -72,6 +75,7 @@ const createSession = async (label: string, preferredCurrency?: string) => {
 
 	const user = await db.orm.public.User.where(fields => fields.email.eq(email as never)).update({
 		emailVerified: true,
+		preferredCountry: "BR" as never,
 		...(preferredCurrency ? { preferredCurrency: preferredCurrency as never } : {}),
 	});
 	const userId = user?.id;
@@ -95,6 +99,45 @@ suite("Prisma 8 SQL query builder", () => {
 	});
 
 	afterAll(async () => {
+		if (userIds.length > 0) {
+			// Profiles and proposals reference users/institutions with RESTRICT, so remove owned ones first.
+			const ownedInstitutions = await queryRows(
+				db.sql.public.FinancialInstitution.select("id")
+					.where((fields, functions) => functions.in(fields.userId, userIds))
+					.build(),
+			);
+			const ownedInstitutionIds = ownedInstitutions.map(row => row.id);
+			if (ownedInstitutionIds.length > 0) {
+				const ownedProfiles = await queryRows(
+					db.sql.public.FinancialInstitutionProfile.select("id")
+						.where((fields, functions) => functions.in(fields.institutionId, ownedInstitutionIds))
+						.build(),
+				);
+				const ownedProfileIds = ownedProfiles.map(row => row.id);
+				if (ownedProfileIds.length > 0) {
+					await executeStatement(
+						db.sql.public.UserInstitutionProfileChange.delete()
+							.where((fields, functions) => functions.in(fields.profileId, ownedProfileIds))
+							.build(),
+					);
+					await executeStatement(
+						db.sql.public.FinancialInstitutionYieldPolicy.delete()
+							.where((fields, functions) => functions.in(fields.profileId, ownedProfileIds))
+							.build(),
+					);
+					await executeStatement(
+						db.sql.public.FinancialInstitutionProfile.delete()
+							.where((fields, functions) => functions.in(fields.id, ownedProfileIds))
+							.build(),
+					);
+				}
+			}
+			await executeStatement(
+				db.sql.public.FinancialInstitutionProposal.delete()
+					.where((fields, functions) => functions.in(fields.authorId, userIds))
+					.build(),
+			);
+		}
 		if (userIds.length > 0)
 			await db.orm.public.User.where(fields => fields.id.in(userIds as never)).deleteAndCount();
 		await closeDatabase();
@@ -266,7 +309,11 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(recurringResponse.status).toBe(200);
-		const recurring = (await recurringResponse.json()) as { id: string; storeName: string; tagIds: string[] };
+		const recurring = (await recurringResponse.json()) as {
+			id: string;
+			storeName: string;
+			tagIds: string[];
+		};
 		expect(recurring.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
 		expect(recurring.storeName).toBe("Academia do bairro");
 
@@ -274,7 +321,12 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(recurrenceList.status).toBe(200);
 		const recurrenceSummaries = (await recurrenceList.json()) as Record<string, unknown>[];
 		expect(recurrenceSummaries.find(row => row.id === recurring.id)).not.toHaveProperty("debtSplit");
-		const recurrenceDetail = await jsonRequest(`/recurring/${recurring.id}`, "GET", undefined, owner.cookie);
+		const recurrenceDetail = await jsonRequest(
+			`/recurring/${recurring.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
 		expect(await recurrenceDetail.json()).toHaveProperty("debtSplit");
 
 		const recurringWithoutWeekdayResponse = await jsonRequest(
@@ -321,7 +373,9 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(hideTransactionResponse.status).toBe(200);
-		expect((await hideTransactionResponse.json()) as { isHidden: boolean }).toMatchObject({ isHidden: true });
+		expect((await hideTransactionResponse.json()) as { isHidden: boolean }).toMatchObject({
+			isHidden: true,
+		});
 		expect(
 			(
 				await jsonRequest(
@@ -367,7 +421,12 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(
 			((await updatedRecurringTransactionResponse.json()) as { tagIds: string[] }).tagIds.toSorted(),
 		).toEqual([category.id, secondCategory.id].toSorted());
-		const editedRecurrence = await jsonRequest(`/recurring/${recurring.id}`, "GET", undefined, owner.cookie);
+		const editedRecurrence = await jsonRequest(
+			`/recurring/${recurring.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
 		expect((await editedRecurrence.json()) as { tagIds: string[] }).toMatchObject({
 			tagIds: [secondCategory.id],
 		});
@@ -482,7 +541,10 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(salaryTransactionResponse.status).toBe(200);
-		const salaryTransaction = (await salaryTransactionResponse.json()) as { id: string; tagIds: string[] };
+		const salaryTransaction = (await salaryTransactionResponse.json()) as {
+			id: string;
+			tagIds: string[];
+		};
 		expect(salaryTransaction.tagIds).toEqual([category.id]);
 		const repeatedSalaryTransactionResponse = await jsonRequest(
 			"/transactions/",
@@ -573,21 +635,32 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(((await repeatedLinkedPurchaseResponse.json()) as Array<{ id: string }>)[0]?.id).toBe(
 			initialSubscriptionPurchase?.id,
 		);
-		const futureStatement = (
-			(await subscriptionStatementsResponse.json()) as { items: Array<{ id: string; isForecast?: boolean }> }
-		).items.find(statement => statement.isForecast);
-		expect(futureStatement).toBeDefined();
-		const futureStatementResponse = await jsonRequest(
-			`/credit-cards/${creditCardAccount.creditCard.id}/statements/${futureStatement!.id}`,
-			"GET",
-			undefined,
-			owner.cookie,
-		);
-		expect(futureStatementResponse.status).toBe(200);
-		expect(
-			((await futureStatementResponse.json()) as { purchases: Array<{ id: string; storeName: string }> })
-				.purchases,
-		).toEqual(
+		// The statement listing never shows statements that exist only because of recurring forecasts,
+		// so open the forecast statements of the next cycles directly by their deterministic ids.
+		// Only "found" (200) or "not a projected statement" (404) are acceptable; anything else fails.
+		const forecastPurchases: Array<{ id: string; storeName: string }> = [];
+		const horizon = new Date();
+		for (let offset = 0; offset <= 3; offset++) {
+			const statementDate = new Date(
+				Date.UTC(horizon.getUTCFullYear(), horizon.getUTCMonth() + offset, 10),
+			)
+				.toISOString()
+				.slice(0, 10);
+			const forecastResponse = await jsonRequest(
+				`/credit-cards/${creditCardAccount.creditCard.id}/statements/forecast-${creditCardAccount.creditCard.id}-${statementDate}`,
+				"GET",
+				undefined,
+				owner.cookie,
+			);
+			expect([200, 404]).toContain(forecastResponse.status);
+			if (forecastResponse.status !== 200) continue;
+			forecastPurchases.push(
+				...(
+					(await forecastResponse.json()) as { purchases: Array<{ id: string; storeName: string }> }
+				).purchases,
+			);
+		}
+		expect(forecastPurchases).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
 					isForecast: true,
@@ -622,7 +695,10 @@ suite("Prisma 8 SQL query builder", () => {
 					.build(),
 			),
 		).toHaveLength(1);
-		const today = new Date().toISOString().slice(0, 10);
+		// The app resolves "today" in the user's financial time zone (Brazil here), which differs from the UTC date
+		// for three hours every evening; deriving it the same way keeps this scenario independent of the clock.
+		const { financialDate } = await import("../src/shared/application/financial-date");
+		const today = financialDate(new Date(), "BR", null);
 		const dueTodaySubscriptionResponse = await jsonRequest(
 			"/recurring/",
 			"POST",
@@ -667,7 +743,7 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(dueTodayPurchases).toHaveLength(1);
 		expect(dueTodayPurchases[0]).toMatchObject({ storeName: "Loja da ocorrência atual" });
-		expect(dueTodayPurchases[0]?.recurrenceOccurrenceDate?.toISOString().slice(0, 10)).toBe(today);
+		expect(dueTodayPurchases[0]?.recurrenceOccurrenceDate?.slice(0, 10)).toBe(today);
 
 		const incomeResponse = await jsonRequest(
 			"/transactions/",
@@ -770,9 +846,9 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(
 			(await jsonRequest(`/transactions/${transfer.id}`, "DELETE", undefined, owner.cookie)).status,
 		).toBe(200);
-		expect((await jsonRequest(`/transactions/${expense.id}`, "DELETE", undefined, owner.cookie)).status).toBe(
-			200,
-		);
+		expect(
+			(await jsonRequest(`/transactions/${expense.id}`, "DELETE", undefined, owner.cookie)).status,
+		).toBe(200);
 
 		const cardAccountName = `Cartão ${crypto.randomUUID()}`;
 		const cardAccountResponse = await jsonRequest(
@@ -829,7 +905,12 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
 		expect(purchases[0]?.time).toStartWith("14:30");
 
-		const purchaseTransactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
+		const purchaseTransactionsResponse = await jsonRequest(
+			"/transactions/",
+			"GET",
+			undefined,
+			owner.cookie,
+		);
 		const purchaseTransactions = (
 			(await purchaseTransactionsResponse.json()) as {
 				days: Array<{
@@ -845,9 +926,9 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchaseTransactions.find(transaction => transaction.id === purchases[0]?.id)?.storeName).toBe(
 			"Livraria Central",
 		);
-		expect(purchaseTransactions.find(transaction => transaction.id === purchases[0]?.id)?.time).toStartWith(
-			"14:30",
-		);
+		expect(
+			purchaseTransactions.find(transaction => transaction.id === purchases[0]?.id)?.time,
+		).toStartWith("14:30");
 		expect(typeof purchases[0]?.totalAmount).toBe("number");
 		const statementsAfterInstallmentPurchase = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements`,
@@ -994,7 +1075,9 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(editedStatementPaymentResponse.status).toBe(200);
-		expect((await editedStatementPaymentResponse.json()) as { amount: number; time: string }).toMatchObject({
+		expect(
+			(await editedStatementPaymentResponse.json()) as { amount: number; time: string },
+		).toMatchObject({
 			amount: 40,
 			time: expect.stringMatching(/^20:15/),
 		});
@@ -1087,7 +1170,12 @@ suite("Prisma 8 SQL query builder", () => {
 		] as const;
 
 		for (const lifecycle of lifecycleCases) {
-			const createdResponse = await jsonRequest(`${lifecycle.path}/`, "POST", lifecycle.create, owner.cookie);
+			const createdResponse = await jsonRequest(
+				`${lifecycle.path}/`,
+				"POST",
+				lifecycle.create,
+				owner.cookie,
+			);
 			const created = (await createdResponse.json()) as Record<string, unknown> & { id: string };
 			expect(createdResponse.status).toBe(200);
 			expect(typeof created[lifecycle.numericField]).toBe("number");
@@ -1115,7 +1203,9 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const dashboard = await jsonRequest("/dashboard/", "GET", undefined, owner.cookie);
 		expect(dashboard.status).toBe(200);
-		expect((await dashboard.json()) as { accounts: Array<{ id: string; balance: number }> }).toMatchObject({
+		expect(
+			(await dashboard.json()) as { accounts: Array<{ id: string; balance: number }> },
+		).toMatchObject({
 			accounts: expect.arrayContaining([
 				expect.objectContaining({ balance: expect.any(Number), id: account.id }),
 			]),
@@ -1126,11 +1216,17 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		const beforeIncomeDeletionBalance = ((await beforeIncomeDeletion.json()) as { balance: number }).balance;
+		const beforeIncomeDeletionBalance = ((await beforeIncomeDeletion.json()) as { balance: number })
+			.balance;
 
 		const deletion = await jsonRequest(`/transactions/${income.id}`, "DELETE", undefined, owner.cookie);
 		expect(deletion.status).toBe(200);
-		const reversed = await jsonRequest(`/financial-accounts/${account.id}`, "GET", undefined, owner.cookie);
+		const reversed = await jsonRequest(
+			`/financial-accounts/${account.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
 		expect(((await reversed.json()) as { balance: number }).balance).toBeCloseTo(
 			beforeIncomeDeletionBalance - income.amount,
 			2,
@@ -1143,11 +1239,25 @@ suite("Prisma 8 SQL query builder", () => {
 			outsider.cookie,
 		);
 		const outsiderAccount = (await outsiderAccountResponse.json()) as { id: string };
+		// The sync transport requires complete account payloads (see SyncAccount in SyncDTO).
+		const syncAccount = (overrides: {
+			id: string;
+			name: string;
+			type: "CASH" | "CHECKING" | "SAVINGS";
+		}) => ({
+			balance: 0,
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+			userId: owner.userId,
+			...overrides,
+		});
 		const conflictSync = await jsonRequest(
 			"/sync/",
 			"POST",
 			{
-				financialAccounts: [{ id: outsiderAccount.id, name: "Tentativa indevida", type: "CHECKING" }],
+				financialAccounts: [
+					syncAccount({ id: outsiderAccount.id, name: "Tentativa indevida", type: "CHECKING" }),
+				],
 			},
 			owner.cookie,
 		);
@@ -1163,12 +1273,16 @@ suite("Prisma 8 SQL query builder", () => {
 			"POST",
 			{
 				financialAccounts: [
-					{ id: crypto.randomUUID(), name: `Offline A ${crypto.randomUUID()}`, type: "CASH" },
-					{
+					syncAccount({
+						id: crypto.randomUUID(),
+						name: `Offline A ${crypto.randomUUID()}`,
+						type: "CASH",
+					}),
+					syncAccount({
 						id: crypto.randomUUID(),
 						name: `Offline B ${crypto.randomUUID()}`,
 						type: "SAVINGS",
-					},
+					}),
 				],
 			},
 			owner.cookie,
@@ -1288,7 +1402,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const previewAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: "Conta do preview pendente", type: "CHECKING" },
+			{ currency: "USD", name: "Conta do preview pendente", type: "CHECKING" },
 			owner.cookie,
 		);
 		expect(previewAccountResponse.status).toBe(200);
@@ -1325,7 +1439,8 @@ suite("Prisma 8 SQL query builder", () => {
 			eventCount: 3,
 		});
 		expect(
-			(await jsonRequest(`/transactions/${previewTransaction.id}`, "DELETE", undefined, owner.cookie)).status,
+			(await jsonRequest(`/transactions/${previewTransaction.id}`, "DELETE", undefined, owner.cookie))
+				.status,
 		).toBe(200);
 		const restoredPreview = await jsonRequest(
 			`/debts/invitations/${invitation.id}/preview?limit=1`,
@@ -1342,7 +1457,12 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const privateLedger = await jsonRequest("/debts", "GET", undefined, peer.cookie);
 		expect((await privateLedger.json()) as { people: unknown[] }).toMatchObject({ people: [] });
-		const accept = await jsonRequest(`/debts/invitations/${invitation.id}/accept`, "POST", {}, peer.cookie);
+		const accept = await jsonRequest(
+			`/debts/invitations/${invitation.id}/accept`,
+			"POST",
+			{},
+			peer.cookie,
+		);
 		expect(accept.status).toBe(200);
 
 		interface Ledger {
@@ -1364,7 +1484,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const peerAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: `Conta dívida ${crypto.randomUUID()}`, type: "CHECKING" },
+			{ currency: "USD", name: `Conta dívida ${crypto.randomUUID()}`, type: "CHECKING" },
 			peer.cookie,
 		);
 		const peerAccount = (await peerAccountResponse.json()) as { id: string };
@@ -1393,9 +1513,9 @@ suite("Prisma 8 SQL query builder", () => {
 			await jsonRequest("/debts", "GET", undefined, owner.cookie),
 			owner.cookie,
 		);
-		expect(ledgerAfterPayment.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
-			100,
-		);
+		expect(
+			ledgerAfterPayment.people[0]?.balances.find(balance => balance.currency === "USD")?.amount,
+		).toBe(100);
 		const sharedPayment = ledgerAfterPayment.people[0]?.events.find(
 			event => event.amount === 50 && event.effect === -50,
 		);
@@ -1405,7 +1525,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const ownerAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: `Conta pareada ${crypto.randomUUID()}`, type: "CHECKING" },
+			{ currency: "USD", name: `Conta pareada ${crypto.randomUUID()}`, type: "CHECKING" },
 			owner.cookie,
 		);
 		const ownerAccount = (await ownerAccountResponse.json()) as { id: string };
@@ -1426,7 +1546,9 @@ suite("Prisma 8 SQL query builder", () => {
 			await jsonRequest("/debts", "GET", undefined, owner.cookie),
 			owner.cookie,
 		);
-		expect(ledgerAfterPair.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(100);
+		expect(ledgerAfterPair.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
+			100,
+		);
 		expect(ledgerAfterPair.people[0]?.events).toHaveLength(3);
 
 		const overpayment = await jsonRequest(
@@ -1454,18 +1576,19 @@ suite("Prisma 8 SQL query builder", () => {
 			await jsonRequest("/debts", "GET", undefined, peer.cookie),
 			peer.cookie,
 		);
-		expect(crossedOwnerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
-			-50,
-		);
-		expect(crossedPeerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
-			50,
-		);
+		expect(
+			crossedOwnerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount,
+		).toBe(-50);
+		expect(
+			crossedPeerLedger.people[0]?.balances.find(balance => balance.currency === "USD")?.amount,
+		).toBe(50);
 
 		const cardAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
 			{
 				creditCard: { creditLimit: 1000, dueDay: 20, statementDay: 10 },
+				currency: "USD",
 				name: `Cartão dívida ${crypto.randomUUID()}`,
 				type: "CREDIT_CARD",
 			},
@@ -1489,15 +1612,18 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(purchaseResponse.status).toBe(200);
-		const purchases = (await purchaseResponse.json()) as Array<{ currentInstallment: number; id: string }>;
+		const purchases = (await purchaseResponse.json()) as Array<{
+			currentInstallment: number;
+			id: string;
+		}>;
 		expect(purchases.map(purchase => purchase.currentInstallment).toSorted()).toEqual([1, 2, 3]);
 		const afterInstallments = await loadLedger(
 			await jsonRequest("/debts", "GET", undefined, owner.cookie),
 			owner.cookie,
 		);
-		expect(afterInstallments.people[0]?.balances.find(balance => balance.currency === "USD")?.amount).toBe(
-			40,
-		);
+		expect(
+			afterInstallments.people[0]?.balances.find(balance => balance.currency === "USD")?.amount,
+		).toBe(40);
 		expect(
 			afterInstallments.people[0]?.events.filter(event => event.amount === 90 && event.effect === 90),
 		).toEqual([expect.objectContaining({ description: "Mercado da esquina" })]);
@@ -1528,7 +1654,11 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(refundResponse.status).toBe(200);
-		const refund = (await refundResponse.json()) as { id: string; isRefund: boolean; statementId: string };
+		const refund = (await refundResponse.json()) as {
+			id: string;
+			isRefund: boolean;
+			statementId: string;
+		};
 		expect(refund.isRefund).toBe(true);
 		expect((await jsonRequest("/transactions/", "GET", undefined, owner.cookie)).status).toBe(200);
 		expect((await jsonRequest("/sync/", "POST", {}, owner.cookie)).status).toBe(200);
@@ -1635,14 +1765,16 @@ suite("Prisma 8 SQL query builder", () => {
 			).people,
 		).toHaveLength(0);
 
-		expect((await jsonRequest(`/transactions/${payment.id}`, "DELETE", undefined, peer.cookie)).status).toBe(
-			200,
-		);
+		expect(
+			(await jsonRequest(`/transactions/${payment.id}`, "DELETE", undefined, peer.cookie)).status,
+		).toBe(200);
 		const afterCreatorDeletion = await loadLedger(
 			await jsonRequest("/debts", "GET", undefined, owner.cookie),
 			owner.cookie,
 		);
-		expect(afterCreatorDeletion.people.find(person => person.id === ownerPerson.id)?.events).toHaveLength(3);
+		expect(afterCreatorDeletion.people.find(person => person.id === ownerPerson.id)?.events).toHaveLength(
+			3,
+		);
 		expect(
 			(await jsonRequest(`/debts/people/${ownerPerson.id}`, "DELETE", undefined, owner.cookie)).status,
 		).toBe(200);
@@ -1684,8 +1816,8 @@ suite("Prisma 8 SQL query builder", () => {
 		const denied = await jsonRequest("/sync", "POST", { debtEvents: [event] }, outsider.cookie);
 		expect(denied.status).toBe(200);
 		expect(
-			((await denied.json()) as { syncResults: { debtEvents: { errors: string[] } } }).syncResults.debtEvents
-				.errors.length,
+			((await denied.json()) as { syncResults: { debtEvents: { errors: string[] } } }).syncResults
+				.debtEvents.errors.length,
 		).toBe(1);
 		const unproved = await jsonRequest(
 			"/sync",
@@ -1796,7 +1928,8 @@ suite("Prisma 8 SQL query builder", () => {
 			).status,
 		).toBe(422);
 		expect(
-			(await jsonRequest("/sync/", "POST", { transactions: [{ categoryId: "old" }] }, owner.cookie)).status,
+			(await jsonRequest("/sync/", "POST", { transactions: [{ categoryId: "old" }] }, owner.cookie))
+				.status,
 		).toBe(422);
 	});
 });

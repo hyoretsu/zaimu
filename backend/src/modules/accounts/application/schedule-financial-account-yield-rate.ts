@@ -8,7 +8,7 @@ import {
 	nullableNumeric,
 	param,
 	queryFirst,
-	queryRaw,
+	queryRows,
 } from "~/shared/infra/sql";
 import type { YieldPeriod } from "../domain/calculate-financial-account-yields";
 
@@ -20,6 +20,8 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldReferencePercentage,
 	yieldReferenceType,
 	yieldTaxIds,
+	yieldTaxMode,
+	yieldTaxModes,
 	yieldTaxRate,
 }: {
 	effectiveDate: Date;
@@ -30,10 +32,13 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldReferenceType?: "CDI" | "SELIC" | "IPCA" | "TR" | null;
 	yieldTaxIds?: string[] | null;
 	yieldTaxRate?: null | number;
+	yieldTaxMode?: null | string;
+	yieldTaxModes?: unknown;
 }) {
-	const current = await queryRaw<{ yieldTaxIds: string[] }>(
-		`SELECT "yieldTaxIds" FROM "FinancialAccount" WHERE "id"=$1`,
-		[financialAccountId],
+	const current = await queryRows(
+		db.sql.public.FinancialAccount.select("yieldTaxIds")
+			.where((f, fn) => fn.eq(f.id, financialAccountId))
+			.build(),
 	);
 	await assertTaxSelection(
 		yieldTaxIds,
@@ -62,20 +67,22 @@ export async function scheduleFinancialAccountYieldRate({
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.financialAccountId, financialAccountId),
-					functions.eq(fields.effectiveDate, date),
+					functions.eq(fields.effectiveDate, format(date, "yyyy-MM-dd")),
 				),
 			)
 			.limit(1)
 			.build(),
 	);
 	const values = {
-		effectiveDate: date,
+		effectiveDate: format(date, "yyyy-MM-dd"),
 		updatedAt: new Date(),
 		yieldFixedRate: nullableNumeric<7, 4>(yieldFixedRate ?? null),
 		yieldPeriod: yieldPeriod ?? null,
 		yieldReferencePercentage: nullableNumeric<7, 4>(yieldReferencePercentage ?? null),
 		yieldReferenceType: yieldReferenceType ?? null,
 		yieldTaxIds: yieldTaxIds ?? [],
+		yieldTaxMode: (yieldTaxMode ?? "DAILY") as "DAILY" | "ON_REDEMPTION",
+		yieldTaxModes: (yieldTaxModes ?? null) as never,
 		yieldTaxRate: nullableNumeric<5, 2>(yieldTaxRate ?? null),
 	};
 	if (existing) {

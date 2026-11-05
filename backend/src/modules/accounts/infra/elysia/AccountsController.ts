@@ -1,6 +1,6 @@
 import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
-import { startOfDay } from "date-fns";
+import { format } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
@@ -268,6 +268,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"yieldReferenceType",
 							"yieldTaxIds",
 							"yieldTaxRate",
+							"yieldTaxMode",
+							"yieldTaxModes",
 							"createdAt",
 							"updatedAt",
 						)
@@ -312,6 +314,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"yieldReferenceType",
 							"yieldTaxIds",
 							"yieldTaxRate",
+							"yieldTaxMode",
+							"yieldTaxModes",
 						)
 							.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
 							.orderBy("effectiveDate", { direction: "asc" })
@@ -435,6 +439,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					yieldReferencePercentage: body.yieldReferencePercentage,
 					yieldReferenceType: body.yieldReferenceType,
 					yieldTaxIds: body.yieldTaxIds,
+					yieldTaxMode: body.yieldTaxMode,
+					yieldTaxModes: body.yieldTaxModes,
 					yieldTaxRate: body.yieldTaxRate,
 				});
 				if (body.creditCard) {
@@ -528,6 +534,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 									yieldReferenceType: body.yieldReferenceType,
 								}),
 							...(body.yieldTaxIds !== undefined && { yieldTaxIds: body.yieldTaxIds ?? [] }),
+							...(body.yieldTaxMode && { yieldTaxMode: body.yieldTaxMode }),
+							...(body.yieldTaxModes !== undefined && {
+								yieldTaxModes: body.yieldTaxModes as never,
+							}),
 							...(body.yieldTaxRate !== undefined &&
 								body.yieldTaxRate !== null && { yieldTaxRate: String(body.yieldTaxRate) }),
 						},
@@ -546,6 +556,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"yieldReferenceType",
 							"yieldTaxIds",
 							"yieldTaxRate",
+							"yieldTaxMode",
+							"yieldTaxModes",
 							"createdAt",
 							"updatedAt",
 						)
@@ -567,6 +579,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						yieldReferencePercentage: body.yieldReferencePercentage,
 						yieldReferenceType: body.yieldReferenceType,
 						yieldTaxIds: body.yieldTaxIds,
+						yieldTaxMode: body.yieldTaxMode,
+						yieldTaxModes: body.yieldTaxModes,
 						yieldTaxRate: body.yieldTaxRate,
 					});
 				}
@@ -701,6 +715,17 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						}),
 					),
 				),
+				yieldTaxMode: t.Optional(
+					t.Nullable(t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+				),
+				yieldTaxModes: t.Optional(
+					t.Nullable(
+						t.Record(
+							t.String({ maxLength: 36 }),
+							t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]),
+						),
+					),
+				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { operationId: "postFinancialAccounts", tags: ["Accounts"] },
@@ -728,6 +753,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"yieldReferenceType",
 						"yieldTaxIds",
 						"yieldTaxRate",
+						"yieldTaxMode",
+						"yieldTaxModes",
 					)
 						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.limit(1)
@@ -807,6 +834,10 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					yieldTaxIds: (body.yieldTaxIds === undefined
 						? existing.yieldTaxIds
 						: body.yieldTaxIds) as string[] | null,
+					yieldTaxMode: body.yieldTaxMode === undefined ? existing.yieldTaxMode : body.yieldTaxMode,
+					yieldTaxModes: (body.yieldTaxModes === undefined
+						? existing.yieldTaxModes
+						: body.yieldTaxModes) as Record<string, string> | null,
 					yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 				});
 				const institution =
@@ -873,6 +904,10 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							yieldReferenceType: body.yieldReferenceType,
 						}),
 						...(body.yieldTaxIds !== undefined && { yieldTaxIds: body.yieldTaxIds ?? [] }),
+						...(body.yieldTaxMode && { yieldTaxMode: body.yieldTaxMode }),
+						...(body.yieldTaxModes !== undefined && {
+							yieldTaxModes: body.yieldTaxModes as never,
+						}),
 						...(body.yieldTaxRate !== undefined && {
 							yieldTaxRate: nullableNumeric<5, 2>(body.yieldTaxRate),
 						}),
@@ -896,6 +931,8 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							"yieldReferenceType",
 							"yieldTaxIds",
 							"yieldTaxRate",
+							"yieldTaxMode",
+							"yieldTaxModes",
 							"createdAt",
 							"updatedAt",
 						)
@@ -909,6 +946,8 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					body.yieldReferencePercentage !== undefined ||
 					body.yieldReferenceType !== undefined ||
 					body.yieldTaxIds !== undefined ||
+					body.yieldTaxMode !== undefined ||
+					body.yieldTaxModes !== undefined ||
 					body.yieldTaxRate !== undefined;
 				if (yieldChanged) {
 					await scheduleFinancialAccountYieldRate({
@@ -930,6 +969,11 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						yieldTaxIds: (body.yieldTaxIds === undefined
 							? existing.yieldTaxIds
 							: body.yieldTaxIds) as string[] | null,
+						yieldTaxMode:
+							body.yieldTaxMode === undefined ? existing.yieldTaxMode : body.yieldTaxMode,
+						yieldTaxModes: (body.yieldTaxModes === undefined
+							? existing.yieldTaxModes
+							: body.yieldTaxModes) as Record<string, string> | null,
 						yieldTaxRate:
 							body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 					});
@@ -939,7 +983,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.financialAccountId, account.id),
-										functions.eq(fields.date, startOfDay(new Date())),
+										functions.eq(fields.date, format(new Date(), "yyyy-MM-dd")),
 										functions.eq(fields.kind, "AUTOMATIC"),
 									),
 								)
@@ -1233,6 +1277,17 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							maxItems: 20,
 							uniqueItems: true,
 						}),
+					),
+				),
+				yieldTaxMode: t.Optional(
+					t.Nullable(t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
+				),
+				yieldTaxModes: t.Optional(
+					t.Nullable(
+						t.Record(
+							t.String({ maxLength: 36 }),
+							t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]),
+						),
 					),
 				),
 				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),

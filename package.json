@@ -47,6 +47,10 @@
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.68.0"
 	},
+	"overrides": {
+		"@prisma/orm-toolchain": "8.0.0-rc.22",
+		"@prisma/orm-framework": "8.0.0-rc.22"
+	},
 	"patchedDependencies": {
 		"better-auth@1.7.1": "patches/better-auth@1.7.1.patch",
 		"@better-auth/core@1.7.1": "patches/@better-auth%2Fcore@1.7.1.patch"

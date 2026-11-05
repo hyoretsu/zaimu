@@ -20,6 +20,7 @@ import { LoansController } from "./modules/loans/infra";
 import { MonthlyBudgetsController } from "./modules/monthly-budgets/infra/MonthlyBudgetsController";
 import { NotificationsController } from "./modules/notifications/NotificationsController";
 import { OpenFinanceController } from "./modules/open-finance/infra/OpenFinanceController";
+import { RealtimeController } from "./modules/realtime/infra/RealtimeController";
 import { RecurringController } from "./modules/recurring/infra";
 import { ReferenceRateController } from "./modules/reference-rates/infra/ReferenceRateController";
 import { StoresController } from "./modules/stores/infra";
@@ -59,6 +60,7 @@ export const server = app.use([
 	DashboardController,
 	SyncController,
 	UpgradeController,
+	RealtimeController,
 ]);
 
 server.use(createBatchController(request => server.handle(request), inheritAuthSession));

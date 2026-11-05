@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { executeRaw, queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { db, executeRaw, queryFirst, queryRaw, withRawTransaction } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 export const UpgradeDebtBody = t.Object({
@@ -33,18 +33,21 @@ export async function registerDebtUpgrade(userId: string, body: typeof UpgradeDe
 		const result: (typeof UpgradeDebtResult.static)[number][] = [];
 		for (const row of body.records) {
 			if (row.original.id !== row.originId) throw new Error("Origem antiga inconsistente");
-			const [person] = await queryRaw<{ userId: string }>('SELECT "userId" FROM "DebtPerson" WHERE "id"=$1', [
-				row.debtPersonId,
-			]);
+			const person = await queryFirst(
+				db.sql.public.DebtPerson.select("userId")
+					.where((fields, functions) => functions.eq(fields.id, row.debtPersonId))
+					.limit(1)
+					.build(),
+			);
 			if (person && person.userId !== userId) throw new Error("Pessoa pertence a outro proprietário");
-			const [origin] = await queryRaw<{
-				createdByUserId: string;
-				debtPersonId: string;
-				deletedAt: string | null;
-			}>('SELECT "createdByUserId","debtPersonId","deletedAt" FROM "DebtEvent" WHERE "id"=$1', [
-				row.originId,
-			]);
-			if (origin && origin.createdByUserId !== userId) throw new Error("Colisão de origem exige revisão");
+			const origin = await queryFirst(
+				db.sql.public.DebtEvent.select("createdByUserId", "debtPersonId", "deletedAt")
+					.where((fields, functions) => functions.eq(fields.id, row.originId))
+					.limit(1)
+					.build(),
+			);
+			if (origin && origin.createdByUserId !== userId)
+				throw new Error("Colisão de origem exige revisão");
 			const [archive] = await queryRaw<{ userId: string }>(
 				'SELECT "userId" FROM "ApplicationUpgradeArchive" WHERE "source"=\'Debt\' AND "recordId"=$1',
 				[row.originId],
@@ -62,7 +65,8 @@ export async function registerDebtUpgrade(userId: string, body: typeof UpgradeDe
 						[userId, debtPersonId, row.original.amount, effect, date],
 					);
 					if (matches.length > 1) throw new Error("Compensação ambígua exige revisão");
-					if (!matches.length) throw new Error("Compensação histórica indisponível; revisão necessária");
+					if (!matches.length)
+						throw new Error("Compensação histórica indisponível; revisão necessária");
 					id = matches[0]!.id;
 				}
 				const proof = {

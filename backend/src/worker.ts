@@ -9,6 +9,7 @@ import {
 	handleAccountYieldRecalculationCommand,
 	handleReferenceRateFetchCommand,
 } from "./modules/reference-rates/application/reference-rate-jobs";
+import { handleImportFile, recoverImportFiles } from "./modules/transaction-imports/application/jobs";
 import { namespacesForEvent } from "./shared/application/cache-invalidation";
 import type { EventEnvelope } from "./shared/application/events";
 import { publishScheduleMaterialization } from "./shared/application/schedule-materialization-command";
@@ -37,6 +38,7 @@ process.on("SIGTERM", shutdown);
 await broker.start();
 await broker.consume("cache-invalidation", event => cacheInvalidation.handle(event));
 await broker.consume("open-finance-sync", handleOpenFinanceSync);
+await broker.consume("import-file", event => handleImportFile(event as EventEnvelope<{ jobId: string }>));
 async function writeCommand(event: EventEnvelope, operation: () => Promise<unknown>, aggregateType: string) {
 	const rows = await queryRaw<{ userId: string }>(
 		`SELECT DISTINCT "userId" FROM "FinancialAccount" WHERE "type" <> 'CREDIT_CARD'`,
@@ -70,12 +72,14 @@ await enqueueDailyReferenceRateFetches();
 await enqueueDailyAccountYieldRecalculations();
 await deliverNotifications();
 await recoverOpenFinanceRuns();
+await recoverImportFiles();
 await recoverHistoryCollections();
 scheduleTimer = setInterval(() => {
 	Promise.all([
 		deliverNotifications(),
 		publishScheduleMaterialization(broker),
 		recoverOpenFinanceRuns(),
+		recoverImportFiles(),
 		recoverHistoryCollections(),
 		ensureReferenceRateBootstrapJobs(),
 		enqueueDailyReferenceRateFetches(),

@@ -1,4 +1,4 @@
-type RemoteMonthlyBudget = import("./api").GetMonthlyBudgetsQueryResponse[number];
+type RemoteMonthlyBudget = import("./api").GetMonthlyBudgetsResponse[number];
 export type MonthlyBudget = Omit<RemoteMonthlyBudget, "createdAt" | "updatedAt" | "deletedAt"> & {
 	createdAt?: string;
 	updatedAt?: string;

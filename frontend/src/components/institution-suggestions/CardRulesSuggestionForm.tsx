@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { defaultCardRules, type InstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { useState } from "react";
 import { LuSend } from "react-icons/lu";
@@ -16,28 +16,42 @@ import { useCacheIdentity } from "@/lib/query-cache";
 import { InstitutionCardRuleFields } from "@/routes/admin/institutions/components/InstitutionCardRuleFields";
 import { InstitutionPicker } from "./InstitutionPicker";
 
+export interface CardRulesSuggestionDraft {
+	institution: FinancialInstitution;
+	scope: string;
+	rules: InstitutionCardRules;
+}
+
 const INSTITUTION = "__institution__";
 
 function CardRulesDraft({
 	institution,
 	onClose,
+	recoveredCardRules,
 }: {
 	institution: FinancialInstitution;
 	onClose: () => void;
+	recoveredCardRules?: CardRulesSuggestionDraft;
 }) {
 	const identity = useCacheIdentity();
-	const [scope, setScope] = useState(INSTITUTION);
-	const [rules, setRules] = useState<InstitutionCardRules>(institution.creditCardRules ?? defaultCardRules);
+	const client = useQueryClient();
+	const [scope, setScope] = useState(recoveredCardRules?.scope ?? INSTITUTION);
+	const [rules, setRules] = useState<InstitutionCardRules>(
+		recoveredCardRules?.rules ?? institution.creditCardRules ?? defaultCardRules,
+	);
 	const conflictKey = `institution-suggestion:card-rules:${institution.id}`;
 	const pending = useModalRecoveryStore(state => !!state.pending[`${identity}:${conflictKey}`]);
 	const profiles = useQuery({
-		queryFn: () => getFinancialInstitutionsByIdProfiles(institution.id),
+		queryFn: () =>
+			getFinancialInstitutionsByIdProfiles({ path: { id: institution.id } }).then(
+				result => result.data,
+			),
 		queryKey: ["identity", identity, "institution-profiles", institution.id],
 	});
 	const choose = (id: string) => {
 		const selected = profiles.data?.find(profile => profile.id === id)?.creditCardRules;
 		setScope(id);
-		setRules(selected ?? institution.creditCardRules ?? defaultCardRules);
+		setRules(selected ?? recoveredCardRules?.rules ?? institution.creditCardRules ?? defaultCardRules);
 	};
 	const reward = rules.cashback;
 	const invalid =
@@ -69,12 +83,17 @@ function CardRulesDraft({
 					onClick={() => {
 						const draft = { profileId: scope === INSTITUTION ? undefined : scope, rules };
 						runBackgroundModalAction({
+							cache: { client, operations: ["institution"] },
 							close: onClose,
 							conflictKey,
 							failureMessage: "Não foi possível enviar a sugestão.",
 							loadingMessage: "Enviando sugestão...",
 							recovery: { entityId: institution.id, kind: conflictKey, payload: draft },
-							run: () => postFinancialInstitutionsByIdCardRulesProposal(institution.id, draft),
+							run: () =>
+								postFinancialInstitutionsByIdCardRulesProposal({
+									body: draft,
+									path: { id: institution.id },
+								}).then(result => result.data),
 							successMessage: "Regras de cartão sugeridas para revisão.",
 						});
 					}}
@@ -88,8 +107,16 @@ function CardRulesDraft({
 	);
 }
 
-export function CardRulesSuggestionForm({ onClose }: { onClose: () => void }) {
-	const [institution, setInstitution] = useState<FinancialInstitution>();
+export function CardRulesSuggestionForm({
+	onClose,
+	recoveredCardRules,
+}: {
+	onClose: () => void;
+	recoveredCardRules?: CardRulesSuggestionDraft;
+}) {
+	const [institution, setInstitution] = useState<FinancialInstitution | undefined>(
+		recoveredCardRules?.institution,
+	);
 	return (
 		<div className="grid gap-3">
 			<InstitutionPicker
@@ -98,7 +125,14 @@ export function CardRulesSuggestionForm({ onClose }: { onClose: () => void }) {
 				value={institution?.id}
 			/>
 			{institution && (
-				<CardRulesDraft institution={institution} key={institution.id} onClose={onClose} />
+				<CardRulesDraft
+					institution={institution}
+					key={institution.id}
+					onClose={onClose}
+					recoveredCardRules={
+						recoveredCardRules?.institution.id === institution.id ? recoveredCardRules : undefined
+					}
+				/>
 			)}
 		</div>
 	);

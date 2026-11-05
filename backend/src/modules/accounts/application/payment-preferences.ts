@@ -1,29 +1,56 @@
 import { HttpException } from "~/shared/errors";
-import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { db, executeStatement, param, queryRows, withRawTransaction } from "~/shared/infra/sql";
 import { accountDefaultEligibility } from "../domain/account-default-eligibility";
 
 export async function setPrimaryAccount(userId: string, accountId: string | null) {
-	return withRawTransaction(async query => {
-		await query(`SELECT "id" FROM "user" WHERE "id"=$1 FOR UPDATE`, [userId]);
+	return withRawTransaction(async () => {
+		await queryRows(
+			db.sql.public.user
+				.select("id")
+				.where((f, fn) => fn.eq(f.id, userId))
+				.forUpdate()
+				.build(),
+		);
 		if (accountId) {
-			const [account] = await query(
-				`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','CASH') AND NOT "isHidden"`,
-				[accountId, userId],
+			const [account] = await queryRows(
+				db.sql.public.FinancialAccount.select("id")
+					.where((f, fn) =>
+						fn.and(
+							fn.eq(f.id, accountId),
+							fn.eq(f.userId, userId),
+							fn.in(f.type, ["CHECKING", "CASH"]),
+							fn.eq(f.isHidden, false),
+						),
+					)
+					.build(),
 			);
 			if (!account) throw new HttpException("Selecione uma conta corrente ou dinheiro disponível", 400);
 		}
-		await query(`UPDATE "FinancialAccount" SET "isPrimary"=("id"=$2), "updatedAt"=NOW() WHERE "userId"=$1`, [
-			userId,
-			accountId ?? "",
-		]);
+		await executeStatement(
+			db.sql.public.FinancialAccount.update((f, fn) => ({
+				isPrimary: fn.eq(f.id, accountId ?? ""),
+				updatedAt: fn.raw`NOW()`.returns("pg/timestamp-date@1"),
+			}))
+				.where((f, fn) => fn.eq(f.userId, userId))
+				.build(),
+		);
 		return { financialAccountId: accountId };
 	});
 }
 
 export async function getPrimaryAccount(userId: string) {
-	const [account] = await queryRaw<{ id: string }>(
-		`SELECT "id" FROM "FinancialAccount" WHERE "userId"=$1 AND "isPrimary" AND NOT "isHidden" AND "type" IN ('CHECKING','CASH') LIMIT 1`,
-		[userId],
+	const [account] = await queryRows(
+		db.sql.public.FinancialAccount.select("id")
+			.where((f, fn) =>
+				fn.and(
+					fn.eq(f.userId, userId),
+					fn.eq(f.isPrimary, true),
+					fn.eq(f.isHidden, false),
+					fn.in(f.type, ["CHECKING", "CASH"]),
+				),
+			)
+			.limit(1)
+			.build(),
 	);
 	return { financialAccountId: account?.id ?? null };
 }
@@ -34,22 +61,45 @@ export async function setCardPayer(
 	accountId: string | null,
 	enabled: boolean,
 ) {
-	return withRawTransaction(async query => {
-		const [card] = await query(
-			`SELECT c."id" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1 AND a."userId"=$2 FOR UPDATE OF c`,
-			[cardId, userId],
+	return withRawTransaction(async () => {
+		const [card] = await queryRows(
+			db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
+				fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
+			)
+				.select(f => ({ id: f.CreditCard.id }))
+				.where((f, fn) =>
+					fn.and(fn.eq(f.CreditCard.id, cardId), fn.eq(f.FinancialAccount.userId, userId)),
+				)
+				.forUpdate({ of: ["CreditCard"] })
+				.build(),
 		);
 		if (!card) throw new HttpException("Cartão não encontrado", 404);
 		if (accountId) {
-			const [account] = await query(
-				`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') AND NOT "isHidden"`,
-				[accountId, userId],
+			const [account] = await queryRows(
+				db.sql.public.FinancialAccount.select("id")
+					.where((f, fn) =>
+						fn.and(
+							fn.eq(f.id, accountId),
+							fn.eq(f.userId, userId),
+							fn.in(f.type, ["CHECKING", "CASH", "SAVINGS", "INVESTMENT"]),
+							fn.eq(f.isHidden, false),
+						),
+					)
+					.build(),
 			);
 			if (!account) throw new HttpException("Selecione uma conta pagadora disponível", 400);
 		}
-		await query(
-			`UPDATE "CreditCard" SET "paymentAccountId"=$2, "paymentSuggestionsEnabled"=$3, "updatedAt"=NOW() WHERE "id"=$1`,
-			[cardId, accountId, enabled],
+		await executeStatement(
+			db.sql.public.CreditCard.update((f, fn) => ({
+				paymentAccountId: fn.raw`${param(accountId, { codecId: "sql/varchar@1" })}`.returns({
+					codecId: "sql/varchar@1",
+					nullable: true,
+				}),
+				paymentSuggestionsEnabled: fn.raw`${enabled}`.returns("pg/bool@1"),
+				updatedAt: fn.raw`NOW()`.returns("pg/timestamp-date@1"),
+			}))
+				.where((f, fn) => fn.eq(f.id, cardId))
+				.build(),
 		);
 		return { paymentAccountId: accountId, paymentSuggestionsEnabled: enabled };
 	});
@@ -61,11 +111,18 @@ export async function saveAccountDefaults(
 	preferences: { isPrimary?: boolean; isDefaultForStatements?: boolean },
 	created = false,
 ) {
-	return withRawTransaction(async query => {
-		await query(`SELECT "id" FROM "user" WHERE "id"=$1 FOR UPDATE`, [userId]);
-		const [account] = await query<{ type: string; isHidden: boolean }>(
-			`SELECT "type","isHidden" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2`,
-			[accountId, userId],
+	return withRawTransaction(async () => {
+		await queryRows(
+			db.sql.public.user
+				.select("id")
+				.where((f, fn) => fn.eq(f.id, userId))
+				.forUpdate()
+				.build(),
+		);
+		const [account] = await queryRows(
+			db.sql.public.FinancialAccount.select("type", "isHidden")
+				.where((f, fn) => fn.and(fn.eq(f.id, accountId), fn.eq(f.userId, userId)))
+				.build(),
 		);
 		if (!account) throw new HttpException("Conta não encontrada", 404);
 		const { primary: primaryEligible, statements: payerEligible } = accountDefaultEligibility(
@@ -78,9 +135,11 @@ export async function saveAccountDefaults(
 			throw new HttpException("Selecione uma conta pagadora disponível", 400);
 		let primary = preferences.isPrimary;
 		if (created && primaryEligible) {
-			const [existing] = await query(
-				`SELECT "id" FROM "FinancialAccount" WHERE "userId"=$1 AND "isPrimary" LIMIT 1`,
-				[userId],
+			const [existing] = await queryRows(
+				db.sql.public.FinancialAccount.select("id")
+					.where((f, fn) => fn.and(fn.eq(f.userId, userId), fn.eq(f.isPrimary, true)))
+					.limit(1)
+					.build(),
 			);
 			if (!existing) primary = true;
 		}
@@ -89,23 +148,42 @@ export async function saveAccountDefaults(
 			["isDefaultForStatements", preferences.isDefaultForStatements],
 		] as const) {
 			if (enabled)
-				await query(
-					`UPDATE "FinancialAccount" SET "${column}"=false,"updatedAt"=NOW() WHERE "userId"=$1 AND "id"<>$2 AND "${column}"`,
-					[userId, accountId],
+				await executeStatement(
+					db.sql.public.FinancialAccount.update((f, fn) => ({
+						[column]: fn.raw`false`.returns("pg/bool@1"),
+						updatedAt: fn.raw`NOW()`.returns("pg/timestamp-date@1"),
+					}))
+						.where((f, fn) =>
+							fn.and(fn.eq(f.userId, userId), fn.ne(f.id, accountId), fn.eq(f[column], true)),
+						)
+						.build(),
 				);
 			if (enabled !== undefined)
-				await query(
-					`UPDATE "FinancialAccount" SET "${column}"=$3,"updatedAt"=NOW() WHERE "userId"=$1 AND "id"=$2`,
-					[userId, accountId, enabled],
+				await executeStatement(
+					db.sql.public.FinancialAccount.update((f, fn) => ({
+						[column]: fn.raw`${enabled}`.returns("pg/bool@1"),
+						updatedAt: fn.raw`NOW()`.returns("pg/timestamp-date@1"),
+					}))
+						.where((f, fn) => fn.and(fn.eq(f.userId, userId), fn.eq(f.id, accountId)))
+						.build(),
 				);
 		}
 		if (!primaryEligible)
-			await query(`UPDATE "FinancialAccount" SET "isPrimary"=false WHERE "id"=$1`, [accountId]);
+			await executeStatement(
+				db.sql.public.FinancialAccount.update({ isPrimary: false })
+					.where((f, fn) => fn.eq(f.id, accountId))
+					.build(),
+			);
 		if (!payerEligible)
-			await query(`UPDATE "FinancialAccount" SET "isDefaultForStatements"=false WHERE "id"=$1`, [accountId]);
-		const [saved] = await query<{ isPrimary: boolean; isDefaultForStatements: boolean }>(
-			`SELECT "isPrimary","isDefaultForStatements" FROM "FinancialAccount" WHERE "id"=$1`,
-			[accountId],
+			await executeStatement(
+				db.sql.public.FinancialAccount.update({ isDefaultForStatements: false })
+					.where((f, fn) => fn.eq(f.id, accountId))
+					.build(),
+			);
+		const [saved] = await queryRows(
+			db.sql.public.FinancialAccount.select("isPrimary", "isDefaultForStatements")
+				.where((f, fn) => fn.eq(f.id, accountId))
+				.build(),
 		);
 		return saved;
 	});

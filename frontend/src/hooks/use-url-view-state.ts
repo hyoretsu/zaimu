@@ -3,6 +3,8 @@ import {
 	type Dispatch,
 	type SetStateAction,
 	useCallback,
+	useEffect,
+	useMemo,
 	useRef,
 	useState,
 	useSyncExternalStore,
@@ -29,23 +31,42 @@ export function useUrlViewState<T>(
 			return lastHref.current;
 		},
 	);
-	const value = readViewState(href, key, fallback, schema, fields);
+	const urlValue = readViewState(href, key, fallback, schema, fields);
+	// Optimistic value shown immediately; the URL write is deferred so the toggle paints before routing runs.
+	const [pending, setPending] = useState<{ baseHref: string; value: T } | null>(null);
+	const value = pending && pending.baseHref === href ? pending.value : urlValue;
+	const valueRef = useRef(value);
+	valueRef.current = value;
+	const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+	useEffect(() => () => clearTimeout(timer.current), []);
 	const setValue: Dispatch<SetStateAction<T>> = useCallback(
 		update => {
 			// Hidden mobile tabs must never write their state onto another screen.
 			if (router.history.location.pathname !== pathname) return;
-			router.history.flush();
-			const currentHref = router.history.location.href;
-			const current = readViewState(currentHref, key, fallback, schema, fields);
-			const next = typeof update === "function" ? (update as (previous: T) => T)(current) : update;
-			const nextHref = writeViewState(currentHref, key, next, fallback, fields);
-			if (nextHref === currentHref) return;
-			void router.navigate({
-				href: nextHref,
-				replace: true,
-				resetScroll: false,
-				state: previous => previous,
-			});
+			const next =
+				typeof update === "function" ? (update as (previous: T) => T)(valueRef.current) : update;
+			valueRef.current = next;
+			setPending({ baseHref: lastHref.current, value: next });
+			clearTimeout(timer.current);
+			timer.current = setTimeout(() => {
+				if (router.history.location.pathname !== pathname) return;
+				router.history.flush();
+				const currentHref = router.history.location.href;
+				const nextHref = writeViewState(currentHref, key, valueRef.current, fallback, fields);
+				if (nextHref === currentHref) {
+					setPending(null);
+					return;
+				}
+				// Once the URL holds the value the optimistic copy must go, or navigating back to the old href would revive it.
+				void router
+					.navigate({
+						href: nextHref,
+						replace: true,
+						resetScroll: false,
+						state: previous => previous,
+					})
+					.finally(() => setPending(null));
+			}, 0);
 		},
 		[fallback, fields, key, pathname, router, schema],
 	);
@@ -62,5 +83,6 @@ export function useUrlViewSet(key: string) {
 		},
 		[setItems],
 	);
-	return [new Set(items), setValue] as const;
+	const set = useMemo(() => new Set(items), [items.join("\u0000")]);
+	return [set, setValue] as const;
 }

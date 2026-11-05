@@ -33,7 +33,7 @@ export function CreditPurchaseRow({
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
 	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
 	const tags = purchase.tags;
-	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit, amount => currency.format(amount));
+	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit);
 	const hasRefinancing = Boolean(purchase.refinancingPurchaseIds?.length);
 	const description =
 		purchase.feeDescription === "IOF do parcelamento"

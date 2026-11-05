@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { definePrismaConfig } from "@prisma/cli-engine";
 import { defineConfig as definePostgresConfig } from "@prisma/orm-postgres/config";
+import { definePrismaConfig } from "prisma/config";
 
 export default definePrismaConfig({
 	orm: definePostgresConfig({
@@ -8,6 +8,7 @@ export default definePrismaConfig({
 		db: {
 			connection: process.env.DATABASE_URL!,
 		},
+		migrations: { dir: "./migrations" },
 		output: "./out/prisma",
 	}),
 });

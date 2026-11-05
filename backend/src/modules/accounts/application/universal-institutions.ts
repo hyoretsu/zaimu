@@ -9,6 +9,7 @@ import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { assertFinancialInstitutionYieldPolicy } from "../domain/assert-financial-institution-yield-policy";
 import { assertInstitutionReview } from "../domain/assert-institution-review";
 import { normalizeFinancialInstitutionName } from "../domain/normalize-financial-institution-name";
+import { consolidateYieldPolicyTimeline } from "./consolidate-yield-policy-timeline";
 import {
 	assertInstitutionCardRules,
 	type RawQuery,
@@ -101,14 +102,11 @@ export async function proposeInstitution(
 			`INSERT INTO "FinancialInstitutionProposal" ("id","institutionId","authorId","kind","baseVersion","payload","effectiveDate","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
 			[id, institutionId, userId, kind, version, JSON.stringify(payload), effectiveDate ?? null],
 		);
-		if (kind === "NEW_INSTITUTION") {
-			const [author] = await query<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [
-				userId,
-			]);
-			if (author?.role === "ADMIN") {
-				const result = await reviewInstitutionProposal(userId, id, "APPROVE");
-				return { ...result, institutionId };
-			}
+		// Anything an admin creates is applied directly, never left pending.
+		const [author] = await query<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]);
+		if (author?.role === "ADMIN") {
+			const result = await reviewInstitutionProposal(userId, id, "APPROVE");
+			return { ...result, institutionId };
 		}
 		await query(
 			`INSERT INTO "AppNotification" ("id","userId","type","payload") SELECT gen_random_uuid()::text,"id",'INSTITUTION_REVIEW',$1::jsonb FROM "user" WHERE "role"='ADMIN'`,
@@ -247,6 +245,7 @@ export async function reviewInstitutionProposal(
 					typeof assertFinancialInstitutionYieldPolicy
 				>[0] & {
 					profileId: string;
+					accountType?: string;
 					countryCode?: string;
 					effectiveUntil?: string;
 				};
@@ -264,14 +263,29 @@ export async function reviewInstitutionProposal(
 					[policy.profileId, institution.id],
 				);
 				if (!profile) throw new HttpException("Perfil não encontrado", 400);
+				const replaced = (payload as { replacesEffectiveDate?: string }).replacesEffectiveDate;
+				// Moving a period to another start replaces the one it was edited from.
+				if (replaced)
+					await query(
+						`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5`,
+						[
+							institution.id,
+							policy.profileId,
+							policy.currency,
+							policy.countryCode ?? null,
+							replaced,
+							policy.accountType ?? null,
+						],
+					);
 				const [existing] = await query(
-					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5 FOR UPDATE`,
+					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5 FOR UPDATE`,
 					[
 						institution.id,
 						policy.profileId,
 						policy.currency,
 						policy.countryCode ?? null,
 						proposal.effectiveDate,
+						policy.accountType ?? null,
 					],
 				);
 				const policyId = existing?.id ?? crypto.randomUUID();
@@ -281,18 +295,20 @@ export async function reviewInstitutionProposal(
 						[policyId],
 					);
 					await query(
-						`UPDATE "FinancialInstitutionYieldPolicy" SET "yieldPeriod"=$2,"yieldTaxIds"=$3,"yieldTaxRate"=$4,"effectiveUntil"=$5,"updatedAt"=NOW() WHERE "id"=$1`,
+						`UPDATE "FinancialInstitutionYieldPolicy" SET "yieldPeriod"=$2,"yieldTaxIds"=$3,"yieldTaxRate"=$4,"effectiveUntil"=$5,"yieldTaxMode"=$6,"yieldTaxModes"=$7,"updatedAt"=NOW() WHERE "id"=$1`,
 						[
 							policyId,
 							policy.yieldPeriod ?? null,
 							policy.yieldTaxIds ?? [],
 							policy.yieldTaxRate ?? null,
 							policy.effectiveUntil ?? null,
+							policy.yieldTaxMode ?? "DAILY",
+							policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
 						],
 					);
 				} else
 					await query(
-						`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())`,
+						`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","yieldTaxMode","yieldTaxModes","updatedAt") VALUES ($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,$12,$13,NOW())`,
 						[
 							policyId,
 							institution.id,
@@ -304,6 +320,9 @@ export async function reviewInstitutionProposal(
 							policy.yieldPeriod ?? null,
 							policy.yieldTaxIds ?? [],
 							policy.yieldTaxRate ?? null,
+							policy.accountType ?? null,
+							policy.yieldTaxMode ?? "DAILY",
+							policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
 						],
 					);
 				for (const [position, rule] of policy.rules.entries())
@@ -319,6 +338,14 @@ export async function reviewInstitutionProposal(
 							rule.yieldReferenceType ?? null,
 						],
 					);
+				await consolidateYieldPolicyTimeline(query, {
+					accountType: policy.accountType ?? null,
+					countryCode: policy.countryCode ?? null,
+					currency: policy.currency ?? null,
+					financialInstitutionId: institution.id,
+					focusId: policyId,
+					profileId: policy.profileId,
+				});
 				await query(`UPDATE "FinancialInstitution" SET "version"="version"+1 WHERE "id"=$1`, [
 					institution.id,
 				]);
@@ -371,12 +398,13 @@ export async function reviewInstitutionProposal(
 				`SELECT "id" FROM "FinancialAccount" WHERE "institutionId"=$1`,
 				[institution.id],
 			);
+			const replaced = (payload as { replacesEffectiveDate?: string }).replacesEffectiveDate;
+			const firstAffected =
+				replaced && replaced < new Date(proposal.effectiveDate).toISOString().slice(0, 10)
+					? new Date(replaced)
+					: new Date(proposal.effectiveDate);
 			for (const account of accounts)
-				await enqueueAccountYieldRecalculation(
-					account.id,
-					new Date(proposal.effectiveDate),
-					`institution-review:${id}`,
-				);
+				await enqueueAccountYieldRecalculation(account.id, firstAffected, `institution-review:${id}`);
 		}
 		const users = await query<{ userId: string }>(
 			`SELECT DISTINCT "userId" FROM "FinancialAccount" WHERE "institutionId"=$1`,

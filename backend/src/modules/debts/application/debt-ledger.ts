@@ -77,10 +77,10 @@ export async function createDebtEvent(input: {
 				connectionId,
 				createdByUserId: input.createdByUserId,
 				currency,
-				date: input.date ? new Date(input.date) : null,
+				date: input.date ?? null,
 				debtPersonId: input.debtPersonId,
 				description: input.description,
-				dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
+				dueDate: input.dueDate ?? undefined,
 				effect: String(input.effect),
 				kind: input.kind,
 			},
@@ -99,7 +99,7 @@ export async function createDebtEvent(input: {
 			.build(),
 	);
 	if (!event) throw new HttpException("Lançamento da dívida não criado", 500);
-	return { ...event, kind: input.kind };
+	return { ...event, date: event.date ? new Date(event.date) : null, kind: input.kind };
 }
 
 export async function getAccessibleDebtEvent(eventId: string, userId: string) {
@@ -171,7 +171,10 @@ export async function linkTransactionToDebt(input: {
 	if (requestedSplit && input.matchEventId)
 		throw new HttpException("Rateio e conciliação não podem ser usados juntos", 400);
 	if (input.type === "TRANSFER" && (requestedSplit || input.matchEventId))
-		throw new HttpException("Transferências entre contas próprias não podem ser vinculadas a dívidas", 400);
+		throw new HttpException(
+			"Transferências entre contas próprias não podem ser vinculadas a dívidas",
+			400,
+		);
 	if (!requestedSplit && !input.matchEventId) return;
 	if (requestedSplit)
 		return syncTransactionDebtEvent({
@@ -203,14 +206,19 @@ export async function linkTransactionToDebt(input: {
 				date: input.date,
 				effect: expectedEffect,
 				eventAmount: Number(event.amount),
-				eventDate: event.date.toISOString(),
+				eventDate: event.date,
 				eventPerspectiveEffect: perspectiveEffect,
 			})
 		)
 			throw new HttpException("A movimentação não corresponde ao lançamento compartilhado", 409);
 		await executeStatement(
 			db.sql.public.DebtTransactionLink.insert([
-				{ eventId: event.id, isCreator: false, transactionId: input.transactionId, userId: input.userId },
+				{
+					eventId: event.id,
+					isCreator: false,
+					transactionId: input.transactionId,
+					userId: input.userId,
+				},
 			]).build(),
 		);
 		return;
@@ -327,7 +335,7 @@ export async function syncTransactionDebtEvent(input: {
 					date: input.date,
 					effect: debtEffectForTransaction(input.amount, input.type),
 					eventAmount: Number(link.amount),
-					eventDate: link.date.toISOString(),
+					eventDate: link.date,
 					eventPerspectiveEffect: perspectiveEffect,
 				})
 			)
@@ -383,7 +391,12 @@ export async function syncTransactionDebtEvent(input: {
 			});
 			await executeStatement(
 				db.sql.public.DebtTransactionLink.insert([
-					{ eventId: event.id, isCreator: true, transactionId: input.transactionId, userId: input.userId },
+					{
+						eventId: event.id,
+						isCreator: true,
+						transactionId: input.transactionId,
+						userId: input.userId,
+					},
 				]).build(),
 			);
 			continue;
@@ -405,7 +418,10 @@ export async function syncTransactionDebtEvent(input: {
 		await executeStatement(
 			db.sql.public.DebtTransactionLink.delete()
 				.where((fields, functions) =>
-					functions.and(functions.eq(fields.eventId, link.eventId), functions.eq(fields.isCreator, false)),
+					functions.and(
+						functions.eq(fields.eventId, link.eventId),
+						functions.eq(fields.isCreator, false),
+					),
 				)
 				.build(),
 		);
@@ -462,7 +478,7 @@ export async function linkPurchaseToDebt(input: {
 		if (
 			Number(event.amount) !== input.totalAmount ||
 			perspectiveEffect !== input.totalAmount ||
-			event.date.toISOString().slice(0, 10) !== input.date.slice(0, 10)
+			event.date.slice(0, 10) !== input.date.slice(0, 10)
 		)
 			throw new HttpException("A compra não corresponde ao lançamento compartilhado", 409);
 		await executeStatement(
@@ -561,7 +577,8 @@ export async function syncPurchaseDebtEvent(input: {
 			);
 		return;
 	}
-	const nextSplit = requestedSplit ?? (await getDebtSplitInput({ creditPurchaseId: input.creditPurchaseId }));
+	const nextSplit =
+		requestedSplit ?? (await getDebtSplitInput({ creditPurchaseId: input.creditPurchaseId }));
 	if (!nextSplit) {
 		if (input.matchEventId && links.length === 0)
 			await linkPurchaseToDebt({
@@ -580,7 +597,7 @@ export async function syncPurchaseDebtEvent(input: {
 				!link.date ||
 				Number(link.amount) !== input.totalAmount ||
 				perspectiveEffect !== input.totalAmount ||
-				link.date.toISOString().slice(0, 10) !== input.date.slice(0, 10)
+				link.date.slice(0, 10) !== input.date.slice(0, 10)
 			)
 				await executeStatement(
 					db.sql.public.DebtPurchaseLink.delete()
@@ -659,7 +676,10 @@ export async function syncPurchaseDebtEvent(input: {
 		await executeStatement(
 			db.sql.public.DebtPurchaseLink.delete()
 				.where((fields, functions) =>
-					functions.and(functions.eq(fields.eventId, link.eventId), functions.eq(fields.isCreator, false)),
+					functions.and(
+						functions.eq(fields.eventId, link.eventId),
+						functions.eq(fields.isCreator, false),
+					),
 				)
 				.build(),
 		);

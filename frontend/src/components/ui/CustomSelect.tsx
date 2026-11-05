@@ -3,6 +3,7 @@ import { CustomSelectPopover } from "./CustomSelectPopover";
 
 export interface Option {
 	disabled?: boolean;
+	keywords?: string[];
 	label: string;
 	special?: boolean;
 	value: string;

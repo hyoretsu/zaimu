@@ -1,3 +1,4 @@
+import { pickTaxModes, resolveTaxModes } from "@zaimu/finance/yield-tax";
 import { type ReactNode, useState } from "react";
 import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -32,6 +33,9 @@ export function InstitutionYieldPolicyForm({
 }) {
 	const [period, setPeriod] = useState<"MONTHLY" | "YEARLY">(policy?.yieldPeriod ?? "MONTHLY");
 	const [taxIds, setTaxIds] = useState<string[]>(policy?.yieldTaxIds ?? []);
+	const [taxModes, setTaxModes] = useState<Record<string, "DAILY" | "ON_REDEMPTION">>(
+		resolveTaxModes(policy, [...(policy?.yieldTaxIds ?? []), ...(policy?.yieldTaxRate ? ["fixed"] : [])]),
+	);
 	const [taxRate, setTaxRate] = useState(String(policy?.yieldTaxRate ?? ""));
 	const [rules, setRules] = useState<EditableYieldRule[]>(() =>
 		policy?.rules.length
@@ -109,6 +113,10 @@ export function InstitutionYieldPolicyForm({
 						rules: submitted,
 						yieldPeriod: submitted.some(rule => rule.yieldFixedRate !== null) ? period : null,
 						yieldTaxIds: taxIds,
+						yieldTaxModes: pickTaxModes(taxModes, [
+							...taxIds,
+							...(submittedTax ? ["fixed"] : []),
+						]),
 						yieldTaxRate: submittedTax ? Number(submittedTax) : null,
 					});
 				} catch (cause) {
@@ -123,12 +131,9 @@ export function InstitutionYieldPolicyForm({
 			<DialogBody>
 				<fieldset className="min-w-0 space-y-4" disabled={pending}>
 					{controls}
-					<p className="text-muted-foreground text-sm">
-						Limites em unidades da moeda de cada conta, sem conversão cambial.
-					</p>
 					<div className="">
 						<div className="grid gap-4 pb-2">
-							<div className="grid gap-4 sm:grid-cols-2">
+							<div className="grid items-start gap-4 sm:grid-cols-2">
 								<CustomSelect
 									label="Periodicidade da taxa fixa"
 									onValueChange={value =>
@@ -146,8 +151,10 @@ export function InstitutionYieldPolicyForm({
 								<YieldTaxFields
 									id="institution-yield-tax"
 									onTaxIdsChange={setTaxIds}
+									onTaxModesChange={setTaxModes}
 									onTaxRateChange={setTaxRate}
 									taxIds={taxIds}
+									taxModes={taxModes}
 									taxRate={taxRate}
 								/>
 							</div>

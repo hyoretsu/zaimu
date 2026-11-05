@@ -1,4 +1,4 @@
-import { type CleanedWhere, type CustomAdapter, createAdapterFactory } from "@better-auth/core/db/adapter";
+import { type CleanedWhere, createAdapterFactory, type CustomAdapter } from "@better-auth/core/db/adapter";
 import { and, db, or } from "~/shared/infra/sql";
 
 type AuthRecord = Record<string, unknown>;
@@ -28,8 +28,8 @@ interface AuthCollection {
 	first(): Promise<AuthRecord | null>;
 	orderBy(spec: (model: ModelAccessor) => unknown): AuthCollection;
 	select(...fields: string[]): AuthCollection;
-	skip(count: number): AuthCollection;
-	take(count: number): AuthCollection;
+	offset(count: number): AuthCollection;
+	limit(count: number): AuthCollection;
 	update(data: AuthRecord): Promise<AuthRecord | null>;
 	updateAndCount(data: AuthRecord): Promise<number>;
 	where(spec: (model: ModelAccessor) => unknown): AuthCollection;
@@ -131,10 +131,14 @@ const customAdapter = (
 		await applyWhere(collectionFor(client, model), where, field => fieldName(model, field)).delete();
 	},
 	async deleteMany({ model, where }) {
-		return applyWhere(collectionFor(client, model), where, field => fieldName(model, field)).deleteAndCount();
+		return applyWhere(collectionFor(client, model), where, field =>
+			fieldName(model, field),
+		).deleteAndCount();
 	},
 	async findMany({ limit, model, offset, select, sortBy, where }) {
-		let collection = applyWhere(collectionFor(client, model), where ?? [], field => fieldName(model, field));
+		let collection = applyWhere(collectionFor(client, model), where ?? [], field =>
+			fieldName(model, field),
+		);
 		if (sortBy) {
 			collection = collection.orderBy(accessor =>
 				sortBy.direction === "desc"
@@ -143,8 +147,8 @@ const customAdapter = (
 			);
 		}
 		collection = selectFields(collection, select, field => fieldName(model, field))
-			.skip(offset ?? 0)
-			.take(limit);
+			.offset(offset ?? 0)
+			.limit(limit);
 		return (await collection.all()) as never[];
 	},
 	async findOne({ model, select, where }) {
@@ -166,14 +170,14 @@ const customAdapter = (
 		});
 	},
 	async update({ model, update, where }) {
-		return (await applyWhere(collectionFor(client, model), where, field => fieldName(model, field)).update(
-			update as AuthRecord,
-		)) as never;
+		return (await applyWhere(collectionFor(client, model), where, field =>
+			fieldName(model, field),
+		).update(update as AuthRecord)) as never;
 	},
 	async updateMany({ model, update, where }) {
-		return applyWhere(collectionFor(client, model), where, field => fieldName(model, field)).updateAndCount(
-			update,
-		);
+		return applyWhere(collectionFor(client, model), where, field =>
+			fieldName(model, field),
+		).updateAndCount(update);
 	},
 });
 

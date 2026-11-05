@@ -15,7 +15,7 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 	const propose = async (...args: Parameters<typeof postFinancialInstitutionsByIdPolicies>) => {
 		const start = captureCacheMutation();
 		try {
-			await postFinancialInstitutionsByIdPolicies(...args);
+			await postFinancialInstitutionsByIdPolicies(...args).then(result => result.data);
 			showToast("Proposta enviada para revisão administrativa", "positive");
 			await invalidateMutationCache(queryClient, start, {
 				...mutationCacheMeta("institution"),
@@ -33,6 +33,11 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 		<article className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border p-4">
 			<div className="min-w-0 flex-1 space-y-1">
 				<h3 className="font-semibold break-words">{institution.name}</h3>
+				{!!institution.aliases?.length && (
+					<p className="text-muted-foreground text-sm break-words">
+						Também conhecida como {institution.aliases.join(", ")}
+					</p>
+				)}
 				<p className="text-muted-foreground text-sm break-words">Versão {institution.version ?? 1}</p>
 				<p className="text-muted-foreground text-sm break-words">
 					{institution.operatingCountryCodes?.length
@@ -49,7 +54,7 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 					institution={institution}
 					onUpdate={(item, policy) => {
 						try {
-							return propose(item.id, toPolicyProposalBody(policy));
+							return propose({ body: toPolicyProposalBody(policy), path: { id: item.id } });
 						} catch (error) {
 							return Promise.reject(error);
 						}

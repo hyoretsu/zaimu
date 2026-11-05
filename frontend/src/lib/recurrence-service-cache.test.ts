@@ -40,11 +40,11 @@ async function setup() {
 		isGuestMode: () => false,
 		remote: {
 			deleteRecurringById: unexpected,
-			getRecurring: async () => [record],
-			getRecurringById: async () => record,
+			getRecurring: async () => response([record]),
+			getRecurringById: async () => response(record),
 			getRecurringByIdHistory: unexpected,
-			patchRecurringById: async () => record,
-			postRecurring: async () => record,
+			patchRecurringById: async () => response(record),
+			postRecurring: async () => response(record),
 			postRecurringByIdAdvance: unexpected,
 			postRecurringByIdReplay: unexpected,
 		},
@@ -94,14 +94,14 @@ test("authenticated recurrence detail and mutations succeed despite cache failur
 			getRecurring: unexpected,
 			getRecurringById: async () => {
 				if (failRequest) throw new Error("Server rejected recurrence");
-				return record;
+				return response(record);
 			},
 			getRecurringByIdHistory: unexpected,
 			patchRecurringById: async () => {
 				if (failRequest) throw new Error("Server rejected recurrence");
-				return record;
+				return response(record);
 			},
-			postRecurring: async () => record,
+			postRecurring: async () => response(record),
 			postRecurringByIdAdvance: unexpected,
 			postRecurringByIdReplay: unexpected,
 		},
@@ -121,3 +121,7 @@ test("authenticated recurrence detail and mutations succeed despite cache failur
 		put.mockRestore();
 	}
 });
+
+function response<T>(data: T) {
+	return { data, error: undefined, status: 200, statusText: "OK" };
+}

@@ -1,6 +1,6 @@
 import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import { financialDate } from "~/shared/application/financial-date";
-import { queryRaw } from "~/shared/infra/sql";
+import { db, queryRaw, queryRows } from "~/shared/infra/sql";
 import { missingMonthlyStatements } from "./credit-card-schedule-periods";
 
 type ScheduleCard = Record<string, unknown> & {
@@ -28,10 +28,12 @@ export async function loadCreditCardScheduleCandidates(asOf: Date, cardIds?: str
 		cards.map(card => [card.id, financialDate(asOf, card.preferredCountry, card.preferredTimeZone)]),
 	);
 	const [statements, due] = await Promise.all([
-		queryRaw<{ creditCardId: string; statementDate: Date }>(
-			`SELECT "creditCardId","statementDate" FROM "CreditCardStatement" WHERE "creditCardId"=ANY($1)`,
-			[ids],
+		queryRows(
+			db.sql.public.CreditCardStatement.select("creditCardId", "statementDate")
+				.where((fields, functions) => functions.in(fields.creditCardId, ids))
+				.build(),
 		),
+		// PostgreSQL calendar arithmetic and per-card JSON date cutoffs stay server-side.
 		queryRaw<{ creditCardId: string; occurrenceDate: string }>(
 			`SELECT DISTINCT p."creditCardId",(p."purchaseDate"+make_interval(months=>plan."number"-1))::date::text AS "occurrenceDate" FROM "CreditPurchaseRecord" p JOIN "CreditInstallmentPlan" plan ON plan."purchaseId"=p."id" LEFT JOIN "CreditInstallmentRecord" item ON item."purchaseId"=p."id" AND item."number"=plan."number" WHERE p."creditCardId"=ANY($1) AND (p."purchaseDate"+make_interval(months=>plan."number"-1))::date <= ($2::jsonb->>p."creditCardId")::date AND item."id" IS NULL`,
 			[ids, JSON.stringify(cutoffs)],
@@ -48,7 +50,7 @@ export async function loadCreditCardScheduleCandidates(asOf: Date, cardIds?: str
 				dueInstallments: (dueByCard.get(card.id) ?? []).some(row => row.occurrenceDate <= through),
 				missingStatements: missingMonthlyStatements(
 					card,
-					(byCard.get(card.id) ?? []).map(row => row.statementDate),
+					(byCard.get(card.id) ?? []).map(row => new Date(`${row.statementDate}T00:00:00Z`)),
 					new Date(`${through}T12:00:00Z`),
 				),
 			};
