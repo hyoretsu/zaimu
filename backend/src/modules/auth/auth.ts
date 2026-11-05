@@ -9,6 +9,11 @@ const apiUrl = (process.env.BETTER_AUTH_URL ?? "http://localhost:3333").replace(
 
 export const auth = betterAuth({
 	account: { modelName: "AuthAccount" },
+	advanced: {
+		// Tauri webviews call the API cross-site; default SameSite=Lax cookies would never be stored or sent.
+		defaultCookieAttributes:
+			process.env.NODE_ENV === "production" ? { sameSite: "none", secure: true } : undefined,
+	},
 	appName: "Zaimu",
 	basePath: "/api/auth",
 	baseURL: apiUrl,
