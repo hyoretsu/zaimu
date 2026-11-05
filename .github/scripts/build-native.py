@@ -50,7 +50,12 @@ def collect(pattern, destination=public):
         raise ValueError(f"No artifacts matched {pattern}")
     for file in files:
         # Prevent cross-platform or cross-variant name collisions in the release.
-        name = f"{platform}-{variant or 'default'}-{file.name}"
+        # MSI adds a locale suffix; every file name carries the app version instead.
+        base = file.name.replace("_en-US", "")
+        if config["version"] not in base:
+            stem, dot, ext = base.partition(".")
+            base = f"{stem}_{config['version']}{dot}{ext}"
+        name = f"{platform}-{variant or 'default'}-{base}"
         dest = destination / name
         if dest.exists():
             raise ValueError(f"Duplicate artifact: {name}")
@@ -156,7 +161,7 @@ elif platform == "ios":
         apps = [p for p in native.glob("gen/apple/build/**/*.app") if p.is_dir()]
         if not apps:
             raise ValueError("iOS simulator build produced no .app bundle")
-        archive = public / f"ios-{variant or 'default'}-simulator.tar.gz"
+        archive = public / f"ios-{variant or 'default'}-simulator_{config['version']}.tar.gz"
         with tarfile.open(archive, "w:gz") as tar:
             for app in apps:
                 tar.add(app, arcname=app.name)
