@@ -4629,7 +4629,7 @@ export const dataService = {
 					}),
 					...(debtSplitInput !== undefined && {
 						debtSplit: await hydrateLocalDebtSplit(
-							fiatAmount(money.amount, money.bookingCurrency),
+							debtSplitInput ? fiatAmount(money.amount, money.bookingCurrency) : 0,
 							await convertFixedSplitAtDate(
 								debtSplitInput,
 								merged.date,
