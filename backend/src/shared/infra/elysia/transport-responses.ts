@@ -37,13 +37,14 @@ export const transportResponses = {
 	}),
 	"get /balance-adjustments": t.Array(
 		t.Object({
-			balance: t.Number(),
-			calculatedBalance: t.Number(),
-			createdAt: t.String(),
+			assetCode: t.String(),
+			balance: t.String(),
+			calculatedBalance: t.Optional(t.String()),
+			createdAt: t.Optional(t.String()),
 			date: t.String(),
 			financialAccountId: t.String(),
 			id: t.String(),
-			name: t.Union([t.Null(), t.String()]),
+			name: t.Optional(t.Union([t.Null(), t.String()])),
 		}),
 	),
 	"get /categories": contracts.CategoryPageReturn,
@@ -405,7 +406,7 @@ export const transportResponses = {
 			t.Object({
 				accountEndingBalances: t.Array(
 					t.Object({
-						amount: t.Number(),
+						amount: t.Union([t.String(), t.Number()]),
 						currency: t.String(),
 						financialAccountId: t.String(),
 					}),
@@ -457,14 +458,15 @@ export const transportResponses = {
 	"patch /transaction-imports/{}/items/{}": contracts.TransactionImportReturn,
 	"patch /transactions/{}": contracts.TransactionReturn,
 	"post /balance-adjustments": t.Object({
-		balance: t.Number(),
-		calculatedBalance: t.Number(),
-		createdAt: t.String(),
+		assetCode: t.String(),
+		balance: t.String(),
+		calculatedBalance: t.Optional(t.String()),
+		createdAt: t.Optional(t.String()),
 		currency: t.Optional(t.String()),
 		date: t.String(),
 		financialAccountId: t.String(),
 		id: t.String(),
-		name: t.Union([t.Null(), t.String()]),
+		name: t.Optional(t.Union([t.Null(), t.String()])),
 	}),
 	"post /categories": contracts.CategoryReturn,
 	"post /credit-card-imports": contracts.CreditCardImportCreateResultReturn,

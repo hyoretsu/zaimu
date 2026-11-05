@@ -16,6 +16,73 @@ const loaded = () =>
 		recurrences: [],
 	}) as unknown as Awaited<ReturnType<typeof loadDashboardData>>;
 const today = new Date("2026-10-08T12:00:00");
+test("multiple holdings in one container are converted before addition and missing quotes reject all", async () => {
+	const data = loaded();
+	data.accounts[0]!.currency = "BRL";
+	data.flows = [];
+	data.balanceRows = [
+		{ accountId: "usd", assetCode: "BTC", balance: "0.000000000000000001", date: "2026-10-08" },
+		{ accountId: "usd", assetCode: "USD", balance: "10", date: "2026-10-08" },
+	];
+	const dependencies = {
+		assetConvert: async (amount: string, source: string) => {
+			if (source === "BTC") expect(amount).toBe("0.000000000000000001");
+			return source === "BTC" ? "2.50" : "50.00";
+		},
+		estimate: async () => null,
+		historical: async () => 1,
+		latest: async () => ({ date: "2026-10-08", rate: 1 }),
+		request: async () => null,
+	};
+	const context = await dashboardCurrencyContext(data, "BRL", today, false, dependencies);
+	expect(context.assetBalances.get("usd:2026-10-08")).toBe(52.5);
+	await expect(
+		dashboardCurrencyContext(data, "BRL", today, false, {
+			...dependencies,
+			assetConvert: async (_amount, source) => {
+				if (source === "USD") throw new Error("missing quote");
+				return "2.50";
+			},
+		}),
+	).rejects.toBeInstanceOf(DashboardConversionUnavailable);
+});
+test("native gas and forecast rows convert decimal strings using their financial date", async () => {
+	const data = loaded();
+	data.balanceRows = [];
+	data.flows = [
+		{
+			amount: "0.000000000000000001",
+			currency: "ETH",
+			date: new Date("2026-10-06T12:00:00"),
+			type: "EXPENSE",
+		},
+	] as unknown as typeof data.flows;
+	data.forecastTransactions = [
+		{
+			amount: "0.000000000000000002",
+			currency: "BTC",
+			date: new Date("2026-10-07T12:00:00"),
+			type: "EXPENSE",
+		},
+	] as unknown as typeof data.forecastTransactions;
+	const calls: string[] = [];
+	await dashboardCurrencyContext(data, "BRL", today, false, {
+		assetConvert: async (amount, source, target, date) => {
+			calls.push(`${amount}:${source}:${target}:${date}`);
+			return "12.34";
+		},
+		estimate: async () => null,
+		historical: async () => 1,
+		latest: async () => ({ date: "2026-10-08", rate: 1 }),
+		request: async () => null,
+	});
+	expect(calls).toEqual([
+		"0.000000000000000001:ETH:BRL:2026-10-06",
+		"0.000000000000000002:BTC:BRL:2026-10-07",
+	]);
+	expect(data.flows[0]!.amount).toBe(12.34);
+	expect(data.forecastTransactions[0]!.amount).toBe(12.34);
+});
 test("historical positions use exact event date, current positions preserve publication date", async () => {
 	let requested = 0;
 	const context = await dashboardCurrencyContext(loaded(), "BRL", today, false, {

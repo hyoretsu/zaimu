@@ -72,7 +72,7 @@ export function LoanOperationForm({
 				accountId: accountId || null,
 				id: crypto.randomUUID(),
 			};
-			if (accountId && account?.currency !== terms.currency && booking.accountAmount === null)
+			if (accountId && account?.yieldCurrency !== terms.currency && booking.accountAmount === null)
 				throw new Error("Informe débito efetivo na moeda da conta");
 			setPending(true);
 			if (mode === "PAYMENT") {
@@ -240,7 +240,10 @@ export function LoanOperationForm({
 						{ label: "Sem conta específica", special: true, value: "" },
 						...(accounts.data ?? [])
 							.filter(row => ["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(row.type))
-							.map(row => ({ label: `${row.name} (${row.currency ?? "BRL"})`, value: row.id })),
+							.map(row => ({
+								label: `${row.name} (${row.yieldCurrency ?? "BRL"})`,
+								value: row.id,
+							})),
 					]}
 					placeholder="Ex: Conta corrente"
 					searchable
@@ -249,11 +252,11 @@ export function LoanOperationForm({
 			)}{" "}
 			{account && (
 				<MoneyField
-					currencyCode={account.currency ?? "BRL"}
+					currencyCode={account.yieldCurrency ?? "BRL"}
 					id="operation-actual"
 					label="Débito efetivo na conta"
 					onValueChange={setActual}
-					required={(account.currency ?? "BRL") !== terms.currency}
+					required={(account.yieldCurrency ?? "BRL") !== terms.currency}
 					value={actual}
 				/>
 			)}{" "}

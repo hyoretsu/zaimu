@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { formatAsset } from "@zaimu/finance/asset-amount";
 import { LuArrowRight, LuHandshake } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -25,14 +26,16 @@ export function DashboardDebts({
 	debts: NonNullable<Dashboard["debts"]>;
 	currencyCode?: string;
 }) {
-	const currency = new Intl.NumberFormat(navigator.languages, {
-		currency: currencyCode,
-		style: "currency",
-	});
+	const displayAmount = (amount: number | null) =>
+		amount === null ? "Conversão indisponível" : formatAsset(amount, currencyCode);
 	const [panel, setPanel] = useUrlModalSelection("panel");
 	const open = panel === "debts";
 	const setOpen = (open: boolean) => setPanel(open ? "debts" : null);
 	const people = debts.people.toSorted((left, right) => {
+		if (left.balance === null || right.balance === null) {
+			if (left.balance === right.balance) return compareDebtPersonNames(left.name, right.name);
+			return left.balance === null ? -1 : 1;
+		}
 		const leftIsPayable = left.balance < 0;
 		const rightIsPayable = right.balance < 0;
 		if (leftIsPayable !== rightIsPayable) return leftIsPayable ? -1 : 1;
@@ -53,9 +56,9 @@ export function DashboardDebts({
 			>
 				<span className="min-w-0 truncate font-medium">{person.name}</span>
 				<strong
-					className={`shrink-0 tabular-nums ${person.balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+					className={`shrink-0 tabular-nums ${person.balance === null ? "text-muted-foreground" : person.balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}
 				>
-					{currency.format(Math.abs(person.balance))}
+					{displayAmount(person.balance === null ? null : Math.abs(person.balance))}
 				</strong>
 			</div>
 		));
@@ -87,11 +90,11 @@ export function DashboardDebts({
 					<DialogHeader>
 						<DialogTitle>Dívidas em aberto</DialogTitle>
 						<DialogDescription>
-							<span className="block">A receber: {currency.format(debts.owedToMe)}</span>
-							<span className="block">A pagar: {currency.format(debts.iOwe)}</span>
+							<span className="block">A receber: {displayAmount(debts.owedToMe)}</span>
+							<span className="block">A pagar: {displayAmount(debts.iOwe)}</span>
 							<span className="block">
-								Líquido {debts.net < 0 ? "a pagar" : "a receber"}:{" "}
-								{currency.format(Math.abs(debts.net))}
+								Líquido {debts.net === null ? "" : debts.net < 0 ? "a pagar" : "a receber"}:{" "}
+								{displayAmount(debts.net === null ? null : Math.abs(debts.net))}
 							</span>
 						</DialogDescription>
 					</DialogHeader>

@@ -35,6 +35,9 @@ describe("universal institution review and calendar coverage", () => {
 		await client.connect();
 		try {
 			await installContractFixture(client, contract);
+			await client.query(
+				`INSERT INTO "Asset" ("code","kind","name","decimals") VALUES ('BRL','FIAT','Brazilian real',2),('USD','FIAT','US dollar',2) ON CONFLICT DO NOTHING`,
+			);
 		} finally {
 			await client.end();
 		}
@@ -141,10 +144,20 @@ describe("universal institution review and calendar coverage", () => {
 		);
 		expect(policies.map(policy => policy.currency)).toEqual(["BRL", null]);
 		await queryRaw(
-			`INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","countryCode","currency") VALUES ('policy-brl','owner','CHECKING',$1,'BR','BRL'),('policy-usd','owner','CHECKING',$1,'BR','USD')`,
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","countryCode","yieldCurrency") VALUES ('policy-brl','owner','CHECKING',$1,'BR','BRL'),('policy-usd','owner','CHECKING',$1,'BR','USD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('policy-brl','BRL',0),('policy-usd','USD',0)`,
+			[institution.institutionId],
+		);
+		await queryRaw(
+			`INSERT INTO "Asset" ("code","kind","name","decimals") VALUES ('ETH','CRYPTO','Ether',18) ON CONFLICT DO NOTHING`,
+		);
+		await queryRaw(
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","countryCode","yieldCurrency") VALUES ('policy-crypto','owner','CHECKING',$1,'BR',NULL) RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('policy-crypto','ETH',0),('policy-brl','ETH',0)`,
 			[institution.institutionId],
 		);
 		const inventory = await getFinancialCoverage("owner", false, "2026-02-01", "2026-02-28");
+		expect(inventory.accounts.find(account => account.id === "policy-brl")?.currency).toBe("BRL");
+		expect(inventory.accounts.some(account => account.id === "policy-crypto")).toBe(false);
+		expect(inventory.items.some(item => item.affectedAccountIds.includes("policy-crypto"))).toBe(false);
 		const universal = inventory.items.find(
 			item =>
 				item.kind === "POLICY" &&
@@ -205,7 +218,7 @@ describe("universal institution review and calendar coverage", () => {
 		expect((await visibleInstitution("owner", draft.institutionId)).status).toBe("PENDING");
 		await expect(visibleInstitution("other", draft.institutionId)).rejects.toThrow();
 		await queryRaw(
-			`INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","currency") VALUES ('private-account','owner','CHECKING',$1,'USD')`,
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","yieldCurrency") VALUES ('private-account','owner','CHECKING',$1,'USD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('private-account','USD',0)`,
 			[draft.institutionId],
 		);
 		await reviewInstitutionProposal("admin", draft.id, "REJECT", "Identity could not be verified");
@@ -281,7 +294,7 @@ describe("universal institution review and calendar coverage", () => {
 			[profile.id],
 		);
 		await queryRaw(
-			`INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","currency") VALUES ('merge-account','owner','CHECKING',$1,'USD')`,
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","yieldCurrency") VALUES ('merge-account','owner','CHECKING',$1,'USD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('merge-account','USD',0)`,
 			[source.institutionId],
 		);
 		const proposal = await proposeInstitution("owner", source.institutionId, "MERGE", {
@@ -318,7 +331,7 @@ describe("universal institution review and calendar coverage", () => {
 				[id, owner],
 			);
 			await queryRaw(
-				`INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","currency") VALUES ($1,$2,'CHECKING',$3,'USD')`,
+				`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","institutionId","yieldCurrency") VALUES ($1,$2,'CHECKING',$3,'USD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ($1,'USD',0)`,
 				[`legacy-${owner}`, owner, id],
 			);
 			sources.push(id);

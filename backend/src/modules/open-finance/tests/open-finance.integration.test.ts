@@ -50,7 +50,7 @@ describe("MeuPluggy local integration", () => {
 		({ startSync } = await import("../application/sync"));
 		({ disconnect } = await import("../application/configuration"));
 		await sql.executeRaw(`INSERT INTO "user" ("id","email","name") VALUES ('owner','owner@example.test','Owner'),('other','other@example.test','Other');
-   INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('account','owner','CHECKING'),('other-account','other','CHECKING');
+   WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('account','owner','CHECKING'),('other-account','other','CHECKING') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('account','BRL',0),('other-account','BRL',0);
    INSERT INTO "OpenFinanceConfig" ("userId") VALUES ('owner'),('other');
    INSERT INTO "OpenFinanceConnection" ("id","userId","itemId","bankName","status","remoteAccounts") VALUES ('connection','owner','item','Bank','UPDATED','[]');
    INSERT INTO "OpenFinanceBinding" ("id","connectionId","remoteAccountId","financialAccountId") VALUES ('binding','connection','remote','account');`);
@@ -65,7 +65,7 @@ describe("MeuPluggy local integration", () => {
 	});
 	test("yield sync replaces calculated value and keeps its local identity on correction", async () => {
 		await sql.executeRaw(
-			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin","time") VALUES ('calculated-yield','account','2026-03-02',1,'AUTOMATIC','SYSTEM','18:45')`,
+			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin","time","assetCode") VALUES ('calculated-yield','account','2026-03-02',1,'AUTOMATIC','SYSTEM','18:45','BRL')`,
 		);
 		const input = {
 			...remote("yield", { amount: 2, date: "2026-03-02", description: "Rendimentos" }),
@@ -73,10 +73,15 @@ describe("MeuPluggy local integration", () => {
 		};
 		expect(await processRemote(input)).toBe("imported");
 		expect(await processRemote(input)).toBe("unchanged");
-		const [saved] = await sql.queryRaw<{ id: string; amount: number; kind: string; time: string | null }>(
-			`SELECT "id","amount","kind","time" FROM "FinancialAccountYield" WHERE "financialAccountId"='account' AND "date"='2026-03-02'`,
+		const [saved] = await sql.queryRaw<{ id: string; amount: string; kind: string; time: string | null }>(
+			`SELECT "id","amount"::text AS "amount","kind","time" FROM "FinancialAccountYield" WHERE "financialAccountId"='account' AND "date"='2026-03-02'`,
 		);
-		expect(saved).toMatchObject({ amount: 2, id: "calculated-yield", kind: "MANUAL", time: "18:45:00" });
+		expect(saved).toMatchObject({
+			amount: "2.000000000000000000",
+			id: "calculated-yield",
+			kind: "MANUAL",
+			time: "18:45:00",
+		});
 		const [record] = await sql.queryRaw<{ localKind: string; localId: string; state: string }>(
 			`SELECT "localKind","localId","state" FROM "OpenFinanceRecord" WHERE "identity"='provider:bank-yield'`,
 		);
@@ -84,17 +89,17 @@ describe("MeuPluggy local integration", () => {
 		expect(await processRemote({ ...input, amount: 3, time: null })).toBe("imported");
 		expect(
 			(
-				await sql.queryRaw<{ amount: number; time: string }>(
-					`SELECT "amount","time" FROM "FinancialAccountYield" WHERE "id"=$1`,
+				await sql.queryRaw<{ amount: string; time: string }>(
+					`SELECT "amount"::text AS "amount","time" FROM "FinancialAccountYield" WHERE "id"=$1`,
 					[saved.id],
 				)
 			)[0],
-		).toMatchObject({ amount: 3, time: "18:45:00" });
+		).toMatchObject({ amount: "3.000000000000000000", time: "18:45:00" });
 	});
 
 	test("yield imports use bank time for new entries and existing entries without a time", async () => {
 		await sql.executeRaw(
-			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin") VALUES ('untimed-yield','account','2026-03-03',1,'AUTOMATIC','SYSTEM')`,
+			`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin","assetCode") VALUES ('untimed-yield','account','2026-03-03',1,'AUTOMATIC','SYSTEM','BRL')`,
 		);
 		for (const date of ["2026-03-03", "2026-03-04"]) {
 			const input = {
@@ -242,7 +247,7 @@ describe("MeuPluggy local integration", () => {
 		expect((await startSync("owner")).runId).toBeNull();
 	});
 	test("successive card installments share a purchase and retain imported amounts", async () => {
-		await sql.executeRaw(`INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('card-account','owner','CREDIT_CARD');
+		await sql.executeRaw(`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('card-account','owner','CREDIT_CARD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('card-account','BRL',0);
    INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","dueDay","statementDay") VALUES ('card','card-account',1000,10,1);`);
 		const cardBinding = {
 			...binding,
@@ -487,7 +492,7 @@ describe("MeuPluggy local integration", () => {
 		const input = remote("mapping-change", { date: "2026-07-02", description: "Mapping change" });
 		expect(await processRemote(input)).toBe("imported");
 		await sql.executeRaw(
-			`INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('new-destination','owner','CHECKING')`,
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('new-destination','owner','CHECKING') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('new-destination','BRL',0)`,
 		);
 		const changed = { ...binding, financialAccountId: "new-destination" };
 		expect(await processRemote(input, changed)).toBe("unchanged");

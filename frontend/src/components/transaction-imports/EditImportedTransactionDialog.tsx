@@ -125,7 +125,7 @@ export function EditImportedTransactionDialog({
 			? draft.destinationFinancialAccountId
 			: draft.originFinancialAccountId;
 
-	const currencyCode = accounts.find(account => account.id === primaryAccountId)?.currency ?? "BRL";
+	const currencyCode = accounts.find(account => account.id === primaryAccountId)?.yieldCurrency ?? "BRL";
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open={open}>
 			<ImportDialogContent className="sm:max-w-lg">

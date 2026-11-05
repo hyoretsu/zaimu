@@ -204,7 +204,7 @@ async function processFetchJob(
 			 OR account."historicalYieldSettings"->'settings'->>'yieldReferenceType' = $1::text
 			 OR EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE((account."historicalYieldSettings"->'settings'->'rules')::jsonb, '[]'::jsonb)) historical_rule WHERE historical_rule.value->>'yieldReferenceType' = $1::text)
 			 OR EXISTS (SELECT 1 FROM "public"."FinancialAccountYieldRateHistory" history WHERE history."financialAccountId" = account."id" AND history."yieldReferenceType" = $1::"ReferenceRateType")
-			 OR EXISTS (SELECT 1 FROM "public"."FinancialInstitutionYieldRule" rule INNER JOIN "public"."FinancialInstitutionYieldPolicy" policy ON policy."id" = rule."financialYieldPolicyId" WHERE policy."financialInstitutionId" = account."institutionId" AND rule."yieldReferenceType" = $1::"ReferenceRateType"))`,
+			 OR EXISTS (SELECT 1 FROM "public"."FinancialInstitutionYieldRule" rule INNER JOIN "public"."FinancialInstitutionYieldPolicy" policy ON policy."id" = rule."financialYieldPolicyId" WHERE policy."financialInstitutionId" IN (account."institutionId", account."legacyInstitutionId") AND rule."yieldReferenceType" = $1::"ReferenceRateType"))`,
 				[referenceType],
 			);
 			await Promise.all(
@@ -267,7 +267,12 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	if (!job.financialAccountId || !job.fromDate) throw new Error("Job de recálculo incompleto");
 	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
 	const account = await loadYieldAccount(job.financialAccountId);
-	if (!account) return;
+	if (!account?.currency) return;
+	const [holding] = await queryRaw<{ assetCode: string }>(
+		`SELECT holding."assetCode" FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=$1 AND holding."assetCode"=$2`,
+		[account.id, account.currency],
+	);
+	if (!holding) return;
 	const firstBalance = await accountFirstBalanceDate(account.id);
 	if (!firstBalance) return;
 	const reconcile = (from: string, before: string | null = null) =>
@@ -291,22 +296,22 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				before,
 			);
 		});
-	const fromDate = startOfDay(job.fromDate > firstBalance ? job.fromDate : firstBalance);
+	const fromDate = startOfDay(Math.max(job.fromDate, firstBalance));
 	const endDate = startOfDay(job.endDate ?? yieldSchedulerClock().date);
 	if (fromDate > endDate) return;
 	const years = Array.from(
 		{ length: endDate.getFullYear() - fromDate.getFullYear() + 1 },
 		(_, index) => fromDate.getFullYear() + index,
 	);
-	if (!(await ensureAccountCoverage(account.currency ?? "BRL", account.countryCode, years))) {
+	if (!(await ensureAccountCoverage(account.currency, account.countryCode, years))) {
 		// Without a country no yield is ever generated, so the balance only depends on movements.
 		if (!account.countryCode) await reconcile(dateKey(fromDate));
 		return;
 	}
 	await loadTaxCatalog();
 	await executeRaw(
-		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2 AND "date" <= $3`,
-		[account.id, dateKey(fromDate), dateKey(endDate)],
+		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "assetCode" = $4 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2 AND "date" <= $3`,
+		[account.id, dateKey(fromDate), dateKey(endDate), account.currency],
 	);
 	const holidayKeys = await getCountryHolidays(account.countryCode!);
 	const loaded = await loadFinancialAccountBalanceInput([account.id]);
@@ -345,6 +350,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 					functions.and(
 						functions.eq(fields.financialAccountId, account.id),
 						functions.eq(fields.date, key),
+						functions.eq(fields.assetCode, account.currency!),
 						functions.eq(fields.origin, "USER"),
 					),
 				)
@@ -384,8 +390,8 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		await executeStatement(
 			db.sql.public.FinancialAccountYield.insert([
 				{
-					amount: numeric<12, 4>(amount),
-					currency: account.currency,
+					amount: numeric<38, 18>(amount),
+					assetCode: account.currency!,
 					date: key,
 					financialAccountId: account.id,
 					isExcluded: false,

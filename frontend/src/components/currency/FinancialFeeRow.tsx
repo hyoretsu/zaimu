@@ -2,13 +2,14 @@ import { formatAsset } from "@zaimu/finance/asset-amount";
 import { roundMoney } from "@zaimu/finance/money";
 import { LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
+import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { AutoCollapseSection } from "@/components/ui/AutoCollapseSection";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormField } from "@/components/ui/FormField";
-import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialFee } from "@/lib/api";
+import { CurrencySelect } from "./CurrencySelect";
 
 const presets = ["IOF", "Spread", "Imposto", "Tarifa", "Juros", "Multa"];
 export function FinancialFeeRow({
@@ -20,7 +21,7 @@ export function FinancialFeeRow({
 	index,
 }: {
 	fee: FinancialFee;
-	baseAmount: number;
+	baseAmount: number | string;
 	onChange: (fee: FinancialFee) => void;
 	onRemove: () => void;
 	currencyCode: string;
@@ -30,14 +31,14 @@ export function FinancialFeeRow({
 		...storedFee,
 		amount:
 			storedFee.type === "PERCENTAGE"
-				? roundMoney((baseAmount * storedFee.amount) / 100, currencyCode)
+				? roundMoney((Number(baseAmount) * Number(storedFee.amount)) / 100, currencyCode)
 				: storedFee.amount,
 		type: "FIXED",
 	};
 	const [name, setName] = useDebouncedInput(fee.name, name => onChange({ ...fee, name }));
 	return (
 		<AutoCollapseSection
-			complete={Boolean(name.trim()) && fee.amount > 0}
+			complete={Boolean(name.trim()) && /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(String(fee.amount))}
 			summary={`${name} - ${formatAsset(fee.amount, fee.assetCode ?? currencyCode)}`}
 			title="Taxa"
 		>
@@ -63,30 +64,17 @@ export function FinancialFeeRow({
 					value={name}
 				/>
 			) : null}
-			<FormField
-				id={`fee-asset-${index}`}
-				label="Ativo da taxa (opcional)"
-				maxLength={12}
-				name={`fee-asset-${index}`}
-				onChange={event => {
-					const assetCode = event.currentTarget.value
-						.trim()
-						.toUpperCase()
-						.replace(/[^A-Z0-9]/g, "");
-					onChange({
-						...fee,
-						assetCode: assetCode && assetCode !== currencyCode ? assetCode : undefined,
-					});
-				}}
-				placeholder={`${currencyCode}; use ETH para gas`}
-				type="text"
-				value={fee.assetCode ?? ""}
+			<CurrencySelect
+				allowCrypto
+				label="Ativo da taxa"
+				onValueChange={assetCode => onChange({ ...fee, assetCode })}
+				value={fee.assetCode ?? currencyCode}
 			/>
-			<MoneyField
-				currencyCode={fee.assetCode && fee.assetCode.length >= 2 ? fee.assetCode : currencyCode}
+			<AssetAmountField
+				assetCode={fee.assetCode ?? currencyCode}
 				id={`fee-amount-${index}`}
 				label="Valor da taxa"
-				onValueChange={amount => onChange({ ...fee, amount: Number(amount) || 0 })}
+				onValueChange={amount => onChange({ ...fee, amount })}
 				value={String(fee.amount || "")}
 			/>
 			<ActionGroup>

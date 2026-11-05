@@ -1,6 +1,7 @@
 import { loanPlannerHorizon, type PlannerInput } from "@zaimu/finance/loan-planner";
 import type { LoanPlannerSnapshot } from "@zaimu/finance/loan-planner-runtime";
 import { useAuthStore } from "@/stores/auth";
+import { fiatAccountBalance } from "./account-assets";
 import { loanContractsApi, type SavedLoanScenario } from "./api";
 import { SessionChangedError } from "./api/client-api";
 import { getGuestDashboardFinancialContext } from "./dashboard-comparison";
@@ -46,7 +47,7 @@ export const loanPlannerService = {
 			through,
 			true,
 		);
-		input.accounts = context.plannerAccounts.map(row => ({ ...row, balance: row.balance ?? 0 }));
+		input.accounts = context.plannerAccounts.map(row => ({ ...row, balance: fiatAccountBalance(row) }));
 		const primary =
 			context.plannerAccounts.find(row => row.isPrimary)?.id ??
 			input.accounts.find(row => ["CHECKING", "CASH"].includes(row.type))?.id ??

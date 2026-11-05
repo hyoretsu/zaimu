@@ -405,6 +405,7 @@ async function getPotentialDuplicates(
 		...transactions
 			.map(transaction => ({
 				...transaction,
+				amount: Number(transaction.amount), // Statement import is fiat-only.
 				externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
 			}))
 			.map(transaction => {

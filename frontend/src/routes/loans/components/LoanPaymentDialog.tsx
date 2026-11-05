@@ -53,7 +53,9 @@ export function LoanPaymentDialog({
 	onClose: () => void;
 }) {
 	const identity = useCacheIdentity();
-	const [paidDate, setPaidDate] = useState(() => initialDraft?.paidDate ?? initialDate ?? getLocalDateKey());
+	const [paidDate, setPaidDate] = useState(
+		() => initialDraft?.paidDate ?? initialDate ?? getLocalDateKey(),
+	);
 	const [accountId, setAccountId] = useState(initialDraft?.accountId ?? "");
 	const [amount, setAmount] = useState(initialDraft?.amount ?? "");
 	const accounts = useQuery({
@@ -68,7 +70,7 @@ export function LoanPaymentDialog({
 	});
 	const row = payment ?? next.data;
 	const account = accounts.data?.find(row => row.id === accountId);
-	const currency = account?.currency ?? "BRL";
+	const currency = account?.yieldCurrency ?? "BRL";
 	const source = row?.currency ?? "BRL";
 	const rate = useQuery({
 		enabled: !!identity && !!row && !!account && source !== currency,
@@ -108,7 +110,8 @@ export function LoanPaymentDialog({
 							) : (
 								<>
 									<p>
-										Parcela {row.installmentNumber}: {formatCurrency(row.totalPaid, source)}
+										Parcela {row.installmentNumber}:{" "}
+										{formatCurrency(row.totalPaid, source)}
 									</p>
 									<DateField
 										id="loan-payment-date"
@@ -128,10 +131,12 @@ export function LoanPaymentDialog({
 											{ label: "Sem conta específica", special: true, value: "" },
 											...(accounts.data ?? [])
 												.filter(account =>
-													["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
+													["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(
+														account.type,
+													),
 												)
 												.map(account => ({
-													label: `${account.name} (${account.currency ?? "BRL"})`,
+													label: `${account.name} (${account.yieldCurrency ?? "BRL"})`,
 													value: account.id,
 												})),
 										]}
@@ -153,7 +158,8 @@ export function LoanPaymentDialog({
 											) : suggestion !== null ? (
 												<div className="flex flex-wrap items-center justify-end gap-2">
 													<p className="text-muted-foreground text-sm">
-														Sugestão diária: {formatCurrency(suggestion, currency)}
+														Sugestão diária:{" "}
+														{formatCurrency(suggestion, currency)}
 													</p>
 													<Button
 														onClick={() => {
@@ -174,7 +180,8 @@ export function LoanPaymentDialog({
 												</p>
 											)}
 											<p className="text-muted-foreground text-xs">
-												Valor informado prevalece sobre cotação diária e permanece registrado.
+												Valor informado prevalece sobre cotação diária e permanece
+												registrado.
 											</p>
 										</>
 									)}

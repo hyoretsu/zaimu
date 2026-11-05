@@ -1,6 +1,8 @@
+import { isCryptoAsset } from "@zaimu/finance/money";
 import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
+import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
@@ -22,6 +24,9 @@ export function TransactionDetailsFields({
 	counterpartIsPoints = false,
 	counterpartValue = "",
 	onCounterpartChange,
+	onDestinationCurrencyChange,
+	onDestinationAmountChange,
+	destinationAmount = "",
 	paymentCurrency,
 	paymentAmount = "",
 	onPaymentAmountChange,
@@ -57,6 +62,9 @@ export function TransactionDetailsFields({
 	counterpartCurrency?: string;
 	counterpartIsPoints?: boolean;
 	counterpartValue?: string;
+	onDestinationCurrencyChange?: (value: string) => void;
+	onDestinationAmountChange?: (value: string) => void;
+	destinationAmount?: string;
 	onCounterpartChange?: (value: string) => void;
 	paymentCurrency?: string;
 	paymentAmount?: string;
@@ -107,7 +115,8 @@ export function TransactionDetailsFields({
 			<FormFieldRow>
 				{onCurrencyChange ? (
 					<CurrencySelect
-						label="Moeda da transação"
+						allowCrypto={type !== "YIELD"}
+						label="Ativo da transação"
 						onValueChange={onCurrencyChange}
 						value={currencyCode}
 					/>
@@ -122,8 +131,8 @@ export function TransactionDetailsFields({
 						value={amount}
 					/>
 				) : (
-					<MoneyField
-						currencyCode={currencyCode}
+					<AssetAmountField
+						assetCode={currencyCode}
 						id="transaction-amount"
 						label="Valor"
 						onValueChange={onAmountChange}
@@ -132,6 +141,24 @@ export function TransactionDetailsFields({
 					/>
 				)}
 			</FormFieldRow>
+			{onDestinationCurrencyChange && !counterpartIsPoints && (
+				<CurrencySelect
+					allowCrypto
+					label="Ativo de destino"
+					onValueChange={onDestinationCurrencyChange}
+					value={counterpartCurrency ?? currencyCode}
+				/>
+			)}
+			{!counterpart && onDestinationAmountChange && counterpartCurrency !== currencyCode && (
+				<AssetAmountField
+					assetCode={counterpartCurrency ?? currencyCode}
+					id="transaction-destination-amount"
+					label="Valor recebido"
+					onValueChange={onDestinationAmountChange}
+					required
+					value={destinationAmount}
+				/>
+			)}
 			{counterpart && onCounterpartChange ? (
 				counterpartIsPoints ? (
 					<NumericField
@@ -143,8 +170,8 @@ export function TransactionDetailsFields({
 						value={counterpartValue}
 					/>
 				) : (
-					<MoneyField
-						currencyCode={counterpartCurrency ?? currencyCode}
+					<AssetAmountField
+						assetCode={counterpartCurrency ?? currencyCode}
 						id="transaction-counterpart-amount"
 						label={counterpart === "payment" ? "Valor creditado na fatura" : "Valor recebido"}
 						onValueChange={onCounterpartChange}
@@ -163,25 +190,28 @@ export function TransactionDetailsFields({
 							id="transaction-payment-amount"
 							label="Valor creditado na fatura"
 							onValueChange={onPaymentAmountChange}
+							required={isCryptoAsset(currencyCode)}
 							value={paymentAmount}
 						/>
 						<p className="text-muted-foreground text-xs">
 							Informe valor efetivo ou deixe conversão automática.
 						</p>
-						<TransactionConversionPreview
-							amount={amount}
-							bookingCurrency={bookingCurrency}
-							date={date}
-							fees={fees}
-							onUse={onPaymentAmountChange}
-							sourceCurrency={currencyCode}
-							targetCurrency={paymentCurrency}
-						/>
+						{!isCryptoAsset(currencyCode) && (
+							<TransactionConversionPreview
+								amount={amount}
+								bookingCurrency={bookingCurrency}
+								date={date}
+								fees={fees}
+								onUse={onPaymentAmountChange}
+								sourceCurrency={currencyCode}
+								targetCurrency={paymentCurrency}
+							/>
+						)}
 					</div>
 				)}
 			{onFeesChange ? (
 				<FinancialFeeFields
-					baseAmount={Number(amount) || 0}
+					baseAmount={amount || "0"}
 					currencyCode={currencyCode}
 					fees={fees}
 					onChange={onFeesChange}

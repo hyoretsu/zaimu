@@ -1,15 +1,17 @@
-import { toMinorUnits } from "@zaimu/finance/money";
+import { decimalToUnits } from "@zaimu/finance/asset-amount";
 import { format } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
 import { db, numeric, param, queryFirst, queryRaw, queryRows } from "~/shared/infra/sql";
+import { resolveAccountAsset } from "../../application/account-assets";
 import { balanceBeforeAdjustment } from "../../application/balance-adjustment-reconciliation";
 
 const DateKey = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" });
 const AdjustmentBody = t.Object({
-	balance: t.Number({ maximum: 9999999999.99, minimum: -9999999999.99 }),
+	assetCode: t.String({ pattern: "^[A-Z0-9]{2,12}$" }),
+	balance: t.String({ pattern: "^-?\\d{1,20}(\\.\\d{1,18})?$" }),
 	date: DateKey,
 	financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 });
@@ -30,7 +32,7 @@ function parseDate(value: string) {
 
 async function assertEligibleAccount(userId: string, accountId: string) {
 	const account = await queryFirst(
-		db.sql.public.FinancialAccount.select("id", "type", "currency")
+		db.sql.public.FinancialAccount.select("id", "type")
 			.where((fields, functions) =>
 				functions.and(functions.eq(fields.id, accountId), functions.eq(fields.userId, userId)),
 			)
@@ -69,9 +71,9 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 					)
 					.select(f => ({
 						accountName: f.FinancialAccount.name,
+						assetCode: f.BalanceAdjustment.assetCode,
 						balance: f.BalanceAdjustment.balance,
 						createdAt: f.BalanceAdjustment.createdAt,
-						currency: f.BalanceAdjustment.currency,
 						date: f.BalanceAdjustment.date,
 						financialAccountId: f.BalanceAdjustment.financialAccountId,
 						id: f.BalanceAdjustment.id,
@@ -105,8 +107,9 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			const account = await assertEligibleAccount(userId, body.financialAccountId);
-			toMinorUnits(Math.abs(body.balance), account.currency);
+			await assertEligibleAccount(userId, body.financialAccountId);
+			const asset = await resolveAccountAsset(body.financialAccountId, body.assetCode, { userId });
+			decimalToUnits(body.balance, asset.assetCode);
 			const date = parseDate(body.date);
 			const existing = await queryRows(
 				db.sql.public.BalanceAdjustment.select("id")
@@ -115,6 +118,7 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 							fn.eq(f.userId, userId),
 							fn.eq(f.financialAccountId, body.financialAccountId),
 							fn.eq(f.date, body.date),
+							fn.eq(f.assetCode, body.assetCode),
 						),
 					)
 					.build(),
@@ -124,14 +128,14 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 			const [adjustment] = await queryRows(
 				db.sql.public.BalanceAdjustment.insert([
 					{
-						balance: numeric<20, 6>(body.balance),
-						currency: account.currency,
+						assetCode: asset.assetCode,
+						balance: numeric<38, 18>(body.balance),
 						date: body.date,
 						financialAccountId: body.financialAccountId,
 						userId,
 					},
 				])
-					.returning("id", "financialAccountId", "date", "balance", "currency")
+					.returning("id", "financialAccountId", "date", "balance", "assetCode")
 					.build(),
 			);
 			await enqueueAccountYieldRecalculation(
@@ -147,8 +151,9 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 		"/:id",
 		async ({ body, params, request }) => {
 			const userId = await requireUserId(request);
-			const account = await assertEligibleAccount(userId, body.financialAccountId);
-			toMinorUnits(Math.abs(body.balance), account.currency);
+			await assertEligibleAccount(userId, body.financialAccountId);
+			const asset = await resolveAccountAsset(body.financialAccountId, body.assetCode, { userId });
+			decimalToUnits(body.balance, asset.assetCode);
 			const date = parseDate(body.date);
 			const [previous] = await queryRows(
 				db.sql.public.BalanceAdjustment.select("date", "financialAccountId")
@@ -163,6 +168,7 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 							fn.eq(f.userId, userId),
 							fn.eq(f.financialAccountId, body.financialAccountId),
 							fn.eq(f.date, body.date),
+							fn.eq(f.assetCode, body.assetCode),
 							fn.ne(f.id, params.id),
 						),
 					)
@@ -175,10 +181,10 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 					const varchar = (value: string) =>
 						fn.raw`${param(value, { codecId: "sql/varchar@1" })}`.returns("sql/varchar@1");
 					return {
+						assetCode: varchar(asset.assetCode),
 						balance: fn.raw`${param(body.balance, { codecId: "pg/numeric@1" })}`.returns(
 							"pg/numeric@1",
 						),
-						currency: varchar(account.currency),
 						date: fn.raw`${param(body.date, { codecId: "pg/date-string@1" })}`.returns(
 							"pg/date-string@1",
 						),

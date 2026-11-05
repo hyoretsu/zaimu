@@ -122,7 +122,7 @@ export function EditStatementPaymentDialog({
 								bookingCurrency={
 									accountsQuery.data?.find(
 										account => account.id === draft.originFinancialAccountId,
-									)?.currency ?? draft.currency
+									)?.yieldCurrency ?? draft.currency
 								}
 								currencyCode={draft.currency}
 								date={draft.date}

@@ -6,10 +6,12 @@ import {
 } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { loadCountryHolidayRows } from "~/modules/yield-calendar/catalog";
 import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
-import { db, queryRaw, queryRows } from "~/shared/infra/sql";
+import { db, queryRaw, queryRawDecimal, queryRows } from "~/shared/infra/sql";
+import { resolveAccountAsset } from "./account-assets";
 import { cashbackReversalsSql } from "./cashback-reversals-sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
 import { monetaryBalancesSql } from "./monetary-balances-sql";
+import { yieldMovementsSql } from "./yield-movements-sql";
 
 export function calculateCashbackValue(
 	amount: number,
@@ -35,12 +37,11 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	if (accountIds.length === 0) return { balances, input: null } as const;
 	const accounts = await queryRows(
 		db.sql.public.FinancialAccount.select(
-			"currency",
+			"yieldCurrency",
 			"countryCode",
 			"id",
 			"institutionId",
 			"legacyInstitutionId",
-			"currency",
 			"userId",
 			"type",
 			"createdAt",
@@ -60,25 +61,20 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 	const institutionYieldPolicies = await getFinancialInstitutionYieldPolicies([
 		...new Set(accounts.flatMap(account => (account.institutionId ? [account.institutionId] : []))),
 	]);
-	const transactions = await queryRows(
-		db.sql.public.Transaction.select(
-			"id",
-			"amount",
-			"date",
-			"destinationFinancialAccountId",
-			"destinationAmount",
-			"originFinancialAccountId",
-		)
-			.where((fields, functions) =>
-				functions.or(
-					functions.in(fields.originFinancialAccountId, accountIds),
-					functions.in(fields.destinationFinancialAccountId, accountIds),
-				),
-			)
-			.build(),
-	);
-	const loanPayments = await queryRaw<{ amount: string; date: Date; originFinancialAccountId: string }>(
-		`SELECT COALESCE(payment."accountAmount",payment."totalPaid") AS amount,payment."paidDate" AS date,payment."financialAccountId" AS "originFinancialAccountId" FROM "LoanPayment" payment WHERE payment."financialAccountId"=ANY($1::text[]) AND payment."paidDate" IS NOT NULL`,
+	const transactions = await queryRaw<{
+		id: string;
+		amount: number;
+		date: Date;
+		destinationAmount: null;
+		destinationFinancialAccountId: string | null;
+		originFinancialAccountId: string | null;
+	}>(yieldMovementsSql, [accountIds]);
+	const loanPayments = await queryRaw<{ amount: number; date: Date; originFinancialAccountId: string }>(
+		`
+ SELECT COALESCE(payment."accountAmount",payment."totalPaid") AS amount,payment."paidDate" AS date,payment."financialAccountId" AS "originFinancialAccountId"
+ FROM "LoanPayment" payment JOIN "FinancialAccount" account ON account."id"=payment."financialAccountId"
+ WHERE payment."financialAccountId"=ANY($1::text[]) AND payment."paidDate" IS NOT NULL
+ AND COALESCE(payment."accountCurrency",payment."currency")=account."yieldCurrency"`,
 		[accountIds],
 	);
 	const rewardsAccounts = await queryRows(
@@ -102,22 +98,27 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
 	);
-	const yields = await queryRows(
-		db.sql.public.FinancialAccountYield.select(
-			"amount",
-			"date",
-			"financialAccountId",
-			"isExcluded",
-			"kind",
-			"origin",
-		)
-			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
-			.build(),
+	const yields = await queryRaw<{
+		amount: number | null;
+		date: Date;
+		financialAccountId: string;
+		isExcluded: boolean;
+		kind: string;
+		origin: string;
+	}>(
+		`SELECT entry."amount",entry."date",entry."financialAccountId",entry."isExcluded",entry."kind",entry."origin"
+ FROM "FinancialAccountYield" entry JOIN "FinancialAccount" account ON account."id"=entry."financialAccountId"
+ JOIN "Asset" asset ON asset."code"=entry."assetCode" AND asset."kind"='FIAT'
+ WHERE entry."financialAccountId"=ANY($1::text[]) AND entry."assetCode"=account."yieldCurrency"`,
+		[accountIds],
 	);
-	const adjustments = await queryRows(
-		db.sql.public.BalanceAdjustment.select("balance", "date", "financialAccountId")
-			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
-			.build(),
+	const adjustments = await queryRaw<{ balance: number; date: Date; financialAccountId: string }>(
+		`
+ SELECT adjustment."balance",adjustment."date",adjustment."financialAccountId" FROM "BalanceAdjustment" adjustment
+ JOIN "FinancialAccount" account ON account."id"=adjustment."financialAccountId"
+ JOIN "Asset" asset ON asset."code"=adjustment."assetCode" AND asset."kind"='FIAT'
+ WHERE adjustment."financialAccountId"=ANY($1::text[]) AND adjustment."assetCode"=account."yieldCurrency"`,
+		[accountIds],
 	);
 	const yieldRateHistoriesByAccountId = new Map<string, typeof yieldRateHistories>();
 	for (const history of yieldRateHistories) {
@@ -158,10 +159,14 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 		(_, index) => startYear + index,
 	);
 	const scopes = [
-		...new Map(accounts.map(account => [`${account.currency}:${account.countryCode}`, account])).values(),
+		...new Map(
+			accounts
+				.filter(account => account.yieldCurrency)
+				.map(account => [`${account.yieldCurrency}:${account.countryCode}`, account]),
+		).values(),
 	];
 	await Promise.all(
-		scopes.map(account => ensureAccountCoverage(account.currency, account.countryCode, years)),
+		scopes.map(account => ensureAccountCoverage(account.yieldCurrency!, account.countryCode, years)),
 	);
 	const coverage = await queryRaw<{ countryCode: string; year: number }>(
 		`SELECT "countryCode","year" FROM "YieldCalendarCoverage" WHERE "status"='COMPLETE'`,
@@ -185,6 +190,7 @@ export async function loadFinancialAccountBalanceInput(accountIds: string[]) {
 		input: {
 			accounts: accounts.map(account => ({
 				...account,
+				currency: account.yieldCurrency ?? "BRL", // Points-only compatibility; automatic scheduling excludes accounts without a fiat selection.
 				...profileContext.get(account.id),
 				institutionYieldPolicies: account.institutionId
 					? (institutionYieldPolicies.get(account.institutionId) ?? [])
@@ -255,12 +261,22 @@ export async function getFinancialAccountBalances(
 				.where((f, fn) => fn.in(f.id, accountIds))
 				.build(),
 		));
+	const selectedAssets = new Map<string, string>();
+	for (const account of accounts.filter(
+		account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS",
+	)) {
+		const asset = await resolveAccountAsset(account.id, undefined, {
+			fiatOnly: true,
+			userId: account.userId,
+		});
+		selectedAssets.set(account.id, asset.assetCode);
+	}
 	const monetary = accounts.filter(account =>
 		["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
 	);
 	const userIds = [...new Set(monetary.map(account => account.userId))];
 	for (const userId of userIds) {
-		const rows = await queryRaw<{ accountId: string; balance: number }>(
+		const rows = await queryRawDecimal<{ accountId: string; assetCode: string; balance: string }>(
 			monetaryBalancesSql.replace(
 				'WHERE account."userId"=$1',
 				'WHERE account."userId"=$1 AND account."id"=ANY($3::text[])',
@@ -271,10 +287,20 @@ export async function getFinancialAccountBalances(
 				monetary.filter(account => account.userId === userId).map(account => account.id),
 			],
 		);
-		for (const row of rows) balances.set(row.accountId, Number(row.balance));
+		for (const row of rows)
+			if (row.assetCode === selectedAssets.get(row.accountId))
+				balances.set(row.accountId, Number(row.balance));
 	}
 	const rewards = accounts.filter(account => account.type === "REWARDS").map(account => account.id);
 	if (rewards.length) {
+		const rewardRows = await queryRows(
+			db.sql.public.RewardsAccount.select("financialAccountId", "kind", "assetCode")
+				.where((f, fn) => fn.in(f.financialAccountId, rewards))
+				.build(),
+		);
+		for (const reward of rewardRows)
+			if (reward.kind !== "POINTS")
+				await resolveAccountAsset(reward.financialAccountId, reward.assetCode, { fiatOnly: true });
 		const loaded = await loadFinancialAccountBalanceInput(rewards);
 		if (loaded.input)
 			for (const [id, balance] of calculateFinancialAccountYieldBalances({

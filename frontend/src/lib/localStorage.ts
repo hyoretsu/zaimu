@@ -1,3 +1,4 @@
+import { decimalToUnits, unitsToDecimal } from "@zaimu/finance/asset-amount";
 import {
 	type CreditBook,
 	creditBookEntries,
@@ -11,7 +12,7 @@ import {
 } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
-import { currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
+import { currencyScale, isCryptoAsset, roundMoney, toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import { recurrencePeriodStart } from "@zaimu/finance/recurrence";
 import { financialDateKey, resolveTimeZone } from "@zaimu/finance/time-zone";
@@ -30,6 +31,7 @@ import type {
 	Transaction,
 } from "@/lib/api";
 import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
+import { fiatAccountBalance, normalizeAccountAssets } from "./account-assets";
 import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { requestResult, transactionDone } from "./idb";
@@ -254,7 +256,18 @@ export async function getAll<T>(domain: StoreDomain, ownerKey?: StorageOwner): P
 	const owner = requireOwner(ownerKey);
 	return runTransaction(scopedStoreName(domain), "readonly", async store => {
 		const results = (await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[];
-		return results.filter(item => !item.deleted);
+		return results
+			.filter(item => !item.deleted)
+			.map(item =>
+				domain === "accounts"
+					? {
+							...item,
+							data: normalizeAccountAssets(
+								item.data as unknown as FinancialAccount,
+							) as unknown as T,
+						}
+					: item,
+			);
 	});
 }
 
@@ -276,7 +289,16 @@ export async function getById<T>(
 	const owner = requireOwner(ownerKey);
 	return runTransaction(scopedStoreName(domain), "readonly", async store => {
 		const result = (await requestResult(store.get(scopedId(owner, localId)))) as LocalData<T> | undefined;
-		return result?.deleted ? undefined : result;
+		return result?.deleted
+			? undefined
+			: result && domain === "accounts"
+				? {
+						...result,
+						data: normalizeAccountAssets(
+							result.data as unknown as FinancialAccount,
+						) as unknown as T,
+					}
+				: result;
 	});
 }
 
@@ -549,7 +571,13 @@ function createLocalStore<T>(domain: StoreDomain) {
 }
 
 export async function mutateLocalBalanceAdjustment(
-	input: { id?: string; balance?: number; date?: string; financialAccountId?: string },
+	input: {
+		id?: string;
+		assetCode?: string;
+		balance?: string | number;
+		date?: string;
+		financialAccountId?: string;
+	},
 	remove = false,
 ) {
 	const owner = requireOwner();
@@ -561,7 +589,9 @@ export async function mutateLocalBalanceAdjustment(
 		const store = tx.objectStore("scoped-accounts");
 		const rows = (
 			(await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<FinancialAccount>[]
-		).filter(row => !row.deleted);
+		)
+			.filter(row => !row.deleted)
+			.map(row => ({ ...row, data: normalizeAccountAssets(row.data) }));
 		if (input.id && !rows.some(row => row.data.balanceAdjustments?.some(item => item.id === id)))
 			throw new Error("Ajuste não encontrado");
 		const target = rows.find(row => row.data.id === input.financialAccountId);
@@ -579,33 +609,36 @@ export async function mutateLocalBalanceAdjustment(
 				new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date
 			)
 				throw new Error("Informe uma data válida");
-			if (
-				input.balance == null ||
-				!Number.isFinite(input.balance) ||
-				Math.abs(input.balance) > 9999999999.99
-			)
-				throw new Error("Informe um saldo válido");
-			toMinorUnits(Math.abs(input.balance), target.data.currency ?? "BRL");
+			const code = input.assetCode ?? target.data.yieldCurrency ?? "BRL";
+			if (input.balance == null || (isCryptoAsset(code) && typeof input.balance !== "string"))
+				throw new Error("Informe um saldo decimal válido");
+			decimalToUnits(String(input.balance), code);
 			if (
 				target.data.balanceAdjustments?.some(
-					item => item.id !== id && item.date.slice(0, 10) === date,
+					item =>
+						item.id !== id &&
+						item.date.slice(0, 10) === date &&
+						(item.assetCode ?? target.data.yieldCurrency) === code,
 				)
 			)
 				throw new Error("Já existe um ajuste nesta data para esta conta");
 		}
 		for (const row of rows) {
 			const entries = (row.data.balanceAdjustments ?? []).filter(item => item.id !== id);
-			if (!remove && row === target)
+			if (!remove && row === target) {
+				const assetCode = input.assetCode ?? row.data.yieldCurrency;
+				if (!assetCode) throw new Error("Informe o ativo do ajuste");
 				entries.push({
-					balance: input.balance!,
-					calculatedBalance: 0,
+					assetCode,
+					balance: unitsToDecimal(decimalToUnits(String(input.balance!), assetCode), assetCode),
+					calculatedBalance: "0",
 					createdAt: new Date().toISOString(),
-					currency: row.data.currency ?? "BRL",
 					date: input.date!,
 					financialAccountId: row.data.id,
 					id,
 					name: row.data.name,
 				});
+			}
 			if (row !== target && entries.length === (row.data.balanceAdjustments ?? []).length) continue;
 			await requestResult(
 				store.put({
@@ -647,7 +680,10 @@ export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
 			(
 				(await requestResult(tx.objectStore(store).index("ownerKey").getAll(owner))) as LocalData<T>[]
 			).filter(row => !row.deleted);
-		const accounts = await rows<FinancialAccount>("scoped-accounts");
+		const accounts = (await rows<FinancialAccount>("scoped-accounts")).map(row => ({
+			...row,
+			data: normalizeAccountAssets(row.data),
+		}));
 		const movements = await rows<Transaction>("scoped-transactions");
 		const books = await rows<CreditBook>("scoped-creditBooks");
 		const loans = await rows<LoanPayment>("scoped-loanPayments");
@@ -658,7 +694,11 @@ export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
 		const checkpoints = new Map(
 			accounts.flatMap(row =>
 				(row.data.balanceAdjustments ?? []).map(
-					item => [item.id, { currency: row.data.currency ?? "BRL", item }] as const,
+					item =>
+						[
+							item.id,
+							{ currency: item.assetCode ?? row.data.yieldCurrency ?? "BRL", item },
+						] as const,
 				),
 			),
 		);
@@ -673,8 +713,9 @@ export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
 				const checkpoint = checkpoints.get(id)!;
 				if (
 					complete &&
+					!isCryptoAsset(checkpoint.currency) &&
 					Math.round(calculated * currencyScale(checkpoint.currency)) ===
-						Math.round(checkpoint.item.balance * currencyScale(checkpoint.currency))
+						Math.round(Number(checkpoint.item.balance) * currencyScale(checkpoint.currency))
 				)
 					redundant.add(id);
 			},
@@ -905,7 +946,7 @@ export async function mutateLocalCreditBook<T>(
 			: null;
 		const book: CreditBook = stored?.data ?? {
 			card: {
-				currency: card.currency ?? accountRow?.data.currency ?? "BRL",
+				currency: card.currency ?? accountRow?.data.yieldCurrency ?? "BRL",
 				dueDay: card.dueDay,
 				id: cardId,
 				ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
@@ -1219,7 +1260,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 			id: row.data.id,
 		}));
 	const rewardAccounts = new Map(
-		(await localAccounts.getAll(owner)).map(row => [row.data.id, row.data.currency ?? "BRL"]),
+		(await localAccounts.getAll(owner)).map(row => [row.data.id, row.data.yieldCurrency ?? "BRL"]),
 	);
 	for (const purchase of book.purchases)
 		if (purchase.cashbackAccountId)
@@ -1877,11 +1918,13 @@ export async function confirmLocalSuggestedPayment(
 		const transactions = await getRows<Transaction>("scoped-transactions");
 		const previous = transactions.find(row => row.localId === input.attemptId)?.data;
 		if (previous) {
+			if (isCryptoAsset(previous.paymentCurrency ?? "BRL"))
+				throw new Error("Pagamento de cartão exige moeda fiduciária");
 			if (
 				previous.paymentCreditCardId !== cardId ||
 				previous.originFinancialAccountId !== input.financialAccountId ||
 				moneyCents(
-					previous.paymentAmount ?? previous.amount,
+					Number(previous.paymentAmount ?? previous.amount),
 					1,
 					previous.paymentCurrency ?? "BRL",
 				) !== moneyCents(input.amount, 1, previous.paymentCurrency ?? "BRL") ||
@@ -1892,7 +1935,10 @@ export async function confirmLocalSuggestedPayment(
 			await done;
 			return { transaction: previous };
 		}
-		const accounts = await getRows<FinancialAccount>("scoped-accounts");
+		const accounts = (await getRows<FinancialAccount>("scoped-accounts")).map(row => ({
+			...row,
+			data: normalizeAccountAssets(row.data),
+		}));
 		const cards = await getRows<CreditCard>("scoped-creditCards");
 		const books = await getRows<CreditBook>("scoped-creditBooks");
 		const card = cards.find(row => row.localId === cardId)?.data;
@@ -1916,32 +1962,34 @@ export async function confirmLocalSuggestedPayment(
 
 		const yieldData = (await requestResult(meta.get(scopedId(owner, "financial-account-yields")))) as
 			LocalData<import("./api").FinancialAccountYield[]> | undefined;
-		const balance =
-			calculateFinancialAccountBalances(
-				accounts.map(row => row.data),
-				transactions.map(row => row.data),
-				books.flatMap(row => creditBookRewards(row.data)),
-				cachedYieldCalendar(),
-				new Date(`${input.date}T12:00:00`),
-				yieldData?.data ?? [],
-			).find(row => row.id === account.id)?.balance ?? 0;
+		const balance = calculateFinancialAccountBalances(
+			accounts.map(row => row.data),
+			transactions.map(row => row.data),
+			books.flatMap(row => creditBookRewards(row.data)),
+			cachedYieldCalendar(),
+			new Date(`${input.date}T12:00:00`),
+			yieldData?.data ?? [],
+		).find(row => row.id === account.id);
 		const debitAmount =
 			input.accountAmount ??
-			((account.currency ?? "BRL") === (book.card.currency ?? "BRL") ? input.amount : Number.NaN);
-		toMinorUnits(debitAmount, account.currency ?? "BRL", 1);
+			((account.yieldCurrency ?? "BRL") === (book.card.currency ?? "BRL") ? input.amount : Number.NaN);
+		toMinorUnits(debitAmount, account.yieldCurrency ?? "BRL", 1);
 		if (
 			input.date <= currentDateKey() &&
 			toMinorUnits(
-				roundMoney(Math.max(0, balance), account.currency ?? "BRL"),
-				account.currency ?? "BRL",
-			) < toMinorUnits(debitAmount, account.currency ?? "BRL", 1)
+				roundMoney(
+					Math.max(0, balance ? fiatAccountBalance(balance) : 0),
+					account.yieldCurrency ?? "BRL",
+				),
+				account.yieldCurrency ?? "BRL",
+			) < toMinorUnits(debitAmount, account.yieldCurrency ?? "BRL", 1)
 		)
 			throw new Error("Saldo insuficiente na conta pagadora na data informada");
 		const transaction: Transaction = {
 			amount: debitAmount,
-			bookingCurrency: account.currency ?? "BRL",
+			bookingCurrency: account.yieldCurrency ?? "BRL",
 			createdAt: new Date().toISOString(),
-			currency: account.currency ?? "BRL",
+			currency: account.yieldCurrency ?? "BRL",
 			date: input.date,
 			id: input.attemptId,
 			originalAmount: debitAmount,

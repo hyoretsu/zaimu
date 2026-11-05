@@ -36,7 +36,11 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 		});
 	const ordered = accounts
 		.filter(account => account.balance !== 0)
-		.toSorted((left, right) => right.balance - left.balance);
+		.toSorted((left, right) => {
+			if (left.balance === null) return right.balance === null ? 0 : -1;
+			if (right.balance === null) return 1;
+			return right.balance - left.balance;
+		});
 	return (
 		<>
 			<Card>
@@ -73,8 +77,9 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 							<span>{getName(account)}</span>
 							<strong>
 								<PreferredMoneyAmount
+									error={account.balance === null}
 									values={[
-										{ amount: account.balance, currency: account.currency ?? "BRL" },
+										{ amount: account.balance ?? 0, currency: account.currency ?? "BRL" },
 									]}
 								/>
 							</strong>
@@ -122,9 +127,10 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 										<div className="flex shrink-0 flex-col items-end gap-2 text-right">
 											<strong className="tabular-nums">
 												<PreferredMoneyAmount
+													error={account.balance === null}
 													values={[
 														{
-															amount: account.balance,
+															amount: account.balance ?? 0,
 															currency: account.currency ?? "BRL",
 														},
 													]}

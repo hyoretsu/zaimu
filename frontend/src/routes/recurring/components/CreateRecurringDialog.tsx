@@ -106,7 +106,7 @@ export function CreateRecurringDialog({
 							currency:
 								current.amount || amountEntered.current || current.currencyExplicit
 									? current.currency
-									: (primary.currency ?? "BRL"),
+									: (primary.yieldCurrency ?? "BRL"),
 							originFinancialAccountId: primary.id,
 						}
 					: current,

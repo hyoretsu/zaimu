@@ -33,7 +33,9 @@ export function RecurrenceAccountFields({
 	});
 	const cardOptions = (cards.data ?? []).map(card => ({
 		label: accounts.find(account => account.id === card.financialAccountId)
-			? getFinancialAccountOptionLabel(accounts.find(account => account.id === card.financialAccountId)!)
+			? getFinancialAccountOptionLabel(
+					accounts.find(account => account.id === card.financialAccountId)!,
+				)
 			: (card.accountName ?? "Cartão"),
 		value: card.id,
 	}));
@@ -50,7 +52,10 @@ export function RecurrenceAccountFields({
 						onValueChange={value => {
 							set("originFinancialAccountId", value);
 							if (!draft.currencyExplicit && !draft.amount)
-								set("currency", accounts.find(account => account.id === value)?.currency ?? "BRL");
+								set(
+									"currency",
+									accounts.find(account => account.id === value)?.yieldCurrency ?? "BRL",
+								);
 						}}
 						options={balanceOptions}
 						placeholder="Selecione conta de saída"
@@ -68,10 +73,15 @@ export function RecurrenceAccountFields({
 						onValueChange={value => {
 							set("destinationFinancialAccountId", value);
 							if (!draft.currencyExplicit && !draft.amount && draft.movement === "INCOME")
-								set("currency", accounts.find(account => account.id === value)?.currency ?? "BRL");
+								set(
+									"currency",
+									accounts.find(account => account.id === value)?.yieldCurrency ?? "BRL",
+								);
 						}}
 						options={balanceOptions.filter(
-							option => draft.movement !== "TRANSFER" || option.value !== draft.originFinancialAccountId,
+							option =>
+								draft.movement !== "TRANSFER" ||
+								option.value !== draft.originFinancialAccountId,
 						)}
 						placeholder="Selecione conta de entrada"
 						required
@@ -92,8 +102,15 @@ export function RecurrenceAccountFields({
 							label="Cartão"
 							onValueChange={value => {
 								set("creditCardId", value);
-								if (!draft.currencyExplicit && !draft.amount && draft.movement === "CARD_PURCHASE")
-									set("currency", cards.data?.find(card => card.id === value)?.currency ?? "BRL");
+								if (
+									!draft.currencyExplicit &&
+									!draft.amount &&
+									draft.movement === "CARD_PURCHASE"
+								)
+									set(
+										"currency",
+										cards.data?.find(card => card.id === value)?.currency ?? "BRL",
+									);
 							}}
 							options={cardOptions}
 							placeholder="Selecione cartão"

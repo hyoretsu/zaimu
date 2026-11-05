@@ -13,7 +13,10 @@ beforeAll(async () => {
 	process.env.DATABASE_URL = url;
 	await client.connect();
 	await client.query(
-		`INSERT INTO "user" ("id","email","name") VALUES ('time-zone-owner','time-zone@example.test','Timezone'); INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('tz-account','time-zone-owner','Account','CHECKING'),('tz-card-account','time-zone-owner','Card','CREDIT_CARD'); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('tz-card','tz-card-account',1000,15,25)`,
+		`INSERT INTO "Asset" ("code","kind","name","decimals") VALUES ('BRL','FIAT','Brazilian real',2) ON CONFLICT DO NOTHING`,
+	);
+	await client.query(
+		`INSERT INTO "user" ("id","email","name") VALUES ('time-zone-owner','time-zone@example.test','Timezone'); WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('tz-account','time-zone-owner','Account','CHECKING'),('tz-card-account','time-zone-owner','Card','CREDIT_CARD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('tz-account','BRL',0),('tz-card-account','BRL',0); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('tz-card','tz-card-account',1000,15,25)`,
 	);
 	sql = await import("sql");
 	const auth = await import("~/modules/auth");

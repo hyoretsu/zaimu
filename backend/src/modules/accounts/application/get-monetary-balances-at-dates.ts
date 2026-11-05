@@ -1,10 +1,12 @@
-import { queryRaw } from "~/shared/infra/sql";
+import { queryRawDecimal } from "~/shared/infra/sql";
 import { monetaryBalancesSql } from "./monetary-balances-sql";
 
 interface MonetaryBalanceRow {
 	[key: string]: unknown;
 	accountId: string;
-	balance: number;
+	assetCode: string;
+	assetKind: "FIAT" | "CRYPTO";
+	balance: string;
 	currency: string;
 	date: string;
 }
@@ -12,7 +14,7 @@ interface MonetaryBalanceRow {
 export async function getAccountBalancesAtDates(userId: string, dates: Date[]) {
 	const dateKeys = [...new Set(dates.map(date => date.toISOString().slice(0, 10)))];
 	if (dateKeys.length === 0) return [];
-	return queryRaw<MonetaryBalanceRow>(monetaryBalancesSql, [userId, dateKeys]);
+	return queryRawDecimal<MonetaryBalanceRow>(monetaryBalancesSql, [userId, dateKeys]);
 }
 
 export async function getMonetaryBalancesAtDates(userId: string, dates: Date[]) {

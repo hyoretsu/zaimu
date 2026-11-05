@@ -12,7 +12,7 @@ test("guest snapshots use dated profile benefits, auto destination and preserve 
 	const { guestCashbackSnapshot } = await import("./cashback-snapshot");
 	const owner = "guest:profile-benefits";
 	const source: FinancialAccount = {
-		balance: null,
+		assets: [],
 		cardRulesProfiles: [
 			{ id: "base", isDefault: true },
 			{
@@ -33,7 +33,6 @@ test("guest snapshots use dated profile benefits, auto destination and preserve 
 			},
 		],
 		createdAt: "2026-01-01",
-		currency: "BRL",
 		id: "card-account",
 		institution: { creditCardRules: { cashback: null, workingDueDate: false }, id: "bank", name: "Bank" },
 		institutionId: "bank",
@@ -45,6 +44,7 @@ test("guest snapshots use dated profile benefits, auto destination and preserve 
 		type: "CREDIT_CARD",
 		updatedAt: "2026-01-01",
 		userId: "profile-benefits",
+		yieldCurrency: "BRL",
 	};
 	await localAccounts.put(source, source.id, owner);
 	const card = { cashbackAccountId: "forged", cashbackRate: 99, financialAccountId: source.id };

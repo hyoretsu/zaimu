@@ -36,9 +36,8 @@ test("visitor institution policy reaches new purchases, reloads and explicit rec
 	const owner = "guest:guest_installment_policy" as const;
 	const institution = { currency: "BRL", id: "bank", name: "Banco" };
 	const account: FinancialAccount = {
-		balance: null,
+		assets: [],
 		createdAt: "2026-01-01",
-		currency: "BRL",
 		id: "account",
 		institution,
 		institutionId: "bank",
@@ -46,6 +45,7 @@ test("visitor institution policy reaches new purchases, reloads and explicit rec
 		type: "CREDIT_CARD",
 		updatedAt: "2026-01-01",
 		userId: "guest_installment_policy",
+		yieldCurrency: "BRL",
 	};
 	await storage.localAccounts.put(account, account.id, owner);
 	await storage.localAccounts.put({ ...account, id: "sibling", type: "CHECKING" }, "sibling", owner);

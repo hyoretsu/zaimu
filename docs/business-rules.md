@@ -16,6 +16,16 @@ Transações futuras, recorrências, empréstimos e restante das faturas entram 
 
 Evolução por período apresenta dois gráficos alinhados pelos mesmos períodos, com escalas monetárias independentes e filtro compartilhado. Patrimônio fica acima, com linhas para patrimônio (saldo total), em conta, renda fixa e renda variável. No tooltip, Investido agrupa renda fixa e renda variável. Entradas e gastos fica abaixo, com duas barras empilhadas por período: entradas recorrentes/outras entradas e saídas recorrentes/outras saídas. Cada gráfico tem legenda e tooltip próprios; o de fluxo distingue segmentos e totais. Valores monetários incluem centavos.
 
+## Carteiras multiativo
+
+Contas monetárias contêm posições independentes por ativo, com quantidades decimais exatas. O saldo nativo não é substituído pelo equivalente na moeda preferida. Totais convertem cada posição pela cotação da data financeira; ausência de cotação torna o total indisponível, sem ocultar a posição nem somar parcialmente. Previsões usam a data de referência atual para valoração futura, sem fingir conhecer cotações futuras.
+
+Novas posições com saldo inicial não zero criam um ajuste de abertura. Alterações de saldo de posições existentes usam ajustes, sem sobrescrever o histórico. Ativos com saldo ou histórico não podem ser removidos silenciosamente. Rendimentos continuam restritos à posição fiat configurada em `yieldCurrency`; outras posições da mesma conta não aumentam a base de rendimento. Pontos continuam não monetários, sem posições ou cotações.
+
+Cada lado da transação preserva sua denominação: `amount` em `bookingCurrency`, `originalAmount` em `currency`, `destinationAmount` em `destinationCurrency` e `paymentAmount` em `paymentCurrency`. Taxas de rede podem debitar outro ativo da origem. Cartões, empréstimos, dívidas e planejamento permanecem fiat; pagamentos a partir de cripto exigem contraparte fiat explícita ou conversão histórica válida. Rateios de dívida em cripto são rejeitados.
+
+Cashback institucional sem ativo explícito usa a moeda do cartão. Um ativo explícito cria um snapshot da quantidade nativa e da denominação no momento da compra. Edições e estornos preservam esse snapshot e repartem reversões cumulativas na precisão do ativo, sem recriar a recompensa a partir de cotação atual. Configurações de pontos não usam ativo monetário.
+
 ## Planejamento mensal
 
 Planejamentos são reservas mensais estimadas, separadas de transações e recorrências certas. O nome pode ser omitido no formulário; nesse caso, usa o nome da etiqueta selecionada ou da categoria de planejamento (Faturas, Etiqueta ou Reserva). Cada planejamento possui nome, moeda, valor positivo e vigência em meses, com início e término inclusivos. Sem término, repete mensalmente. Pode acompanhar uma tag, o agregado de faturas de todos os cartões ou uma reserva independente sem tag. Planejamentos não criam lançamentos, pagamentos, compras, faturas nem alterações de saldo real.
@@ -30,9 +40,9 @@ Quando uma despesa corresponde a várias categorias planejadas, seu valor é dis
 
 ## Ajustes de saldo
 
-Um ajuste registra o saldo real de uma conta ao fim de uma data. Ele não é entrada nem saída e não participa de categorias, faturas ou dívidas. Existe no máximo um ajuste por conta e data. O saldo antes da data segue as movimentações registradas; na data, o ajuste fixa o saldo de fechamento. Movimentações anteriores ou do mesmo dia alteram automaticamente a diferença implícita do ajuste, preservando o saldo real informado. Movimentações posteriores partem desse saldo, até o próximo ajuste. Excluir o ajuste remove esse ponto de referência e recalcula o histórico.
+Um ajuste registra o saldo real de uma conta ao fim de uma data. Ele não é entrada nem saída e não participa de categorias, faturas ou dívidas. Existe no máximo um ajuste por conta, ativo e data. O saldo antes da data segue as movimentações registradas; na data, o ajuste fixa o saldo de fechamento. Movimentações anteriores ou do mesmo dia alteram automaticamente a diferença implícita do ajuste, preservando o saldo real informado. Movimentações posteriores partem desse saldo, até o próximo ajuste. Excluir o ajuste remove esse ponto de referência e recalcula o histórico.
 
-A listagem agrupa ajustes por conta e mostra suas datas em ordem decrescente. Cada data compara o saldo calculado antes daquele ajuste com o saldo real informado. Uma conta pode ter ajustes em vários dias; adicionar uma data ao grupo mantém a conta selecionada. Duplicatas de conta e dia são rejeitadas antes de salvar.
+A listagem agrupa ajustes por conta e mostra suas datas em ordem decrescente. Cada data compara o saldo calculado antes daquele ajuste com o saldo real informado. Uma conta pode ter ajustes em vários dias; adicionar uma data ao grupo mantém a conta selecionada. Duplicatas da mesma conta, ativo e dia são rejeitadas antes de salvar; ativos distintos podem ter ajustes na mesma data.
 
 Contas de Cashback em dinheiro aceitam ajuste de saldo nos modos conectado e visitante. Cartões de crédito e contas de pontos não aceitam ajuste de saldo. Rendimentos da data são calculados antes da aplicação do ajuste.
 

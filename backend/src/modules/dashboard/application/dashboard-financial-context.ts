@@ -173,9 +173,21 @@ export function dashboardFinancialContext(
 		row => row.date,
 	);
 	const historicalBalances = [...balanceRowsByDate].map(([date, rows]) => ({
-		balances: new Map(rows.map(row => [row.accountId, Number(row.balance)])),
+		balances: new Map(
+			rows.map(row => [
+				row.accountId,
+				row.assetCode
+					? (money?.assetBalances.get(`${row.accountId}:${date}`) ??
+						(() => {
+							throw new Error("Conversão de ativos indisponível");
+						})())
+					: Number(row.balance),
+			]),
+		),
 		date: new Date(`${date}T12:00:00`),
 	}));
+	const rowsCurrency = (accountId: string, _date: string) =>
+		accounts.find(account => account.id === accountId)?.currency ?? money?.currency ?? "BRL";
 	const historicalMonetaryBalances = new Map(
 		historicalBalances.map(({ balances: dateBalances, date }) => [
 			dateKey(date),
@@ -184,7 +196,7 @@ export function dashboardFinancialContext(
 					sum +
 					(money?.convert(
 						dateBalances.get(account.id) ?? 0,
-						account.currency ?? "BRL",
+						rowsCurrency(account.id, dateKey(date)),
 						dateKey(date),
 					) ??
 						dateBalances.get(account.id) ??
@@ -196,14 +208,35 @@ export function dashboardFinancialContext(
 	const todayBalances =
 		historicalBalances.find(item => dateKey(item.date) === todayKey)?.balances ??
 		new Map<string, number>();
-	const forecastAccounts = monetaryAccounts.map(account => ({
-		...account,
-		balance: todayBalances.get(account.id) ?? 0,
-		yieldLots: loaded.projectedYields?.lots.get(account.id) ?? [],
-	}));
+	const nonYieldBalance = (accountId: string) =>
+		money?.nonYieldBalances.get(`${accountId}:${todayKey}`) ?? 0;
+	const virtualId = (id: string) => `${id}:non-yield-assets`;
+	const forecastAccounts = monetaryAccounts.flatMap(account =>
+		[
+			{
+				...account,
+				balance: nonYieldBalance(account.id),
+				currency: account.currency ?? money?.currency ?? "BRL",
+				id: virtualId(account.id),
+				isPrimary: false,
+				yieldLots: [],
+			},
+			{
+				...account,
+				balance: (todayBalances.get(account.id) ?? 0) - nonYieldBalance(account.id),
+				currency: account.currency ?? money?.currency ?? "BRL",
+				yieldLots: loaded.projectedYields?.lots.get(account.id) ?? [],
+			},
+		].filter(position => position.balance !== 0 || position.id === account.id),
+	);
+	const routeAssetPosition = (id: string | null | undefined, asset: string | undefined) =>
+		id && asset && monetaryAccounts.find(account => account.id === id)?.currency !== asset
+			? virtualId(id)
+			: id;
 	const plannerMovements = comparisonTransactions
 		.filter(row => dateKey(row.date) > todayKey)
 		.map(row => ({ ...row, date: dateKey(row.date) }));
+	const realAccountIds = new Set(monetaryAccounts.map(account => account.id));
 	const forecastDays =
 		money && !money.forecastAvailable
 			? []
@@ -213,13 +246,41 @@ export function dashboardFinancialContext(
 					from: dateKey(projectionStart),
 					movements: comparisonTransactions
 						.filter(movement => dateKey(movement.date) > todayKey)
-						.map(movement => ({ ...movement, date: dateKey(movement.date) })),
-					netYield: loaded.projectedYields?.netYield,
+						.map(movement => ({
+							...movement,
+							date: dateKey(movement.date),
+							destinationAccountId: routeAssetPosition(
+								movement.destinationAccountId,
+								"destinationCurrency" in movement
+									? movement.destinationCurrency
+									: "nativeCurrency" in movement
+										? movement.nativeCurrency
+										: undefined,
+							),
+							originAccountId: routeAssetPosition(
+								movement.originAccountId,
+								"nativeCurrency" in movement ? movement.nativeCurrency : undefined,
+							),
+						})),
+					netYield: (account, balance, date, ledger) =>
+						realAccountIds.has(account.id)
+							? (loaded.projectedYields?.netYield(account, balance, date, ledger) ?? 0)
+							: 0,
 					primaryAccountId: accounts.find(account => account.isPrimary)?.id,
 					rate: money?.factor,
-					settleYield: loaded.projectedYields?.settleYield,
+					settleYield: (account, amount, date, ledger) => {
+						if (realAccountIds.has(account.id))
+							loaded.projectedYields?.settleYield(account, amount, date, ledger);
+					},
 					through: dateKey(comparisonEnd),
 				});
+	for (const day of forecastDays) {
+		for (const account of monetaryAccounts) {
+			const id = virtualId(account.id);
+			day.balances.set(account.id, (day.balances.get(account.id) ?? 0) + (day.balances.get(id) ?? 0));
+			day.balances.delete(id);
+		}
+	}
 	const incomeByDate = new Map<string, number>();
 	for (const movement of comparisonTransactions)
 		if (movement.type === "INCOME") {

@@ -6,7 +6,7 @@ export function NativeMoneyTotals({
 	pending,
 	error,
 }: {
-	values: Array<{ currency: string; amount: number }>;
+	values: Array<{ currency: string; amount: number | string }>;
 	pending: boolean;
 	error?: boolean;
 }) {

@@ -6,6 +6,7 @@ import {
 	executeStatement,
 	queryFirst,
 	queryRaw,
+	queryRawDecimal,
 	withRawTransaction,
 	withTransaction,
 } from "../src";
@@ -53,6 +54,46 @@ test("ORM builder and nested raw work share one rollback connection", async () =
 		}),
 	).rejects.toThrow("intentional affinity rollback");
 	expect(await db.orm.public.User.where({ id }).first()).toBeNull();
+});
+
+test("native decimal builder projections and raw reads stay exact within rollback", async () => {
+	const id = crypto.randomUUID();
+	const price = "12345678901234567890.123456789012345678";
+	await expect(
+		withRawTransaction(async raw => {
+			await raw(
+				`INSERT INTO "Asset" ("code", "kind", "name", "decimals") VALUES ($1, 'CRYPTO', 'Exact reader', 18)`,
+				["EXACTREAD"],
+			);
+			await raw(
+				`INSERT INTO "AssetQuoteSnapshot" ("id", "assetCode", "quoteCurrency", "date", "price", "sourceTime", "provider") VALUES ($1, 'EXACTREAD', 'USD', '2026-01-01', $2, '2026-01-01', 'test')`,
+				[id, price],
+			);
+			const row = await queryFirst(
+				db.sql.public.AssetQuoteSnapshot.select(snapshot => ({ exactPrice: snapshot.price }))
+					.where((snapshot, ops) => ops.eq(snapshot.id, id))
+					.build(),
+			);
+			expect(row?.exactPrice).toBe(price);
+			const exact = await queryRawDecimal<{ price: string }>(
+				`SELECT "price" FROM "AssetQuoteSnapshot" WHERE "id" = $1`,
+				[id],
+			);
+			expect(exact[0]?.price).toBe(price);
+			const transactionPid = (await raw<{ pid: number }>("SELECT pg_backend_pid() AS pid"))[0]?.pid;
+			expect((await queryRawDecimal<{ pid: number }>("SELECT pg_backend_pid() AS pid"))[0]?.pid).toBe(
+				transactionPid,
+			);
+			throw new Error("rollback exact native reader");
+		}),
+	).rejects.toThrow("rollback exact native reader");
+	expect(
+		await queryFirst(
+			db.sql.public.AssetQuoteSnapshot.select("id")
+				.where((snapshot, ops) => ops.eq(snapshot.id, id))
+				.build(),
+		),
+	).toBeUndefined();
 });
 
 test("legacy double-encoded json defaults are decoded only for known columns", async () => {

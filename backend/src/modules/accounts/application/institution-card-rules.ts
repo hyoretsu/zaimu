@@ -8,6 +8,7 @@ import { HttpException } from "~/shared/errors";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { assertCashbackSettings } from "../domain/assert-cashback-settings";
+import { ensureAccountAssetCatalog } from "./account-assets";
 
 /** Trusted SQL aliases only. Resolve profile for this user and financial date. */
 export function institutionCardRulesSql(account = "a", date = "CURRENT_DATE") {
@@ -109,38 +110,49 @@ export async function rewardAccountForRules(accountId: string, rules: Institutio
 			institutionId: string | null;
 			currency: string;
 			countryCode: string | null;
-		}>(`SELECT "userId","institutionId",currency,"countryCode" FROM "FinancialAccount" WHERE id=$1`, [
-			accountId,
-		]);
+		}>(
+			`SELECT a."userId",a."institutionId",c.currency,a."countryCode" FROM "FinancialAccount" a JOIN "CreditCard" c ON c."financialAccountId"=a.id WHERE a.id=$1`,
+			[accountId],
+		);
 		if (!source) throw new HttpException("Conta não encontrada", 404);
+		const assetCode = reward.assetCode ?? source.currency;
+		await ensureAccountAssetCatalog(assetCode);
+		const [asset] = await query<{ code: string }>(`SELECT code FROM "Asset" WHERE code=$1`, [assetCode]);
+		if (!asset) throw new HttpException("Ativo de recompensa indisponível", 400);
 		await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
-			`card-rewards:${source.userId}:${source.institutionId}:${source.currency}:${reward.kind}`,
+			`card-rewards:${source.userId}:${source.institutionId}:${assetCode}:${reward.kind}`,
 		]);
 		const [existing] = await query<{ id: string }>(
-			`SELECT a.id FROM "FinancialAccount" a JOIN "RewardsAccount" r ON r."financialAccountId"=a.id WHERE a."userId"=$1 AND a."institutionId" IS NOT DISTINCT FROM $2 AND a.currency=$3 AND a.name IS NULL AND r.kind=$4 AND r."conversionCurrency"=$3 AND r."conversionPoints" IS NOT DISTINCT FROM $5::numeric AND r."conversionAmount" IS NOT DISTINCT FROM $6::numeric ORDER BY a.id LIMIT 1`,
+			`SELECT a.id FROM "FinancialAccount" a JOIN "RewardsAccount" r ON r."financialAccountId"=a.id WHERE a."userId"=$1 AND a."institutionId" IS NOT DISTINCT FROM $2 AND r."assetCode"=$3 AND a.name IS NULL AND r.kind=$4 AND r."conversionCurrency"=$7 AND r."conversionPoints" IS NOT DISTINCT FROM $5::numeric AND r."conversionAmount" IS NOT DISTINCT FROM $6::numeric ORDER BY a.id LIMIT 1`,
 			[
 				source.userId,
 				source.institutionId,
-				source.currency,
+				assetCode,
 				reward.kind,
 				reward.conversionPoints,
 				reward.conversionAmount,
+				source.currency,
 			],
 		);
 		if (existing) return existing.id;
 		const id = crypto.randomUUID();
 		await query(
-			`INSERT INTO "FinancialAccount" (id,"userId","institutionId",name,type,currency,"countryCode","updatedAt") VALUES ($1,$2,$3,NULL,'REWARDS',$4,$5,NOW())`,
-			[id, source.userId, source.institutionId, source.currency, source.countryCode],
+			`INSERT INTO "FinancialAccount" (id,"userId","institutionId",name,type,"countryCode","updatedAt") VALUES ($1,$2,$3,NULL,'REWARDS',$4,NOW())`,
+			[id, source.userId, source.institutionId, source.countryCode],
 		);
 		await query(
-			`INSERT INTO "RewardsAccount" (id,"financialAccountId",kind,"initialBalance","conversionPoints","conversionAmount","conversionCurrency","updatedAt") VALUES ($1,$2,$3,0,$4,$5,$6,NOW())`,
+			`INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode",balance) VALUES ($1,$2,0) ON CONFLICT DO NOTHING`,
+			[id, assetCode],
+		);
+		await query(
+			`INSERT INTO "RewardsAccount" (id,"financialAccountId",kind,"initialBalance","conversionPoints","conversionAmount","conversionCurrency","assetCode","updatedAt") VALUES ($1,$2,$3,0,$4,$5,$7,$6,NOW())`,
 			[
 				crypto.randomUUID(),
 				id,
 				reward.kind,
 				reward.conversionPoints,
 				reward.conversionAmount,
+				assetCode,
 				source.currency,
 			],
 		);

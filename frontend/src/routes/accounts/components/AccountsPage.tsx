@@ -23,7 +23,7 @@ import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recover
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
-import { compareFinancialAccountsByTitle, getFinancialAccountCurrencyValue } from "@/lib/financial-account";
+import { compareFinancialAccountsByTitle, getFinancialAccountMoneyPositions } from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import {
@@ -209,10 +209,7 @@ export function AccountsPage() {
 					<NativeMoneyTotals
 						error={accounts.isError && accounts.data === undefined}
 						pending={accounts.isPending}
-						values={visibleAccounts.map(account => ({
-							amount: getFinancialAccountCurrencyValue(account),
-							currency: account.currency ?? "BRL",
-						}))}
+						values={visibleAccounts.flatMap(getFinancialAccountMoneyPositions)}
 					/>
 				</div>
 				<div className="bg-brand-yellow text-brand-ink shadow-card rounded-2xl border p-5">

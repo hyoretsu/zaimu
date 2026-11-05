@@ -155,6 +155,7 @@
 		"backend/src/modules/stores/domain/normalize-store-name.test.ts",
 		"backend/src/modules/sync/SyncDTO.test.ts",
 		"backend/src/modules/sync/sync-events.test.ts",
+		"backend/src/modules/sync/sync-tax-settings.test.ts",
 		"backend/src/modules/taxes/admin-access.test.ts",
 		"backend/src/modules/transaction-imports/application/duplicate-candidate-index.test.ts",
 		"backend/src/modules/transaction-imports/application/imported-money.test.ts",
@@ -199,7 +200,9 @@
 		"backend/src/modules/account-transfers/domain/transfer-policy.test.ts",
 		"backend/src/modules/account-transfers/domain/sanitize-transfer-review.test.ts",
 		"backend/src/modules/loans/infra/elysia/LoanContractDTO.test.ts",
-		"backend/src/modules/reference-rates/domain/yield-scheduler-clock.test.ts"
+		"backend/src/modules/reference-rates/domain/yield-scheduler-clock.test.ts",
+		"backend/src/modules/currencies/application/asset-quotes.test.ts",
+		"backend/src/modules/currencies/application/coinbase-quotes.test.ts"
 	],
 	"sql:e2e": [
 		"packages/sql/tests/migrate-transition.e2e.test.ts",
@@ -208,7 +211,8 @@
 	],
 	"sql:integration": [
 		"packages/sql/tests/prisma8-runtime.integration.test.ts",
-		"packages/sql/src/tests/query-metrics.test.ts"
+		"packages/sql/src/tests/query-metrics.test.ts",
+		"packages/sql/tests/multi-asset-wallet.integration.test.ts"
 	],
 	"sql:unit": ["packages/sql/src/query-metrics.test.ts"]
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { addAssetAmounts, decimalToUnits, formatAsset, unitsToDecimal } from "./asset-amount";
+import { cryptoAsset, cryptoAssets, cryptoCurrencyCode, registerCryptoAssets } from "./crypto-assets";
 import { currencyDigits, isCryptoAsset, normalizeCurrency } from "./money";
 
 describe("crypto assets", () => {
@@ -22,6 +23,25 @@ describe("crypto assets", () => {
 			isCryptoAsset("BRL"),
 			isCryptoAsset("USD"),
 		]).toEqual([true, true, false, false]);
+	});
+
+	test("catalog retains 413 provider identities without downgrading native precision", () => {
+		expect(cryptoAssets).toHaveLength(413);
+		expect(cryptoAsset("ETH")?.digits).toBe(18);
+		expect(cryptoAsset("ETH")?.nativeDigits).toBe(8);
+		for (const symbol of ["T", "G", "S", "W", "O"]) {
+			const asset = cryptoAsset(cryptoCurrencyCode(symbol));
+			expect(asset?.providerId).toBe(symbol);
+			expect(asset?.code).toMatch(/^[A-Z0-9]{2,12}$/);
+		}
+		const eth = cryptoAsset("ETH");
+		if (!eth) throw new Error("Missing ETH catalog identity");
+		expect(() => registerCryptoAssets([{ ...eth, assetId: "different-provider-identity" }])).toThrow(
+			"ambígua",
+		);
+		expect(cryptoAsset("ETH")).toBe(eth);
+		expect(cryptoAsset("MELI")).toBeUndefined();
+		expect(cryptoAsset("MUSD")).toBeUndefined();
 	});
 
 	test("keeps 18 decimals exact without floating point", () => {

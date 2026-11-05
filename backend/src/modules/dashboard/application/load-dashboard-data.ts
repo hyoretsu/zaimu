@@ -22,7 +22,9 @@ export interface DashboardDataRow extends Record<string, unknown> {
 
 export interface DashboardBalanceRow extends Record<string, unknown> {
 	accountId: string;
-	balance: number;
+	assetCode?: string;
+	currency?: string;
+	balance: number | string;
 	date: string;
 }
 
@@ -87,6 +89,9 @@ export interface DashboardSchedule {
 }
 
 export interface DashboardFlow {
+	nativeAmount?: string;
+	nativeCurrency?: string;
+	destinationCurrency?: string;
 	description?: string | null;
 	yieldIncome?: boolean;
 	tagIds?: readonly string[];
@@ -138,7 +143,7 @@ WITH visible_cards AS (
   GROUP BY purchase."id"
 )
 SELECT 'account' AS kind, jsonb_build_object(
-  'currency', account."currency", 'id', account."id", 'institutionId', account."institutionId", 'institutionName', institution."name",
+  'currency', account."yieldCurrency", 'id', account."id", 'institutionId', account."institutionId", 'institutionName', institution."name",
   'name', account."name", 'type', CASE WHEN rewards."kind" = 'CASHBACK' THEN 'CASHBACK' ELSE account."type"::text END, 'isPrimary', account."isPrimary", 'isDefaultForStatements', account."isDefaultForStatements", 'isHidden', account."isHidden"
 ) AS data
 FROM "FinancialAccount" account
@@ -232,34 +237,40 @@ WHERE loan."userId" = $1 AND payment."paidDate" IS NULL AND payment."dueDate" >=
 
 const comparisonMovementsSql = `
 SELECT 'flow' AS kind, jsonb_build_object(
-  'tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=transaction."id" AND assignment."entityType"='TRANSACTION'), '[]'::jsonb), 'currency', transaction."bookingCurrency", 'destinationAmount', transaction."destinationAmount", 'cardPayment', (transaction."paymentCreditCardId" IS NOT NULL OR EXISTS(SELECT 1 FROM "DetachedFinancialRecord" detached WHERE detached."entityType"='Transaction' AND detached."entityId"=transaction."id" AND detached."kind"='CARD_PAYMENT')), 'id', transaction."id", 'description', transaction."description", 'amount', transaction."amount", 'date', transaction."date", 'type', transaction."type"::text,
+  'tagIds', COALESCE((SELECT jsonb_agg(assignment."categoryId") FROM "TagAssignment" assignment WHERE assignment."entityId"=transaction."id" AND assignment."entityType"='TRANSACTION'), '[]'::jsonb), 'currency', transaction."bookingCurrency", 'destinationCurrency', transaction."destinationCurrency", 'destinationAmount', transaction."destinationAmount"::text, 'cardPayment', (transaction."paymentCreditCardId" IS NOT NULL OR EXISTS(SELECT 1 FROM "DetachedFinancialRecord" detached WHERE detached."entityType"='Transaction' AND detached."entityId"=transaction."id" AND detached."kind"='CARD_PAYMENT')), 'id', transaction."id", 'description', transaction."description", 'amount', transaction."amount"::text, 'date', transaction."date", 'type', transaction."type"::text,
   'originAccountId', transaction."originFinancialAccountId", 'destinationAccountId', transaction."destinationFinancialAccountId", 'recurring', transaction."recurrenceId" IS NOT NULL
 ) AS data
 FROM "Transaction" transaction
 WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $2::date AND $3::date
 UNION ALL
+SELECT 'flow', jsonb_build_object('currency', fee->>'assetCode', 'originAccountId', transaction."originFinancialAccountId", 'amount', fee->>'amount', 'date', transaction."date", 'type', 'EXPENSE', 'recurring', transaction."recurrenceId" IS NOT NULL)
+FROM "Transaction" transaction CROSS JOIN LATERAL jsonb_array_elements(COALESCE(transaction."fees"::jsonb, '[]'::jsonb)) fee
+WHERE transaction."userId"=$1 AND transaction."date" BETWEEN $2::date AND $3::date
+AND transaction."originFinancialAccountId" IS NOT NULL AND fee->>'type'='FIXED'
+AND fee->>'assetCode' IS NOT NULL AND fee->>'assetCode'<>transaction."currency"
+UNION ALL
 SELECT 'flow', jsonb_build_object('currency',COALESCE(payment."accountCurrency",payment."currency"),'originAccountId',payment."financialAccountId",'amount',COALESCE(payment."accountAmount",payment."totalPaid"),'date',payment."paidDate",'type','EXPENSE','recurring',false)
 FROM "LoanPayment" payment JOIN "Loan" loan ON loan."id"=payment."loanId"
 WHERE loan."userId"=$1 AND payment."paidDate" BETWEEN $2::date AND $3::date
 UNION ALL
-SELECT 'flow', jsonb_build_object('yieldIncome', true, 'currency', entry."currency", 'destinationAccountId', entry."financialAccountId", 'amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
+SELECT 'flow', jsonb_build_object('yieldIncome', true, 'currency', entry."assetCode", 'destinationAccountId', entry."financialAccountId", 'amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
 FROM "FinancialAccountYield" entry
 JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
 WHERE account."userId" = $1 AND entry."date" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
   AND NOT entry."isExcluded" AND entry."amount" IS NOT NULL
 UNION ALL
-SELECT 'flow', jsonb_build_object('currency', account."currency", 'destinationAccountId', account."id", 'amount', purchase."cashbackAmount", 'date', purchase."purchaseDate", 'type', 'INCOME', 'recurring', false)
+SELECT 'flow', jsonb_build_object('currency', account."yieldCurrency", 'destinationAccountId', account."id", 'amount', purchase."cashbackAmount", 'date', purchase."purchaseDate", 'type', 'INCOME', 'recurring', false)
 FROM "CreditPurchaseRecord" purchase
 JOIN "FinancialAccount" account ON account."id" = purchase."cashbackAccountId"
 WHERE purchase."userId" = $1 AND purchase."purchaseDate" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
   AND (account."type" IN ('CHECKING', 'CASH', 'SAVINGS', 'INVESTMENT') OR EXISTS (SELECT 1 FROM "RewardsAccount" r WHERE r."financialAccountId"=account."id" AND r."kind"='CASHBACK')) AND purchase."cashbackAmount" > 0
 UNION ALL
-SELECT 'flow', jsonb_build_object('currency',account."currency",'destinationAccountId',account."id",'amount',reversal.amount,'date',reversal."date",'type','INCOME','recurring',false)
+SELECT 'flow', jsonb_build_object('currency',account."yieldCurrency",'destinationAccountId',account."id",'amount',reversal.amount,'date',reversal."date",'type','INCOME','recurring',false)
 FROM (${cashbackReversalsSql}) reversal JOIN "FinancialAccount" account ON account."id"=reversal."cashbackAccountId"
 WHERE account."userId"=$1 AND reversal."date" BETWEEN $2::date AND LEAST($3::date,CURRENT_DATE)
  AND (account."type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') OR EXISTS(SELECT 1 FROM "RewardsAccount" reward WHERE reward."financialAccountId"=account."id" AND reward."kind"='CASHBACK'))
 UNION ALL
-SELECT 'flow', jsonb_build_object('currency',account."currency",'destinationAccountId',account."id",'amount',credit."amount",'date',credit."date",'type','INCOME','recurring',false)
+SELECT 'flow', jsonb_build_object('currency',account."yieldCurrency",'destinationAccountId',account."id",'amount',credit."amount",'date',credit."date",'type','INCOME','recurring',false)
 FROM "DetachedRewardCredit" credit JOIN "FinancialAccount" account ON account."id"=credit."financialAccountId"
 WHERE account."userId"=$1 AND credit."date" BETWEEN $2::date AND LEAST($3::date,CURRENT_DATE)
  AND EXISTS(SELECT 1 FROM "RewardsAccount" reward WHERE reward."financialAccountId"=account."id" AND reward."kind"='CASHBACK')
@@ -275,7 +286,7 @@ WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $4::date AND $3::
 const movementsSql = `${comparisonMovementsSql}
 UNION ALL
 SELECT 'forecastTransaction', jsonb_build_object(
-  'currency', transaction."bookingCurrency", 'amount', transaction."amount", 'date', transaction."date", 'description', transaction."description",
+  'currency', transaction."bookingCurrency", 'amount', transaction."amount"::text, 'date', transaction."date", 'description', transaction."description",
   'id', transaction."id", 'type', transaction."type"::text
 )
 FROM "Transaction" transaction
@@ -322,7 +333,7 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 		userId,
 		loaded.accounts.map(account => account.id),
 		range.projectionStart,
-		range.periodEnd > range.comparisonEnd ? range.periodEnd : range.comparisonEnd,
+		Math.max(range.periodEnd, range.comparisonEnd),
 	);
 	return loaded;
 }
@@ -341,7 +352,7 @@ export async function loadDashboardRows(
 		comparisonOnly ? comparisonMovementsSql : movementsSql,
 		[
 			userId,
-			`${dateKey(range.comparisonStart < range.projectionStart ? range.comparisonStart : range.projectionStart).slice(0, 7)}-01`,
+			`${dateKey(Math.min(range.comparisonStart, range.projectionStart)).slice(0, 7)}-01`,
 			dateKey(range.comparisonEnd),
 			dateKey(range.projectionStart),
 			...(comparisonOnly ? [] : [dateKey(range.periodStart), dateKey(range.periodEnd)]),

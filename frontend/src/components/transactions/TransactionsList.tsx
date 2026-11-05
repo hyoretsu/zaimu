@@ -38,7 +38,7 @@ interface TransactionsListProps {
 	viewKey?: string;
 	transactions: Transaction[];
 	yieldEntries?: FinancialAccountYieldEntry[];
-	dailyEndingBalances: ReadonlyMap<string, Array<{ currency: string; amount: number }>>;
+	dailyEndingBalances: ReadonlyMap<string, Array<{ currency: string; amount: number | string }>>;
 	onEditTransaction: (transaction: Transaction) => void;
 	onDeleteTransaction: (transaction: Transaction) => void | Promise<void>;
 	canDeleteTransaction?: (transaction: Transaction) => boolean;

@@ -75,7 +75,7 @@ export async function getFinancialCoverage(
 ): Promise<FinancialCoverageReturn> {
 	const window = financialCoverageWindow(start, end);
 	const accounts = await queryRaw<Account & { userId: string }>(
-		`SELECT "id","userId","name","countryCode","currency","institutionId" FROM "FinancialAccount" WHERE ($1::boolean OR "userId"=$2) ORDER BY "createdAt","id"`,
+		`SELECT "id","userId","name","countryCode","yieldCurrency" AS "currency","institutionId" FROM "FinancialAccount" WHERE ($1::boolean OR "userId"=$2) AND "yieldCurrency" IS NOT NULL ORDER BY "createdAt","id"`,
 		[admin, userId],
 	);
 	const countries = [
@@ -232,9 +232,8 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 					? []
 					: [
 							{
-								endDate: window.endDate < `${year}-12-31` ? window.endDate : `${year}-12-31`,
-								startDate:
-									window.startDate > `${year}-01-01` ? window.startDate : `${year}-01-01`,
+								endDate: Math.min(window.endDate, `${year}-12-31`),
+								startDate: Math.max(window.startDate, `${year}-01-01`),
 							},
 						];
 		}

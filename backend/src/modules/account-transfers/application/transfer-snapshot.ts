@@ -1,5 +1,6 @@
 import { replayCreditBook } from "@zaimu/finance/credit-book";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { monetaryBalancesSql } from "~/modules/accounts/application/monetary-balances-sql";
 import { loadCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { userFinancialDate } from "~/shared/application/financial-date";
 import { HttpException } from "~/shared/errors";
@@ -56,14 +57,36 @@ export const transferTables = [
 export type TransferRow = Record<string, unknown> & { id?: string };
 export type Snapshot = Record<string, TransferRow[]>;
 
+// Override native NUMERIC values before PostgreSQL JSON decoding can round them to numbers.
+// Keep fiat amounts/rates in the remaining tables unchanged; SQL casts preserve nulls.
+const nativeSnapshotColumns: Partial<Record<(typeof transferTables)[number], readonly string[]>> = {
+	BalanceAdjustment: ["balance"],
+	CreditPurchaseRecord: ["cashbackAmount"],
+	DetachedRewardCredit: ["amount"],
+	FinancialAccountYield: ["amount"],
+	RewardsAccount: ["initialBalance"],
+	Transaction: ["amount", "destinationAmount", "paymentAmount", "originalAmount", "exchangeRate"],
+};
+
 export async function loadTransferSnapshot(senderId: string, recipientId: string) {
 	const snapshot: Snapshot = {};
 	for (const table of transferTables) {
+		const nativeColumns = nativeSnapshotColumns[table];
+		const data = nativeColumns
+			? `to_jsonb(row) || jsonb_build_object(${nativeColumns.map(column => `'${column}', row."${column}"::text`).join(", ")})`
+			: "to_jsonb(row)";
 		snapshot[table] = await queryRaw(
-			`SELECT to_jsonb(row) AS data FROM "${table}" row WHERE zaimu_record_owner($1,to_jsonb(row))=ANY($2::text[]) ORDER BY to_jsonb(row)::text`,
+			`SELECT ${data} AS data FROM "${table}" row WHERE zaimu_record_owner($1,to_jsonb(row))=ANY($2::text[]) ORDER BY to_jsonb(row)::text`,
 			[table, [senderId, recipientId]],
 		).then(rows => rows.map(row => row.data as TransferRow));
 	}
+	// Holdings have no userId: scope them through their owning containers explicitly.
+	snapshot.accountAssets = await queryRaw(
+		`SELECT to_jsonb(holding) || jsonb_build_object('balance', holding."balance"::text) AS data FROM "FinancialAccountAsset" holding
+		 JOIN "FinancialAccount" account ON account."id"=holding."financialAccountId"
+		 WHERE account."userId"=ANY($1::text[]) ORDER BY holding."financialAccountId",holding."assetCode"`,
+		[[senderId, recipientId]],
+	).then(rows => rows.map(row => row.data as TransferRow));
 	snapshot.institutionPolicies = await queryRaw(
 		`SELECT to_jsonb(row) AS data FROM "FinancialInstitutionYieldPolicy" row ORDER BY "id" FOR SHARE`,
 	).then(rows => rows.map(row => row.data as TransferRow));
@@ -117,7 +140,7 @@ export async function describeTransfer(
 			],
 			selected,
 		);
-	const balances = await getFinancialAccountBalances(accountIds);
+
 	const institutions = await queryRaw<{ id: string; name: string }>(
 		`SELECT "id","name" FROM "FinancialInstitution" WHERE "id"=ANY($1::text[])`,
 		[accounts.map(a => a.institutionId).filter(Boolean)],
@@ -130,6 +153,18 @@ export async function describeTransfer(
 		names.set(key, used);
 	}
 	const asOf = await userFinancialDate(senderId);
+	const balances = await queryRaw<{ accountId: string; assetCode: string; balance: string }>(
+		monetaryBalancesSql,
+		[senderId, [asOf]],
+	);
+	const pointsAccountIds = accounts
+		.filter(account =>
+			snapshot.RewardsAccount.some(
+				reward => reward.financialAccountId === account.id && reward.kind === "POINTS",
+			),
+		)
+		.map(account => String(account.id));
+	const pointsBalances = await getFinancialAccountBalances(pointsAccountIds, new Date(`${asOf}T12:00:00Z`));
 	const presented = await Promise.all(
 		accounts.map(async account => {
 			const key = `${account.institutionId}:${account.type}`;
@@ -137,6 +172,7 @@ export async function describeTransfer(
 			names.set(key, used);
 			const destinationName = availableTransferName(account.name as string | null, used);
 			const card = cards.find(card => card.financialAccountId === account.id);
+
 			const statements = card
 				? replayCreditBook(
 						await loadCreditBook(queryRaw, senderId, String(card.id), false, false),
@@ -152,17 +188,22 @@ export async function describeTransfer(
 						}))
 				: [];
 			return {
-				balance: balances.get(String(account.id)) ?? 0,
-				currency: String(account.currency),
+				assets: balances
+					.filter(row => row.accountId === account.id)
+					.map(row => ({ assetCode: row.assetCode, balance: row.balance })),
 				destinationName,
 				id: String(account.id),
 				institutionName: institutions.find(i => i.id === account.institutionId)?.name ?? null,
 				isHidden: Boolean(account.isHidden),
 				name: account.name as string | null,
+				pointsBalance: pointsAccountIds.includes(String(account.id))
+					? (pointsBalances.get(String(account.id)) ?? 0)
+					: null,
 				rewardsKind: (snapshot.RewardsAccount.find(row => row.financialAccountId === account.id)
 					?.kind ?? null) as "POINTS" | "CASHBACK" | null,
 				statements,
 				type: String(account.type),
+				yieldCurrency: account.yieldCurrency == null ? null : String(account.yieldCurrency),
 			};
 		}),
 	);

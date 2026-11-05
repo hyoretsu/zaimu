@@ -1,4 +1,5 @@
 import type { InstitutionCardRules } from "@zaimu/finance/institution-card-rules";
+import { CurrencySelect } from "@/components/currency";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
@@ -19,7 +20,9 @@ export function InstitutionCardRuleFields({
 		<div className="space-y-4">
 			<CustomSelect
 				label="Troca do vencimento"
-				onValueChange={mode => onChange({ ...value, transitionMode: mode as "EXTRA_CYCLE" | "NEXT_CYCLE" })}
+				onValueChange={mode =>
+					onChange({ ...value, transitionMode: mode as "EXTRA_CYCLE" | "NEXT_CYCLE" })
+				}
 				options={[
 					{ label: "Aplicar no próximo ciclo mensal", value: "NEXT_CYCLE" },
 					{ label: "Permitir ciclo extra no mesmo mês", value: "EXTRA_CYCLE" },
@@ -29,7 +32,9 @@ export function InstitutionCardRuleFields({
 			/>
 			<CustomSelect
 				label="Parcelas após troca do vencimento"
-				onValueChange={mode => onChange({ ...value, installmentMode: mode as "PER_CYCLE" | "PER_MONTH" })}
+				onValueChange={mode =>
+					onChange({ ...value, installmentMode: mode as "PER_CYCLE" | "PER_MONTH" })
+				}
 				options={[
 					{ label: "Uma parcela por mês", value: "PER_MONTH" },
 					{ label: "Uma parcela por ciclo", value: "PER_CYCLE" },
@@ -74,6 +79,7 @@ export function InstitutionCardRuleFields({
 						label="Tipo de recompensa"
 						onValueChange={kind =>
 							setReward({
+								assetCode: undefined,
 								conversionAmount: null,
 								conversionPoints: null,
 								kind: kind as "CASHBACK" | "POINTS",
@@ -86,10 +92,37 @@ export function InstitutionCardRuleFields({
 						placeholder="Ex: Cashback em dinheiro"
 						value={reward.kind}
 					/>
+					{reward.kind === "CASHBACK" && (
+						<div className="grid gap-4">
+							<CheckboxField
+								checkboxProps={{
+									checked: !reward.assetCode,
+									onCheckedChange: checked =>
+										setReward({ assetCode: checked === true ? undefined : "BTC" }),
+								}}
+							>
+								Receber cashback na moeda do cartão
+							</CheckboxField>
+							{reward.assetCode && (
+								<CurrencySelect
+									allowCrypto
+									label="Ativo do cashback"
+									onValueChange={assetCode => setReward({ assetCode })}
+									value={reward.assetCode}
+								/>
+							)}
+							<p className="text-muted-foreground text-xs">
+								O cashback em outro ativo usa a cotação da data da compra. O saldo permanece
+								nesse ativo.
+							</p>
+						</div>
+					)}
 					<NumericField
 						id="institution-reward-rate"
 						label={
-							reward.kind === "POINTS" ? "Pontos a cada 100 unidades da moeda do cartão gastas" : "Cashback"
+							reward.kind === "POINTS"
+								? "Pontos a cada 100 unidades da moeda do cartão gastas"
+								: "Cashback"
 						}
 						onValueChange={rate => setReward({ rate: Number(rate) })}
 						placeholder={reward.kind === "CASHBACK" ? "Ex: 1,5%" : "Ex: 100"}
@@ -116,7 +149,9 @@ export function InstitutionCardRuleFields({
 									<NumericField
 										id="institution-conversion-points"
 										label="Pontos da conversão"
-										onValueChange={points => setReward({ conversionPoints: Number(points) })}
+										onValueChange={points =>
+											setReward({ conversionPoints: Number(points) })
+										}
 										placeholder="Ex: 1.000"
 										required
 										value={String(reward.conversionPoints || "")}
@@ -124,7 +159,9 @@ export function InstitutionCardRuleFields({
 									<NumericField
 										id="institution-conversion-amount"
 										label="Valor na moeda da conta"
-										onValueChange={amount => setReward({ conversionAmount: Number(amount) })}
+										onValueChange={amount =>
+											setReward({ conversionAmount: Number(amount) })
+										}
 										placeholder="Ex: 10,00"
 										required
 										value={String(reward.conversionAmount || "")}
@@ -161,7 +198,9 @@ export function InstitutionCardRuleFields({
 								<NumericField
 									id="institution-reward-yield-percentage"
 									label="Percentual da referência"
-									onValueChange={percentage => setReward({ yieldReferencePercentage: Number(percentage) })}
+									onValueChange={percentage =>
+										setReward({ yieldReferencePercentage: Number(percentage) })
+									}
 									placeholder="Ex: 100%"
 									required
 									suffix="%"
@@ -170,7 +209,9 @@ export function InstitutionCardRuleFields({
 							</FormFieldRow>
 							<CustomSelect
 								label="Período do rendimento"
-								onValueChange={period => setReward({ yieldPeriod: period as "MONTHLY" | "YEARLY" })}
+								onValueChange={period =>
+									setReward({ yieldPeriod: period as "MONTHLY" | "YEARLY" })
+								}
 								options={[
 									{ label: "Mensal", value: "MONTHLY" },
 									{ label: "Anual", value: "YEARLY" },

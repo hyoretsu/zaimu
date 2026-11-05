@@ -20,13 +20,14 @@ export async function localRuleRewardAccount(
 	rules: InstitutionCardRules,
 	owner?: StorageOwner,
 ): Promise<string | null> {
-	if (!rules.cashback) return null;
+	if (!rules.cashback || !account.yieldCurrency) return null;
+	const conversionCurrency = account.yieldCurrency;
 	const reward = rules.cashback;
 	const key = JSON.stringify([
 		owner,
 		account.userId,
 		account.institutionId,
-		account.currency,
+		account.yieldCurrency,
 		reward.kind,
 		reward.conversionPoints,
 		reward.conversionAmount,
@@ -41,7 +42,7 @@ export async function localRuleRewardAccount(
 					item.type === "REWARDS" &&
 					item.name === null &&
 					item.institutionId === account.institutionId &&
-					item.currency === account.currency &&
+					item.yieldCurrency === account.yieldCurrency &&
 					item.rewardsAccount?.kind === reward.kind &&
 					(item.rewardsAccount.conversionPoints ?? null) === reward.conversionPoints &&
 					(item.rewardsAccount.conversionAmount ?? null) === reward.conversionAmount,
@@ -50,17 +51,16 @@ export async function localRuleRewardAccount(
 		const id = crypto.randomUUID();
 		await localAccounts.put(
 			{
-				balance: 0,
+				assets: [],
 				countryCode: account.countryCode,
 				createdAt: new Date().toISOString(),
-				currency: account.currency,
 				id,
 				institution: account.institution,
 				institutionId: account.institutionId,
 				name: null,
 				rewardsAccount: {
 					conversionAmount: reward.conversionAmount,
-					conversionCurrency: account.currency,
+					conversionCurrency,
 					conversionPoints: reward.conversionPoints,
 					financialAccountId: id,
 					id: crypto.randomUUID(),
@@ -70,6 +70,7 @@ export async function localRuleRewardAccount(
 				type: "REWARDS",
 				updatedAt: new Date().toISOString(),
 				userId: account.userId,
+				yieldCurrency: account.yieldCurrency,
 			},
 			id,
 			owner,

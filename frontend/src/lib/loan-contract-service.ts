@@ -110,7 +110,7 @@ async function booking(book: LoanContractBook, amount: number, date: string, inp
 	)
 		throw new Error("Conta indisponível");
 	const currency = activeLoanVersion(book).terms.currency;
-	const accountCurrency = account ? (account.data.currency ?? "BRL") : null;
+	const accountCurrency = account ? (account.data.yieldCurrency ?? "BRL") : null;
 	const [accountAmount] = await loanAccountAmounts(
 		[amount],
 		currency,
@@ -152,7 +152,7 @@ export const loanContractService = {
 			if (
 				!account ||
 				!["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(account.data.type) ||
-				(account.data.currency ?? "BRL") !== input.terms.currency
+				(account.data.yieldCurrency ?? "BRL") !== input.terms.currency
 			)
 				throw new Error("Conta de crédito incompatível");
 			transaction = {

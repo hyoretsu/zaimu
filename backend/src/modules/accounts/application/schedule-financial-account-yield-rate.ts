@@ -1,6 +1,7 @@
 import { addDays, format, startOfDay } from "date-fns";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
+import { HttpException } from "~/shared/errors";
 import {
 	db,
 	executeRaw,
@@ -11,6 +12,7 @@ import {
 	queryRows,
 } from "~/shared/infra/sql";
 import type { YieldPeriod } from "../domain/calculate-financial-account-yields";
+import { assertFiatHolding } from "./account-assets";
 
 export async function scheduleFinancialAccountYieldRate({
 	effectiveDate,
@@ -36,10 +38,13 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldTaxModes?: unknown;
 }) {
 	const current = await queryRows(
-		db.sql.public.FinancialAccount.select("yieldTaxIds")
+		db.sql.public.FinancialAccount.select("yieldTaxIds", "yieldCurrency")
 			.where((f, fn) => fn.eq(f.id, financialAccountId))
 			.build(),
 	);
+	const currency = current[0]?.yieldCurrency;
+	if (!currency) throw new HttpException("Selecione um ativo fiat para o rendimento da conta", 400);
+	await assertFiatHolding(financialAccountId, currency);
 	await assertTaxSelection(
 		yieldTaxIds,
 		current.flatMap(row => row.yieldTaxIds),
@@ -74,6 +79,7 @@ export async function scheduleFinancialAccountYieldRate({
 			.build(),
 	);
 	const values = {
+		currency,
 		effectiveDate: format(date, "yyyy-MM-dd"),
 		updatedAt: new Date(),
 		yieldFixedRate: nullableNumeric<7, 4>(yieldFixedRate ?? null),

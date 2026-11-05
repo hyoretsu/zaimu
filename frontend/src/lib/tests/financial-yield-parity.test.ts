@@ -15,13 +15,14 @@ for (const day of ["2026-01-10", "2026-01-12"]) {
 		for (const manual of ["none", "excluded", "mixed"]) {
 			test(`indexed yield replay keeps visitor/connected parity: ${day}, holiday=${holiday}, manual=${manual}`, () => {
 				const account = {
-					balance: 0,
+					assets: [{ assetCode: "BRL", balance: "0" }],
 					createdAt: "2026-01-09T12:00:00Z",
 					id: "indexed",
 					name: "Parity",
 					type: "CHECKING",
 					updatedAt: "2026-01-09T12:00:00Z",
 					userId: "owner",
+					yieldCurrency: "BRL",
 					yieldFixedRate: 5,
 					yieldPeriod: "MONTHLY",
 					yieldTaxRate: 15,
@@ -95,7 +96,7 @@ for (const day of ["2026-01-10", "2026-01-12"]) {
 					holiday ? [day] : [],
 					today,
 					yields,
-				)[0]?.balance;
+				)[0]?.assets[0]?.balance;
 				const connected = calculateFinancialAccountYieldBalances({
 					accounts: [{ ...account, createdAt: new Date(account.createdAt) }],
 					cashbackCredits: [],
@@ -109,7 +110,7 @@ for (const day of ["2026-01-10", "2026-01-12"]) {
 					yields: yields.map(row => ({ ...row, date: new Date(`${row.date}T12:00:00Z`) })),
 				}).get(account.id);
 				if (connected === undefined) throw new Error("Missing connected account balance");
-				expect(guest).toBe(connected);
+				expect(guest).toBe(String(connected));
 			});
 		}
 	}

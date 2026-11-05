@@ -1,5 +1,5 @@
-import { convertFixedSplitAtDate } from "@zaimu/finance/money";
-import { resolveTransactionMoneySides, TransactionMoneyError } from "@zaimu/finance/transaction-money";
+import { convertFixedSplitAtDate, isCryptoAsset } from "@zaimu/finance/money";
+import { TransactionMoneyError } from "@zaimu/finance/transaction-money";
 import Elysia, { t } from "elysia";
 import {
 	assertBalanceAccountOwnership,
@@ -16,13 +16,11 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
-import { defaultCurrency } from "~/modules/currencies/application/currency-defaults";
 import {
 	creditCardCurrency,
-	CurrencyDTO,
 	financialAccountCurrency,
-	FinancialFeeDTO,
-	resolveFinancialMoney,
+	resolveAssetFinancialMoney,
+	resolveAssetTransactionMoneySides,
 } from "~/modules/currencies/application/financial-money";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
 import {
@@ -52,6 +50,14 @@ import {
 	withTransaction,
 } from "~/shared/infra/sql";
 
+const AssetCodeDTO = t.String({ pattern: "^[A-Za-z0-9]{2,12}$" });
+const AssetAmountDTO = t.String({ pattern: "^\\d{1,20}(\\.\\d{1,18})?$" });
+const AssetFeeDTO = t.Object({
+	amount: AssetAmountDTO,
+	assetCode: t.Optional(AssetCodeDTO),
+	name: t.String({ maxLength: 100, minLength: 1 }),
+	type: t.Union([t.Literal("FIXED"), t.Literal("PERCENTAGE")]),
+});
 const transactionColumns = [
 	"id",
 	"amount",
@@ -115,9 +121,9 @@ async function refreshCardPayments(cardIds: string[]) {
 	await withTransaction(transaction => recalculateStatementPayments(transaction, cardIds));
 }
 
-async function resolveSides(...args: Parameters<typeof resolveTransactionMoneySides>) {
+async function resolveSides(...args: Parameters<typeof resolveAssetTransactionMoneySides>) {
 	try {
-		return await resolveTransactionMoneySides(...args);
+		return await resolveAssetTransactionMoneySides(...args);
 	} catch (error) {
 		if (error instanceof TransactionMoneyError) throw new HttpException(error.message, 400);
 		throw error;
@@ -223,7 +229,7 @@ export const TransactionsController = new Elysia({
 				),
 			];
 			if (changedCards.length) await refreshCardPayments(changedCards);
-			const recalculationDate = left.date < right.date ? left.date : right.date;
+			const recalculationDate = Math.min(left.date, right.date);
 			for (const accountId of [outgoingAccountId, incomingAccountId])
 				await enqueueAccountYieldRecalculation(
 					accountId,
@@ -284,6 +290,7 @@ export const TransactionsController = new Elysia({
 										),
 									accountType: fields.FinancialAccount.type,
 									amount: fields.Transaction.amount,
+									bookingCurrency: fields.Transaction.bookingCurrency,
 									createdAt: fields.Transaction.createdAt,
 									date: fields.Transaction.date,
 									description: fields.Transaction.description,
@@ -320,16 +327,19 @@ export const TransactionsController = new Elysia({
 							rejection => `${rejection.firstTransactionId}:${rejection.secondTransactionId}`,
 						),
 					);
-					const candidates = transactions.map(transaction => ({
-						...transaction,
-						amount: Number(transaction.amount),
-						destinationAccountType:
-							transaction.type === "INCOME" ? transaction.accountType : null,
-						destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
-						originAccountType: transaction.type === "EXPENSE" ? transaction.accountType : null,
-						originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
-						source: "FINANCIAL_ACCOUNT" as const,
-					}));
+					const candidates = transactions
+						.filter(transaction => !isCryptoAsset(transaction.bookingCurrency))
+						.map(transaction => ({
+							...transaction,
+							amount: Number(transaction.amount),
+							destinationAccountType:
+								transaction.type === "INCOME" ? transaction.accountType : null,
+							destinationName: transaction.type === "INCOME" ? transaction.accountName : null,
+							originAccountType:
+								transaction.type === "EXPENSE" ? transaction.accountType : null,
+							originName: transaction.type === "EXPENSE" ? transaction.accountName : null,
+							source: "FINANCIAL_ACCOUNT" as const,
+						}));
 					return transferCandidatePairs(candidates, rejectedPairs);
 				},
 			);
@@ -611,7 +621,7 @@ export const TransactionsController = new Elysia({
 						409,
 					);
 			}
-			const money = await resolveFinancialMoney({
+			const money = await resolveAssetFinancialMoney({
 				amount: body.amount,
 				currency: body.currency,
 				date: body.date,
@@ -624,29 +634,35 @@ export const TransactionsController = new Elysia({
 					(body.type === "INCOME"
 						? body.destinationFinancialAccountId
 						: originFinancialAccountId) ?? body.destinationFinancialAccountId,
-					body.currency ?? (await defaultCurrency(userId, request.headers.get("X-Currency"))),
+					body.bookingCurrency ?? body.currency,
 				),
 			});
+			for (const fee of money.fees)
+				if (fee.assetCode && fee.assetCode !== money.bookingCurrency && originFinancialAccountId)
+					await financialAccountCurrency(originFinancialAccountId, fee.assetCode);
 			const explicitSides =
 				(await isPointsAccount(originFinancialAccountId)) ||
 				(Boolean(originFinancialAccountId) &&
 					(await isPointsAccount(body.destinationFinancialAccountId)));
-			const sides = await resolveSides(
-				{
-					amount: money.amount,
-					currency: money.bookingCurrency,
-					destinationAmount: body.destinationAmount,
-					destinationCurrency: body.destinationFinancialAccountId
-						? await financialAccountCurrency(body.destinationFinancialAccountId)
-						: null,
-					explicitSides,
-					paymentAmount: body.paymentAmount,
-					paymentCurrency: body.paymentCreditCardId
-						? await creditCardCurrency(body.paymentCreditCardId)
-						: null,
-				},
-				(from, to) => ensureCurrencyRates(body.date, from, to),
-			);
+			const sides = await resolveSides({
+				amount: money.amount,
+				currency: money.bookingCurrency,
+				date: body.date,
+				destinationAmount: body.destinationAmount,
+				destinationCurrency: body.destinationFinancialAccountId
+					? await financialAccountCurrency(
+							body.destinationFinancialAccountId,
+							body.destinationCurrency,
+						)
+					: null,
+				explicitSides,
+				paymentAmount: body.paymentAmount,
+				paymentCurrency: body.paymentCreditCardId
+					? await creditCardCurrency(body.paymentCreditCardId)
+					: null,
+			});
+			if (isCryptoAsset(money.bookingCurrency) && (body.debtSplit || body.matchDebtEventId))
+				throw new HttpException("Dívidas exigem ativo fiat", 400);
 			await lockPaymentResources(body.paymentCreditCardId, originFinancialAccountId);
 			let transaction = await findExistingOccurrence();
 			let wasCreated = false;
@@ -655,21 +671,21 @@ export const TransactionsController = new Elysia({
 					transaction = await queryFirst(
 						db.sql.public.Transaction.insert([
 							{
-								amount: numeric(money.amount),
+								amount: numeric<38, 18>(money.amount),
 								bookingCurrency: money.bookingCurrency,
 								conversionSource: sides.conversionSource,
 								currency: money.currency,
 								date: body.date,
 								description: body.description ?? undefined,
-								destinationAmount: nullableNumeric(sides.destinationAmount),
+								destinationAmount: nullableNumeric<38, 18>(sides.destinationAmount),
 								destinationCurrency: sides.destinationCurrency,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
-								exchangeRate: numeric(money.exchangeRate),
-								fees: money.fees,
+								exchangeRate: nullableNumeric<38, 18>(money.exchangeRate),
+								fees: money.fees.map(fee => ({ ...fee })),
 								isHidden: body.isHidden ?? false,
-								originalAmount: numeric(money.originalAmount),
+								originalAmount: numeric<38, 18>(money.originalAmount),
 								originFinancialAccountId,
-								paymentAmount: nullableNumeric(sides.paymentAmount),
+								paymentAmount: nullableNumeric<38, 18>(sides.paymentAmount),
 								paymentCreditCardId: body.paymentCreditCardId,
 								paymentCurrency: sides.paymentCurrency,
 								recurrenceId: body.recurrenceId,
@@ -700,22 +716,28 @@ export const TransactionsController = new Elysia({
 				const inheritedDebtSplit = body.recurrenceId
 					? await getDebtSplitInput({ recurrenceId: body.recurrenceId })
 					: undefined;
-				await linkTransactionToDebt({
-					amount: Number(transaction.amount),
-					date: body.date,
-					debtSplit: await convertFixedSplitAtDate(
-						inheritedDebtSplit ?? body.debtSplit,
-						body.date,
-						money.currency,
-						money.bookingCurrency,
-						ensureCurrencyRates,
-					),
-					description: body.description ?? undefined,
-					matchEventId: body.matchDebtEventId,
-					transactionId: transaction.id,
-					type: body.type ?? "EXPENSE",
-					userId,
-				});
+				if (
+					isCryptoAsset(money.bookingCurrency) &&
+					(body.debtSplit || inheritedDebtSplit || body.matchDebtEventId)
+				)
+					throw new HttpException("Dívidas exigem ativo fiat", 400);
+				if (!isCryptoAsset(money.bookingCurrency))
+					await linkTransactionToDebt({
+						amount: Number(transaction.amount),
+						date: body.date,
+						debtSplit: await convertFixedSplitAtDate(
+							inheritedDebtSplit ?? body.debtSplit,
+							body.date,
+							money.currency,
+							money.bookingCurrency,
+							ensureCurrencyRates,
+						),
+						description: body.description ?? undefined,
+						matchEventId: body.matchDebtEventId,
+						transactionId: transaction.id,
+						type: body.type ?? "EXPENSE",
+						userId,
+					});
 			}
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
@@ -733,34 +755,36 @@ export const TransactionsController = new Elysia({
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
 			return {
 				...withDateInstants(transaction),
-				amount: Number(transaction.amount),
+				amount: String(transaction.amount),
 				debtSplit: await getDebtSplitReturn(
 					{ transactionId: transaction.id },
 					Number(transaction.amount),
 				),
 				destinationAmount:
-					transaction.destinationAmount == null ? null : Number(transaction.destinationAmount),
-				paymentAmount: transaction.paymentAmount == null ? null : Number(transaction.paymentAmount),
+					transaction.destinationAmount == null ? null : String(transaction.destinationAmount),
+				paymentAmount: transaction.paymentAmount == null ? null : String(transaction.paymentAmount),
 				tagIds: tags.map(tag => tag.id),
 				tags,
 			};
 		},
 		{
 			body: t.Object({
-				amount: t.Number(),
-				currency: t.Optional(CurrencyDTO),
+				amount: AssetAmountDTO,
+				bookingCurrency: t.Optional(AssetCodeDTO),
+				currency: t.Optional(AssetCodeDTO),
 				date: t.String(),
 				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
-				destinationAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				destinationAmount: t.Optional(AssetAmountDTO),
+				destinationCurrency: t.Optional(AssetCodeDTO),
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				feeAmount: t.Optional(t.Number({ minimum: 0 })),
+				feeAmount: t.Optional(AssetAmountDTO),
 				feeDescription: t.Optional(t.String({ maxLength: 100 })),
-				fees: t.Optional(t.Array(FinancialFeeDTO, { maxItems: 20 })),
+				fees: t.Optional(t.Array(AssetFeeDTO, { maxItems: 20 })),
 				isHidden: t.Optional(t.Boolean()),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				paymentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				paymentAmount: t.Optional(AssetAmountDTO),
 				paymentCreditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceOccurrenceDate: t.Optional(t.String()),
@@ -821,7 +845,7 @@ export const TransactionsController = new Elysia({
 				throw new HttpException("A transação vinculada à fatura deve ser uma saída", 400);
 			}
 			if (body.paymentCreditCardId) await assertCreditCardOwnership(body.paymentCreditCardId, userId);
-			if (body.amount !== undefined && body.amount <= 0) {
+			if (body.amount !== undefined && Number(body.amount) <= 0) {
 				throw new HttpException("Informe um valor maior que zero", 400);
 			}
 			if (body.storeName && (body.type ?? existing.type) !== "EXPENSE") {
@@ -832,6 +856,7 @@ export const TransactionsController = new Elysia({
 			const moneyChanged =
 				body.amount !== undefined ||
 				body.currency !== undefined ||
+				body.bookingCurrency !== undefined ||
 				body.fees !== undefined ||
 				body.feeAmount !== undefined ||
 				body.date !== undefined ||
@@ -839,8 +864,8 @@ export const TransactionsController = new Elysia({
 				body.destinationFinancialAccountId !== undefined ||
 				body.type !== undefined;
 			const money = moneyChanged
-				? await resolveFinancialMoney({
-						amount: body.amount ?? Number(existing.originalAmount ?? existing.amount),
+				? await resolveAssetFinancialMoney({
+						amount: body.amount ?? String(existing.originalAmount ?? existing.amount),
 						currency: body.currency ?? existing.currency,
 						date: body.date ?? existing.date,
 						fees:
@@ -860,12 +885,14 @@ export const TransactionsController = new Elysia({
 							(transactionType === "INCOME"
 								? destinationFinancialAccountId
 								: originFinancialAccountId) ?? destinationFinancialAccountId,
-							body.currency ??
-								existing.bookingCurrency ??
-								(await defaultCurrency(userId, request.headers.get("X-Currency"))),
+							body.bookingCurrency ?? existing.bookingCurrency,
 						),
 					})
 				: undefined;
+			if (money && originFinancialAccountId)
+				for (const fee of money.fees)
+					if (fee.assetCode && fee.assetCode !== money.bookingCurrency)
+						await financialAccountCurrency(originFinancialAccountId, fee.assetCode);
 			const paymentCreditCardId =
 				body.paymentCreditCardId !== undefined
 					? body.paymentCreditCardId
@@ -873,41 +900,48 @@ export const TransactionsController = new Elysia({
 			const sidesChanged =
 				moneyChanged ||
 				body.destinationAmount !== undefined ||
+				body.destinationCurrency !== undefined ||
 				body.paymentAmount !== undefined ||
 				body.paymentCreditCardId !== undefined;
 			const sides = sidesChanged
-				? await resolveSides(
-						{
-							amount: money?.amount ?? Number(existing.amount),
-							currency: money?.bookingCurrency ?? existing.bookingCurrency,
-							destinationAmount:
-								body.destinationAmount ??
-								(!moneyChanged && body.destinationFinancialAccountId === undefined
-									? existing.destinationAmount == null
-										? undefined
-										: Number(existing.destinationAmount)
-									: undefined),
-							destinationCurrency: destinationFinancialAccountId
-								? await financialAccountCurrency(destinationFinancialAccountId)
-								: null,
-							explicitSides:
-								(await isPointsAccount(originFinancialAccountId)) ||
-								(Boolean(originFinancialAccountId) &&
-									(await isPointsAccount(destinationFinancialAccountId))),
-							paymentAmount:
-								body.paymentAmount ??
-								(!moneyChanged && body.paymentCreditCardId === undefined
-									? existing.paymentAmount == null
-										? undefined
-										: Number(existing.paymentAmount)
-									: undefined),
-							paymentCurrency: paymentCreditCardId
-								? await creditCardCurrency(paymentCreditCardId)
-								: null,
-						},
-						(from, to) => ensureCurrencyRates(body.date ?? existing.date, from, to),
-					)
+				? await resolveSides({
+						amount: money?.amount ?? String(existing.amount),
+						currency: money?.bookingCurrency ?? existing.bookingCurrency,
+						date: body.date ?? existing.date,
+						destinationAmount:
+							body.destinationAmount ??
+							(!moneyChanged && body.destinationFinancialAccountId === undefined
+								? existing.destinationAmount == null
+									? undefined
+									: String(existing.destinationAmount)
+								: undefined),
+						destinationCurrency: destinationFinancialAccountId
+							? await financialAccountCurrency(
+									destinationFinancialAccountId,
+									body.destinationCurrency ?? existing.destinationCurrency ?? undefined,
+								)
+							: null,
+						explicitSides:
+							(await isPointsAccount(originFinancialAccountId)) ||
+							(Boolean(originFinancialAccountId) &&
+								(await isPointsAccount(destinationFinancialAccountId))),
+						paymentAmount:
+							body.paymentAmount ??
+							(!moneyChanged && body.paymentCreditCardId === undefined
+								? existing.paymentAmount == null
+									? undefined
+									: String(existing.paymentAmount)
+								: undefined),
+						paymentCurrency: paymentCreditCardId
+							? await creditCardCurrency(paymentCreditCardId)
+							: null,
+					})
 				: undefined;
+			if (
+				isCryptoAsset(money?.bookingCurrency ?? existing.bookingCurrency) &&
+				(body.debtSplit || body.matchDebtEventId)
+			)
+				throw new HttpException("Dívidas exigem ativo fiat", 400);
 			// Record history for changed fields
 			const historyEntries: Array<{
 				transactionId: string;
@@ -916,7 +950,7 @@ export const TransactionsController = new Elysia({
 				newValue: string | null;
 			}> = [];
 
-			if (body.amount !== undefined && body.amount !== Number(existing.amount)) {
+			if (body.amount !== undefined && body.amount !== String(existing.amount)) {
 				historyEntries.push({
 					field: "amount",
 					newValue: String(body.amount),
@@ -956,18 +990,18 @@ export const TransactionsController = new Elysia({
 				db.sql.public.Transaction.update({
 					...(sides && {
 						conversionSource: sides.conversionSource,
-						destinationAmount: nullableNumeric(sides.destinationAmount),
+						destinationAmount: nullableNumeric<38, 18>(sides.destinationAmount),
 						destinationCurrency: sides.destinationCurrency,
-						paymentAmount: nullableNumeric(sides.paymentAmount),
+						paymentAmount: nullableNumeric<38, 18>(sides.paymentAmount),
 						paymentCurrency: sides.paymentCurrency,
 					}),
 					...(money && {
-						amount: numeric(money.amount),
+						amount: numeric<38, 18>(money.amount),
 						bookingCurrency: money.bookingCurrency,
 						currency: money.currency,
-						exchangeRate: numeric(money.exchangeRate),
-						fees: money.fees,
-						originalAmount: numeric(money.originalAmount),
+						exchangeRate: nullableNumeric<38, 18>(money.exchangeRate),
+						fees: money.fees.map(fee => ({ ...fee })),
+						originalAmount: numeric<38, 18>(money.originalAmount),
 					}),
 					...(body.date && { date: body.date }),
 					...(body.time !== undefined && { time: body.time }),
@@ -999,22 +1033,23 @@ export const TransactionsController = new Elysia({
 				),
 			];
 			if (changedCards.length) await refreshCardPayments(changedCards);
-			await syncTransactionDebtEvent({
-				amount: Number(transaction.amount),
-				date: transaction.date,
-				debtSplit: await convertFixedSplitAtDate(
-					body.debtSplit,
-					new Date(transaction.date),
-					transaction.currency ?? "BRL",
-					transaction.bookingCurrency ?? "BRL",
-					ensureCurrencyRates,
-				),
-				description: transaction.description ?? undefined,
-				matchEventId: body.matchDebtEventId,
-				transactionId: transaction.id,
-				type: transaction.type as "EXPENSE" | "INCOME" | "TRANSFER",
-				userId,
-			});
+			if (!isCryptoAsset(transaction.bookingCurrency))
+				await syncTransactionDebtEvent({
+					amount: Number(transaction.amount),
+					date: transaction.date,
+					debtSplit: await convertFixedSplitAtDate(
+						body.debtSplit,
+						new Date(transaction.date),
+						transaction.currency ?? "BRL",
+						transaction.bookingCurrency ?? "BRL",
+						ensureCurrencyRates,
+					),
+					description: transaction.description ?? undefined,
+					matchEventId: body.matchDebtEventId,
+					transactionId: transaction.id,
+					type: transaction.type as "EXPENSE" | "INCOME" | "TRANSFER",
+					userId,
+				});
 			if (tagIds !== undefined) {
 				await replaceEntityTags({
 					entityIds: [transaction.id],
@@ -1022,7 +1057,7 @@ export const TransactionsController = new Elysia({
 					tagIds,
 				});
 			}
-			const recalculationDate = existing.date < transaction.date ? existing.date : transaction.date;
+			const recalculationDate = Math.min(existing.date, transaction.date);
 			for (const accountId of new Set(
 				[
 					existing.originFinancialAccountId,
@@ -1041,36 +1076,38 @@ export const TransactionsController = new Elysia({
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
 			return {
 				...withDateInstants(transaction),
-				amount: Number(transaction.amount),
+				amount: String(transaction.amount),
 				debtSplit: await getDebtSplitReturn(
 					{ transactionId: transaction.id },
 					Number(transaction.amount),
 				),
 				destinationAmount:
-					transaction.destinationAmount == null ? null : Number(transaction.destinationAmount),
-				paymentAmount: transaction.paymentAmount == null ? null : Number(transaction.paymentAmount),
+					transaction.destinationAmount == null ? null : String(transaction.destinationAmount),
+				paymentAmount: transaction.paymentAmount == null ? null : String(transaction.paymentAmount),
 				tagIds: tags.map(tag => tag.id),
 				tags,
 			};
 		},
 		{
 			body: t.Object({
-				amount: t.Optional(t.Number()),
-				currency: t.Optional(CurrencyDTO),
+				amount: t.Optional(AssetAmountDTO),
+				bookingCurrency: t.Optional(AssetCodeDTO),
+				currency: t.Optional(AssetCodeDTO),
 				date: t.Optional(t.String()),
 				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
-				destinationAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				destinationAmount: t.Optional(AssetAmountDTO),
+				destinationCurrency: t.Optional(AssetCodeDTO),
 				destinationFinancialAccountId: t.Optional(
 					t.Nullable(t.String({ maxLength: 36, minLength: 1 })),
 				),
-				feeAmount: t.Optional(t.Number({ minimum: 0 })),
+				feeAmount: t.Optional(AssetAmountDTO),
 				feeDescription: t.Optional(t.String({ maxLength: 100 })),
-				fees: t.Optional(t.Array(FinancialFeeDTO, { maxItems: 20 })),
+				fees: t.Optional(t.Array(AssetFeeDTO, { maxItems: 20 })),
 				isHidden: t.Optional(t.Boolean()),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
-				paymentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				paymentAmount: t.Optional(AssetAmountDTO),
 				paymentCreditCardId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),

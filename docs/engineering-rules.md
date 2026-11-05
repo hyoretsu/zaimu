@@ -2,6 +2,14 @@
 
 Read this file before implementation or review in Zaimu. These rules supplement [AGENTS.md](../AGENTS.md); product/domain rules remain in [business-rules.md](business-rules.md). Paths in backticks are relative to the repository root.
 
+## Exact multiasset accounting and quotes
+
+`Asset` identifies a denomination and its accounting precision. `FinancialAccountAsset` stores one `Numeric(38,18)` cache per account/asset; ledger movements and asset-specific checkpoints remain the source of truth. Native quantities cross SQL/API/guest storage as decimal strings and use shared decimal/BigInt arithmetic. SQL builder projections preserve native NUMERIC strings, including aliases and transactions; do not cast native quantities to JavaScript numbers. Numeric projection is allowed only after explicit fiat valuation.
+
+`yieldCurrency` is nullable and selects only the fiat position eligible for yield. Forecast engines isolate non-yield positions before applying yields and recombine them for display. POINTS is a separate nonmonetary balance, never a priced holding.
+
+`AssetQuoteSnapshot` stores dated prices, source timestamps, and provider identity. Mappings are explicit (`brapi:<id>` or `coinbase:<id>`); ticker resemblance never chooses a provider or establishes stablecoin parity. `BRAPI_TOKEN` configures brapi authorization. Held brapi-mapped assets refresh at startup and hourly; historical requests never substitute current prices. Guest quotes use the public dated quote endpoint and identity-scoped local cache. Coinbase catalog accounting precision must not be reduced by its display exponent, including ETH's 18-place quantities. Preserve provider IDs even when an application code needs normalization.
+
 ## Scrollbars
 
 Every scrollable section must use the project's custom scrollbar through `ScrollArea`, including on mobile and touch devices, unless the user explicitly requests otherwise. Styling or hiding a native scrollbar with `scrollbar-themed` alone does not satisfy this rule. Keep layout and spacing on an inner content wrapper, constrain the scroll area with `min-h-0`, and enable `horizontalScrollbar` for horizontally scrollable sections.

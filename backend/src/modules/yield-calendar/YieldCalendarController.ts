@@ -24,7 +24,7 @@ const Result = t.Object({ success: t.Boolean() });
 
 async function recalculate(currencies: string[], date: string, cause: string) {
 	const accounts = await queryRaw<{ id: string }>(
-		`SELECT "id" FROM "FinancialAccount" WHERE "type" <> 'CREDIT_CARD' AND "currency"=ANY($1::text[])`,
+		`SELECT "id" FROM "FinancialAccount" WHERE "type" <> 'CREDIT_CARD' AND "yieldCurrency"=ANY($1::text[])`,
 		[currencies],
 	);
 	for (const account of accounts)
@@ -119,15 +119,16 @@ export const YieldCalendarController = new Elysia()
 					`SELECT "currency" FROM "YieldCalendarCurrency" WHERE "countryCode"=$1`,
 					[params.code],
 				);
-				await query(`INSERT INTO "YieldCalendarCountry" ("code") VALUES ($1) ON CONFLICT DO NOTHING`, [
-					params.code,
-				]);
+				await query(
+					`INSERT INTO "YieldCalendarCountry" ("code") VALUES ($1) ON CONFLICT DO NOTHING`,
+					[params.code],
+				);
 				await query(`DELETE FROM "YieldCalendarCurrency" WHERE "countryCode"=$1`, [params.code]);
 				for (const currency of body.currencies)
-					await query(`INSERT INTO "YieldCalendarCurrency" ("countryCode","currency") VALUES ($1,$2)`, [
-						params.code,
-						currency,
-					]);
+					await query(
+						`INSERT INTO "YieldCalendarCurrency" ("countryCode","currency") VALUES ($1,$2)`,
+						[params.code, currency],
+					);
 				await recalculate(
 					[...new Set([...previous.map(row => row.currency), ...body.currencies])],
 					"0001-01-01",
@@ -149,10 +150,10 @@ export const YieldCalendarController = new Elysia()
 			await withRawTransaction(async query => {
 				await countryCurrencies(body.countryCode);
 				if (body.previousCountryCode)
-					await query(`DELETE FROM "YieldCalendarCurrency" WHERE "currency"=$1 AND "countryCode"=$2`, [
-						params.currency,
-						body.previousCountryCode,
-					]);
+					await query(
+						`DELETE FROM "YieldCalendarCurrency" WHERE "currency"=$1 AND "countryCode"=$2`,
+						[params.currency, body.previousCountryCode],
+					);
 				await query(
 					`INSERT INTO "YieldCalendarCurrency" ("currency","countryCode") VALUES ($1,$2) ON CONFLICT DO NOTHING`,
 					[params.currency, body.countryCode],
@@ -232,7 +233,7 @@ export const YieldCalendarController = new Elysia()
 				await saveOverride(holiday.countryCode, date, name, "INCLUDE");
 				await recalculateCountry(
 					holiday.countryCode,
-					date < holiday.date ? date : holiday.date,
+					Math.min(date, holiday.date),
 					`calendar:${randomUUID()}`,
 				);
 			});

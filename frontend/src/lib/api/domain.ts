@@ -11,9 +11,7 @@ export type {
 	CreditCardStatementPageReturn as CreditCardStatementPage,
 	CreditCardStatementReturn as CreditCardStatement,
 	CreditPurchaseEditDetailsReturn as CreditPurchaseEditDetails,
-	CreditPurchaseReturn as CreditPurchase,
 	DashboardPeriodReturn as DashboardPeriod,
-	DashboardReturn as Dashboard,
 	DebtEventReturn as DebtEvent,
 	DebtInvitationPreviewReturn as DebtInvitationPreview,
 	DebtInvitationReturn as DebtInvitation,
@@ -26,7 +24,6 @@ export type {
 	FinancialAccountYieldHolidayReturn as FinancialAccountYieldHoliday,
 	FinancialAccountYieldRateHistoryReturn as FinancialAccountYieldRateHistory,
 	FinancialAccountYieldReturn as FinancialAccountYield,
-	FinancialFeeReturn as FinancialFee,
 	FinancialInstitutionReturn as FinancialInstitution,
 	FinancialInstitutionYieldPolicyReturn as FinancialInstitutionYieldPolicy,
 	FinancialInstitutionYieldRuleReturn as FinancialInstitutionYieldRule,
@@ -50,7 +47,6 @@ export type {
 	TransactionImportReturn as TransactionImport,
 	TransactionImportSummaryReturn as TransactionImportSummary,
 	TransactionImportTransferSuggestionReturn as TransactionImportTransferSuggestion,
-	TransactionReturn as Transaction,
 	UserReturn as User,
 } from "./generated/api";
 
@@ -64,10 +60,22 @@ export interface LocalFinancialAccountFields {
 	yieldLots?: import("@zaimu/finance/yield-tax").YieldLot[];
 	/** Balance after the tax deferred to redemption; null when no tax is deferred. */
 	netBalance?: number | null;
+	/** Numeric rewards ledger, never a monetary holding or quote input. */
+	pointsBalance?: number;
 	legacyInstitutionId?: string | null;
 	legacyInstitutionYieldPolicies?: import("./generated/api").FinancialInstitutionYieldPolicyReturn[];
 }
 
-export type FinancialAccount = FinancialAccountReturn & LocalFinancialAccountFields;
+export type FinancialAccount = Omit<FinancialAccountReturn, "currency" | "balance" | "assets"> &
+	LocalFinancialAccountFields & {
+		yieldCurrency: string | null;
+		assets: import("../account-assets").AccountAsset[];
+	};
 
 export type FinancialAccountOption = import("./generated/api").GetFinancialAccountsOptionsResponse[number];
+
+export type FinancialFee = import("./generated/api").FinancialFeeReturn;
+export type CreditPurchase = import("./generated/api").CreditPurchaseReturn;
+export type Transaction = import("./generated/api").TransactionReturn;
+
+export type Dashboard = import("./generated/api").GetDashboardResponse;

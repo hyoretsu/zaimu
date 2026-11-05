@@ -158,7 +158,7 @@ export async function materializeLocalRecurrences(
 						? recurrence.destinationFinancialAccountId
 						: recurrence.originFinancialAccountId;
 				const target =
-					accounts.find(account => account.id === targetId)?.currency ??
+					accounts.find(account => account.id === targetId)?.yieldCurrency ??
 					recurrence.currency ??
 					"BRL";
 				const money = await convertLocalMoney(
@@ -177,7 +177,7 @@ export async function materializeLocalRecurrences(
 							recurrence.movement === "TRANSFER"
 								? (accounts.find(
 										account => account.id === recurrence.destinationFinancialAccountId,
-									)?.currency ?? "BRL")
+									)?.yieldCurrency ?? "BRL")
 								: null,
 						paymentCurrency:
 							recurrence.movement === "CARD_PAYMENT" ? (card?.currency ?? "BRL") : null,
@@ -275,9 +275,9 @@ export function createRecurrenceService(deps: Dependencies) {
 		merged.currency ??=
 			merged.movement === "CARD_PURCHASE"
 				? (card?.currency ?? (card ? "BRL" : activeCurrency()))
-				: (accounts.find(account => account.id === accountId)?.currency ??
+				: (accounts.find(account => account.id === accountId)?.yieldCurrency ??
 					(accounts.some(account => account.id === accountId) ? "BRL" : activeCurrency()));
-		merged.currency = normalizeCurrency(merged.currency);
+		merged.currency = normalizeCurrency(merged.currency ?? activeCurrency());
 		toMinorUnits(merged.amount, merged.currency, 1);
 		for (const accountId of [merged.originFinancialAccountId, merged.destinationFinancialAccountId])
 			if (

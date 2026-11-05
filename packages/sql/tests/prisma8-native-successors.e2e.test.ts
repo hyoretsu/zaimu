@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Client } from "pg";
 import { requireFixtureUrl } from "../../../scripts/testing/fixture";
 
@@ -18,8 +19,9 @@ test("production wrapper continues through two officially planned native success
 				filter: source => !source.includes("node_modules"),
 				recursive: true,
 			});
-		await symlink(join(root, "../../node_modules"), join(copy, "node_modules"), "dir");
-		const cli = join(root, "../../node_modules/prisma/dist/prisma.js");
+		await symlink(join(root, "node_modules"), join(copy, "node_modules"), "dir");
+		const require = createRequire(import.meta.url);
+		const cli = join(dirname(require.resolve("prisma/package.json")), "dist/prisma.js");
 		const run = async (args: string[]) => {
 			const child = Bun.spawn(["bun", ...args], {
 				cwd: copy,
@@ -41,7 +43,12 @@ test("production wrapper continues through two officially planned native success
 			[id, "native preserved", `${id}@example.test`],
 		);
 		const source = join(copy, "src/prisma/contract.prisma");
-		let origin = "7c4f89dec910830b905b2b49e39826a4b35ebebb6f01cdcd35c2b73d88e84dad";
+		let origin = (await Bun.file(join(copy, "out/prisma/contract.json")).json()).storage.storageHash;
+		const existingMigrations = (
+			await client.query<{ migration_name: string }>(
+				"SELECT migration_name FROM prisma_contract.ledger ORDER BY id",
+			)
+		).rows.map(row => row.migration_name);
 		for (const field of ["nativeProbeOne", "nativeProbeTwo"]) {
 			const original = await readFile(source, "utf8");
 			await writeFile(
@@ -58,11 +65,15 @@ test("production wrapper continues through two officially planned native success
 			);
 		}
 		await run([join(copy, "scripts/migrate.ts")]);
+		const migrations = (
+			await client.query<{ migration_name: string }>(
+				"SELECT migration_name FROM prisma_contract.ledger ORDER BY id",
+			)
+		).rows.map(row => row.migration_name);
+		expect(migrations.slice(0, existingMigrations.length)).toEqual(existingMigrations);
 		expect(
-			(await client.query("SELECT migration_name FROM prisma_contract.ledger ORDER BY id")).rows.map(
-				row => row.migration_name.replace(/^\d{8}T\d{4}_/, ""),
-			),
-		).toEqual(["native_format_baseline", "nativeprobeone", "nativeprobetwo"]);
+			migrations.slice(existingMigrations.length).map(name => name.replace(/^\d{8}T\d{4}_/, "")),
+		).toEqual(["nativeprobeone", "nativeprobetwo"]);
 		expect(
 			(await client.query('SELECT "nativeProbeOne","nativeProbeTwo" FROM "user" WHERE id=$1', [id]))
 				.rows[0],

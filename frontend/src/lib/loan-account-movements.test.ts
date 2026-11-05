@@ -25,21 +25,21 @@ test("loan cash movement uses actual debit and payment date rather than original
 		originFinancialAccountId: "brl",
 	});
 	expect(loanAccountMovements([{ ...payment, paidDate: null }])).toEqual([]);
-	expect(loanAccountMovements([{ ...payment, accountAmount: null, accountCurrency: null }])[0]).toMatchObject(
-		{ amount: 10, currency: "USD" },
-	);
+	expect(
+		loanAccountMovements([{ ...payment, accountAmount: null, accountCurrency: null }])[0],
+	).toMatchObject({ amount: 10, currency: "USD" });
 });
 
 test("actual loan debit affects balance and subsequent daily yield only from payment date", () => {
 	const account = {
-		balance: 0,
+		assets: [{ assetCode: "USD", balance: "0" }],
 		createdAt: "2026-10-01",
-		currency: "USD",
 		id: "a",
 		name: "USD",
 		type: "CHECKING" as const,
 		updatedAt: "2026-10-01",
 		userId: "guest",
+		yieldCurrency: "USD",
 		yieldFixedRate: 10,
 		yieldPeriod: "MONTHLY" as const,
 	};
@@ -54,7 +54,7 @@ test("actual loan debit affects balance and subsequent daily yield only from pay
 		interestPaid: 0,
 		isAdvanced: false,
 		loanId: "l",
-		paidDate: "2026-10-05",
+		paidDate: "2026-10-06",
 		principalPaid: 3000,
 		totalPaid: 3000,
 	};
@@ -67,15 +67,15 @@ test("actual loan debit affects balance and subsequent daily yield only from pay
 		movements,
 		[],
 		[],
-		new Date("2026-10-04T12:00:00"),
-	)[0]!.balance!;
+		new Date("2026-10-05T12:00:00"),
+	)[0]!.assets[0]!.balance;
 	const after = calculateFinancialAccountBalances(
 		[account],
 		movements,
 		[],
 		[],
-		new Date("2026-10-05T12:00:00"),
-	)[0]!.balance!;
-	expect(initial).toBeGreaterThan(100);
-	expect(after).toBeCloseTo((initial - 25) * 1.1 ** (1 / 21), 4);
+		new Date("2026-10-06T12:00:00"),
+	)[0]!.assets[0]!.balance;
+	expect(Number(initial)).toBeGreaterThan(100);
+	expect(after).toBe(((Number(initial) - 25) * 1.1 ** (1 / 21)).toFixed(2));
 });

@@ -39,7 +39,7 @@ import { ImportReviewDateSection } from "./ImportReviewDateSection";
 import { ImportReviewTransactionItem } from "./ImportReviewTransactionItem";
 import { TransferSuggestionDecisionDialog } from "./TransferSuggestionDecisionDialog";
 
-type TransactionAccountDetails = Pick<FinancialAccount, "rewardsAccount" | "type" | "currency"> & {
+type TransactionAccountDetails = Pick<FinancialAccount, "rewardsAccount" | "type" | "yieldCurrency"> & {
 	name: string;
 };
 
@@ -63,8 +63,8 @@ function toTransaction(
 		amount: item.amount,
 		bookingCurrency:
 			(item.type === "INCOME" || item.type === "YIELD"
-				? destinationAccount?.currency
-				: originAccount?.currency) ?? "BRL",
+				? destinationAccount?.yieldCurrency
+				: originAccount?.yieldCurrency) ?? "BRL",
 		createdAt: item.createdAt,
 		creditCardName: item.creditCardName ?? undefined,
 		creditCardStatementDate: item.creditCardStatementDate ?? undefined,
@@ -423,10 +423,10 @@ export function TransactionImportReviewDialog({
 		(accounts.data ?? []).map(account => [
 			account.id,
 			{
-				currency: account.currency,
 				name: account.name || account.institution?.name || "Conta sem nome",
 				rewardsAccount: account.rewardsAccount,
 				type: account.type,
+				yieldCurrency: account.yieldCurrency,
 			},
 		]),
 	);
@@ -752,7 +752,9 @@ export function TransactionImportReviewDialog({
 			/>
 			<DuplicateResolutionDialog
 				accountCurrencies={
-					new Map((accounts.data ?? []).map(account => [account.id, account.currency ?? "BRL"]))
+					new Map(
+						(accounts.data ?? []).map(account => [account.id, account.yieldCurrency ?? "BRL"]),
+					)
 				}
 				accountNames={accountNames}
 				initialSelection={recoveredResolution}

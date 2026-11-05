@@ -232,7 +232,7 @@ export function LoanContractEditor({
 												row =>
 													["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(
 														row.type,
-													) && (row.currency ?? "BRL") === draft.currency,
+													) && (row.yieldCurrency ?? "BRL") === draft.currency,
 											)
 											.map(row => ({
 												label: `Criar crédito em ${row.name}`,

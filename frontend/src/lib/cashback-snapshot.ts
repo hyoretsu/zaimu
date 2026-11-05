@@ -36,7 +36,7 @@ export async function guestCashbackSnapshot(
 	if (!card.cashbackAccountId || !card.cashbackRate) return {};
 	const account = await localAccounts.getById(card.cashbackAccountId, owner);
 	if (!account) throw new Error("Conta de recompensa indisponível");
-	const currency = account.data.currency ?? "BRL";
+	const currency = account.data.yieldCurrency ?? "BRL";
 	const factor = currency === source ? 1 : await rate(date, source, currency);
 	return {
 		cashbackAccountId: card.cashbackAccountId,

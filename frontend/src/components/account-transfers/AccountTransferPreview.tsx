@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatAsset } from "@zaimu/finance/asset-amount";
 import { LuCheck, LuSend, LuX } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -87,14 +88,17 @@ export function AccountTransferPreview({ id, onClose }: { id: string; onClose: (
 											{account.isHidden ? " - Escondida" : ""}
 										</p>
 										{account.type !== "CREDIT_CARD" && (
-											<p>
-												{new Intl.NumberFormat("pt-BR", {
-													maximumFractionDigits: 6,
-												}).format(account.balance)}{" "}
-												{account.rewardsKind === "POINTS"
-													? "pontos"
-													: account.currency}
-											</p>
+											<div>
+												{account.rewardsKind === "POINTS" ? (
+													<p>{account.pointsBalance ?? 0} pontos</p>
+												) : (
+													account.assets.map(asset => (
+														<p key={asset.assetCode}>
+															{formatAsset(asset.balance, asset.assetCode)}
+														</p>
+													))
+												)}
+											</div>
 										)}
 										{account.statements?.map(statement => (
 											<p className="text-sm" key={statement.id}>

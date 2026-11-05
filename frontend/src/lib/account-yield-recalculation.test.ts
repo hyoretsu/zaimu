@@ -5,10 +5,9 @@ import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { calculateFinancialAccountYieldEntries } from "./financial-account";
 
 const account: FinancialAccount = {
-	balance: 100,
+	assets: [{ assetCode: "BRL", balance: "100" }],
 	countryCode: "BR",
 	createdAt: "2025-01-01",
-	currency: "BRL",
 	id: "account",
 	institution: {
 		id: "bank",
@@ -32,6 +31,7 @@ const account: FinancialAccount = {
 	type: "CHECKING",
 	updatedAt: "2025-01-01",
 	userId: "guest",
+	yieldCurrency: "BRL",
 	yieldRateHistories: [
 		{ effectiveDate: "2025-01-01", yieldFixedRate: 5, yieldPeriod: "YEARLY" },
 		{ effectiveDate: "2026-01-01", yieldFixedRate: 10, yieldPeriod: "YEARLY" },

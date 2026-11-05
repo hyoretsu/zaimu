@@ -49,6 +49,7 @@ import {
 	queryRows,
 	withRawTransaction,
 } from "~/shared/infra/sql";
+import { accountHoldings, saveAccountHoldings } from "../../application/account-holdings";
 import { financialAccountContextSql } from "../../application/financial-account-context-sql";
 import {
 	accountCardRules,
@@ -56,6 +57,10 @@ import {
 	rewardAccountForRules,
 } from "../../application/institution-card-rules";
 
+const HoldingDTO = t.Object({
+	assetCode: t.String({ pattern: "^[A-Z0-9]{2,12}$" }),
+	balance: t.String({ pattern: "^-?\\d{1,20}(\\.\\d{1,18})?$" }),
+});
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
 	t.Literal("CHECKING"),
@@ -73,7 +78,9 @@ const RewardsAccountKind = t.Union([t.Literal("POINTS"), t.Literal("CASHBACK")])
 const RewardsAccountCreate = t.Object({
 	conversionAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 	conversionPoints: t.Optional(t.Number({ exclusiveMinimum: 0 })),
-	initialBalance: t.Optional(t.Number({ minimum: 0 })),
+	initialBalance: t.Optional(
+		t.Union([t.String({ pattern: "^[0-9]{1,20}([.][0-9]{1,18})?$" }), t.Number({ minimum: 0 })]),
+	),
 	kind: RewardsAccountKind,
 });
 const CreditCardCreate = t.Object({
@@ -183,12 +190,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			response: {
 				200: t.Array(
 					t.Object({
-						currency: t.String(),
+						assets: t.Array(HoldingDTO),
+						currency: t.Nullable(t.String()),
 						id: Id,
 						institution: t.Nullable(t.Object({ name: t.String() })),
 						isHidden: t.Boolean(),
 						name: t.Nullable(t.String()),
 						type: FinancialAccountType,
+						yieldCurrency: t.Nullable(t.String()),
 					}),
 				),
 				304: t.Null(),
@@ -214,20 +223,28 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					accounts.map(account => account.id),
 				);
 				const balances = await getFinancialAccountBalances(
-					accounts.map(account => account.id),
+					rows.filter(row => row.rewards?.kind === "POINTS").map(row => row.account.id),
 					new Date(),
-					accounts,
+					accounts.filter(account =>
+						rows.some(row => row.account.id === account.id && row.rewards?.kind === "POINTS"),
+					),
 				);
-				return rows.map(({ account, institution, card, rewards }) => ({
-					...account,
-					...profileContext.get(account.id),
-					balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
-					...(account.type === "CREDIT_CARD" ? { creditCard: card } : {}),
-					...(account.type === "REWARDS" ? { rewardsAccount: rewards } : {}),
-					institution: institution
-						? { ...institution, yieldPolicies: policies.get(institution.id) ?? [] }
-						: null,
-				}));
+				return Promise.all(
+					rows.map(async ({ account, institution, card, rewards }) => ({
+						...account,
+						assets: await accountHoldings(userId, account.id),
+						...profileContext.get(account.id),
+						balance:
+							account.type === "REWARDS" && rewards?.kind === "POINTS"
+								? (balances.get(account.id) ?? 0)
+								: null,
+						...(account.type === "CREDIT_CARD" ? { creditCard: card } : {}),
+						...(account.type === "REWARDS" ? { rewardsAccount: rewards } : {}),
+						institution: institution
+							? { ...institution, yieldPolicies: policies.get(institution.id) ?? [] }
+							: null,
+					})),
+				);
 			});
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
@@ -260,7 +277,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"name",
 							"type",
 							"institutionId",
-							"currency",
+							"yieldCurrency",
 							"countryCode",
 							"yieldFixedRate",
 							"yieldPeriod",
@@ -301,10 +318,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						: null;
 
 					// If it's a credit card, get the credit card details
-					const balance =
-						account.type === "CREDIT_CARD"
-							? null
-							: (await getFinancialAccountBalances([account.id])).get(account.id);
+
+					const balance = null;
 					const yieldRateHistories = await queryRows(
 						db.sql.public.FinancialAccountYieldRateHistory.select(
 							"effectiveDate",
@@ -353,6 +368,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 
 						return {
 							...account,
+							assets: await accountHoldings(userId, account.id),
 							...(await getInstitutionProfileContext([account.id])).get(account.id),
 							balance,
 							creditCard,
@@ -380,7 +396,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						);
 						return {
 							...account,
-							balance,
+							assets: await accountHoldings(userId, account.id),
+							balance:
+								rewardsAccount?.kind === "POINTS"
+									? ((await getFinancialAccountBalances([account.id])).get(account.id) ?? 0)
+									: null,
 							institution: institutionWithYieldPolicies,
 							rewardsAccount,
 							yieldRateHistories,
@@ -389,6 +409,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 
 					return {
 						...account,
+						assets: await accountHoldings(userId, account.id),
 						balance,
 						institution: institutionWithYieldPolicies,
 						yieldRateHistories,
@@ -465,9 +486,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						: countryPreference?.preferredCountry);
 				if (!countryCode || !supportedCountryCodes.includes(countryCode))
 					throw new HttpException("Selecione o país da conta", 400);
-				const currency = body.currency
-					? await assertSupportedCurrency(body.currency)
-					: (countryCurrency(countryCode, await supportedCurrencies()) ?? effectiveCurrency);
+				const currency =
+					(body.yieldCurrency ?? body.currency)
+						? await assertSupportedCurrency((body.yieldCurrency ?? body.currency)!)
+						: (countryCurrency(countryCode, await supportedCurrencies()) ?? effectiveCurrency);
 				await ensureAccountCoverage(currency, countryCode);
 				if (body.rewardsAccount)
 					assertRewardsAccountDetails(
@@ -514,12 +536,18 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				const account = await queryFirst(
 					db.sql.public.FinancialAccount.insert([
 						{
-							currency,
 							institutionId: institution?.id,
 							// Prisma 8 currently omits null from nullable varchar write types.
 							name: name as never,
 							type,
 							userId,
+							yieldCurrency:
+								body.yieldCurrency === null ||
+								(body.assets &&
+									!body.yieldCurrency &&
+									!body.assets.some(asset => asset.assetCode === currency))
+									? (null as never)
+									: currency,
 							yieldPeriod: body.yieldPeriod ?? undefined,
 							...(body.yieldFixedRate !== undefined &&
 								body.yieldFixedRate !== null && {
@@ -548,7 +576,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"name",
 							"type",
 							"institutionId",
-							"currency",
+							"yieldCurrency",
 							"countryCode",
 							"yieldFixedRate",
 							"yieldPeriod",
@@ -564,6 +592,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.build(),
 				);
 				if (!account) throw new HttpException("FinancialAccount not created", 500);
+				if (type !== "CREDIT_CARD" && body.rewardsAccount?.kind !== "POINTS")
+					await saveAccountHoldings(
+						account.id,
+						body.assets ?? [{ assetCode: currency, balance: "0" }],
+						account.yieldCurrency,
+					);
+				Object.assign(account, { assets: await accountHoldings(userId, account.id) });
 				await queryRaw(`UPDATE "FinancialAccount" SET "countryCode"=$2 WHERE "id"=$1`, [
 					account.id,
 					countryCode,
@@ -648,6 +683,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 
 					return {
 						...account,
+						assets: await accountHoldings(userId, account.id),
 						balance: null,
 						creditCard: { ...creditCard, ...cardRuleValues(await accountCardRules(account.id)) },
 						institution,
@@ -663,6 +699,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 								...(body.rewardsAccount.conversionPoints !== undefined && {
 									conversionPoints: String(body.rewardsAccount.conversionPoints),
 								}),
+								assetCode: currency,
 								financialAccountId: account.id,
 								initialBalance: String(body.rewardsAccount.initialBalance ?? 0),
 								kind: body.rewardsAccount.kind,
@@ -683,16 +720,24 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					if (!rewardsAccount) throw new HttpException("RewardsAccount not created", 500);
 					return {
 						...account,
-						balance: Number(rewardsAccount.initialBalance),
+						assets: await accountHoldings(userId, account.id),
+						balance:
+							rewardsAccount.kind === "POINTS" ? Number(rewardsAccount.initialBalance) : null,
 						institution,
 						rewardsAccount,
 					};
 				}
 
-				return { ...account, balance: 0, institution };
+				return {
+					...account,
+					assets: await accountHoldings(userId, account.id),
+					balance: null,
+					institution,
+				};
 			}),
 		{
 			body: t.Object({
+				assets: t.Optional(t.Array(HoldingDTO, { maxItems: 100 })),
 				countryCode: t.Optional(t.String({ pattern: "^[A-Z]{2}$" })),
 				creditCard: t.Optional(CreditCardCreate),
 				currency: t.Optional(CurrencyDTO),
@@ -703,6 +748,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 				rewardsAccount: t.Optional(RewardsAccountCreate),
 				type: t.Optional(FinancialAccountType),
+				yieldCurrency: t.Optional(t.Nullable(CurrencyDTO)),
 				yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
@@ -745,7 +791,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"name",
 						"type",
 						"userId",
-						"currency",
+						"yieldCurrency",
 						"countryCode",
 						"yieldFixedRate",
 						"yieldPeriod",
@@ -767,15 +813,16 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				if (body.currency) await assertSupportedCurrency(body.currency);
 				if (body.countryCode && !supportedCountryCodes.includes(body.countryCode))
 					throw new HttpException("País inválido", 400);
-				if (body.countryCode || body.currency) {
+				if (body.countryCode || body.currency || body.yieldCurrency) {
 					const [current] = await queryRaw<{ countryCode: string | null; createdAt: Date }>(
 						`SELECT "createdAt","countryCode" FROM "FinancialAccount" WHERE "id"=$1`,
 						[params.id],
 					);
-					await ensureAccountCoverage(
-						body.currency ?? existing.currency,
-						body.countryCode ?? current?.countryCode,
-					);
+					if (body.yieldCurrency ?? body.currency ?? existing.yieldCurrency)
+						await ensureAccountCoverage(
+							(body.yieldCurrency ?? body.currency ?? existing.yieldCurrency)!,
+							body.countryCode ?? current?.countryCode,
+						);
 					if (body.countryCode) {
 						await queryRaw(`UPDATE "FinancialAccount" SET "countryCode"=$2 WHERE "id"=$1`, [
 							params.id,
@@ -789,10 +836,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							);
 					}
 				}
-				if (body.currency && body.currency.toUpperCase() !== existing.currency) {
+				if (body.currency && body.currency.toUpperCase() !== existing.yieldCurrency) {
 					const [history] = await queryRaw<{ used: boolean }>(
 						`SELECT EXISTS(SELECT 1 FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1) OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" p JOIN "CreditCard" c ON c."id"=p."creditCardId" WHERE c."financialAccountId"=$1) OR EXISTS(SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1)
-OR EXISTS(SELECT 1 FROM "FinancialAccount" WHERE "id"=$1 AND COALESCE("balance",0)<>0)
+OR EXISTS(SELECT 1 FROM "FinancialAccount" WHERE "id"=$1 AND EXISTS(SELECT 1 FROM "FinancialAccountAsset" holding WHERE holding."financialAccountId"="FinancialAccount"."id" AND holding."balance"<>0))
 OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" WHERE "cashbackAccountId"=$1)
 OR EXISTS(SELECT 1 FROM "CreditCard" WHERE "cashbackAccountId"=$1)
 OR EXISTS(SELECT 1 FROM "FinancialAccountYield" WHERE "financialAccountId"=$1)
@@ -886,7 +933,11 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					]);
 				const account = await queryFirst(
 					db.sql.public.FinancialAccount.update({
-						...(body.currency !== undefined && { currency: body.currency.toUpperCase() }),
+						...((body.yieldCurrency !== undefined || body.currency !== undefined) && {
+							yieldCurrency: (body.yieldCurrency === null
+								? null
+								: (body.yieldCurrency ?? body.currency)?.toUpperCase()) as never,
+						}),
 						...((body.institutionName !== undefined || body.institutionId !== undefined) && {
 							institutionId: (institution?.id ?? null) as never,
 						}),
@@ -923,7 +974,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 							"name",
 							"type",
 							"institutionId",
-							"currency",
+							"yieldCurrency",
 							"countryCode",
 							"yieldFixedRate",
 							"yieldPeriod",
@@ -939,6 +990,13 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						.build(),
 				);
 				if (!account) throw new HttpException("FinancialAccount not found", 404);
+				if (body.assets || body.yieldCurrency !== undefined)
+					await saveAccountHoldings(
+						account.id,
+						body.assets ?? [],
+						body.yieldCurrency === undefined ? existing.yieldCurrency : body.yieldCurrency,
+					);
+				Object.assign(account, { assets: await accountHoldings(userId, account.id) });
 				Object.assign(account, await saveAccountDefaults(userId, account.id, body));
 				const yieldChanged =
 					body.yieldPeriod !== undefined ||
@@ -1147,6 +1205,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 
 					return {
 						...account,
+						assets: await accountHoldings(userId, account.id),
 						balance: null,
 						creditCard: { ...creditCard, ...cardRuleValues(await accountCardRules(account.id)) },
 						institution,
@@ -1180,7 +1239,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					};
 					assertRewardsAccountDetails(
 						nextRewardsAccount,
-						body.currency?.toUpperCase() ?? existing.currency,
+						body.currency?.toUpperCase() ?? existing.yieldCurrency ?? "BRL",
 					);
 					const rewardsAccount = await queryFirst(
 						db.sql.public.RewardsAccount.update({
@@ -1216,7 +1275,11 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					if (!rewardsAccount) throw new HttpException("RewardsAccount not found", 404);
 					return {
 						...account,
-						balance: (await getFinancialAccountBalances([account.id])).get(account.id) ?? 0,
+						assets: await accountHoldings(userId, account.id),
+						balance:
+							rewardsAccount?.kind === "POINTS"
+								? ((await getFinancialAccountBalances([account.id])).get(account.id) ?? 0)
+								: null,
 						institution,
 						rewardsAccount,
 					};
@@ -1224,12 +1287,14 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 
 				return {
 					...account,
-					balance: (await getFinancialAccountBalances([account.id])).get(account.id) ?? 0,
+					assets: await accountHoldings(userId, account.id),
+					balance: null,
 					institution,
 				};
 			}),
 		{
 			body: t.Object({
+				assets: t.Optional(t.Array(HoldingDTO, { maxItems: 100 })),
 				countryCode: t.Optional(t.String({ pattern: "^[A-Z]{2}$" })),
 				creditCard: t.Optional(
 					t.Object({
@@ -1263,10 +1328,16 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 					t.Object({
 						conversionAmount: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 						conversionPoints: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-						initialBalance: t.Optional(t.Number({ minimum: 0 })),
+						initialBalance: t.Optional(
+							t.Union([
+								t.String({ pattern: "^[0-9]{1,20}([.][0-9]{1,18})?$" }),
+								t.Number({ minimum: 0 }),
+							]),
+						),
 						kind: t.Optional(RewardsAccountKind),
 					}),
 				),
+				yieldCurrency: t.Optional(t.Nullable(CurrencyDTO)),
 				yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
 				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),

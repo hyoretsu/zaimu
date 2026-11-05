@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { decimalToUnits } from "@zaimu/finance/asset-amount";
 import {
 	assertCalendarPeriod,
 	type CardCalendarPeriod,
@@ -8,10 +9,12 @@ import {
 } from "@zaimu/finance/credit-card";
 import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rules";
+import { isCryptoAsset } from "@zaimu/finance/money";
 import { pickTaxModes, resolveTaxModes } from "@zaimu/finance/yield-tax";
 import { type SyntheticEvent, useState } from "react";
-import { LuPencil, LuPlus } from "react-icons/lu";
+import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency";
+import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -101,8 +104,17 @@ export function CreateFinancialAccountDialog({
 		).values(),
 	];
 	const initialInstitution = () => account?.institutionId ?? defaultInstitutionId ?? undefined;
-	const initialCurrency = () => account?.currency ?? "";
+	const initialCurrency = () => account?.yieldCurrency ?? account?.creditCard?.currency ?? "";
 	const [selectedCurrency, setCurrency] = useState(initialCurrency);
+	const initialHoldings = () =>
+		(account?.assets ?? []).map(asset => ({
+			assetCode: asset.assetCode,
+			balance: asset.balance,
+			existing: true,
+			key: crypto.randomUUID(),
+		}));
+	const [holdings, setHoldings] = useState(initialHoldings);
+	const [validationError, setValidationError] = useState<string | null>(null);
 	const [selectedCountry, setCountry] = useState(account?.countryCode ?? undefined);
 	const [internalOpen, setInternalOpen] = useState(false);
 	const isGuestMode = useAuthStore(state => state.isGuestMode);
@@ -214,6 +226,8 @@ export function CreateFinancialAccountDialog({
 
 	const reset = () => {
 		setCurrency(initialCurrency());
+		setHoldings(initialHoldings());
+		setValidationError(null);
 		setCountry(account?.countryCode ?? undefined);
 		setInstitutionId(initialInstitution());
 		setName(account?.name ?? "");
@@ -280,11 +294,44 @@ export function CreateFinancialAccountDialog({
 				)
 		);
 	};
-	const save = async (recalculateCurrentDay: boolean) => {
-		if (!institution || !countryCode || !currency) return;
+	const hasHoldings = type !== "CREDIT_CARD" && !(type === "REWARDS" && rewardsKind === "POINTS");
+	const requiresFiatCurrency = (rows = holdings) =>
+		!hasHoldings ||
+		yieldEnabled ||
+		rows.length === 0 ||
+		rows.some(holding => !holding.assetCode || !isCryptoAsset(holding.assetCode));
+	const fiatCurrencyRequired = requiresFiatCurrency();
+	const validate = (submittedHoldings = holdings) => {
+		let error: string | null = null;
+		if (!institution || !countryCode) error = "Selecione instituição e país.";
+		if (requiresFiatCurrency(submittedHoldings) && (!currency || isCryptoAsset(currency)))
+			error = "Selecione uma moeda fiat.";
+		if (hasHoldings) {
+			const codes = new Set<string>();
+			for (const holding of submittedHoldings) {
+				try {
+					if (!holding.assetCode || codes.has(holding.assetCode)) throw new Error();
+					decimalToUnits(holding.balance, holding.assetCode);
+					codes.add(holding.assetCode);
+				} catch {
+					error =
+						"Informe ativos distintos e saldos válidos, respeitando a precisão de cada ativo.";
+				}
+			}
+			if (yieldEnabled && !submittedHoldings.some(holding => holding.assetCode === currency))
+				error = "Adicione a moeda de rendimento aos ativos da conta.";
+		}
+		setValidationError(error);
+		return !error;
+	};
+	const save = async (recalculateCurrentDay: boolean, submittedHoldings = holdings) => {
+		if (!validate(submittedHoldings)) return;
 		try {
 			if (calendarTransition) assertCalendarPeriod(calendarTransition);
 			const data = {
+				assets: hasHoldings
+					? submittedHoldings.map(({ assetCode, balance }) => ({ assetCode, balance }))
+					: [],
 				countryCode,
 				creditCard:
 					type === "CREDIT_CARD"
@@ -299,7 +346,6 @@ export function CreateFinancialAccountDialog({
 								workingDueDate: false,
 							}
 						: undefined,
-				currency,
 				institutionId,
 				name: name.trim() || null,
 				rewardsAccount:
@@ -317,11 +363,13 @@ export function CreateFinancialAccountDialog({
 										: account
 											? null
 											: undefined,
-								initialBalance: Number(initialRewardsBalance || 0),
+								initialBalance:
+									rewardsKind === "POINTS" ? Number(initialRewardsBalance || 0) : 0,
 								kind: rewardsKind,
 							}
 						: undefined,
 				type,
+				yieldCurrency: requiresFiatCurrency(submittedHoldings) ? currency : null,
 				...(account && { recalculateCurrentDay }),
 				yieldFixedRate:
 					type !== "CREDIT_CARD" && yieldEnabled && yieldFixedRate
@@ -379,11 +427,18 @@ export function CreateFinancialAccountDialog({
 	};
 	const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		const submitted = new FormData(event.currentTarget);
+		const submittedHoldings = holdings.map(holding => {
+			const balance = submitted.get(`holding-${holding.key}`);
+			return { ...holding, balance: typeof balance === "string" ? balance : holding.balance };
+		});
+		setHoldings(submittedHoldings);
+		if (!validate(submittedHoldings)) return;
 		if (yieldConfigurationChanged()) {
 			setIsRecalculateCurrentDayYieldDialogOpen(true);
 			return;
 		}
-		void save(false);
+		void save(false, submittedHoldings);
 	};
 
 	return (
@@ -469,12 +524,19 @@ export function CreateFinancialAccountDialog({
 							searchable
 							value={countryCode}
 						/>
-						<CurrencySelect
-							disabled={!institution || !countryCode}
-							label="Moeda da conta / cartão"
-							onValueChange={setCurrency}
-							value={currency}
-						/>
+						{fiatCurrencyRequired && (
+							<CurrencySelect
+								currencies={supportedCurrencies.filter(code => !isCryptoAsset(code))}
+								disabled={!institution || !countryCode}
+								label={
+									type === "CREDIT_CARD"
+										? "Moeda do cartão"
+										: "Moeda fiat de rendimento / conversão"
+								}
+								onValueChange={setCurrency}
+								value={currency}
+							/>
+						)}
 
 						<FormField
 							autoComplete="off"
@@ -506,6 +568,87 @@ export function CreateFinancialAccountDialog({
 								required
 								value={type}
 							/>
+						)}
+						{hasHoldings && (
+							<div className="grid min-w-0 gap-4 rounded-xl border p-4">
+								<p className="text-sm font-medium">Ativos e saldos iniciais</p>
+								{account && (
+									<p className="text-muted-foreground text-xs">
+										Saldos existentes são alterados por ajuste de saldo. Novos ativos
+										podem informar um saldo inicial.
+									</p>
+								)}
+								{holdings.map(holding => (
+									<div
+										className="grid min-w-0 gap-3 rounded-lg border p-3"
+										key={holding.key}
+									>
+										<CurrencySelect
+											allowCrypto
+											disabled={holding.existing}
+											label="Ativo"
+											onValueChange={assetCode =>
+												setHoldings(rows =>
+													rows.map(row =>
+														row.key === holding.key
+															? { ...row, assetCode, balance: "0" }
+															: row,
+													),
+												)
+											}
+											value={holding.assetCode}
+										/>
+										<AssetAmountField
+											assetCode={holding.assetCode || currency || "BRL"}
+											disabled={holding.existing || !holding.assetCode}
+											id={`holding-balance-${holding.key}`}
+											label={holding.existing ? "Saldo atual" : "Saldo inicial"}
+											onValueChange={balance =>
+												setHoldings(rows =>
+													rows.map(row =>
+														row.key === holding.key ? { ...row, balance } : row,
+													),
+												)
+											}
+											rawValueName={`holding-${holding.key}`}
+											required
+											value={holding.balance}
+										/>
+										{!holding.existing && (
+											<Button
+												className="justify-self-end"
+												onClick={() =>
+													setHoldings(rows =>
+														rows.filter(row => row.key !== holding.key),
+													)
+												}
+												type="button"
+												variant="outline"
+											>
+												<LuTrash2 /> Remover ativo
+											</Button>
+										)}
+									</div>
+								))}
+								<Button
+									className="justify-self-end"
+									onClick={() =>
+										setHoldings(rows => [
+											...rows,
+											{
+												assetCode: "",
+												balance: "0",
+												existing: false,
+												key: crypto.randomUUID(),
+											},
+										])
+									}
+									type="button"
+									variant="outline"
+								>
+									<LuPlus /> Adicionar ativo
+								</Button>
+							</div>
 						)}
 						{type !== "CREDIT_CARD" && (
 							<AccountYieldFields
@@ -544,16 +687,7 @@ export function CreateFinancialAccountDialog({
 									required
 									value={rewardsKind}
 								/>
-								{rewardsKind === "CASHBACK" ? (
-									<MoneyField
-										currencyCode={currency}
-										id="rewards-initial-balance"
-										label="Saldo inicial"
-										onValueChange={setInitialRewardsBalance}
-										placeholder="R$ 150,00"
-										value={initialRewardsBalance}
-									/>
-								) : (
+								{rewardsKind === "POINTS" && (
 									<NumericField
 										decimalScale={4}
 										id="rewards-initial-balance"
@@ -685,6 +819,11 @@ export function CreateFinancialAccountDialog({
 							/>
 						)}
 					</DialogBody>
+					{validationError && (
+						<p className="text-destructive px-1 text-sm" role="alert">
+							{validationError}
+						</p>
+					)}
 					<DialogFooter>
 						<Button
 							className="cursor-pointer"
@@ -699,7 +838,7 @@ export function CreateFinancialAccountDialog({
 							disabled={
 								pending ||
 								!countryCode ||
-								!currency ||
+								(fiatCurrencyRequired && !currency) ||
 								!institution ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
 								(type !== "CREDIT_CARD" &&

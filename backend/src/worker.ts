@@ -1,3 +1,4 @@
+import { refreshHeldAssetQuotes } from "./modules/financial-history/application/asset-quote-refresh";
 import { handleCurrencyHistoryCommand } from "./modules/financial-history/application/currency-history-jobs";
 import { recoverHistoryCollections } from "./modules/financial-history/application/history-collections";
 import { deliverNotifications } from "./modules/notifications/notification-deliveries";
@@ -74,6 +75,7 @@ await deliverNotifications();
 await recoverOpenFinanceRuns();
 await recoverImportFiles();
 await recoverHistoryCollections();
+void refreshHeldAssetQuotes().catch(() => console.warn("Held asset quote refresh unavailable"));
 scheduleTimer = setInterval(() => {
 	Promise.all([
 		deliverNotifications(),
@@ -81,6 +83,7 @@ scheduleTimer = setInterval(() => {
 		recoverOpenFinanceRuns(),
 		recoverImportFiles(),
 		recoverHistoryCollections(),
+		refreshHeldAssetQuotes(),
 		ensureReferenceRateBootstrapJobs(),
 		enqueueDailyReferenceRateFetches(),
 		enqueueDailyAccountYieldRecalculations(),

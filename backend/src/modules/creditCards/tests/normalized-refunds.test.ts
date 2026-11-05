@@ -46,8 +46,8 @@ describe("normalized refund transactions", () => {
 		 INSERT INTO "user" ("id", "email", "name") VALUES ('normalized-test-user', 'normalized@example.test', 'Teste');
 		 INSERT INTO "FinancialInstitution" ("id", "userId", "name", "normalizedName")
 		 VALUES ('normalized-test-bank', 'normalized-test-user', 'Banco', 'banco');
-		 INSERT INTO "FinancialAccount" ("id", "userId", "name", "type", "institutionId")
-		 VALUES ('normalized-test-account', 'normalized-test-user', 'Cartão', 'CREDIT_CARD', 'normalized-test-bank');
+		 WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id", "userId", "name", "type", "institutionId")
+		 VALUES ('normalized-test-account', 'normalized-test-user', 'Cartão', 'CREDIT_CARD', 'normalized-test-bank') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('normalized-test-account','BRL',0);
 		 INSERT INTO "CreditCard" ("id", "financialAccountId", "creditLimit", "statementDay", "dueDay")
 		 VALUES ('normalized-test-card', 'normalized-test-account', 5000, 31, 5);
 		 INSERT INTO "CreditPurchaseRecord" ("id", "userId", "creditCardId", "description", "purchaseDate", "totalAmount")
@@ -387,7 +387,7 @@ describe("normalized refund transactions", () => {
 			).status,
 		).toBe(200);
 		await client.query(
-			`INSERT INTO "user" ("id","email","name") VALUES ('normalized-test-outsider','normalized-outsider@example.test','Outro'); INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('normalized-test-foreign','normalized-test-outsider','CHECKING');`,
+			`INSERT INTO "user" ("id","email","name") VALUES ('normalized-test-outsider','normalized-outsider@example.test','Outro'); WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('normalized-test-foreign','normalized-test-outsider','CHECKING') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('normalized-test-foreign','BRL',0);`,
 		);
 		try {
 			const { mutateCreditBook, newBookPurchase } =
@@ -544,11 +544,11 @@ describe("normalized refund transactions", () => {
 		const { withStatementPayments } = await import("../application/statement-payments");
 		const { createDebtEvent, linkPurchaseToDebt } = await import("~/modules/debts/application");
 		await client.query(
-			`INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('normalized-test-rewards',$1,'REWARDS')`,
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type") VALUES ('normalized-test-rewards',$1,'REWARDS') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('normalized-test-rewards','BRL',0)`,
 			[context.userId],
 		);
 		await client.query(
-			`INSERT INTO "RewardsAccount" ("financialAccountId","kind","initialBalance") VALUES ('normalized-test-rewards','CASHBACK',0)`,
+			`INSERT INTO "RewardsAccount" ("financialAccountId","kind","initialBalance","assetCode") VALUES ('normalized-test-rewards','CASHBACK',0,'BRL')`,
 		);
 		const futureId = await mutateCreditBook(
 			context.userId,
@@ -583,7 +583,8 @@ describe("normalized refund transactions", () => {
 			b =>
 				newBookPurchase(b, {
 					cashbackAccountId: "normalized-test-rewards",
-					cashbackAmount: 1,
+					cashbackAmount: "1",
+					cashbackCurrency: "BRL",
 					description: "Recompensa",
 					installments: 1,
 					purchaseDate: "2024-08-10",
@@ -954,7 +955,7 @@ describe("normalized refund transactions", () => {
 			const itemId = `review-refund-${id}`;
 			const purchaseId = `review-purchase-${id}`;
 			await query(
-				`INSERT INTO "FinancialAccount" ("id", "userId", "name", "type") VALUES ($1,$2,'Review','CREDIT_CARD')`,
+				`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id", "userId", "name", "type") VALUES ($1,$2,'Review','CREDIT_CARD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ($1,'BRL',0)`,
 				[accountId, context.userId],
 			);
 			await query(

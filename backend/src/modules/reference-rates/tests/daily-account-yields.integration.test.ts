@@ -29,7 +29,7 @@ async function replay(now = morning) {
 }
 async function seed(id: string, fixed = false, principal = 1000) {
 	await queryRaw(
-		`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt","yieldReferenceType","yieldReferencePercentage","yieldFixedRate","yieldPeriod") VALUES ($1,'owner','CHECKING','BRL','BR','2026-10-01',$2,$3,$4,$5)`,
+		`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","yieldCurrency","countryCode","createdAt","yieldReferenceType","yieldReferencePercentage","yieldFixedRate","yieldPeriod") VALUES ($1,'owner','CHECKING','BRL','BR','2026-10-01',$2,$3,$4,$5) RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ($1,'BRL',0)`,
 		[id, fixed ? null : "CDI", fixed ? null : 105, fixed ? 1 : null, fixed ? "MONTHLY" : null],
 	);
 	await queryRaw(
@@ -41,12 +41,12 @@ async function yields(id = "account") {
 	return queryRaw<{
 		id: string;
 		date: string;
-		amount: number;
+		amount: string;
 		origin: string;
 		kind: string;
 		isExcluded: boolean;
 	}>(
-		`SELECT "id","date"::text,"amount","origin","kind","isExcluded" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 ORDER BY "date"`,
+		`SELECT "id","date"::text,"amount"::text AS "amount","origin","kind","isExcluded" FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 ORDER BY "date"`,
 		[id],
 	);
 }
@@ -55,6 +55,9 @@ beforeAll(async () => {
 	await client.connect();
 	try {
 		await installContractFixture(client, contract);
+		await client.query(
+			`INSERT INTO "Asset" ("code","kind","name","decimals") VALUES ('BRL','FIAT','Brazilian real',2),('USD','FIAT','US dollar',2) ON CONFLICT DO NOTHING`,
+		);
 	} finally {
 		await client.end();
 	}
@@ -102,8 +105,8 @@ describe("daily yield recovery", () => {
 		const saved = await yields();
 		expect(downloads).toBe(2);
 		expect(saved.map(row => row.date)).toEqual(["2026-10-05", "2026-10-06"]);
-		expect(saved[0]!.amount).toBe(52.5);
-		expect(saved[1]!.amount).toBe(52.53);
+		expect(saved[0]!.amount).toBe("52.500000000000000000");
+		expect(saved[1]!.amount).toBe("52.530000000000000000");
 		await handleReferenceRateFetchCommand(next, async () => []);
 		expect(await queryRaw(`SELECT * FROM "ReferenceRate"`)).toHaveLength(2);
 	});
@@ -112,12 +115,12 @@ describe("daily yield recovery", () => {
 		await queryRaw(
 			`INSERT INTO "ReferenceRate" ("type","date","value") SELECT 'CDI', day, 0.05 FROM generate_series('2026-10-02'::date,'2026-10-16'::date,interval '1 day') day`,
 		);
-		await queryRaw(`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin","isExcluded") VALUES
-		 ('manual','account','2026-10-06',2,'MANUAL','USER',false),
-		 ('edited','account','2026-10-07',3,'AUTOMATIC','USER',false),
-		 ('excluded','account','2026-10-08',0,'AUTOMATIC','USER',true),
-		 ('imported','account','2026-10-09',4,'MANUAL','USER',false),
-		 ('today','account','2026-10-16',5,'AUTOMATIC','SYSTEM',false)`);
+		await queryRaw(`INSERT INTO "FinancialAccountYield" ("id","financialAccountId","date","amount","kind","origin","isExcluded","assetCode") VALUES
+		 ('manual','account','2026-10-06',2,'MANUAL','USER',false,'BRL'),
+		 ('edited','account','2026-10-07',3,'AUTOMATIC','USER',false,'BRL'),
+		 ('excluded','account','2026-10-08',0,'AUTOMATIC','USER',true,'BRL'),
+		 ('imported','account','2026-10-09',4,'MANUAL','USER',false,'BRL'),
+		 ('today','account','2026-10-16',5,'AUTOMATIC','SYSTEM',false,'BRL')`);
 		const protectedRows = (await yields()).filter(row => row.origin === "USER" || row.id === "today");
 		await replay();
 		await enqueueDailyAccountYieldRecalculations(new Date("2026-10-16T10:00:00Z"));
@@ -175,7 +178,7 @@ describe("daily yield recovery", () => {
 		await seed("context-first");
 		await seed("context-second");
 		await queryRaw(
-			`INSERT INTO "FinancialAccountYieldRateHistory" ("id","financialAccountId","effectiveDate","yieldReferenceType","yieldReferencePercentage") VALUES ('context-history','context-first','2026-10-10','CDI',110)`,
+			`INSERT INTO "FinancialAccountYieldRateHistory" ("id","financialAccountId","effectiveDate","yieldReferenceType","yieldReferencePercentage","currency") VALUES ('context-history','context-first','2026-10-10','CDI',110,'BRL')`,
 		);
 		const ids = ["context-first", "context-second"];
 		// Prepare calendar rows before comparing stable query work.
@@ -221,7 +224,7 @@ describe("historical yield recalculation", () => {
 	test("rebuilds automatic yields for an account created after its transactions", async () => {
 		setSystemTime(new Date("2026-11-02T14:00:00Z"));
 		await queryRaw(
-			`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt") VALUES ('hist','owner','SAVINGS','BRL','BR','2026-09-13T15:00:00Z')`,
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","yieldCurrency","countryCode","createdAt") VALUES ('hist','owner','SAVINGS','BRL','BR','2026-09-13T15:00:00Z') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('hist','BRL',0)`,
 		);
 		await queryRaw(
 			`INSERT INTO "Transaction" ("id","userId","type","amount","currency","date","description","destinationFinancialAccountId") VALUES ('hist-deposit','owner','INCOME',100,'BRL','2026-04-26','Deposit','hist')`,
@@ -244,10 +247,10 @@ describe("historical yield recalculation", () => {
 	test("starts at a balance adjustment when the account has no transactions", async () => {
 		setSystemTime(new Date("2026-11-02T14:00:00Z"));
 		await queryRaw(
-			`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt") VALUES ('adjusted','owner','SAVINGS','BRL','BR','2026-09-13T15:00:00Z')`,
+			`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","type","yieldCurrency","countryCode","createdAt") VALUES ('adjusted','owner','SAVINGS','BRL','BR','2026-09-13T15:00:00Z') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('adjusted','BRL',0)`,
 		);
 		await queryRaw(
-			`INSERT INTO "BalanceAdjustment" ("id","userId","financialAccountId","date","balance","currency","updatedAt") VALUES ('adjusted-balance','owner','adjusted','2026-05-04',100,'BRL',now())`,
+			`INSERT INTO "BalanceAdjustment" ("id","userId","financialAccountId","date","balance","assetCode","updatedAt") VALUES ('adjusted-balance','owner','adjusted','2026-05-04',100,'BRL',now())`,
 		);
 		await queryRaw(
 			`INSERT INTO "ReferenceRate" ("id","type","date","value") SELECT 'adj-cdi-'||d::date, 'CDI', d::date, 0.05 FROM generate_series('2026-04-01'::date,'2026-10-30'::date,'1 day') d ON CONFLICT DO NOTHING`,

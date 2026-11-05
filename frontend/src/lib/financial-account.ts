@@ -1,9 +1,11 @@
+import { isCryptoAsset } from "@zaimu/finance/money";
 import {
 	getYieldSettings as resolveYieldSettings,
 	legacyCalendarHoliday,
 } from "@zaimu/finance/projected-yield";
 import { hasRedemptionTax, roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
+import { assetBalance, normalizeAccountAssets, replayAccountAssets } from "./account-assets";
 import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
@@ -15,17 +17,27 @@ import {
 
 type AccountTransaction = Pick<
 	import("./api").Transaction,
-	"amount" | "destinationAmount" | "destinationFinancialAccountId" | "originFinancialAccountId"
+	| "amount"
+	| "destinationAmount"
+	| "destinationFinancialAccountId"
+	| "originFinancialAccountId"
+	| "bookingCurrency"
+	| "currency"
+	| "destinationCurrency"
+	| "fees"
 > & { date?: Date | string; id?: string };
-type CashbackPurchase = Pick<
-	import("./api").CreditPurchase,
-	| "cashbackAccountId"
-	| "cashbackAmount"
-	| "cashbackYieldPeriod"
-	| "cashbackYieldReferencePercentage"
-	| "cashbackYieldReferenceRate"
-	| "purchaseDate"
->;
+type CashbackPurchase = Omit<
+	Pick<
+		import("./api").CreditPurchase,
+		| "cashbackAccountId"
+		| "cashbackAmount"
+		| "cashbackYieldPeriod"
+		| "cashbackYieldReferencePercentage"
+		| "cashbackYieldReferenceRate"
+		| "purchaseDate"
+	>,
+	"cashbackAmount"
+> & { cashbackAmount?: number | string | null; currency?: string };
 
 export interface FinancialAccountYieldEntry {
 	endingBalance?: number;
@@ -70,6 +82,7 @@ export function calculateFinancialAccountBalances(
 ): FinancialAccount[] {
 	const todayKey = format(startOfDay(today), "yyyy-MM-dd");
 	const holidayKeys = Array.isArray(holidays) ? new Set(holidays.map(date => date.slice(0, 10))) : null;
+	accounts = accounts.map(account => normalizeAccountAssets(account));
 	const accountById = new Map(
 		accounts.filter(account => account.type !== "CREDIT_CARD").map(account => [account.id, account]),
 	);
@@ -100,20 +113,44 @@ export function calculateFinancialAccountBalances(
 		accountEvents.set(day, [...(accountEvents.get(day) ?? []), amount]);
 		events.set(accountId, accountEvents);
 	};
-	for (const account of accounts.filter(account => account.type === "REWARDS"))
-		addEvent(account.id, account.createdAt, account.rewardsAccount?.initialBalance ?? 0);
+	for (const account of accounts.filter(account => account.type === "REWARDS")) {
+		const code = account.rewardsAccount?.assetCode ?? account.yieldCurrency;
+		if (
+			isPointsAccount(account) ||
+			(code != null && !isCryptoAsset(code) && code === account.yieldCurrency)
+		)
+			addEvent(account.id, account.createdAt, Number(account.rewardsAccount?.initialBalance ?? 0));
+	}
 	for (const transaction of transactions.toSorted(
 		(a, b) =>
 			dateKey(a.date ?? todayKey).localeCompare(dateKey(b.date ?? todayKey)) ||
 			(a.id ?? "").localeCompare(b.id ?? ""),
 	)) {
-		if (transaction.originFinancialAccountId)
-			addEvent(transaction.originFinancialAccountId, transaction.date, -transaction.amount);
-		if (transaction.destinationFinancialAccountId)
+		if (transaction.originFinancialAccountId) {
+			const account = accountById.get(transaction.originFinancialAccountId);
+			if (
+				account?.yieldCurrency &&
+				!isCryptoAsset(account.yieldCurrency) &&
+				(transaction.bookingCurrency ?? transaction.currency ?? account.yieldCurrency) ===
+					account.yieldCurrency
+			)
+				addEvent(account.id, transaction.date, -Number(transaction.amount));
+		}
+		if (
+			transaction.destinationFinancialAccountId &&
+			!isCryptoAsset(
+				accountById.get(transaction.destinationFinancialAccountId)?.yieldCurrency ?? "BRL",
+			) &&
+			(transaction.destinationCurrency ??
+				transaction.bookingCurrency ??
+				transaction.currency ??
+				accountById.get(transaction.destinationFinancialAccountId)?.yieldCurrency) ===
+				accountById.get(transaction.destinationFinancialAccountId)?.yieldCurrency
+		)
 			addEvent(
 				transaction.destinationFinancialAccountId,
 				transaction.date,
-				transaction.destinationAmount ?? transaction.amount,
+				Number(transaction.destinationAmount ?? transaction.amount),
 			);
 	}
 	for (const purchase of cashbackPurchases) {
@@ -123,12 +160,18 @@ export function calculateFinancialAccountBalances(
 			!accountById.has(purchase.cashbackAccountId)
 		)
 			continue;
+		if (
+			purchase.currency &&
+			(isCryptoAsset(purchase.currency) ||
+				purchase.currency !== accountById.get(purchase.cashbackAccountId)?.yieldCurrency)
+		)
+			continue;
 		const day = purchase.purchaseDate.slice(0, 10);
 		if (day > todayKey) continue;
 		const accountEvents = cashbackEvents.get(purchase.cashbackAccountId) ?? new Map();
 		const entries = accountEvents.get(day) ?? [];
 		entries.push({
-			amount: purchase.cashbackAmount,
+			amount: Number(purchase.cashbackAmount),
 			yieldPeriod: purchase.cashbackYieldPeriod,
 			yieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
 			yieldReferenceRate: purchase.cashbackYieldReferenceRate,
@@ -140,7 +183,7 @@ export function calculateFinancialAccountBalances(
 		.map(account => ({
 			...account,
 			balance:
-				account.type === "CREDIT_CARD"
+				account.type === "CREDIT_CARD" || !account.yieldCurrency
 					? null
 					: Number(
 							calculateYieldedBalance(
@@ -174,8 +217,68 @@ export function calculateFinancialAccountBalances(
 					? 0
 					: new YieldTaxLedger(yieldLots).deferredTax(settings, todayKey);
 			return {
-				...account,
+				...normalizeAccountAssets(account),
+				assets:
+					account.type === "CREDIT_CARD"
+						? []
+						: isPointsAccount(account)
+							? []
+							: (() => {
+									const rewardMovements = cashbackPurchases
+										.filter(
+											purchase =>
+												purchase.cashbackAccountId === account.id &&
+												purchase.cashbackAmount != null &&
+												purchase.currency &&
+												purchase.currency !== account.yieldCurrency,
+										)
+										.map(purchase => ({
+											amount: purchase.cashbackAmount!,
+											bookingCurrency: purchase.currency,
+											currency: purchase.currency,
+											date: purchase.purchaseDate,
+											destinationCurrency: purchase.currency,
+											destinationFinancialAccountId: account.id,
+										}));
+									const rewardCode =
+										account.rewardsAccount?.assetCode ?? account.yieldCurrency;
+									const initialReward =
+										account.type === "REWARDS" &&
+										rewardCode != null &&
+										isCryptoAsset(rewardCode) &&
+										account.rewardsAccount?.initialBalance != null
+											? [
+													{
+														amount: account.rewardsAccount.initialBalance,
+														bookingCurrency: rewardCode,
+														currency: rewardCode,
+														date: account.createdAt,
+														destinationCurrency: rewardCode,
+														destinationFinancialAccountId: account.id,
+													},
+												]
+											: [];
+									const assets = replayAccountAssets(
+										account.id,
+										[...initialReward, ...transactions, ...rewardMovements],
+										account.balanceAdjustments ?? [],
+										account.yieldCurrency,
+										todayKey,
+									);
+									return account.yieldCurrency
+										? [
+												...assets.filter(
+													asset => asset.assetCode !== account.yieldCurrency,
+												),
+												{
+													assetCode: account.yieldCurrency,
+													balance: String(account.balance ?? 0),
+												},
+											]
+										: assets;
+								})(),
 				netBalance: deferredTax > 0 ? Number((account.balance! - deferredTax).toFixed(4)) : null,
+				pointsBalance: isPointsAccount(account) ? (account.balance ?? 0) : undefined,
 				yieldLots,
 			};
 		});
@@ -197,12 +300,16 @@ export function calculateFinancialAccountYieldEntries(
 			(a.id ?? "").localeCompare(b.id ?? ""),
 	)) {
 		const day = dateKey(transaction.date ?? todayKey);
-		if (day > todayKey) continue;
+		const code =
+			transaction.destinationFinancialAccountId === account.id
+				? (transaction.destinationCurrency ?? transaction.bookingCurrency ?? transaction.currency)
+				: (transaction.bookingCurrency ?? transaction.currency);
+		if (day > todayKey || (code && (isCryptoAsset(code) || code !== account.yieldCurrency))) continue;
 		const amount =
 			transaction.destinationFinancialAccountId === account.id
-				? (transaction.destinationAmount ?? transaction.amount)
+				? Number(transaction.destinationAmount ?? transaction.amount)
 				: transaction.originFinancialAccountId === account.id
-					? -transaction.amount
+					? -Number(transaction.amount)
 					: 0;
 		events.set(day, [...(events.get(day) ?? []), amount]);
 	}
@@ -244,7 +351,7 @@ export function calculateFinancialAccountYieldEntries(
 				entries.push({
 					...recorded,
 					amount: recorded.amount,
-					currency: account.currency ?? "BRL",
+					currency: account.yieldCurrency ?? "BRL",
 					date: key,
 				});
 				ledger.accrueNet(recorded.amount, key);
@@ -256,7 +363,7 @@ export function calculateFinancialAccountYieldEntries(
 				entries.push({
 					...manualYield,
 					amount: manualYield.amount,
-					currency: account.currency ?? "BRL",
+					currency: account.yieldCurrency ?? "BRL",
 					date: key,
 				});
 				ledger.accrueNet(manualYield.amount, key);
@@ -284,7 +391,7 @@ export function calculateFinancialAccountYieldEntries(
 			if (amount > 0) {
 				entries.push({
 					amount,
-					currency: account.currency ?? "BRL",
+					currency: account.yieldCurrency ?? "BRL",
 					date: key,
 					financialAccountId: account.id,
 					id: automaticYield?.id ?? `automatic-yield-${account.id}-${key}`,
@@ -303,7 +410,7 @@ export function calculateFinancialAccountYieldEntries(
 			entries.push({
 				...manualYield,
 				amount: manualYield.amount,
-				currency: account.currency ?? "BRL",
+				currency: account.yieldCurrency ?? "BRL",
 				date: key,
 			});
 			ledger.accrueNet(manualYield.amount, key);
@@ -361,7 +468,9 @@ function calculateYieldedBalance(
 	onAdjustment?: (id: string, calculated: number, complete: boolean) => void,
 ) {
 	const checkpoints = new Map(
-		(account.balanceAdjustments ?? []).map(item => [item.date.slice(0, 10), item]),
+		(account.balanceAdjustments ?? [])
+			.filter(item => (item.assetCode ?? account.yieldCurrency) === account.yieldCurrency)
+			.map(item => [item.date.slice(0, 10), item]),
 	);
 	const yieldsByDay = Map.groupBy(yields ?? [], entry => entry.date.slice(0, 10));
 	let complete = true;
@@ -379,7 +488,7 @@ function calculateYieldedBalance(
 		const checkpoint = checkpoints.get(key);
 		if (!checkpoint) return;
 		onAdjustment?.(checkpoint.id, ledger.balance, complete);
-		ledger.adjustBalance(checkpoint.balance, key);
+		ledger.adjustBalance(Number(checkpoint.balance), key);
 		balance = ledger.balance;
 	};
 	for (
@@ -459,7 +568,11 @@ function calculateYieldedBalance(
 
 function getYieldSettings(account: FinancialAccount, day: string) {
 	return resolveYieldSettings(
-		{ ...account, institutionYieldPolicies: account.institution?.yieldPolicies },
+		{
+			...account,
+			currency: account.yieldCurrency ?? "BRL",
+			institutionYieldPolicies: account.institution?.yieldPolicies,
+		},
 		day,
 	);
 }
@@ -628,9 +741,28 @@ export function getTransactionAccountTypeLabel(
 
 export function getFinancialAccountCurrencyValue(account: FinancialAccount) {
 	if (account.type === "CREDIT_CARD") return 0;
-	if (account.type !== "REWARDS") return account.balance ?? 0;
-	if (account.rewardsAccount?.kind === "CASHBACK") return account.balance ?? 0;
+	if (!account.yieldCurrency) return 0;
+	if (account.type !== "REWARDS")
+		return isCryptoAsset(account.yieldCurrency)
+			? 0
+			: Number(assetBalance(account.assets, account.yieldCurrency));
+	if (account.rewardsAccount?.kind === "CASHBACK")
+		return Number(assetBalance(account.assets, account.yieldCurrency));
 	const points = account.rewardsAccount?.conversionPoints;
 	const amount = account.rewardsAccount?.conversionAmount;
-	return points && amount ? ((account.balance ?? 0) / points) * amount : 0;
+	return points && amount
+		? (Number(account.pointsBalance ?? account.rewardsAccount?.initialBalance ?? 0) / points) * amount
+		: 0;
+}
+
+/** Native positions for preferred-currency valuation; crypto quantities stay exact. */
+export function getFinancialAccountMoneyPositions(
+	account: FinancialAccount,
+): import("./consolidated-money").MoneyPosition[] {
+	if (account.type === "CREDIT_CARD") return [];
+	if (isPointsAccount(account))
+		return account.yieldCurrency
+			? [{ amount: getFinancialAccountCurrencyValue(account), currency: account.yieldCurrency }]
+			: [];
+	return account.assets.map(asset => ({ amount: asset.balance, currency: asset.assetCode }));
 }

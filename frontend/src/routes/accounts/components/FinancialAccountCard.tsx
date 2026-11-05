@@ -1,3 +1,4 @@
+import { formatAsset } from "@zaimu/finance/asset-amount";
 import { useState } from "react";
 import {
 	LuBanknote,
@@ -135,80 +136,64 @@ export function FinancialAccountCard({
 			<div className="border-border/70 mt-6 border-t pt-4">
 				{account.type === "CREDIT_CARD" ? (
 					<CreditCardAccountSummary accountId={account.id} />
-				) : account.type === "REWARDS" ? (
+				) : account.type === "REWARDS" && account.rewardsAccount?.kind === "POINTS" ? (
 					<>
-						<p className="text-muted-foreground text-xs">
-							{account.rewardsAccount?.kind === "CASHBACK"
-								? "Cashback disponível"
-								: "Pontos acumulados"}
-						</p>
+						<p className="text-muted-foreground text-xs">Pontos acumulados</p>
 						<p className="mt-1 text-2xl font-bold">
-							{account.rewardsAccount?.kind === "CASHBACK" ? (
+							{points.format(account.pointsBalance ?? 0)} pontos
+						</p>
+						{account.rewardsAccount.conversionPoints ? (
+							<p className="text-muted-foreground mt-1 text-sm">
+								Equivalente a{" "}
 								<PreferredMoneyAmount
 									values={[
 										{
-											amount: account.balance ?? 0,
+											amount: getFinancialAccountCurrencyValue(account),
 											currency:
-												account.rewardsAccount?.conversionCurrency ??
-												account.currency ??
+												account.rewardsAccount.conversionCurrency ??
+												account.yieldCurrency ??
 												"BRL",
 										},
 									]}
 								/>
-							) : (
-								`${points.format(account.balance ?? 0)} pontos`
-							)}
-						</p>
-						{account.rewardsAccount?.kind === "POINTS" &&
-						account.rewardsAccount.conversionPoints ? (
-							<p className="text-muted-foreground mt-1 text-sm">
-								Equivalente a{" "}
-								{
-									<PreferredMoneyAmount
-										values={[
-											{
-												amount: getFinancialAccountCurrencyValue(account),
-												currency:
-													account.rewardsAccount?.conversionCurrency ??
-													account.currency ??
-													"BRL",
-											},
-										]}
-									/>
-								}
 							</p>
 						) : null}
 					</>
 				) : (
 					<>
-						<p className="text-muted-foreground text-xs">Saldo disponível</p>
-						<p
-							className={
-								(account.balance ?? 0) < 0
-									? "text-destructive mt-1 text-2xl font-bold"
-									: "mt-1 text-2xl font-bold"
-							}
-						>
-							{
-								<PreferredMoneyAmount
-									values={[
-										{
-											amount: account.balance ?? 0,
-											currency:
-												account.rewardsAccount?.conversionCurrency ??
-												account.currency ??
-												"BRL",
-										},
-									]}
-								/>
-							}
+						<p className="text-muted-foreground text-xs">
+							{account.type === "REWARDS" ? "Cashback disponível" : "Saldo disponível"}
 						</p>
+						<p className="mt-1 text-2xl font-bold">
+							<PreferredMoneyAmount
+								values={account.assets.map(asset => ({
+									amount: asset.balance,
+									currency: asset.assetCode,
+								}))}
+							/>
+						</p>
+						<div className="mt-2 grid gap-1">
+							{account.assets.map(asset => (
+								<p
+									className={`text-sm break-words ${asset.balance.startsWith("-") ? "text-destructive" : "text-muted-foreground"}`}
+									key={asset.assetCode}
+								>
+									{formatAsset(asset.balance, asset.assetCode)}
+								</p>
+							))}
+							{account.assets.length === 0 && (
+								<p className="text-muted-foreground text-sm">Nenhum ativo cadastrado</p>
+							)}
+						</div>
 						{account.netBalance != null && (
 							<p className="text-muted-foreground mt-1 text-sm">
 								Saldo líquido:{" "}
 								<PreferredMoneyAmount
 									values={[
-										{ amount: account.netBalance, currency: account.currency ?? "BRL" },
+										{
+											amount: account.netBalance,
+											currency: account.yieldCurrency ?? "BRL",
+										},
 									]}
 								/>
 							</p>

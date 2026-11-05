@@ -141,14 +141,14 @@ test("credit-card yield display stays empty without requesting yields in connect
 	const { dataService } = await import("./dataService");
 	const originalAuth = useAuthStore.getState();
 	const account = spyOn(dataService.accounts, "getById").mockResolvedValue({
-		balance: 0,
+		assets: [{ assetCode: "BRL", balance: "0" }],
 		createdAt: "2026-01-01T00:00:00Z",
-		currency: "BRL",
 		id: "card-account",
 		name: "Cartão",
 		type: "CREDIT_CARD",
 		updatedAt: "2026-01-01T00:00:00Z",
 		userId: "user",
+		yieldCurrency: "BRL",
 	});
 	const page = spyOn(dataService.accountYields, "getPage").mockResolvedValue({
 		hasMore: false,

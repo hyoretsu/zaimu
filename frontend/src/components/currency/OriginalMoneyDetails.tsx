@@ -7,14 +7,14 @@ export function OriginalMoneyDetails({
 	bookingCurrency,
 	fees,
 }: {
-	originalAmount?: number | null;
+	originalAmount?: number | string | null;
 	currency?: string;
 	bookingCurrency: string;
 	fees?: FinancialFee[];
 }) {
 	if (originalAmount == null || !currency) return null;
-	if (currency === bookingCurrency && !fees?.some(fee => fee.amount > 0)) return null;
-	const format = (value: number, asset = currency) => formatAsset(value, asset);
+	if (currency === bookingCurrency && !fees?.some(fee => /[1-9]/.test(String(fee.amount)))) return null;
+	const format = (value: number | string, asset = currency) => formatAsset(value, asset);
 	return (
 		<div className="text-muted-foreground text-xs">
 			<p>Valor original: {format(originalAmount)}</p>
@@ -24,7 +24,7 @@ export function OriginalMoneyDetails({
 					{fees
 						.map(
 							fee =>
-								`${fee.name}: ${fee.type === "PERCENTAGE" ? `${new Intl.NumberFormat("pt-BR").format(fee.amount)}%` : format(fee.amount, fee.assetCode ?? currency)}`,
+								`${fee.name}: ${fee.type === "PERCENTAGE" ? `${new Intl.NumberFormat("pt-BR").format(Number(fee.amount))}%` : format(fee.amount, fee.assetCode ?? currency)}`,
 						)
 						.join(" + ")}
 				</p>
