@@ -1876,7 +1876,8 @@ export const dataService = {
 
 		async getStatementOwner(statementId: string): Promise<string | null> {
 			if (!isGuestMode())
-				return (await getCreditCardsStatementOwnerByStatementId(statementId))?.creditCardId ?? null;
+				return (await getCreditCardsStatementOwnerByStatementId({ path: { statementId } })).data
+					.creditCardId;
 			const statement = await localCreditCardStatements.getById(statementId);
 			return statement?.data.creditCardId ?? null;
 		},

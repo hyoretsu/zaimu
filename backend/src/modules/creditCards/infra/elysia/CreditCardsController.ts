@@ -92,7 +92,7 @@ import {
 	PaymentSuggestionReturn,
 } from "./PaymentSuggestionsDTO";
 
-const StatementOwnerReturn = t.Union([t.Object({ creditCardId: t.String() }), t.Null()]);
+const StatementOwnerReturn = t.Object({ creditCardId: t.Nullable(t.String()) });
 
 const statementColumns = [
 	"id",
@@ -151,7 +151,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
      WHERE statement.id=$1 AND account."userId"=$2`,
 				[params.statementId, userId],
 			);
-			return owner ?? null;
+			return { creditCardId: owner?.creditCardId ?? null };
 		},
 		{
 			detail: { operationId: "getCreditCardsStatementOwnerByStatementId" },

@@ -62,7 +62,9 @@ for (const width of [1440, 390])
 			if (url.pathname.replace(/\/$/, "") === "/credit-cards") return route.fulfill({ json: cards });
 			if (url.pathname === "/credit-cards/statement-owner/invoice") {
 				if (mode === "loading") await gate;
-				return route.fulfill({ json: mode === "missing" ? null : { creditCardId: "card-9" } });
+				if (mode === "error")
+					return route.fulfill({ json: { error: "Local controlled failure" }, status: 500 });
+				return route.fulfill({ json: { creditCardId: mode === "missing" ? null : "card-9" } });
 			}
 			if (/\/credit-cards\/[^/]+\/statements$/.test(url.pathname))
 				return route.fulfill({ json: { hasMore: false, items: [invoice], nextCursor: null } });
@@ -101,6 +103,30 @@ for (const width of [1440, 390])
 		await expect(page.getByText("Não foi possível carregar as faturas")).toHaveCount(0);
 		await page.screenshot({ fullPage: true, path: testInfo.outputPath(`owner-resolved-${width}.png`) });
 		expect(paths.filter(p => p === "/credit-cards/statement-owner/invoice")).toHaveLength(1);
+
+		for (const state of ["missing", "error"]) {
+			mode = state;
+			const histories = paths.filter(path => /\/credit-cards\/[^/]+\/statements$/.test(path)).length;
+			await page.goto("/credit-cards?statement=invoice");
+			await expect(
+				page.getByText(
+					state === "missing" ? "Fatura não encontrada" : "Não foi possível restaurar a fatura",
+					{ exact: true },
+				),
+			).toBeVisible();
+			expect(paths.filter(path => /\/credit-cards\/[^/]+\/statements$/.test(path))).toHaveLength(
+				histories,
+			);
+			await expect(page.getByRole("dialog")).toHaveCount(0);
+			await page.screenshot({
+				fullPage: true,
+				path: testInfo.outputPath(`owner-${state}-${width}.png`),
+			});
+		}
+		mode = "ready";
+		await page.getByRole("button", { exact: true, name: "Tentar novamente" }).click();
+		await expect(page.getByRole("dialog")).toBeVisible();
+		await page.screenshot({ fullPage: true, path: testInfo.outputPath(`owner-retry-${width}.png`) });
 		await testInfo.attach("statement-requests", {
 			body: JSON.stringify(paths.filter(p => p.startsWith("/credit-cards"))),
 			contentType: "application/json",
