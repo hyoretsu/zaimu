@@ -27,14 +27,14 @@ async function replay(now = morning) {
 	for (const event of await commands("command.account-yield-recalculation"))
 		await handleAccountYieldRecalculationCommand(event);
 }
-async function seed(id: string, fixed = false) {
+async function seed(id: string, fixed = false, principal = 1000) {
 	await queryRaw(
 		`INSERT INTO "FinancialAccount" ("id","userId","type","currency","countryCode","createdAt","yieldReferenceType","yieldReferencePercentage","yieldFixedRate","yieldPeriod") VALUES ($1,'owner','CHECKING','BRL','BR','2026-10-01',$2,$3,$4,$5)`,
 		[id, fixed ? null : "CDI", fixed ? null : 105, fixed ? 1 : null, fixed ? "MONTHLY" : null],
 	);
 	await queryRaw(
-		`INSERT INTO "Transaction" ("id","userId","type","amount","currency","date","description","destinationFinancialAccountId") VALUES ($1,'owner','INCOME',1000,'BRL','2026-10-02','Deposit',$2)`,
-		[`${id}-deposit`, id],
+		`INSERT INTO "Transaction" ("id","userId","type","amount","currency","date","description","destinationFinancialAccountId") VALUES ($1,'owner','INCOME',$3,'BRL','2026-10-02','Deposit',$2)`,
+		[`${id}-deposit`, id, principal],
 	);
 }
 async function yields(id = "account") {
@@ -70,7 +70,8 @@ beforeEach(async () => {
 
 describe("daily yield recovery", () => {
 	test("late publication bypasses previously covered empty response and compounds 105% CDI", async () => {
-		await seed("account");
+		// Larger principal makes compounding visible after daily cent rounding.
+		await seed("account", false, 100_000);
 		await enqueueDailyReferenceRateFetches(morning);
 		await enqueueDailyReferenceRateFetches(new Date("2026-10-16T09:59:00Z"));
 		expect(await commands("command.reference-rate-fetch")).toHaveLength(4);
@@ -101,8 +102,8 @@ describe("daily yield recovery", () => {
 		const saved = await yields();
 		expect(downloads).toBe(2);
 		expect(saved.map(row => row.date)).toEqual(["2026-10-05", "2026-10-06"]);
-		expect(saved[0]!.amount).toBeCloseTo(0.525, 4);
-		expect(saved[1]!.amount).toBeCloseTo(0.5253, 4);
+		expect(saved[0]!.amount).toBe(52.5);
+		expect(saved[1]!.amount).toBe(52.53);
 		await handleReferenceRateFetchCommand(next, async () => []);
 		expect(await queryRaw(`SELECT * FROM "ReferenceRate"`)).toHaveLength(2);
 	});

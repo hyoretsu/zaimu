@@ -643,6 +643,10 @@ describe("normalized refund transactions", () => {
 	}, 30000);
 
 	describe("bulk approval recovery", () => {
+		// Functional rollback/retry checks, not wall-clock benchmarks. A 1,000-row
+		// import can exceed 30 seconds on shared local CPUs; timing out leaves Bun
+		// running the transaction while the following test starts.
+		const bulkTimeoutMs = 120_000;
 		const importId = "normalized-test-large-import";
 		beforeAll(async () => {
 			await client.query(
@@ -677,7 +681,7 @@ describe("normalized refund transactions", () => {
 						}),
 					);
 				};
-				const timer = setTimeout(() => report("before-timeout"), 25_000);
+				const timer = setTimeout(() => report("before-timeout"), bulkTimeoutMs - 5_000);
 				try {
 					return await run();
 				} finally {
@@ -688,75 +692,83 @@ describe("normalized refund transactions", () => {
 			});
 		};
 
-		test("final write failure rolls back all 1000 purchases and leaves a retryable import", async () => {
-			const { approveItems } = await import("../../credit-card-imports/application/import-service");
-			// Fail only at final approval, after purchases and review effects have been written.
-			await client.query(
-				`CREATE FUNCTION reject_large_import() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."id" = 'normalized-test-large-import' AND NEW."status" = 'APPROVED' THEN RAISE EXCEPTION 'forced bulk approval failure'; END IF; RETURN NEW; END $$`,
-			);
-			await client.query(
-				`CREATE TRIGGER reject_large_import BEFORE UPDATE ON "CreditCardImport" FOR EACH ROW EXECUTE FUNCTION reject_large_import()`,
-			);
-			try {
-				await withBulkDiagnostics("rollback1000", async () => {
-					await expect(approveItems(context.userId, importId)).rejects.toThrow(
-						"forced bulk approval failure",
-					);
-					expect(
-						(
-							await client.query(
-								`SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId" LIKE 'large-external-%'`,
-							)
-						).rows,
-					).toHaveLength(0);
-					expect(
-						(
-							await client.query(
-								`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
-								[importId],
-							)
-						).rows,
-					).toHaveLength(1000);
-				});
-			} finally {
-				await client.query(`DROP TRIGGER reject_large_import ON "CreditCardImport"`);
-				await client.query("DROP FUNCTION reject_large_import()");
-			}
-		}, 30_000);
-
-		test("retry persists the same 1000 purchases in one batch", async () => {
-			const { approveItems } = await import("../../credit-card-imports/application/import-service");
-			const { getQueryMetrics } = await import("sql");
-			await withBulkDiagnostics("approve1000", async () => {
-				expect(await approveItems(context.userId, importId)).toEqual({ created: 1000 });
-				const metrics = getQueryMetrics()!;
-				const spans = metrics.spans;
-				expect(metrics.queryCount).toBeLessThan(200);
-				// Batch persistence, fully-synced marker and statement payment reconciliation.
-				expect(spans.filter(span => span.name === "credit-book:persist").length).toBeLessThanOrEqual(
-					3,
+		test(
+			"final write failure rolls back all 1000 purchases and leaves a retryable import",
+			async () => {
+				const { approveItems } = await import("../../credit-card-imports/application/import-service");
+				// Fail only at final approval, after purchases and review effects have been written.
+				await client.query(
+					`CREATE FUNCTION reject_large_import() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."id" = 'normalized-test-large-import' AND NEW."status" = 'APPROVED' THEN RAISE EXCEPTION 'forced bulk approval failure'; END IF; RETURN NEW; END $$`,
 				);
-			});
-			expect(
-				(
-					await client.query(
-						`SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId" LIKE 'large-external-%'`,
-					)
-				).rows,
-			).toHaveLength(1000);
-			expect(
-				(
-					await client.query(
-						`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
-						[importId],
-					)
-				).rows,
-			).toHaveLength(0);
-			expect(
-				(await client.query(`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1`, [importId]))
-					.rows[0].status,
-			).toBe("APPROVED");
-		}, 30_000);
+				await client.query(
+					`CREATE TRIGGER reject_large_import BEFORE UPDATE ON "CreditCardImport" FOR EACH ROW EXECUTE FUNCTION reject_large_import()`,
+				);
+				try {
+					await withBulkDiagnostics("rollback1000", async () => {
+						await expect(approveItems(context.userId, importId)).rejects.toThrow(
+							"forced bulk approval failure",
+						);
+						expect(
+							(
+								await client.query(
+									`SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId" LIKE 'large-external-%'`,
+								)
+							).rows,
+						).toHaveLength(0);
+						expect(
+							(
+								await client.query(
+									`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
+									[importId],
+								)
+							).rows,
+						).toHaveLength(1000);
+					});
+				} finally {
+					await client.query(`DROP TRIGGER reject_large_import ON "CreditCardImport"`);
+					await client.query("DROP FUNCTION reject_large_import()");
+				}
+			},
+			bulkTimeoutMs,
+		);
+
+		test(
+			"retry persists the same 1000 purchases in one batch",
+			async () => {
+				const { approveItems } = await import("../../credit-card-imports/application/import-service");
+				const { getQueryMetrics } = await import("sql");
+				await withBulkDiagnostics("approve1000", async () => {
+					expect(await approveItems(context.userId, importId)).toEqual({ created: 1000 });
+					const metrics = getQueryMetrics()!;
+					const spans = metrics.spans;
+					expect(metrics.queryCount).toBeLessThan(200);
+					// Batch persistence, fully-synced marker and statement payment reconciliation.
+					expect(
+						spans.filter(span => span.name === "credit-book:persist").length,
+					).toBeLessThanOrEqual(3);
+				});
+				expect(
+					(
+						await client.query(
+							`SELECT "id" FROM "CreditPurchaseRecord" WHERE "externalId" LIKE 'large-external-%'`,
+						)
+					).rows,
+				).toHaveLength(1000);
+				expect(
+					(
+						await client.query(
+							`SELECT "id" FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1`,
+							[importId],
+						)
+					).rows,
+				).toHaveLength(0);
+				expect(
+					(await client.query(`SELECT "status" FROM "CreditCardImport" WHERE "id"=$1`, [importId]))
+						.rows[0].status,
+				).toBe("APPROVED");
+			},
+			bulkTimeoutMs,
+		);
 	});
 
 	test("payment recalculation preserves unchanged statement rows", async () => {
