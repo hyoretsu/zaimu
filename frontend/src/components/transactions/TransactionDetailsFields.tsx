@@ -112,7 +112,7 @@ export function TransactionDetailsFields({
 					value={type}
 				/>
 			) : null}
-			<FormFieldRow>
+			<FormFieldRow className="max-sm:grid-cols-1">
 				{onCurrencyChange ? (
 					<CurrencySelect
 						allowCrypto={type !== "YIELD"}
