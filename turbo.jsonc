@@ -1,11 +1,12 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
 	"globalDependencies": ["scripts/test-runner.ts", "scripts/testing/**", "shared/**"],
+	"globalPassThroughEnv": ["OTEL_*"],
 	"tasks": {
 		"backend#build": {
 			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["DATABASE_URL"],
-			"inputs": ["scripts/inject.ts", "src/**", ".env*"],
+			"inputs": ["scripts/**", "src/**", ".env*"],
 			"outputLogs": "new-only",
 			"outputs": ["dist/**"],
 		},

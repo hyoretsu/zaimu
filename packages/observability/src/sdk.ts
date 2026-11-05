@@ -1,5 +1,5 @@
 import { monitorEventLoopDelay, PerformanceObserver } from "node:perf_hooks";
-import { context, logs, metrics, propagation } from "@opentelemetry/api";
+import { context, logs, metrics, propagation, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
@@ -124,12 +124,24 @@ export function initialize(service: "api" | "worker", project: string) {
 				({ debug: 5, error: 17, info: 9, warn: 13 }[
 					process.env.OTEL_LOG_LEVEL as "debug" | "info" | "warn" | "error"
 				] ?? 9)
-			)
-				logger.emit({
-					...operationalLog(args),
-					severityNumber,
-				});
-			original(...args);
+			) {
+				const record = operationalLog(args);
+				logger.emit({ ...record, severityNumber });
+				const active = trace.getSpan(context.active())?.spanContext();
+				original(
+					JSON.stringify({
+						body: record.body,
+						environment: process.env.NODE_ENV ?? "development",
+						operation_id: active?.traceId,
+						service: process.env.OTEL_SERVICE_NAME,
+						severity: method === "log" ? "info" : method,
+						span_id: active?.spanId,
+						timestamp: new Date().toISOString(),
+						trace_id: active?.traceId,
+						...record.attributes,
+					}),
+				);
+			}
 		};
 	}
 }

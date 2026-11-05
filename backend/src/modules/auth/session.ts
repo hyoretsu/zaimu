@@ -1,3 +1,4 @@
+import { operation } from "@zaimu/observability";
 import { measureOperation, withQueryKind } from "sql";
 import { HttpException } from "~/shared/errors";
 import { auth, type AuthSession } from "./auth";
@@ -12,10 +13,12 @@ export const getAuthSession = (request: Request) => {
 	const session = authSecondaryStorage.run(() =>
 		withQueryKind("auth", () =>
 			measureOperation("auth", async () => {
-				const value = await auth.api.getSession({
-					headers: request.headers,
-					query: { disableRefresh: true },
-				});
+				const value = await operation("auth.session", () =>
+					auth.api.getSession({
+						headers: request.headers,
+						query: { disableRefresh: true },
+					}),
+				);
 				await authSecondaryStorage.mirror(value);
 				return value;
 			}),

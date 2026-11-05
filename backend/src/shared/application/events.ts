@@ -1,4 +1,6 @@
+import { captureContext } from "@zaimu/observability";
 export interface EventEnvelope<Payload = unknown> {
+	telemetryContext?: Record<string, string>;
 	aggregateId: string;
 	aggregateType: string;
 	correlationId: string;
@@ -18,4 +20,5 @@ export const createEventEnvelope = <Payload>(
 	eventId: event.eventId ?? crypto.randomUUID(),
 	occurredAt: event.occurredAt ?? new Date().toISOString(),
 	schemaVersion: event.schemaVersion ?? 1,
+	telemetryContext: event.telemetryContext ?? captureContext(),
 });

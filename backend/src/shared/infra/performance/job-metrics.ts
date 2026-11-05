@@ -1,4 +1,5 @@
 import { monitorEventLoopDelay } from "node:perf_hooks";
+import { recordJob } from "@zaimu/observability";
 import { getPoolMetrics, getQueryMetrics, withQueryMetrics } from "sql";
 
 /** CPU/memory describe the process interval and can overlap other jobs. SQL belongs to this job only. */
@@ -17,13 +18,16 @@ export function instrumentJob<Result>(
 		const timestamp =
 			publishedAt === undefined ? undefined : publishedAt < 1e12 ? publishedAt * 1000 : publishedAt;
 		const queueLagMs =
-			timestamp === undefined || !Number.isFinite(timestamp) ? null : Math.max(0, Date.now() - timestamp);
+			timestamp === undefined || !Number.isFinite(timestamp)
+				? null
+				: Math.max(0, Date.now() - timestamp);
 		let outcome = "error";
 		try {
 			const result = await operation();
 			outcome = "ok";
 			return result;
 		} finally {
+			recordJob(queue, queueLagMs, outcome);
 			metrics.active = false;
 			lag?.disable();
 			emit({
@@ -43,7 +47,8 @@ export function instrumentJob<Result>(
 				type: "worker_job",
 				...(diagnostics
 					? {
-							eventLoopLagP95Ms: lag && Number.isFinite(lag.percentile(95)) ? lag.percentile(95) / 1e6 : null,
+							eventLoopLagP95Ms:
+								lag && Number.isFinite(lag.percentile(95)) ? lag.percentile(95) / 1e6 : null,
 							processCpuMicros: process.cpuUsage(cpu),
 							processMemory: process.memoryUsage(),
 							spans: metrics.spans,

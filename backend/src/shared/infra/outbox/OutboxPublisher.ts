@@ -1,3 +1,4 @@
+import { enabled, linkedOperation, recordOutboxBacklog } from "@zaimu/observability";
 import type { EventBrokerPort } from "~/shared/application/ports";
 import { PostgresOutbox } from "./PostgresOutbox";
 
@@ -14,12 +15,14 @@ export class OutboxPublisher {
 		for (const event of events) {
 			try {
 				const command = event.eventType.startsWith("command.");
-				await this.broker.publish(
-					command ? "zaimu.commands" : "zaimu.events",
-					command
-						? event.eventType.slice("command.".length)
-						: `domain.${event.aggregateType}.${event.eventType}`,
-					event,
+				await linkedOperation("messaging.publish", event.telemetryContext, () =>
+					this.broker.publish(
+						command ? "zaimu.commands" : "zaimu.events",
+						command
+							? event.eventType.slice("command.".length)
+							: `domain.${event.aggregateType}.${event.eventType}`,
+						event,
+					),
 				);
 				await this.outbox.markPublished(event.eventId);
 			} catch (error) {
@@ -41,7 +44,16 @@ export class OutboxPublisher {
 	}
 	async run(pollIntervalMs = 500) {
 		this.running = true;
+		let observedAt = 0;
 		while (this.running) {
+			if (enabled() && Date.now() - observedAt >= 15000) {
+				observedAt = Date.now();
+				try {
+					recordOutboxBacklog(await this.outbox.backlog());
+				} catch {
+					/* Telemetry reads must not stop publication. */
+				}
+			}
 			const count = await this.publishBatch();
 			if (count === 0) await Bun.sleep(pollIntervalMs);
 		}

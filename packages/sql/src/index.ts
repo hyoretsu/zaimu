@@ -1,3 +1,4 @@
+import { observePool, operation as traceOperation, startDependency } from "@zaimu/observability";
 import "dotenv/config";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ResultType } from "@prisma/orm-postgres/components/runtime";
@@ -40,6 +41,7 @@ const pool = new Pool({
 	query_timeout: Number(process.env.DATABASE_QUERY_TIMEOUT_MS ?? 15_000),
 	statement_timeout: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS ?? 15_000),
 });
+observePool(() => ({ idle: pool.idleCount, total: pool.totalCount, waiting: pool.waitingCount }));
 // Physical pg execution is the only counting layer: ORM, auth, raw SQL and transaction control.
 pool.on("connect", client => {
 	const query = client.query;
@@ -52,15 +54,30 @@ pool.on("connect", client => {
 				: config && typeof config === "object" && "text" in config
 					? String(config.text)
 					: "unknown";
-		const finishSpan = startOperation(`sql:${sqlText.trim().split(/\s/)[0]?.toUpperCase() ?? "unknown"}`);
-		const finish = () => {
+		const verb = sqlText.trim().split(/\s/)[0]?.toUpperCase() ?? "unknown";
+		const operation = [
+			"SELECT",
+			"INSERT",
+			"UPDATE",
+			"DELETE",
+			"BEGIN",
+			"COMMIT",
+			"ROLLBACK",
+			"WITH",
+		].includes(verb)
+			? verb
+			: "OTHER";
+		const finishTelemetry = startDependency(`db.${operation}`);
+		const finishSpan = startOperation(`sql:${operation}`);
+		const finish = (failed = false) => {
+			finishTelemetry(failed);
 			finishQuery();
 			finishSpan();
 		};
 		const callback = args.at(-1);
 		if (typeof callback === "function")
 			args[args.length - 1] = (...values: unknown[]) => {
-				finish();
+				finish(Boolean(values[0]));
 				return callback(...values);
 			};
 		try {
@@ -72,13 +89,13 @@ pool.on("connect", client => {
 						return value;
 					},
 					(error: unknown) => {
-						finish();
+						finish(true);
 						throw error;
 					},
 				);
 			return result;
 		} catch (error) {
-			finish();
+			finish(true);
 			throw error;
 		}
 	}) as typeof client.query;
@@ -101,7 +118,7 @@ const transactionalPool = new Proxy(pool, {
 					const startedAt = performance.now();
 					const metrics = getQueryMetrics();
 					try {
-						return await target.connect();
+						return await traceOperation("db.pool.acquire", () => target.connect());
 					} finally {
 						if (metrics?.active) metrics.connectionWaitMs += performance.now() - startedAt;
 					}
@@ -144,7 +161,7 @@ export const withRawTransaction = async <Result>(
 				(await existing.query<Row>(text, values)).rows,
 		);
 	const connectionStartedAt = performance.now();
-	const client: PoolClient = await pool.connect();
+	const client: PoolClient = await traceOperation("db.pool.acquire", () => pool.connect());
 	const metrics = getQueryMetrics();
 	if (metrics) metrics.connectionWaitMs += performance.now() - connectionStartedAt;
 	try {

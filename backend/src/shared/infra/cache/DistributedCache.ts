@@ -1,3 +1,4 @@
+import { recordCacheResult } from "@zaimu/observability";
 import { getQueryMetrics, measureOperation } from "sql";
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
 import { cacheKey } from "../service-namespace";
@@ -47,7 +48,12 @@ const localCoalescing = new Map<string, Promise<unknown>>();
 const LOCK_LEASE_MS = 10_000;
 const LOCK_WAIT_MS = 250;
 
-const logCacheOperation = (namespace: CacheNamespace, result: "bypass" | "hit" | "miss", startedAt: number) =>
+const logCacheOperation = (
+	namespace: CacheNamespace,
+	result: "bypass" | "hit" | "miss",
+	startedAt: number,
+) => {
+	recordCacheResult(result);
 	console.info(
 		JSON.stringify({
 			durationMs: Number((performance.now() - startedAt).toFixed(2)),
@@ -57,6 +63,7 @@ const logCacheOperation = (namespace: CacheNamespace, result: "bypass" | "hit" |
 			type: "cache_operation",
 		}),
 	);
+};
 
 const stableValue = (value: unknown): unknown => {
 	if (Array.isArray(value)) return value.map(stableValue);

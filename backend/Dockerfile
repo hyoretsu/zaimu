@@ -14,6 +14,7 @@ COPY backend/package.json backend/package.json
 COPY frontend/package.json frontend/package.json
 COPY packages/finance/package.json packages/finance/package.json
 COPY packages/sql/package.json packages/sql/package.json
+COPY packages/observability/package.json packages/observability/package.json
 
 RUN bun i --offline --frozen-lockfile --linker=isolated
 
@@ -26,6 +27,7 @@ ARG NODE_ENV=production
 
 ENV COMPANY_SLUG=${COMPANY_SLUG}
 ENV NODE_ENV=${NODE_ENV}
+ENV DO_NOT_TRACK=1 PRISMA_TELEMETRY_DISABLED=1
 
 COPY . .
 

@@ -1,5 +1,12 @@
-import { server } from "./server";
-import { app } from "./shared/infra/elysia";
+import { initialize, shutdown } from "@zaimu/observability/sdk";
 
-server.listen(process.env.PORT || 3333);
-console.log(`Zaimu API running at ${app.server?.hostname}:${app.server?.port}`);
+initialize("api", "zaimu");
+process.on("SIGTERM", async () => {
+	await shutdown();
+	process.exit(0);
+});
+process.on("SIGINT", async () => {
+	await shutdown();
+	process.exit(0);
+});
+await import("./api");

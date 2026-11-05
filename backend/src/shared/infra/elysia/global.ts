@@ -1,3 +1,4 @@
+import { instrumentRequest, setHttpRoute } from "@zaimu/observability/http";
 import Elysia from "elysia";
 import { getQueryMetrics } from "sql";
 import { HttpException } from "~/shared/errors";
@@ -6,9 +7,12 @@ import { instrumentHttp } from "../performance/http-metrics";
 export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 	.wrap(
 		handler =>
-			instrumentHttp(handler as unknown as (request: Request) => Response | Promise<Response>) as never,
+			instrumentRequest(
+				instrumentHttp(handler as unknown as (request: Request) => Response | Promise<Response>),
+			) as never,
 	)
 	.onAfterHandle(({ route }) => {
+		setHttpRoute(route);
 		const metrics = getQueryMetrics();
 		if (metrics) metrics.route = route;
 	})

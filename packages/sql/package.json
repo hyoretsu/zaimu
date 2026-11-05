@@ -22,7 +22,8 @@
 	"dependencies": {
 		"@prisma/orm-postgres": "8.0.0-rc.22",
 		"dotenv": "^17.4.2",
-		"pg": "8.22.0"
+		"pg": "8.22.0",
+		"@zaimu/observability": "workspace:*"
 	},
 	"devDependencies": {
 		"@hyoretsu/configs": "^1.2.37",

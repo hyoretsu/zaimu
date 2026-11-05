@@ -1,0 +1,16 @@
+import { composeBuildMaps, instrumentationPlugin } from "@zaimu/observability/plugin";
+
+const result = await Bun.build({
+	entrypoints: ["src/main.ts", "src/worker.ts"],
+	external: ["pdf-parse"],
+	outdir: "dist",
+	plugins: [instrumentationPlugin(process.cwd())],
+	sourcemap: "linked",
+	target: "bun",
+});
+if (!result.success) {
+	console.error(result.logs);
+	process.exit(1);
+}
+
+if (result.success) await composeBuildMaps(result.outputs);

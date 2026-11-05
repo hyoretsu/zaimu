@@ -1,3 +1,4 @@
+import { operation } from "@zaimu/observability";
 import { RedisClient } from "bun";
 import type { CacheGuard, CachePort } from "~/shared/application/ports";
 import { cacheKey } from "../service-namespace";
@@ -97,11 +98,24 @@ export class RedisCache implements CachePort {
 	private redisClient?: RedisClient;
 	constructor(private readonly url = process.env.REDIS_URL) {}
 	get client(): RedisClient {
-		if (!this.redisClient)
-			this.redisClient = new RedisClient(this.url, {
+		if (!this.redisClient) {
+			const client = new RedisClient(this.url, {
 				autoReconnect: true,
 				connectionTimeout: 2_000,
 			});
+			this.redisClient = new Proxy(client, {
+				get(target, key) {
+					const value = Reflect.get(target, key, target);
+					if (typeof value !== "function") return value;
+					return (...args: unknown[]) =>
+						operation(
+							`redis.${typeof key === "string" && ["send", "get", "set", "del", "exists", "expire", "incr", "close", "connect"].includes(key) ? key : "command"}`,
+							() => Reflect.apply(value, target, args),
+							{ "db.system.name": "redis" },
+						);
+				},
+			});
+		}
 		return this.redisClient;
 	}
 	async beginFence(key: string, token: string, leaseMs: number) {

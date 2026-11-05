@@ -1,3 +1,4 @@
+import { linkedOperation } from "@zaimu/observability";
 import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 import type { EventEnvelope } from "~/shared/application/events";
 
@@ -75,7 +76,7 @@ export async function processBrokerMessage(
 				}, 20_000)
 			: undefined;
 	try {
-		await handler(event);
+		await linkedOperation("messaging.process", event.telemetryContext, () => handler(event));
 		if (leaseLost) throw new Error("Consumer receipt lease lost");
 		await deduplicator.complete(queue, event.eventId, token);
 		channel.ack(message);
@@ -83,8 +84,7 @@ export async function processBrokerMessage(
 	} catch (error) {
 		await deduplicator.release(queue, event.eventId, error, token);
 		const deaths = message.properties.headers?.["x-death"] as
-			| { count?: number; queue?: string; reason?: string }[]
-			| undefined;
+			{ count?: number; queue?: string; reason?: string }[] | undefined;
 		const retries =
 			deaths
 				?.filter(death => !death.queue || (death.queue === queue && death.reason === "rejected"))

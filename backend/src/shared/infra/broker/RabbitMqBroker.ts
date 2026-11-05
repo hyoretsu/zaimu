@@ -1,3 +1,4 @@
+import { recordDelivery } from "@zaimu/observability";
 import amqp, { type ChannelModel, type ConfirmChannel } from "amqplib";
 import type { EventEnvelope } from "~/shared/application/events";
 import type { EventBrokerPort } from "~/shared/application/ports";
@@ -51,7 +52,8 @@ export class RabbitMqBroker implements EventBrokerPort {
 					await channel.assertExchange(brokerExchange(exchange), "topic", { durable: true });
 				await declareBrokerTopology(channel);
 				await channel.prefetch(Number(process.env.RABBITMQ_CONSUMER_PREFETCH ?? 1));
-				for (const [queue, handler] of this.consumers) await this.attachConsumer(channel, queue, handler);
+				for (const [queue, handler] of this.consumers)
+					await this.attachConsumer(channel, queue, handler);
 				this.channel = channel;
 			} catch (error) {
 				lost();
@@ -114,16 +116,17 @@ export class RabbitMqBroker implements EventBrokerPort {
 						Number(process.env.RABBITMQ_MAX_RETRIES ?? 5),
 					),
 				)
-					.then(result =>
-						console.info(
+					.then(result => {
+						recordDelivery(queue, result.result);
+						return console.info(
 							JSON.stringify({
 								...result,
 								durationMs: Number((performance.now() - startedAt).toFixed(2)),
 								queue,
 								type: "broker_consume",
 							}),
-						),
-					)
+						);
+					})
 					.catch(() => {
 						try {
 							channel.nack(message, false, true);

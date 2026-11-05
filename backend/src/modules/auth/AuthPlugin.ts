@@ -3,7 +3,8 @@ import { auth } from "./auth";
 import { authSecondaryStorage } from "./secondary-storage";
 import { getAuthSession } from "./session";
 
-const isPublicRoute = (pathname: string) => pathname === "/health" || pathname.startsWith("/api/auth/");
+const isPublicRoute = (pathname: string) =>
+	pathname === "/health" || pathname === "/telemetry/traces" || pathname.startsWith("/api/auth/");
 
 export const AuthPlugin = new Elysia({ name: "AuthPlugin" })
 	.mount(request =>
