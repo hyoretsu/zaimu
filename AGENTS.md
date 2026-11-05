@@ -32,6 +32,10 @@ Local work is fine: edit files, run local builds/tests, commit locally. If a tas
 
 Cloud/remote sessions have an ephemeral container and cannot rely on the user pushing: follow the environment's own instructions (push the designated branch, open a draft PR). Never run migrations against a remote/shared database from any session without explicit authorization.
 
+## Parallel work
+
+Always do in parallel whatever can be done in parallel: issue independent tool calls (reads, searches, shell commands) in one batch and delegate independent subtasks to concurrent subagents. Serialize only when a step needs another step's output or when steps would contend for the same files, locks or git index.
+
 ## Commits
 
 After every completed task, commit with the local Git user as author and committer and a `Co-authored-by:` trailer for the agent:
