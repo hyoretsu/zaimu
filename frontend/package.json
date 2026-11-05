@@ -20,7 +20,7 @@
 		"test:open-finance": "playwright test --config playwright.open-finance.config.ts",
 		"check-types": "bun check -b",
 		"performance:test": "playwright test --config playwright.performance.config.ts",
-		"generate": "KUBB_DISABLE_TELEMETRY=1 kubb generate"
+		"generate": "bun scripts/generate-sdk.ts"
 	},
 	"dependencies": {
 		"@fontsource-variable/figtree": "^5.3.0",
