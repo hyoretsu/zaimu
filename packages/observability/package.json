@@ -1,0 +1,37 @@
+{
+	"name": "@zaimu/observability",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./sdk": "./src/sdk.ts",
+		"./plugin": "./src/plugin.ts",
+		"./http": "./src/http.ts",
+		"./browser": "./src/browser.ts",
+		"./gateway": "./src/gateway.ts"
+	},
+	"scripts": {
+		"check-types": "bun check"
+	},
+	"dependencies": {
+		"@ampproject/remapping": "2.3.0",
+		"@opentelemetry/api": "^1.10.0",
+		"@opentelemetry/context-async-hooks": "^3.0.0",
+		"@opentelemetry/core": "^3.0.0",
+		"@opentelemetry/exporter-logs-otlp-http": "^0.300.0",
+		"@opentelemetry/exporter-metrics-otlp-http": "^0.300.0",
+		"@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
+		"@opentelemetry/resources": "^3.0.0",
+		"@opentelemetry/sdk-logs": "^3.0.0",
+		"@opentelemetry/sdk-metrics": "^3.0.0",
+		"@opentelemetry/sdk-node": "^0.300.0",
+		"@opentelemetry/sdk-trace": "3.0.0",
+		"source-map-support": "0.5.21",
+		"typescript": "6.0.3",
+		"web-vitals": "5.1.0"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.4.0",
+		"@types/source-map-support": "0.5.10"
+	}
+}

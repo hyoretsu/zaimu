@@ -16,12 +16,14 @@ if (
 	});
 	if (check.exitCode !== 0) process.exit(check.exitCode);
 }
+const observability = paths.some(path => path.startsWith("packages/observability/"));
 const sql = paths.some(path => path.startsWith("packages/sql/"));
 const finance = paths.some(path => path.startsWith("packages/finance/"));
 const shared = paths.some(path => path.startsWith("shared/"));
-const backend = shared || sql || finance || paths.some(path => path.startsWith("backend/"));
-const frontend = shared || finance || paths.some(path => path.startsWith("frontend/"));
+const backend = observability || shared || sql || finance || paths.some(path => path.startsWith("backend/"));
+const frontend = observability || shared || finance || paths.some(path => path.startsWith("frontend/"));
 const packages = [
+	...(observability ? ["@zaimu/observability"] : []),
 	...(sql ? ["sql"] : []),
 	...(finance ? ["@zaimu/finance"] : []),
 	...(backend ? ["backend"] : []),
@@ -49,4 +51,12 @@ if (shared || paths.some(path => path.startsWith("backend/src/"))) {
 		stdout: "inherit",
 	});
 	if (test.exitCode !== 0) process.exit(test.exitCode);
+}
+
+if (observability) {
+	const test = Bun.spawnSync(["bun", "test", "packages/observability/src"], {
+		stderr: "inherit",
+		stdout: "inherit",
+	});
+	if (test.exitCode) process.exit(test.exitCode);
 }

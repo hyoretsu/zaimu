@@ -1,0 +1,84 @@
+import { expect, test } from "bun:test";
+import { context, propagation, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { W3CTraceContextPropagator } from "@opentelemetry/core";
+import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
+import { instrumentRequest } from "./http";
+import { operation } from "./index";
+
+const exporter = new InMemorySpanExporter();
+const provider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] });
+context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+trace.setGlobalTracerProvider(provider);
+propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+process.env.OTEL_ENABLED = "true";
+test("concurrent operations retain separate parents", async () => {
+	const ids = await Promise.all(
+		[1, 2].map(index =>
+			operation(`root${index}`, async () => {
+				const root = trace.getSpan(context.active())!.spanContext().traceId;
+				await new Promise(resolve => setTimeout(resolve, index));
+				return operation("child", () => ({
+					child: trace.getSpan(context.active())!.spanContext().traceId,
+					root,
+				}));
+			}),
+		),
+	);
+	expect(ids[0]!.root).not.toBe(ids[1]!.root);
+	for (const item of ids) expect(item.root).toBe(item.child);
+});
+test("stream spans end after consumption and cancellation", async () => {
+	const count = exporter.getFinishedSpans().length;
+	const handle = instrumentRequest(() => new Response("fixture"));
+	const response = await handle(new Request("http://localhost/"));
+	expect(exporter.getFinishedSpans().length).toBe(count);
+	await response.text();
+	expect(exporter.getFinishedSpans().length).toBe(count + 1);
+	const cancelled = await handle(new Request("http://localhost/"));
+	await cancelled.body!.cancel();
+	expect(exporter.getFinishedSpans().length).toBe(count + 2);
+});
+test("depth limit marks root and preserves recursion result", () => {
+	function recurse(n: number): number {
+		return operation("recursive", () => (n ? recurse(n - 1) + 1 : 0));
+	}
+	expect(recurse(40)).toBe(40);
+	expect(exporter.getFinishedSpans().at(-1)!.attributes["application.truncated"]).toBe(true);
+});
+
+test("durable operations link to origin without extending its lifetime", async () => {
+	const { captureContext, linkedOperation } = await import("./index");
+	const carrier = operation("origin", () => captureContext());
+	linkedOperation("consumer", carrier, () => 42);
+	const spans = exporter.getFinishedSpans();
+	const origin = spans.find(span => span.name === "origin")!;
+	const consumer = spans.find(span => span.name === "consumer")!;
+	expect(consumer.spanContext().traceId).not.toBe(origin.spanContext().traceId);
+	expect(consumer.links[0]!.context.traceId).toBe(origin.spanContext().traceId);
+});
+
+test("sync promise returns retain native unhandled-rejection behavior", async () => {
+	const script = `import {functionCall} from ${JSON.stringify(new URL("./index.ts", import.meta.url).pathname)};
+ process.env.OTEL_ENABLED="true";
+ process.on("unhandledRejection",()=>{console.log("unhandled");clearTimeout(deadline);});
+ functionCall("fixture","fixture.ts",[],()=>Promise.reject(new Error("fixture")),false);
+ const deadline=setTimeout(()=>process.exit(1),1000);`;
+	const child = Bun.spawn([process.execPath, "-e", script], { stderr: "pipe", stdout: "pipe" });
+	expect(await child.exited).toBe(0);
+	expect((await new Response(child.stdout).text()).trim()).toBe("unhandled");
+});
+
+test("sibling function calls share the HTTP operation's span budget", async () => {
+	const before = exporter.getFinishedSpans().length;
+	let calls = 0;
+	const response = await instrumentRequest(() => {
+		for (let index = 0; index < 1100; index++) operation("sibling", () => calls++);
+		return new Response(null);
+	})(new Request("http://localhost/budget"));
+	expect(response.status).toBe(200);
+	expect(calls).toBe(1100);
+	const spans = exporter.getFinishedSpans().slice(before);
+	expect(spans.filter(span => span.name === "sibling")).toHaveLength(1000);
+	expect(spans.at(-1)!.attributes["application.truncated"]).toBe(true);
+});
