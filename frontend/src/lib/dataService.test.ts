@@ -178,3 +178,54 @@ test("credit-card yield display stays empty without requesting yields in connect
 		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
 	}
 });
+
+test("guest crypto transaction edit with a cleared debt split saves the new amount", async () => {
+	const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+	if (!originalWindow)
+		Object.defineProperty(globalThis, "window", {
+			configurable: true,
+			value: { location: { origin: "http://localhost" } },
+		});
+	const { useAuthStore } = await import("@/stores/auth");
+	const { localAccounts, localCreditCards, localTransactions } = await import("./localStorage");
+	const { dataService } = await import("./dataService");
+	const originalAuth = useAuthStore.getState();
+	useAuthStore.setState({ isGuestMode: true });
+	const existing = {
+		amount: "0.00000001",
+		bookingCurrency: "BTC",
+		currency: "BTC",
+		date: "2026-11-05",
+		fees: [],
+		id: "crypto-transaction",
+		originalAmount: "0.00000001",
+		originFinancialAccountId: "wallet",
+		type: "EXPENSE",
+	};
+	const getById = spyOn(localTransactions, "getById").mockResolvedValue({ data: existing } as never);
+	const put = spyOn(localTransactions, "put").mockResolvedValue(undefined as never);
+	const account = spyOn(localAccounts, "getById").mockResolvedValue(undefined as never);
+	const card = spyOn(localCreditCards, "getById").mockResolvedValue(undefined as never);
+	try {
+		const updated = await dataService.transactions.update(existing.id, {
+			amount: "0.00000002",
+			bookingCurrency: "BTC",
+			currency: "BTC",
+			date: existing.date,
+			debtSplit: null,
+			fees: [],
+			originFinancialAccountId: "wallet",
+			type: "EXPENSE",
+		} as never);
+		expect(updated.amount).toBe("0.00000002");
+		expect(updated.debtSplit).toBeNull();
+		expect(put).toHaveBeenCalledTimes(1);
+	} finally {
+		getById.mockRestore();
+		put.mockRestore();
+		account.mockRestore();
+		card.mockRestore();
+		useAuthStore.setState(originalAuth);
+		if (!originalWindow) Reflect.deleteProperty(globalThis, "window");
+	}
+});
