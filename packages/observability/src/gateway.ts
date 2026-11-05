@@ -80,6 +80,14 @@ export function clientGateway(project: string, origins: string[]) {
 					releases.includes(version)
 						? version
 						: "unknown";
+				const instance = raw.resource?.attributes?.find(
+					attribute => attribute.key === "service.instance.id",
+				)?.value.stringValue;
+				const safeInstance =
+					typeof instance === "string" &&
+					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(instance)
+						? instance
+						: undefined;
 				const service = raw.resource?.attributes?.find(attribute => attribute.key === "service.name")
 					?.value.stringValue;
 				if (service !== `${project}-web` && service !== `${project}-tauri`) throw Error("service");
@@ -154,6 +162,9 @@ export function clientGateway(project: string, origins: string[]) {
 							{ key: "service.name", value: { stringValue: service } },
 							{ key: "service.namespace", value: { stringValue: project } },
 							{ key: "service.version", value: { stringValue: safeVersion } },
+							...(safeInstance
+								? [{ key: "service.instance.id", value: { stringValue: safeInstance } }]
+								: []),
 							{
 								key: "deployment.environment.name",
 								value: { stringValue: process.env.NODE_ENV ?? "development" },

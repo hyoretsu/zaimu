@@ -1,0 +1,67 @@
+# OpenTelemetry
+
+Telemetry is opt-in: set `OTEL_ENABLED=true` for API and worker, and `VITE_OTEL_ENABLED=true` before building web/Tauri. The SDK starts before application modules. Bun preload and build use the same AST transform; React functions are excluded.
+
+## Local stack
+
+```sh
+export GRAFANA_ADMIN_PASSWORD='choose-a-local-password'
+docker compose -f observability/compose.yaml up -d --build
+```
+
+Grafana binds localhost:3300 and the Collector localhost:4318. Override host ports with `GRAFANA_HOST_PORT` and `OTEL_HOST_PORT`. Storage services use an internal network. Applications in Docker must join that network and use `http://collector:4318`. No existing application Compose or shared database is changed. Pinned upstream images gain a static Go HTTP health probe. Persistent volumes retain data across restarts.
+
+## Configuration
+
+| Variable                    | Default               | Purpose                                                  |
+| --------------------------- | --------------------- | -------------------------------------------------------- |
+| OTEL_ENABLED                | false                 | Backend SDK                                              |
+| OTEL_EXPORTER_OTLP_ENDPOINT | http://localhost:4318 | Private Collector URL                                    |
+| OTEL_SERVICE_VERSION        | development           | Release identifier                                       |
+| OTEL_CLIENT_VERSIONS        | backend version       | Up to ten allowed client releases; others become unknown |
+| OTEL_LOG_LEVEL              | info                  | Minimum severity                                         |
+| OTEL_CAPTURE_SUMMARIES      | false                 | Bounded structural summaries                             |
+| OTEL_FUNCTION_MAX_DEPTH     | 32                    | Nested operation limit, maximum 32                       |
+| OTEL_FUNCTION_MAX_SPANS     | 1000                  | Span budget, maximum 1000                                |
+| OTEL_OUTBOX_CONTEXT_ENABLED | false                 | Enable optional column after operator migration          |
+| VITE_OTEL_ENABLED           | false                 | Web/native webview SDK                                   |
+| VITE_OTEL_SERVICE_VERSION   | development           | Public client release                                    |
+| TRACE_RETENTION             | 168h                  | Tempo retention                                          |
+| LOG_RETENTION               | 336h                  | Loki retention                                           |
+| METRICS_RETENTION           | 30d                   | Prometheus retention                                     |
+
+Vite values are public. No Collector credential belongs in a bundle. Clients export a restricted JSON trace subset to `/telemetry/traces`: allowed origins, 64 KiB, 64 spans, 30 batches/minute per direct peer, bounded bucket map and read timeout. Proxy trust requires operator review before relying on individual peer limits. Arbitrary URLs, errors, attributes, logs and event bodies are discarded. Client metrics are recorded before trace sampling. Authentication and SDK requests resolve the instrumented fetch transport. Tauri uses its actual webview fetch and a separate service identity.
+
+## Capture and lifecycle
+
+No SQL parameters, raw results, Redis keys, user IDs, credentials, financial amounts, documents or file content are exported. Summaries retain approved technical fields only; other values become types, counts and structure. Unknown field names are replaced. Limits: depth 4, 20 items/properties, 512 characters and 8 KiB. Getters, toJSON, streams and iterators are not consumed. Exception text and stacks are omitted rather than exporting potentially sensitive content.
+
+The transformer covers own backend functions/methods and excludes generated files, dependencies, tests, administrative scripts and telemetry internals. Use `/* @otel-ignore */` directly before a function for an exclusion. Classes keep constructors intact. Sync functions returning promises retain identity and unhandled-rejection behavior; their function spans end on synchronous return. Async function spans observe the body settlement. Generators use passive lifecycle spans from first iteration to exhaustion, return or exception; context is never held active across yields. Unclosed iterators cannot produce completed spans. Source maps compose transform and bundle mappings.
+
+HTTP spans cover response-stream consumption, cancellation, disconnects and errors. W3C trace context crosses HTTP and optional outbox metadata. Delayed publication and consumption use new traces with links; request spans do not await jobs. Existing performance counters remain their single source and are not incremented by the OTEL layer.
+
+Queues are bounded to 2048 records, export requests have a 3-second timeout and export deadlines 4 seconds. Shutdown flush is bounded to 5 seconds. Collector outages may drop telemetry but must not fail business requests. Runtime memory, CPU and event-loop metrics are included; GC is reported only where the runtime supports its PerformanceObserver entry type. Continuous profiling is excluded.
+
+## Optional outbox column
+
+`packages/sql/migration-drafts/otel-outbox.sql` contains additive nullable JSONB DDL. It is outside executable migration roots. Integrate it with the repository's native migration workflow, review and apply it yourself before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
+
+## Production sampling and cost
+
+SDKs export all spans. Collector retains development/test traces, errors, operations above two seconds and 10% of the rest. Metrics and logs have separate unsampled pipelines. Tail sampling buffers up to 10,000 traces for 30 seconds; it consumes memory and export bandwidth before discarding traces. Memory limiter: 512 MiB plus 128 MiB spike; container: 768 MiB. Queues/refusal/export failures are visible in pipeline metrics. Review long-running traces beyond the decision window and capacity before production enablement.
+
+Six dashboards provide environment/release comparison, requests/functions, dependencies, workers, clients and runtime/pipeline metrics. Prometheus evaluates alerts locally; no external contacts are configured. Log/trace links and metric exemplars are provisioned. Administrative PostgreSQL/Redis/RabbitMQ exporters remain optional and require separately supplied read-only endpoints; application instrumentation works independently.
+
+## Validation
+
+Work is still in progress. On November 5 the shared SDK and service commits passed normal hooks. A real SDK trace, correlated Loki record and application Prometheus counter were queried successfully in the isolated local stack. All five services became healthy; the Collector internal metrics endpoint was explicitly bound on its internal network. Earlier fixtures and synthetic stack checks remain historical evidence for the previous checkout. Current integration/E2E, image builds, dashboard queries, sampling and representative application overhead require fresh local verification. No deployment, push or shared database operation is authorized by these checks.
+
+## Adding modules and dependencies
+
+Own TypeScript functions under `backend/src` are transformed automatically in development and release builds. Keep administrative scripts, generated files and telemetry infrastructure in the excluded paths. Use `@otel-ignore` for lifecycle loops that never represent a completed operation. React components are not transformed. Restart a development process after changing SDK configuration.
+
+Wrap a new dependency at its physical execution boundary with `startDependency`; finish exactly once on success or failure, including callback APIs. Do not add a second SQL counting layer around repositories. New operation names and metric attributes must come from a finite application-defined set; keep record IDs, paths, query parameters and user data out of metric labels. For durable work, capture W3C context in optional event metadata inside the transaction, then use `linkedOperation` after publication/consumption. Never retain an HTTP span until a delayed job completes.
+
+Production operators configure allowed web origins and public API URL, pin backend/client release identifiers, apply the reviewed additive outbox migration, then enable its flag. Route only the restricted application gateway publicly; keep Collector credentials and storage ports private. Attach containerized API/worker services to the Compose project's `telemetry` network and set the internal Collector address. Back up persistent volumes before changing retention. Collector refusal, queue saturation and failed export counters require capacity review before enabling detailed capture at production volume.
+
+The disabled/enabled comparison measures the instrumentation switch in the same build. SDK imports and transformed call sites can still contribute startup/bundle cost with the switch disabled; this is not an unmodified-application baseline. Benchmark under comparable host load and record cold startup separately from steady request latency, CPU and RSS.

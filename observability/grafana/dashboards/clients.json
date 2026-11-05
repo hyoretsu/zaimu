@@ -1,0 +1,123 @@
+{
+	"links": [
+		{
+			"targetBlank": true,
+			"title": "Trace waterfall and dependencies",
+			"url": "/explore?left=%7B%22datasource%22:%22tempo%22%7D"
+		}
+	],
+	"panels": [
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum by(client_signal)(rate(client_signal_count_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+					"refId": "A"
+				}
+			],
+			"title": "Signals",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 0
+			},
+			"id": 2,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "histogram_quantile(0.95,sum by(le,client_signal)(rate(client_signal_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+					"refId": "A"
+				}
+			],
+			"title": "Client latency",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 8
+			},
+			"id": 3,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum by(client_vital_name)(rate(client_vital_value_sum{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])) / clamp_min(sum by(client_vital_name)(rate(client_vital_value_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])),0.001)",
+					"refId": "A"
+				}
+			],
+			"title": "Web Vitals",
+			"type": "timeseries"
+		}
+	],
+	"refresh": "15s",
+	"schemaVersion": 41,
+	"tags": ["otel", "zaimu"],
+	"templating": {
+		"list": [
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "environment",
+				"query": "label_values(target_info,deployment_environment_name)",
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "version",
+				"query": "label_values(target_info,service_version)",
+				"type": "query"
+			}
+		]
+	},
+	"time": {
+		"from": "now-1h",
+		"to": "now"
+	},
+	"title": "zaimu - Web and Tauri",
+	"uid": "zaimu-clients",
+	"version": 1
+}

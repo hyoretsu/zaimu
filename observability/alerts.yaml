@@ -1,0 +1,46 @@
+{
+  "groups":
+    [
+      {
+        "name": "application",
+        "rules":
+          [
+            {
+              "alert": "HighErrorRate",
+              "expr": 'sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count[5m])),0.001) > 0.05',
+              "for": "5m",
+              "labels": { "severity": "warning" },
+              "annotations": { "summary": "HighErrorRate" },
+            },
+            {
+              "alert": "HighLatency",
+              "expr": "histogram_quantile(0.95,sum by(le)(rate(http_server_request_duration_seconds_bucket[5m]))) > 2",
+              "for": "5m",
+              "labels": { "severity": "warning" },
+              "annotations": { "summary": "HighLatency" },
+            },
+            {
+              "alert": "PoolSaturation",
+              "expr": 'sum(db_client_connections{state="waiting"}) > 5',
+              "for": "5m",
+              "labels": { "severity": "warning" },
+              "annotations": { "summary": "PoolSaturation" },
+            },
+            {
+              "alert": "OutboxBacklog",
+              "expr": "max(worker_outbox_backlog) > 1000",
+              "for": "5m",
+              "labels": { "severity": "warning" },
+              "annotations": { "summary": "OutboxBacklog" },
+            },
+            {
+              "alert": "TelemetryLoss",
+              "expr": "sum(rate(otelcol_receiver_refused_spans_total[5m])) + sum(rate(otelcol_exporter_send_failed_spans_total[5m])) > 0",
+              "for": "5m",
+              "labels": { "severity": "warning" },
+              "annotations": { "summary": "TelemetryLoss" },
+            },
+          ],
+      },
+    ],
+}

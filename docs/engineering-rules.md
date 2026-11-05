@@ -239,3 +239,9 @@ effect needs its aggregate mapped in `lib/realtime-operations.ts`.
 ## Assets and quotes
 
 `Asset` is the global catalog of fiat and crypto codes (`code`, `kind`, `decimals`, `quoteProvider`); balances live per `(financialAccountId, assetCode)`. Asset codes are 2-12 uppercase alphanumerics. Crypto amounts use `Numeric(38,18)` and travel as decimal strings; never convert them through `number`. Format every monetary value through the single asset formatter in `packages/finance`, never ad hoc `Intl.NumberFormat`. Quotes come from brapi.dev (`BRAPI_TOKEN`, `Authorization: Bearer`) and follow the `CurrencyRateSnapshot` rule: no silent substitution by the current quote.
+
+## OpenTelemetry
+
+API and worker initialize the opt-in SDK before importing application modules. Development preload and release build share the backend AST transform; React functions remain outside that transform. SQL instrumentation belongs at the physical pg execution boundary, preserving existing performance counters. Do not export SQL parameters, raw results, credentials, private documents or business values. Keep metric labels limited to technical, finite attributes.
+
+Web and Tauri export only the restricted trace subset through the application's `/telemetry/traces` gateway. Keep Collector URLs and credentials private. Optional outbox context requires the reviewed additive nullable column before enabling its flag; no normal application startup applies this draft migration. See [observability configuration and operations](observability.md) for setup, capture limits, sampling, retention, dashboards and new module instrumentation.

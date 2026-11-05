@@ -1,3 +1,4 @@
+import { startDependency } from "@zaimu/observability";
 import { instrumentRequest, setHttpRoute } from "@zaimu/observability/http";
 import Elysia from "elysia";
 import { getQueryMetrics } from "sql";
@@ -16,6 +17,55 @@ export const GlobalPlugin = new Elysia({ name: "GlobalPlugin" })
 		const metrics = getQueryMetrics();
 		if (metrics) metrics.route = route;
 	})
+
+	.trace(
+		({
+			context: requestContext,
+			onParse,
+			onTransform,
+			onBeforeHandle,
+			onHandle,
+			onMapResponse,
+			onError,
+			onAfterResponse,
+		}) => {
+			let finishValidation: ((failed?: boolean) => void) | undefined;
+			const closeValidation = (failed = false) => {
+				finishValidation?.(failed);
+				finishValidation = undefined;
+			};
+			onParse(({ onStop }) => {
+				setHttpRoute(requestContext.route);
+				const finish = startDependency("http.parse");
+				onStop(({ error }) => finish(Boolean(error)));
+			});
+			onTransform(({ onStop }) => {
+				onStop(({ error }) => {
+					if (!error) finishValidation = startDependency("http.validation");
+				});
+			});
+			onBeforeHandle(({ onStop }) => {
+				closeValidation();
+				setHttpRoute(requestContext.route);
+				const finish = startDependency("http.authentication");
+				onStop(({ error }) => finish(Boolean(error)));
+			});
+			onHandle(({ onStop }) => {
+				closeValidation();
+				const finish = startDependency("http.handler");
+				onStop(({ error }) => finish(Boolean(error)));
+			});
+			onMapResponse(({ onStop }) => {
+				const finish = startDependency("http.serialization");
+				onStop(({ error }) => finish(Boolean(error)));
+			});
+			onError(() => {
+				closeValidation(true);
+				setHttpRoute(requestContext.route);
+			});
+			onAfterResponse(() => closeValidation());
+		},
+	)
 	.error({ HttpException })
 	.onError(({ code, error, request, set }) => {
 		if (new URL(request.url).pathname.startsWith("/open-finance")) {

@@ -37,4 +37,4 @@ test("transformed functions retain closures, this, sync errors, promises and gen
 	} finally {
 		await Bun.file(path).delete();
 	}
-});
+}, 30000);

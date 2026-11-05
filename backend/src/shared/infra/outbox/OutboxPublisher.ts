@@ -42,6 +42,7 @@ export class OutboxPublisher {
 			);
 		return events.length;
 	}
+	/** @otel-ignore Scheduler lifetime is not an operation; each publication batch has its own budget. */
 	async run(pollIntervalMs = 500) {
 		this.running = true;
 		let observedAt = 0;

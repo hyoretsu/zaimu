@@ -10,7 +10,7 @@ import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { AlwaysOnSampler, BatchSpanProcessor } from "@opentelemetry/sdk-trace";
-import { operation } from "./index";
+import { getOperationRoute, operation } from "./index";
 import { operationalLog } from "./log-record";
 
 let sdk: NodeSDK | undefined;
@@ -126,7 +126,15 @@ export function initialize(service: "api" | "worker", project: string) {
 				] ?? 9)
 			) {
 				const record = operationalLog(args);
-				logger.emit({ ...record, severityNumber });
+				const fields = {
+					...record.fields,
+					...(record.body === "http_request" ? { route: getOperationRoute() ?? "unmatched" } : {}),
+				};
+				logger.emit({
+					attributes: { ...record.attributes, "log.performance": JSON.stringify(fields) },
+					body: record.body,
+					severityNumber,
+				});
 				const active = trace.getSpan(context.active())?.spanContext();
 				original(
 					JSON.stringify({
@@ -136,6 +144,7 @@ export function initialize(service: "api" | "worker", project: string) {
 						service: process.env.OTEL_SERVICE_NAME,
 						severity: method === "log" ? "info" : method,
 						span_id: active?.spanId,
+						...fields,
 						timestamp: new Date().toISOString(),
 						trace_id: active?.traceId,
 						...record.attributes,

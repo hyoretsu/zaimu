@@ -9,6 +9,7 @@ export const instrumentationPlugin = (root: string, runtime = false): BunPlugin 
 			const normalized = path.replaceAll("\\", "/");
 			if (
 				!normalized.startsWith(`${root}/src/`) ||
+				normalized.endsWith("/shared/infra/elysia/global.ts") ||
 				/\/(scripts|generated|tests|observability)\/|\.(test|spec)\.ts$/.test(normalized)
 			)
 				return;

@@ -73,12 +73,17 @@ test("HTTP to SQL/Redis and durable outbox to worker retain correlation after pu
 			return Response.json({ status: "queued" });
 		}),
 	);
-	const response = await handle(
-		new Request("http://127.0.0.1/fixture/private-id", {
+	const server = Bun.serve({ fetch: handle, hostname: "127.0.0.1", port: 0 });
+	try {
+		const response = await fetch(new URL("/fixture/private-id", server.url), {
 			headers: { traceparent: `00-${"1".repeat(32)}-${"2".repeat(16)}-01` },
-		}),
-	);
-	await response.text();
+		});
+		expect(response.status).toBe(200);
+		await response.text();
+	} finally {
+		await server.stop(true);
+	}
+
 	const persisted = await queryRaw<{ payload: unknown; telemetryContext: { traceparent: string } }>(
 		'SELECT payload,"telemetryContext" FROM "OutboxEvent" WHERE id=$1',
 		[eventId],
@@ -98,6 +103,8 @@ test("HTTP to SQL/Redis and durable outbox to worker retain correlation after pu
 	expect(consumed).toBe(true);
 	expect(attempts).toBe(2);
 	const spans = exporter.getFinishedSpans();
+	expect(spans.some(span => span.attributes["db.collection.name"] === "OutboxEvent")).toBe(true);
+	expect(spans.some(span => span.attributes["db.response.returned_rows"] === 1)).toBe(true);
 	expect(
 		spans.some(span => span.name === "db.SELECT" && span.spanContext().traceId === "1".repeat(32)),
 	).toBe(true);

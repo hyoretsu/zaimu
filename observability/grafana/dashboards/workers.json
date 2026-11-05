@@ -1,0 +1,145 @@
+{
+	"links": [
+		{
+			"targetBlank": true,
+			"title": "Trace waterfall and dependencies",
+			"url": "/explore?left=%7B%22datasource%22:%22tempo%22%7D"
+		}
+	],
+	"panels": [
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum by(queue,outcome)(rate(worker_jobs_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+					"refId": "A"
+				}
+			],
+			"title": "Jobs",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 0
+			},
+			"id": 2,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum by(result)(rate(worker_deliveries_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+					"refId": "A"
+				}
+			],
+			"title": "Delivery",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 8
+			},
+			"id": 3,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum(worker_outbox_backlog{deployment_environment_name=~\"$environment\",service_version=~\"$version\"})",
+					"refId": "A"
+				}
+			],
+			"title": "Outbox",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 8
+			},
+			"id": 4,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "histogram_quantile(0.95,sum by(le,queue)(rate(worker_queue_delay_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+					"refId": "A"
+				}
+			],
+			"title": "Queue delay",
+			"type": "timeseries"
+		}
+	],
+	"refresh": "15s",
+	"schemaVersion": 41,
+	"tags": ["otel", "zaimu"],
+	"templating": {
+		"list": [
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "environment",
+				"query": "label_values(target_info,deployment_environment_name)",
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "version",
+				"query": "label_values(target_info,service_version)",
+				"type": "query"
+			}
+		]
+	},
+	"time": {
+		"from": "now-1h",
+		"to": "now"
+	},
+	"title": "zaimu - Workers",
+	"uid": "zaimu-workers",
+	"version": 1
+}

@@ -15,7 +15,9 @@ export function initializeBrowser(config: {
 	const endpoint = new URL(config.endpoint, window.location.href);
 	const provider = new TracerProvider({
 		resource: resourceFromAttributes({
+			"service.instance.id": crypto.randomUUID(),
 			"service.name": `${config.project}-${config.tauri ? "tauri" : "web"}`,
+			"service.namespace": config.project,
 			"service.version": config.version,
 		}),
 		spanProcessors: [

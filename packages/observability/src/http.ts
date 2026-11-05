@@ -7,7 +7,13 @@ import {
 	SpanStatusCode,
 	trace,
 } from "@opentelemetry/api";
-import { bindOperationContext, enabled, getOperationRoot, withoutObservability } from "./index";
+import {
+	bindOperationContext,
+	enabled,
+	getOperationRoot,
+	setOperationRoute,
+	withoutObservability,
+} from "./index";
 
 const routes = new WeakMap<object, string>();
 const tracer = trace.getTracer("http");
@@ -103,8 +109,12 @@ export function instrumentRequest(handle: (request: Request) => Response | Promi
 	};
 }
 export function setHttpRoute(route: string) {
+	if (typeof route !== "string" || route.length > 256) return;
 	const span = getOperationRoot() ?? trace.getSpan(context.active());
-	if (span) routes.set(span, route);
+	if (span) {
+		routes.set(span, route);
+		setOperationRoute(span, route);
+	}
 	span?.setAttribute("http.route", route);
 	span?.updateName(route);
 }

@@ -1,0 +1,123 @@
+{
+	"links": [
+		{
+			"targetBlank": true,
+			"title": "Trace waterfall and dependencies",
+			"url": "/explore?left=%7B%22datasource%22:%22tempo%22%7D"
+		}
+	],
+	"panels": [
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "histogram_quantile(0.95,sum by(le,operation)(rate(application_operation_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\",operation=~\"db.*|redis.*\"}[5m])))",
+					"refId": "A"
+				}
+			],
+			"title": "Dependency latency",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 0
+			},
+			"id": 2,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum by(state)(db_client_connections{deployment_environment_name=~\"$environment\",service_version=~\"$version\"})",
+					"refId": "A"
+				}
+			],
+			"title": "Pool",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 8
+			},
+			"id": 3,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum by(result)(rate(cache_operations_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+					"refId": "A"
+				}
+			],
+			"title": "Cache",
+			"type": "timeseries"
+		}
+	],
+	"refresh": "15s",
+	"schemaVersion": 41,
+	"tags": ["otel", "zaimu"],
+	"templating": {
+		"list": [
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "environment",
+				"query": "label_values(target_info,deployment_environment_name)",
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "version",
+				"query": "label_values(target_info,service_version)",
+				"type": "query"
+			}
+		]
+	},
+	"time": {
+		"from": "now-1h",
+		"to": "now"
+	},
+	"title": "zaimu - PostgreSQL and Redis",
+	"uid": "zaimu-dependencies",
+	"version": 1
+}

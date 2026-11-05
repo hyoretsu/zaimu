@@ -42,6 +42,9 @@ const pool = new Pool({
 	statement_timeout: Number(process.env.DATABASE_STATEMENT_TIMEOUT_MS ?? 15_000),
 });
 observePool(() => ({ idle: pool.idleCount, total: pool.totalCount, waiting: pool.waitingCount }));
+const telemetryEntities = new Set(
+	Object.entries(contractJson.roots).flatMap(([name, root]) => [name, root.model]),
+);
 // Physical pg execution is the only counting layer: ORM, auth, raw SQL and transaction control.
 pool.on("connect", client => {
 	const query = client.query;
@@ -67,17 +70,32 @@ pool.on("connect", client => {
 		].includes(verb)
 			? verb
 			: "OTHER";
-		const finishTelemetry = startDependency(`db.${operation}`);
+		const candidate = sqlText.match(
+			/\b(?:FROM|INTO|UPDATE|JOIN)\s+(?:"?[a-zA-Z_][\w]*"?\.)?"?([a-zA-Z_][\w]*)"?/i,
+		)?.[1];
+		const entity = candidate && telemetryEntities.has(candidate) ? candidate : undefined;
+		const finishTelemetry = startDependency(
+			`db.${operation}`,
+			undefined,
+			entity ? { "db.collection.name": entity } : {},
+		);
 		const finishSpan = startOperation(`sql:${operation}`);
-		const finish = (failed = false) => {
-			finishTelemetry(failed);
+		const finish = (failed = false, result?: { rowCount?: number | null }) => {
+			finishTelemetry(
+				failed,
+				typeof result?.rowCount === "number" &&
+					Number.isFinite(result.rowCount) &&
+					result.rowCount >= 0
+					? { "db.response.returned_rows": result.rowCount }
+					: {},
+			);
 			finishQuery();
 			finishSpan();
 		};
 		const callback = args.at(-1);
 		if (typeof callback === "function")
 			args[args.length - 1] = (...values: unknown[]) => {
-				finish(Boolean(values[0]));
+				finish(Boolean(values[0]), values[1] as { rowCount?: number | null });
 				return callback(...values);
 			};
 		try {
@@ -85,7 +103,7 @@ pool.on("connect", client => {
 			if (result && typeof result.then === "function")
 				return result.then(
 					(value: unknown) => {
-						finish();
+						finish(false, value as { rowCount?: number | null });
 						return value;
 					},
 					(error: unknown) => {

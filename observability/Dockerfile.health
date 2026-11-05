@@ -1,0 +1,7 @@
+ARG BASE_IMAGE
+FROM golang:1.24.4-alpine AS probe
+WORKDIR /probe
+COPY probe.go .
+RUN GOMAXPROCS=2 CGO_ENABLED=0 go build -p=2 -trimpath -ldflags="-s -w" -o /otel-health probe.go
+FROM ${BASE_IMAGE}
+COPY --from=probe /otel-health /otel-health

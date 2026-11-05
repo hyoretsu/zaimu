@@ -1,0 +1,146 @@
+{
+  "name": "zaimu-observability",
+  "services":
+    {
+      "collector":
+        {
+          "build":
+            {
+              "context": ".",
+              "dockerfile": "Dockerfile.health",
+              "args": { "BASE_IMAGE": "otel/opentelemetry-collector-contrib:0.128.0" },
+            },
+          "command": ["--config=/etc/otel/config.yaml"],
+          "volumes": ["./collector.yaml:/etc/otel/config.yaml:ro"],
+          "networks": ["telemetry", "ingress"],
+          "mem_limit": "768m",
+          "cpus": 1,
+          "restart": "unless-stopped",
+          "healthcheck":
+            {
+              "test": ["CMD", "/otel-health", "http://127.0.0.1:13133/"],
+              "interval": "30s",
+              "timeout": "5s",
+              "retries": 5,
+              "start_period": "30s",
+            },
+          "ports": ["127.0.0.1:${OTEL_HOST_PORT:-4318}:4318"],
+        },
+      "tempo":
+        {
+          "build":
+            {
+              "context": ".",
+              "dockerfile": "Dockerfile.health",
+              "args": { "BASE_IMAGE": "grafana/tempo:2.8.0" },
+            },
+          "command": ["-config.file=/etc/tempo.yaml", "-config.expand-env=true"],
+          "volumes": ["./tempo.yaml:/etc/tempo.yaml:ro", "tempo:/var/tempo"],
+          "networks": ["telemetry"],
+          "mem_limit": "1g",
+          "cpus": 1,
+          "restart": "unless-stopped",
+          "healthcheck":
+            {
+              "test": ["CMD", "/otel-health", "http://127.0.0.1:3200/ready"],
+              "interval": "30s",
+              "timeout": "5s",
+              "retries": 5,
+              "start_period": "30s",
+            },
+          "environment": { "TRACE_RETENTION": "${TRACE_RETENTION:-168h}" },
+        },
+      "loki":
+        {
+          "build":
+            {
+              "context": ".",
+              "dockerfile": "Dockerfile.health",
+              "args": { "BASE_IMAGE": "grafana/loki:3.5.1" },
+            },
+          "command": ["-config.file=/etc/loki/config.yaml", "-config.expand-env=true"],
+          "volumes": ["./loki.yaml:/etc/loki/config.yaml:ro", "loki:/loki"],
+          "networks": ["telemetry"],
+          "mem_limit": "768m",
+          "cpus": 1,
+          "restart": "unless-stopped",
+          "healthcheck":
+            {
+              "test": ["CMD", "/otel-health", "http://127.0.0.1:3100/ready"],
+              "interval": "30s",
+              "timeout": "5s",
+              "retries": 5,
+              "start_period": "30s",
+            },
+          "environment": { "LOG_RETENTION": "${LOG_RETENTION:-336h}" },
+        },
+      "prometheus":
+        {
+          "build":
+            {
+              "context": ".",
+              "dockerfile": "Dockerfile.health",
+              "args": { "BASE_IMAGE": "prom/prometheus:v3.4.1" },
+            },
+          "command":
+            [
+              "--config.file=/etc/prometheus/prometheus.yaml",
+              "--storage.tsdb.path=/prometheus",
+              "--storage.tsdb.retention.time=${METRICS_RETENTION:-30d}",
+              "--enable-feature=exemplar-storage",
+            ],
+          "volumes":
+            [
+              "./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro",
+              "./alerts.yaml:/etc/prometheus/alerts.yaml:ro",
+              "prometheus:/prometheus",
+            ],
+          "networks": ["telemetry"],
+          "mem_limit": "768m",
+          "cpus": 1,
+          "restart": "unless-stopped",
+          "healthcheck":
+            {
+              "test": ["CMD", "/otel-health", "http://127.0.0.1:9090/-/ready"],
+              "interval": "30s",
+              "timeout": "5s",
+              "retries": 5,
+              "start_period": "30s",
+            },
+        },
+      "grafana":
+        {
+          "image": "grafana/grafana:12.0.1",
+          "environment":
+            {
+              "GF_SECURITY_ADMIN_USER": "${GRAFANA_ADMIN_USER:-admin}",
+              "GF_SECURITY_ADMIN_PASSWORD": "${GRAFANA_ADMIN_PASSWORD:?Set a local Grafana password}",
+              "GF_AUTH_ANONYMOUS_ENABLED": "false",
+              "GF_ANALYTICS_REPORTING_ENABLED": "false",
+              "GF_ANALYTICS_CHECK_FOR_UPDATES": "false",
+              "GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES": "false",
+              "GF_PLUGINS_PUBLIC_KEY_RETRIEVAL_DISABLED": "true",
+            },
+          "ports": ["127.0.0.1:${GRAFANA_HOST_PORT:-3300}:3000"],
+          "volumes":
+            [
+              "grafana:/var/lib/grafana",
+              "./grafana/provisioning:/etc/grafana/provisioning:ro",
+              "./grafana/dashboards:/var/lib/grafana/dashboards:ro",
+            ],
+          "networks": ["telemetry", "ingress"],
+          "mem_limit": "512m",
+          "cpus": 1,
+          "restart": "unless-stopped",
+          "healthcheck":
+            {
+              "test": ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"],
+              "interval": "30s",
+              "timeout": "5s",
+              "retries": 5,
+            },
+        },
+    },
+  "networks": { "ingress": {}, "telemetry": { "internal": true } },
+  "volumes": { "tempo": {}, "loki": {}, "prometheus": {}, "grafana": {} },
+}

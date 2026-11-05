@@ -17,5 +17,16 @@
 				"useTailwindSortedClasses": "off"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.jsonc"],
+			"json": {
+				"parser": {
+					"allowComments": true,
+					"allowTrailingCommas": true
+				}
+			}
+		}
+	]
 }

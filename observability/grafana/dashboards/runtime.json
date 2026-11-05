@@ -1,0 +1,189 @@
+{
+	"links": [
+		{
+			"targetBlank": true,
+			"title": "Trace waterfall and dependencies",
+			"url": "/explore?left=%7B%22datasource%22:%22tempo%22%7D"
+		}
+	],
+	"panels": [
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "process_memory_usage_bytes{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}",
+					"refId": "A"
+				}
+			],
+			"title": "Memory",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 0
+			},
+			"id": 2,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "rate(process_cpu_time_seconds_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])",
+					"refId": "A"
+				}
+			],
+			"title": "CPU",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 8
+			},
+			"id": 3,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "runtime_event_loop_delay_seconds{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}",
+					"refId": "A"
+				}
+			],
+			"title": "Event loop",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 8
+			},
+			"id": 4,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum by(exporter)(rate(otelcol_exporter_send_failed_spans_total[5m]))",
+					"refId": "A"
+				}
+			],
+			"title": "Exporter failures",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 16
+			},
+			"id": 5,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "otelcol_exporter_queue_size",
+					"refId": "A"
+				}
+			],
+			"title": "Collector queue",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 16
+			},
+			"id": 6,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "sum(rate(otelcol_receiver_refused_spans_total[5m]))",
+					"refId": "A"
+				}
+			],
+			"title": "Collector refusal",
+			"type": "timeseries"
+		}
+	],
+	"refresh": "15s",
+	"schemaVersion": 41,
+	"tags": ["otel", "zaimu"],
+	"templating": {
+		"list": [
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "environment",
+				"query": "label_values(target_info,deployment_environment_name)",
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "prometheus"
+				},
+				"includeAll": true,
+				"multi": true,
+				"name": "version",
+				"query": "label_values(target_info,service_version)",
+				"type": "query"
+			}
+		]
+	},
+	"time": {
+		"from": "now-1h",
+		"to": "now"
+	},
+	"title": "zaimu - Runtime and OTEL pipeline",
+	"uid": "zaimu-runtime",
+	"version": 1
+}

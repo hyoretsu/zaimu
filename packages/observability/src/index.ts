@@ -41,6 +41,14 @@ function getInstruments() {
 	return instruments;
 }
 export const getOperationRoot = () => state.getStore()?.root;
+const operationRoutes = new WeakMap<object, string>();
+export function setOperationRoute(span: Span, route: string) {
+	operationRoutes.set(span, route);
+}
+export function getOperationRoute() {
+	const root = getOperationRoot();
+	return root ? operationRoutes.get(root) : undefined;
+}
 export function bindOperationContext(span: Span) {
 	const scope = { budget: { count: 0 }, depth: 0, root: span };
 	return <T>(work: () => T): T => state.run(scope, work);
@@ -84,6 +92,7 @@ export function operation<T>(
 			const finish = (error = false) => {
 				if (ended) return;
 				ended = true;
+				span.setAttribute("code.outcome", error ? "error" : "ok");
 				if (error) {
 					span.setStatus({ code: SpanStatusCode.ERROR });
 					span.addEvent("exception", { "exception.type": "Error" });
@@ -158,8 +167,8 @@ export function log(level: "debug" | "info" | "warn" | "error", event: string, f
 }
 
 /** Passive dependency span: no SQL, keys, parameters or result values. */
-export function startDependency(name: string, location?: string) {
-	if (!enabled()) return (_failed = false) => {};
+export function startDependency(name: string, location?: string, attributes: Attributes = {}) {
+	if (!enabled()) return (_failed = false, _attributes?: Attributes) => {};
 	const current = state.getStore();
 	if (location && current) {
 		if (
@@ -167,17 +176,24 @@ export function startDependency(name: string, location?: string) {
 			current.depth >= Math.min(32, Number(process.env.OTEL_FUNCTION_MAX_DEPTH) || 32)
 		) {
 			current.root.setAttribute("application.truncated", true);
-			return (_failed = false) => {};
+			return (_failed = false, _attributes?: Attributes) => {};
 		}
 		current.budget.count++;
 	}
-	const span = tracer.startSpan(name, { attributes: location ? { "code.file.path": location } : {} });
+	const span = tracer.startSpan(name, {
+		attributes: { ...attributes, ...(location ? { "code.file.path": location } : {}) },
+	});
 	const started = performance.now();
 	let finished = false;
-	return (failed = false) => {
+	return (failed = false, resultAttributes?: Attributes) => {
 		if (finished) return;
 		finished = true;
-		if (failed) span.setStatus({ code: SpanStatusCode.ERROR });
+		if (resultAttributes) span.setAttributes(resultAttributes);
+		span.setAttribute("code.outcome", failed ? "error" : "ok");
+		if (failed) {
+			span.setStatus({ code: SpanStatusCode.ERROR });
+			span.addEvent("exception", { "exception.type": "Error" });
+		}
 		getInstruments().duration.record((performance.now() - started) / 1000, {
 			operation: name,
 			outcome: failed ? "error" : "ok",
