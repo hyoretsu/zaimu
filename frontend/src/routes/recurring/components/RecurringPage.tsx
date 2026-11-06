@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { endOfMonth, format, startOfMonth } from "date-fns";
+import { endOfMonth, format } from "date-fns";
 import { useState } from "react";
 import { HiArrowDown, HiArrowPath, HiArrowUp, HiPlus } from "react-icons/hi2";
 import { z } from "zod";
@@ -130,13 +130,16 @@ export function RecurringPage() {
 	const isError =
 		(accountsQuery.isError && accountsQuery.data === undefined) ||
 		(recurringQuery.isError && recurringQuery.data === undefined);
-	const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+	// Past occurrences are already materialized (or did not happen), so the forecast starts today.
+	const forecastStart = format(new Date(), "yyyy-MM-dd");
 	const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
 	const periodLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(
 		new Date(),
 	);
 	const items = (recurringQuery.data ?? [])
-		.map(recurrence => recurrenceToListItem(recurrence, accountsQuery.data ?? [], monthStart, monthEnd))
+		.map(recurrence =>
+			recurrenceToListItem(recurrence, accountsQuery.data ?? [], forecastStart, monthEnd),
+		)
 		.sort(
 			(left, right) =>
 				Number(right.active) - Number(left.active) || left.title.localeCompare(right.title, "pt-BR"),
