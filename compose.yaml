@@ -19,7 +19,7 @@ services:
         echo 0 > /tmp/zaimu-dev-health-failures
         sh /app/scripts/dev-migration-watch.sh &
         bun install --frozen-lockfile
-        bun -F sql contract:emit
+        bun -F sql export
         bun -F sql migrate:deploy
         exec bun dev
     healthcheck:

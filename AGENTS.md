@@ -85,6 +85,8 @@ Run type-check and build for affected packages before a PR or merge. Local valid
 
 **File naming follows responsibilities.** Components, classes, use cases and DTO schemas use PascalCase: `AuthTabs.tsx`, `LoginForm.tsx`, `FormField.tsx`. Utilities, hooks and configs use kebab-case. Preserve established directory structures and their index barrels. Avoid unrelated renames.
 
+**Producer scripts are named `export` and write to `out/`.** Any script that generates artifacts consumed by other tasks or projects (contract emission, schemas, OpenAPI, clients) is a workspace `export` script writing into that workspace's `out/`, backed by a cached Turbo `export` task with `outputs: ["out/**"]`; consumers depend on `^export`. Never invent per-tool names such as `contract:emit`, `codegen` or `emit`.
+
 ## Tests
 
 - Unit tests sit next to the file under test: `Foo.ts` → `Foo.test.ts`.
