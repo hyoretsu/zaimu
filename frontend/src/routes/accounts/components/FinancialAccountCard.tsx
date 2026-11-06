@@ -1,4 +1,3 @@
-import { formatAsset } from "@zaimu/finance/asset-amount";
 import { useState } from "react";
 import {
 	LuBanknote,
@@ -28,6 +27,7 @@ import {
 	getFinancialAccountTitle,
 	getFinancialAccountTypeLabel,
 } from "@/lib/financial-account";
+import { AccountAssetBreakdown } from "./AccountAssetBreakdown";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
@@ -172,19 +172,7 @@ export function FinancialAccountCard({
 								}))}
 							/>
 						</p>
-						<div className="mt-2 grid gap-1">
-							{account.assets.map(asset => (
-								<p
-									className={`text-sm break-words ${asset.balance.startsWith("-") ? "text-destructive" : "text-muted-foreground"}`}
-									key={asset.assetCode}
-								>
-									{formatAsset(asset.balance, asset.assetCode)}
-								</p>
-							))}
-							{account.assets.length === 0 && (
-								<p className="text-muted-foreground text-sm">Nenhum ativo cadastrado</p>
-							)}
-						</div>
+						<AccountAssetBreakdown assets={account.assets} />
 						{account.netBalance != null && (
 							<p className="text-muted-foreground mt-1 text-sm">
 								Saldo líquido:{" "}
