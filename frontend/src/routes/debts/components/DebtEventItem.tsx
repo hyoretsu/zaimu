@@ -37,13 +37,19 @@ export function DebtEventItem({
 					{getDebtEventCreatorLabel(event)}
 				</p>
 			</div>
-			<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-				{event.effect === 0 ? "" : event.effect > 0 ? "Te deve " : "Você deve "}
-				{new Intl.NumberFormat("pt-BR", {
-					currency: event.currency ?? "BRL",
-					style: "currency",
-				}).format(Math.abs(event.effect))}
-			</span>
+			<div className="text-right">
+				<strong className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
+					{new Intl.NumberFormat("pt-BR", {
+						currency: event.currency ?? "BRL",
+						style: "currency",
+					}).format(Math.abs(event.effect))}
+				</strong>
+				{event.effect !== 0 ? (
+					<p className="text-muted-foreground text-sm">
+						{event.effect > 0 ? "Te deve" : "Você deve"}
+					</p>
+				) : null}
+			</div>
 			{event.kind === "ORIGIN" && event.createdByMe ? (
 				<ActionGroup className="col-span-3 border-t pt-2">
 					{event.kind === "ORIGIN" && event.createdByMe ? (
