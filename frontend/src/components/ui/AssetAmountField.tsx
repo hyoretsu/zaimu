@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { NumericFormat } from "react-number-format";
 import { Input } from "./Input";
 import { Label } from "./Label";
+import { MoneyField } from "./MoneyField";
 import { RequiredMark } from "./RequiredMark";
 
 export function AssetAmountField({
@@ -29,6 +30,19 @@ export function AssetAmountField({
 	const symbol = assetSymbol(assetCode);
 	const [local, setLocal] = useState(value);
 	useEffect(() => setLocal(value), [value]);
+	if (fiat)
+		return (
+			<MoneyField
+				currencyCode={assetCode}
+				disabled={disabled}
+				id={id}
+				label={label}
+				onValueChange={onValueChange}
+				rawValueName={rawValueName}
+				required={required}
+				value={value}
+			/>
+		);
 	return (
 		<div className="grid min-w-0 gap-2">
 			<Label htmlFor={id}>
@@ -50,8 +64,8 @@ export function AssetAmountField({
 					if (source.source === "event") onValueChange(values.value);
 				}}
 				placeholder={`Ex: ${fiat ? `${symbol} ` : ""}${currencyDigits(assetCode) > 2 ? "0,00000001" : "150,00"}${fiat ? "" : ` ${symbol}`}`}
-				required={required}
 				prefix={fiat ? `${symbol} ` : undefined}
+				required={required}
 				suffix={fiat ? undefined : ` ${symbol}`}
 				thousandSeparator="."
 				value={local}
