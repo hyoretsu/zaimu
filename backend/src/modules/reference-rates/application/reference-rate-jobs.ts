@@ -1,6 +1,6 @@
 import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
 import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
-import { addDays, format, isWeekend, startOfDay } from "date-fns";
+import { addDays, format, isWeekend, max, startOfDay } from "date-fns";
 import {
 	balanceAdjustmentSourceVersion,
 	reconcileBalanceAdjustments,
@@ -296,7 +296,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 				before,
 			);
 		});
-	const fromDate = startOfDay(Math.max(job.fromDate, firstBalance));
+	const fromDate = startOfDay(max([job.fromDate, firstBalance]));
 	const endDate = startOfDay(job.endDate ?? yieldSchedulerClock().date);
 	if (fromDate > endDate) return;
 	const years = Array.from(

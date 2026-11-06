@@ -47,7 +47,7 @@ export async function dashboardCurrencyContext(
 	const nonYieldBalances = new Map<string, number>();
 	for (const row of loaded.balanceRows) {
 		if (!row.assetCode) continue;
-		const date = Math.min(row.date, reference);
+		const date = row.date.localeCompare(reference) < 0 ? row.date : reference;
 		try {
 			const target =
 				loaded.accounts.find(account => account.id === row.accountId)?.currency ?? currency;

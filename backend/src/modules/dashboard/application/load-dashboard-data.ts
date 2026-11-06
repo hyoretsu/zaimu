@@ -1,6 +1,7 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
 import type { MonthlyBudget } from "@zaimu/finance/monthly-budget";
 import type { RecurrenceMoneyConverter } from "@zaimu/finance/recurrence-projection";
+import { max, min } from "date-fns";
 import { cashbackReversalsSql } from "~/modules/accounts/application/cashback-reversals-sql";
 import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
@@ -333,7 +334,7 @@ export async function loadDashboardData(userId: string, range: DashboardDataRang
 		userId,
 		loaded.accounts.map(account => account.id),
 		range.projectionStart,
-		Math.max(range.periodEnd, range.comparisonEnd),
+		max([range.periodEnd, range.comparisonEnd]),
 	);
 	return loaded;
 }
@@ -352,7 +353,7 @@ export async function loadDashboardRows(
 		comparisonOnly ? comparisonMovementsSql : movementsSql,
 		[
 			userId,
-			`${dateKey(Math.min(range.comparisonStart, range.projectionStart)).slice(0, 7)}-01`,
+			`${dateKey(min([range.comparisonStart, range.projectionStart])).slice(0, 7)}-01`,
 			dateKey(range.comparisonEnd),
 			dateKey(range.projectionStart),
 			...(comparisonOnly ? [] : [dateKey(range.periodStart), dateKey(range.periodEnd)]),

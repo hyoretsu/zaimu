@@ -233,7 +233,7 @@ export const YieldCalendarController = new Elysia()
 				await saveOverride(holiday.countryCode, date, name, "INCLUDE");
 				await recalculateCountry(
 					holiday.countryCode,
-					Math.min(date, holiday.date),
+					date.localeCompare(holiday.date) < 0 ? date : holiday.date,
 					`calendar:${randomUUID()}`,
 				);
 			});

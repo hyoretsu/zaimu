@@ -232,8 +232,14 @@ UNION ALL SELECT l."id" || ':default',l."institutionId",p."id",p."name",l."userI
 					? []
 					: [
 							{
-								endDate: Math.min(window.endDate, `${year}-12-31`),
-								startDate: Math.max(window.startDate, `${year}-01-01`),
+								endDate:
+									window.endDate.localeCompare(`${year}-12-31`) < 0
+										? window.endDate
+										: `${year}-12-31`,
+								startDate:
+									window.startDate.localeCompare(`${year}-01-01`) > 0
+										? window.startDate
+										: `${year}-01-01`,
 							},
 						];
 		}
