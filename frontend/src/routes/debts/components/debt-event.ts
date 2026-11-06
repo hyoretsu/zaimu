@@ -20,6 +20,13 @@ export function getDebtEventInstallmentLabel(event: DebtEvent) {
 	return `${event.installments}x de ${amount}`;
 }
 
+export function getDebtEventKindLabel(event: DebtEvent) {
+	if (event.kind === "PURCHASE") return "Compra";
+	if (event.kind === "TRANSACTION") return "Transação";
+	if (event.kind === "MIGRATED_SETTLEMENT") return "Quitação migrada";
+	return "Lançamento";
+}
+
 export function getDebtEventCreatorLabel(event: DebtEvent) {
 	if (event.createdByMe) return "Criado por você";
 

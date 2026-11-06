@@ -1,12 +1,18 @@
-import { LuPencil, LuShoppingCart, LuTrash2, LuWalletCards } from "react-icons/lu";
+import { LuCalendarClock, LuPencil, LuShoppingCart, LuTrash2, LuWalletCards } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { DebtEvent } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { useCacheIdentity } from "@/lib/query-cache";
-import { getDebtEventCreatorLabel, getDebtEventInstallmentLabel, getDebtEventLabel } from "./debt-event";
+import {
+	getDebtEventCreatorLabel,
+	getDebtEventInstallmentLabel,
+	getDebtEventKindLabel,
+	getDebtEventLabel,
+} from "./debt-event";
 
 export function DebtEventItem({
 	event,
@@ -37,9 +43,27 @@ export function DebtEventItem({
 					{event.date || event.time ? " · " : ""}
 					{getDebtEventCreatorLabel(event)}
 				</p>
-				{installmentLabel ? (
-					<p className="text-muted-foreground text-xs">{installmentLabel}</p>
-				) : null}
+				<ul aria-label="Detalhes do lançamento" className="mt-1.5 flex list-none flex-wrap gap-1.5">
+					<li>
+						<AppBadge variant="outline">{getDebtEventKindLabel(event)}</AppBadge>
+					</li>
+					{installmentLabel ? (
+						<li>
+							<AppBadge variant="outline">{installmentLabel}</AppBadge>
+						</li>
+					) : null}
+					{event.dueDate ? (
+						<li>
+							<AppBadge variant="outline">
+								<LuCalendarClock aria-hidden="true" />
+								<span>
+									<span className="text-muted-foreground">Vence</span>{" "}
+									{formatLocalDate(event.dueDate)}
+								</span>
+							</AppBadge>
+						</li>
+					) : null}
+				</ul>
 			</div>
 			<div className="text-right">
 				<strong className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
