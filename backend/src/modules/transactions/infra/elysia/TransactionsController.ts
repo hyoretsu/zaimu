@@ -229,7 +229,7 @@ export const TransactionsController = new Elysia({
 				),
 			];
 			if (changedCards.length) await refreshCardPayments(changedCards);
-			const recalculationDate = Math.min(left.date, right.date);
+			const recalculationDate = new Date(left.date) < new Date(right.date) ? left.date : right.date;
 			for (const accountId of [outgoingAccountId, incomingAccountId])
 				await enqueueAccountYieldRecalculation(
 					accountId,
@@ -1057,7 +1057,8 @@ export const TransactionsController = new Elysia({
 					tagIds,
 				});
 			}
-			const recalculationDate = Math.min(existing.date, transaction.date);
+			const recalculationDate =
+				new Date(existing.date) < new Date(transaction.date) ? existing.date : transaction.date;
 			for (const accountId of new Set(
 				[
 					existing.originFinancialAccountId,
