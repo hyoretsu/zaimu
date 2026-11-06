@@ -1,14 +1,16 @@
 import type { ClipboardEvent, FormEvent, KeyboardEvent } from "react";
 
-/** Select the occupied digit slots a native insertion will overwrite, never the suffix. */
+const SLOT = /[\d_]/;
+
+/** Select the digit slots (filled or still `_`) a native insertion will overwrite, never the suffix. */
 function selectOverwrite(input: HTMLInputElement, text: string) {
 	const count = text.replace(/\D/g, "").length;
 	if (!count) return;
 	const start = input.selectionStart ?? 0;
 	let end = input.selectionEnd ?? start;
-	let occupied = input.value.slice(start, end).replace(/\D/g, "").length;
+	let occupied = [...input.value.slice(start, end)].filter(char => SLOT.test(char)).length;
 	while (end < input.value.length && occupied < count) {
-		if (/\d/.test(input.value[end])) occupied++;
+		if (SLOT.test(input.value[end])) occupied++;
 		end++;
 	}
 	input.setSelectionRange(start, end);
