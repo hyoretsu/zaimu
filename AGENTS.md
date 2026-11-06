@@ -36,6 +36,8 @@ Cloud/remote sessions have an ephemeral container and cannot rely on the user pu
 
 Always do in parallel whatever can be done in parallel: issue independent tool calls (reads, searches, shell commands) in one batch and delegate independent subtasks to concurrent subagents. Serialize only when a step needs another step's output or when steps would contend for the same files, locks or git index.
 
+Delegate unrelated tasks to subagents: when a request contains tasks with no dependency on each other (different projects, packages or concerns), hand each one to its own subagent and launch them concurrently in a single batch instead of working through them one by one in the main session. Give every subagent a self-contained prompt with the context it needs, keep file ownership disjoint, and verify and integrate their results yourself.
+
 ## Commits
 
 After every completed task, commit with the local Git user as author and committer and a `Co-authored-by:` trailer for the agent:
