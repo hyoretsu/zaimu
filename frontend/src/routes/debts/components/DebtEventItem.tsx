@@ -6,7 +6,7 @@ import type { DebtEvent } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { useCacheIdentity } from "@/lib/query-cache";
-import { getDebtEventCreatorLabel, getDebtEventLabel } from "./debt-event";
+import { getDebtEventCreatorLabel, getDebtEventInstallmentLabel, getDebtEventLabel } from "./debt-event";
 
 export function DebtEventItem({
 	event,
@@ -23,6 +23,7 @@ export function DebtEventItem({
 }) {
 	const identity = useCacheIdentity();
 	const pending = useModalRecoveryStore(state => state.pending);
+	const installmentLabel = getDebtEventInstallmentLabel(event);
 	return (
 		<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-xl border p-3">
 			<div className="text-muted-foreground">
@@ -36,6 +37,9 @@ export function DebtEventItem({
 					{event.date || event.time ? " · " : ""}
 					{getDebtEventCreatorLabel(event)}
 				</p>
+				{installmentLabel ? (
+					<p className="text-muted-foreground text-xs">{installmentLabel}</p>
+				) : null}
 			</div>
 			<div className="text-right">
 				<strong className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>

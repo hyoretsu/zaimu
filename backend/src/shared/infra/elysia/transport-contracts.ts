@@ -1065,6 +1065,8 @@ export const DebtEventReturn = t.Object({
 	dueDate: t.Optional(t.Union([t.Null(), t.String()])),
 	effect: t.Number(),
 	id: t.String(),
+	installmentAmount: t.Optional(t.Union([t.Null(), t.Number()])),
+	installments: t.Optional(t.Union([t.Null(), t.Integer()])),
 	kind: t.Union([
 		t.Literal("TRANSACTION"),
 		t.Literal("ORIGIN"),

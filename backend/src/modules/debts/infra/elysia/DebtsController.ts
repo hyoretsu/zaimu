@@ -337,8 +337,28 @@ export async function getPersonEventPage(
 	);
 	const hasMore = rows.length > pageLimit;
 	const dateOnly = (value: null | string) => (value ? new Date(`${value}T00:00:00.000Z`) : null);
-	const items = rows.slice(0, pageLimit).map(row => {
+	const pageRows = rows.slice(0, pageLimit);
+	const purchaseIds = [...new Set(pageRows.flatMap(row => (row.purchaseId ? [row.purchaseId] : [])))];
+	const installmentCounts = new Map<string, number>();
+	if (purchaseIds.length) {
+		const installments = await queryRows(
+			db.sql.public.CreditInstallmentRecord.select("purchaseId")
+				.where((fields, functions) => functions.in(fields.purchaseId, purchaseIds))
+				.build(),
+		);
+		for (const { purchaseId } of installments)
+			installmentCounts.set(purchaseId, (installmentCounts.get(purchaseId) ?? 0) + 1);
+	}
+	const items = pageRows.map(row => {
 		const createdByMe = row.createdByUserId === userId;
+		const installments = row.purchaseId ? (installmentCounts.get(row.purchaseId) ?? 0) : 0;
+		const installmentAmount =
+			installments > 1
+				? fromMinorUnits(
+						Math.round(toMinorUnits(Number(row.amount), row.currency, 0) / installments),
+						row.currency,
+					)
+				: null;
 		const isIncome = row.sourceType === "INCOME";
 		const description = isIncome
 			? row.sourceDescription
@@ -356,6 +376,8 @@ export async function getPersonEventPage(
 			dueDate: dateOnly(row.dueDate),
 			effect: createdByMe ? Number(row.effect) : 0 - Number(row.effect),
 			id: row.id,
+			installmentAmount,
+			installments: installmentAmount === null ? null : installments,
 			kind: row.kind as DebtEventType,
 			time: row.sourceTime ?? row.refundTime ?? row.purchaseTime ?? null,
 		};

@@ -10,6 +10,16 @@ export function getDebtEventLabel(event: DebtEvent) {
 	return "Lançamento manual";
 }
 
+export function getDebtEventInstallmentLabel(event: DebtEvent) {
+	if (!event.installments || event.installments < 2 || event.installmentAmount == null) return null;
+
+	const amount = new Intl.NumberFormat("pt-BR", {
+		currency: event.currency ?? "BRL",
+		style: "currency",
+	}).format(event.installmentAmount);
+	return `${event.installments}x de ${amount}`;
+}
+
 export function getDebtEventCreatorLabel(event: DebtEvent) {
 	if (event.createdByMe) return "Criado por você";
 
