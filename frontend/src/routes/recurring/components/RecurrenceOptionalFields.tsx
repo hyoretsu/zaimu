@@ -21,7 +21,7 @@ export function RecurrenceOptionalFields({
 	setDebtSplit: (value: DebtSplitInput) => void;
 	disabled: boolean;
 }) {
-	const debtAllowed = !["INCOME", "TRANSFER", "CARD_PAYMENT"].includes(draft.movement);
+	const debtAllowed = !["TRANSFER", "CARD_PAYMENT"].includes(draft.movement);
 	return (
 		<div className="space-y-4">
 			<div className="grid gap-4 sm:grid-cols-2">
@@ -33,11 +33,7 @@ export function RecurrenceOptionalFields({
 					/>
 				</div>
 				<div className="grid gap-2">
-					<TagPicker
-						disabled={disabled}
-						onValueChange={value => set("tagIds", value)}
-						value={draft.tagIds}
-					/>
+					<TagPicker disabled={disabled} onValueChange={value => set("tagIds", value)} value={draft.tagIds} />
 				</div>
 			</div>
 			{debtAllowed && (
@@ -60,8 +56,8 @@ export function RecurrenceOptionalFields({
 								value={debtSplit}
 							/>
 							<p className="text-muted-foreground text-xs">
-								Para quitação, escolha pessoa e atribua valor integral. Recorrência mantém
-								valor após saldo zerar e pode inverter saldo da dívida.
+								Para quitação, escolha pessoa e atribua valor integral. Recorrência mantém valor após saldo
+								zerar e pode inverter saldo da dívida.
 							</p>
 						</>
 					)}

@@ -127,8 +127,7 @@ export async function validateRecurrence(userId: string, input: RecurrenceBody, 
 		throw new HttpException("Informe descrição e valor positivo.", 400);
 	if (!allowMissing && recurrenceNeedsConfiguration(input))
 		throw new HttpException("Selecione contas ou cartão compatíveis.", 400);
-	const forbiddenDebt =
-		input.movement === "INCOME" || input.movement === "TRANSFER" || input.movement === "CARD_PAYMENT";
+	const forbiddenDebt = input.movement === "TRANSFER" || input.movement === "CARD_PAYMENT";
 	if (forbiddenDebt && input.debtSplit)
 		throw new HttpException("Esta movimentação não aceita vínculo de dívida.", 400);
 	for (const accountId of [input.originFinancialAccountId, input.destinationFinancialAccountId])
@@ -421,7 +420,7 @@ export async function materializeRecurrence(
 					entityType: tagEntityType.transaction,
 					tagIds,
 				});
-				if (debtSplit && type === "EXPENSE" && recurrence.movement !== "CARD_PAYMENT")
+				if (debtSplit && type !== "TRANSFER" && recurrence.movement !== "CARD_PAYMENT")
 					await linkTransactionToDebt({
 						amount: money.amount,
 						date: financialDate,

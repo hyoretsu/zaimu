@@ -149,7 +149,7 @@ export function CreateRecurringDialog({
 	});
 	const set = <K extends keyof UnifiedRecurringDraft>(key: K, value: UnifiedRecurringDraft[K]) =>
 		setDraft(current => ({ ...current, [key]: value }));
-	const debtAllowed = !["INCOME", "TRANSFER", "CARD_PAYMENT"].includes(draft.movement);
+	const debtAllowed = !["TRANSFER", "CARD_PAYMENT"].includes(draft.movement);
 	const save = (recovery: RecurringRecovery) =>
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["recurring"] },
