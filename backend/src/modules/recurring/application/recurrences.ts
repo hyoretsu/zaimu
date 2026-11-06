@@ -389,6 +389,9 @@ export async function materializeRecurrence(
 					(from, to) => getCurrencyRate(financialDate, from, to),
 				);
 
+				// Income/transfer occurrences are standalone records: no association with the recurrence.
+				const associated =
+					recurrence.movement === "EXPENSE" || recurrence.movement === "CARD_PAYMENT";
 				const [transaction] = await query<{ id: string }>(
 					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate","time","currency","bookingCurrency","originalAmount","exchangeRate","destinationAmount","destinationCurrency","paymentAmount","paymentCurrency","conversionSource") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING "id"',
 					[
@@ -401,8 +404,8 @@ export async function materializeRecurrence(
 						recurrence.originFinancialAccountId ?? null,
 						recurrence.destinationFinancialAccountId ?? null,
 						recurrence.movement === "CARD_PAYMENT" ? recurrence.creditCardId : null,
-						id,
-						date,
+						associated ? id : null,
+						associated ? date : null,
 						advance?.time ?? null,
 						money.currency,
 						money.bookingCurrency,
@@ -430,10 +433,11 @@ export async function materializeRecurrence(
 						type: type as "INCOME" | "EXPENSE",
 						userId,
 					});
-				await query(
-					'UPDATE "RecurrenceOccurrence" SET "transactionId"=$1 WHERE "recurrenceId"=$2 AND "date"=$3',
-					[transaction!.id, id, date],
-				);
+				if (associated)
+					await query(
+						'UPDATE "RecurrenceOccurrence" SET "transactionId"=$1 WHERE "recurrenceId"=$2 AND "date"=$3',
+						[transaction!.id, id, date],
+					);
 				if (recurrence.movement === "CARD_PAYMENT")
 					await withTransaction(executor =>
 						recalculateStatementPayments(executor, [recurrence.creditCardId!]),
