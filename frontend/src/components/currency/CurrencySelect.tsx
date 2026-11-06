@@ -1,3 +1,4 @@
+import { assetSymbol } from "@zaimu/finance/asset-amount";
 import { cryptoAsset, cryptoAssets } from "@zaimu/finance/crypto-assets";
 import { isCryptoAsset } from "@zaimu/finance/money";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -30,7 +31,7 @@ export function CurrencySelect({
 			return {
 				label: asset
 					? `${asset.symbol} - ${asset.name}`
-					: `${value} - ${isCryptoAsset(value) ? value : (names.of(value) ?? value)}`,
+					: `${assetSymbol(value)} - ${isCryptoAsset(value) ? value : (names.of(value) ?? value)}`,
 				value,
 			};
 		});
@@ -40,7 +41,7 @@ export function CurrencySelect({
 			label={label}
 			onValueChange={onValueChange}
 			options={options}
-			placeholder={allowCrypto ? "Ex: BTC - Bitcoin" : "Ex: USD - Dólar americano"}
+			placeholder={allowCrypto ? "Ex: BTC - Bitcoin" : "Ex: US$ - Dólar americano"}
 			required
 			searchable
 			value={value}

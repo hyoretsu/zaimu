@@ -38,6 +38,17 @@ export interface FormatAssetOptions {
 	trim?: boolean;
 }
 
+/** Symbol shown for an asset: the currency symbol for fiat (R$), the code for crypto. */
+export function assetSymbol(asset: string, locale: string | readonly string[] = "pt-BR"): string {
+	const code = normalizeCurrency(asset);
+	if (isCryptoAsset(code)) return code;
+	return (
+		new Intl.NumberFormat(locale, { currency: code, style: "currency" })
+			.formatToParts(0)
+			.find(part => part.type === "currency")?.value ?? code
+	);
+}
+
 /** Single formatter for fiat and crypto. Accepts exact decimal strings or fiat numbers. */
 export function formatAsset(
 	amount: string | number,

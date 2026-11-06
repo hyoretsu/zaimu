@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { decimalToUnits } from "@zaimu/finance/asset-amount";
+import { assetSymbol, decimalToUnits } from "@zaimu/finance/asset-amount";
 import { useState } from "react";
 import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { Button } from "@/components/ui/Button";
@@ -183,7 +183,7 @@ export function BalanceAdjustmentForm({
 								label="Ativo"
 								onValueChange={setSelectedAsset}
 								options={holdings.map(asset => ({
-									label: asset.assetCode,
+									label: assetSymbol(asset.assetCode),
 									value: asset.assetCode,
 								}))}
 								placeholder="Selecione o ativo"

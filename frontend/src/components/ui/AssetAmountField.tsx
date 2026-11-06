@@ -1,4 +1,5 @@
-import { currencyDigits } from "@zaimu/finance/money";
+import { assetSymbol } from "@zaimu/finance/asset-amount";
+import { currencyDigits, isCryptoAsset } from "@zaimu/finance/money";
 import { useEffect, useState } from "react";
 import { NumericFormat } from "react-number-format";
 import { Input } from "./Input";
@@ -24,6 +25,8 @@ export function AssetAmountField({
 	required?: boolean;
 	value: string;
 }) {
+	const fiat = !isCryptoAsset(assetCode);
+	const symbol = assetSymbol(assetCode);
 	const [local, setLocal] = useState(value);
 	useEffect(() => setLocal(value), [value]);
 	return (
@@ -46,9 +49,10 @@ export function AssetAmountField({
 					setLocal(values.value);
 					if (source.source === "event") onValueChange(values.value);
 				}}
-				placeholder={`Ex: ${currencyDigits(assetCode) > 2 ? "0,00000001" : "150,00"} ${assetCode}`}
+				placeholder={`Ex: ${fiat ? `${symbol} ` : ""}${currencyDigits(assetCode) > 2 ? "0,00000001" : "150,00"}${fiat ? "" : ` ${symbol}`}`}
 				required={required}
-				suffix={` ${assetCode}`}
+				prefix={fiat ? `${symbol} ` : undefined}
+				suffix={fiat ? undefined : ` ${symbol}`}
 				thousandSeparator="."
 				value={local}
 				valueIsNumericString
