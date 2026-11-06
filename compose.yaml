@@ -2,6 +2,7 @@ name: zaimu
 
 services:
   dev:
+    container_name: zaimu-dev
     image: oven/bun:latest
     user: "${UID:-1000}:${GID:-1000}"
     working_dir: /app
