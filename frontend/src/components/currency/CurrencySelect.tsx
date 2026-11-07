@@ -32,6 +32,7 @@ export function CurrencySelect({
 				label: asset
 					? `${asset.symbol} - ${asset.name}`
 					: `${assetSymbol(value)} - ${isCryptoAsset(value) ? value : (names.of(value) ?? value)}`,
+				keywords: [value],
 				value,
 			};
 		});

@@ -305,8 +305,9 @@ export function CreateFinancialAccountDialog({
 		let error: string | null = null;
 		if (!institution || !countryCode) error = "Selecione instituição e país.";
 		if (requiresFiatCurrency(submittedHoldings) && (!currency || isCryptoAsset(currency)))
-			error = "Selecione uma moeda fiat.";
+			error = "Selecione uma moeda fiduciária.";
 		if (hasHoldings) {
+			if (submittedHoldings.length === 0) error = "Mantenha ao menos um ativo na conta.";
 			const codes = new Set<string>();
 			for (const holding of submittedHoldings) {
 				try {
@@ -531,7 +532,7 @@ export function CreateFinancialAccountDialog({
 								label={
 									type === "CREDIT_CARD"
 										? "Moeda do cartão"
-										: "Moeda fiat de rendimento / conversão"
+										: "Moeda fiduciária de rendimento / conversão"
 								}
 								onValueChange={setCurrency}
 								value={currency}
@@ -614,20 +615,18 @@ export function CreateFinancialAccountDialog({
 											required
 											value={holding.balance}
 										/>
-										{!holding.existing && (
-											<Button
-												className="justify-self-end"
-												onClick={() =>
-													setHoldings(rows =>
-														rows.filter(row => row.key !== holding.key),
-													)
-												}
-												type="button"
-												variant="outline"
-											>
-												<LuTrash2 /> Remover ativo
-											</Button>
-										)}
+										<Button
+											className="justify-self-end"
+											onClick={() =>
+												setHoldings(rows =>
+													rows.filter(row => row.key !== holding.key),
+												)
+											}
+											type="button"
+											variant="outline"
+										>
+											<LuTrash2 /> Remover ativo
+										</Button>
 									</div>
 								))}
 								<Button

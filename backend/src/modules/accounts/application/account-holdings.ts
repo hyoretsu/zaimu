@@ -33,11 +33,30 @@ export async function saveAccountHoldings(
 		`SELECT "assetCode" FROM "FinancialAccountAsset" WHERE "financialAccountId"=$1`,
 		[accountId],
 	);
-	if (
-		assets.length &&
-		current.some(holding => !assets.some(asset => asset.assetCode === holding.assetCode))
-	)
-		throw new HttpException("Preserve os ativos existentes da conta", 409);
+	if (assets.length) {
+		for (const holding of current.filter(
+			holding => !assets.some(asset => asset.assetCode === holding.assetCode),
+		)) {
+			const [used] = await queryRawDecimal(
+				`SELECT 1 FROM (
+ SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1 AND "assetCode"=$2
+ UNION ALL SELECT 1 FROM "Transaction" WHERE ("originFinancialAccountId"=$1 AND "bookingCurrency"=$2) OR ("destinationFinancialAccountId"=$1 AND COALESCE("destinationCurrency","bookingCurrency")=$2)
+ UNION ALL SELECT 1 FROM "FinancialAccountYield" WHERE "financialAccountId"=$1 AND "assetCode"=$2
+ UNION ALL SELECT 1 FROM "LoanPayment" WHERE "financialAccountId"=$1 AND COALESCE("accountCurrency","currency")=$2
+ ) history LIMIT 1`,
+				[accountId, holding.assetCode],
+			);
+			if (used)
+				throw new HttpException(
+					`O ativo ${holding.assetCode} possui histórico na conta e não pode ser removido`,
+					409,
+				);
+			await queryRawDecimal(
+				`DELETE FROM "FinancialAccountAsset" WHERE "financialAccountId"=$1 AND "assetCode"=$2`,
+				[accountId, holding.assetCode],
+			);
+		}
+	}
 	for (const holding of assets) {
 		await ensureAccountAssetCatalog(holding.assetCode);
 		const [asset] = await queryRawDecimal<{ kind: string; decimals: number }>(
@@ -66,6 +85,6 @@ export async function saveAccountHoldings(
 			`SELECT holding."assetCode" FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" WHERE holding."financialAccountId"=$1 AND holding."assetCode"=$2 AND asset."kind"='FIAT'`,
 			[accountId, yieldCurrency],
 		);
-		if (!fiat) throw new HttpException("Selecione um ativo fiat da conta para rendimento", 400);
+		if (!fiat) throw new HttpException("Selecione um ativo fiduciário da conta para rendimento", 400);
 	}
 }
