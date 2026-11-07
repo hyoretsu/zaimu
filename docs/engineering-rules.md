@@ -158,7 +158,7 @@ The native contract explicitly preserves JavaScript `Date` timestamp codecs, low
 
 `docker compose up -d` runs migration monitoring inside the development container
 through `scripts/dev-migration-watch.sh`; no Compose Watch or host service is needed.
-The `dev` service has a fixed `container_name` (`zaimu-dev`), so only one dev container exists and recreating it never leaves a hash-prefixed copy.
+The `dev` service sets no `container_name`; Compose derives the name from the project, so several checkouts can run side by side.
 The monitor polls migration and Prisma schema/config contents every five seconds,
 waits for two stable observations, then terminates PID 1. Docker's restart policy
 reruns contract emission and migration deployment before starting the application.
