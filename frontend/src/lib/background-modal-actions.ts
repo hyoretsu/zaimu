@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { getCurrentCacheIdentity } from "@/lib/query-cache";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/auth";
-import { completeModalActionGroup } from "./modal-action-completion";
+import { beginModalActionGroup, completeModalActionGroup } from "./modal-action-completion";
 import { captureCacheMutation, invalidateMutationCache } from "./mutation-cache";
 import type { CacheOperation } from "./query-cache";
 
@@ -151,6 +151,9 @@ export function runBackgroundModalAction<T>({
 			return { pending };
 		});
 	setPending(true);
+	const endGroupAction = completionGroup
+		? beginModalActionGroup(`${identity}:${completionGroup}`)
+		: () => {};
 	const path = window.location.pathname + window.location.search;
 	close();
 	const toastId = progress === "toast" ? toast.loading(loadingMessage) : undefined;
@@ -173,6 +176,7 @@ export function runBackgroundModalAction<T>({
 	void Promise.resolve()
 		.then(run)
 		.then(async result => {
+			endGroupAction();
 			if (!isCurrent()) return;
 			useModalRecoveryStore.setState(state => ({
 				entries: Object.fromEntries(
@@ -217,6 +221,7 @@ export function runBackgroundModalAction<T>({
 			}
 		})
 		.catch(async error => {
+			endGroupAction();
 			if (!isCurrent()) return;
 			const id = crypto.randomUUID();
 			const canRecover = identity !== null && isCurrent();
@@ -248,6 +253,7 @@ export function runBackgroundModalAction<T>({
 			});
 		})
 		.finally(() => {
+			endGroupAction();
 			setPending(false);
 		});
 }

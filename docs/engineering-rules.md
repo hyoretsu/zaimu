@@ -171,8 +171,8 @@ when that database is remote/shared.
 ## Action batching
 
 `shared/batch-policy.ts` explicitly registers independent list mutations. The shared SDK
-transport batches those routes through `POST /batch`: 300 ms debounce, maximum wait
-of one second, at most 50 operations and 1 MiB per envelope. Distinct actions retain
+transport batches those routes through `POST /batch`: 800 ms debounce (paced for consecutive human clicks), maximum wait
+of three seconds, at most 50 operations and 1 MiB per envelope. Distinct actions retain
 order; batches sharing a session and transport context execute sequentially. Other
 mutations drain overlapping pending batches before submission; unrelated actions stay available. Forms, auth and uploads stay immediate.
 
