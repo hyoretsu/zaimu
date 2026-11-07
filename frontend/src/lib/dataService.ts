@@ -1439,6 +1439,7 @@ export const dataService = {
 					}).then(result => result.data),
 				batchId =>
 					waitForImportBatch(
+						batchId,
 						() =>
 							getCreditCardImportsBatchByBatchId({ path: { batchId } }).then(
 								result => result.data,
@@ -4071,6 +4072,7 @@ export const dataService = {
 					}).then(result => result.data),
 				batchId =>
 					waitForImportBatch(
+						batchId,
 						() =>
 							getTransactionImportsBatchByBatchId({ path: { batchId } }).then(
 								result => result.data,

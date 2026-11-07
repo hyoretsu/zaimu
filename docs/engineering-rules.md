@@ -244,6 +244,7 @@ open clients through `GET /realtime/stream` (SSE, cookie-authenticated, hidden f
 `CacheInvalidationConsumer` publishes each domain event on a per-user Redis channel once the server cache is
 fresh, and the frontend (`lib/realtime.ts`) refetches the matching cache operations. A new asynchronous side
 effect needs its aggregate mapped in `lib/realtime-operations.ts`.
+Import batches are the exception: after each file the worker publishes `importBatch` (with the `batchId` as `aggregateId`) straight to the user channel, and `waitForImportBatch` re-reads the batch on that push and after every stream reconnect, keeping only a 20 s poll as a safety net.
 
 ## Assets and quotes
 
