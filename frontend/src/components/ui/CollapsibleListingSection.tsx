@@ -1,7 +1,6 @@
 import { type ReactNode, useId, useState } from "react";
 import { LuChevronDown, LuChevronUp } from "react-icons/lu";
 import { Button } from "./Button";
-import { ScrollArea } from "./ScrollArea";
 
 export function CollapsibleListingSection({
 	children,
@@ -56,9 +55,9 @@ export function CollapsibleListingSection({
 				<div className="grid min-h-0 min-w-0 gap-4">
 					{toolbar}
 					{containedScroll ? (
-						<ScrollArea className="h-[min(24rem,50dvh)] min-h-0 min-w-0" type="always">
+						<div className="max-h-[min(24rem,50dvh)] min-h-0 min-w-0 overflow-y-auto">
 							<div className="space-y-3 pr-3">{children}</div>
-						</ScrollArea>
+						</div>
 					) : (
 						<div className="space-y-3">{children}</div>
 					)}
