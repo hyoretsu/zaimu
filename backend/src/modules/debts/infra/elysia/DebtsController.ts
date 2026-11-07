@@ -342,7 +342,7 @@ export async function getPersonEventPage(
 	const installmentCounts = new Map<string, number>();
 	if (purchaseIds.length) {
 		const installments = await queryRows(
-			db.sql.public.CreditInstallmentRecord.select("purchaseId")
+			db.sql.public.CreditInstallmentPlan.select("purchaseId")
 				.where((fields, functions) => functions.in(fields.purchaseId, purchaseIds))
 				.build(),
 		);

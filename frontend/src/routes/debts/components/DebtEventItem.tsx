@@ -43,15 +43,11 @@ export function DebtEventItem({
 					{event.date || event.time ? " · " : ""}
 					{getDebtEventCreatorLabel(event)}
 				</p>
+				{installmentLabel ? <p className="text-muted-foreground text-xs">{installmentLabel}</p> : null}
 				<ul aria-label="Detalhes do lançamento" className="mt-1.5 flex list-none flex-wrap gap-1.5">
 					<li>
 						<AppBadge variant="outline">{getDebtEventKindLabel(event)}</AppBadge>
 					</li>
-					{installmentLabel ? (
-						<li>
-							<AppBadge variant="outline">{installmentLabel}</AppBadge>
-						</li>
-					) : null}
 					{event.dueDate ? (
 						<li>
 							<AppBadge variant="outline">
