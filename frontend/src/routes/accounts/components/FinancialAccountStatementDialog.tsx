@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LuPlus, LuScale } from "react-icons/lu";
+import { LuFileUp, LuPlus, LuScale } from "react-icons/lu";
+import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import {
@@ -72,6 +73,8 @@ export function FinancialAccountStatementDialog({
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [creatingTransaction, setCreatingTransaction] = useState(false);
 	const [adjustingBalance, setAdjustingBalance] = useState(false);
+	const [importOpen, setImportOpen] = useState(false);
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const yieldFilters = {
 		startDate: statement.hasNextPage ? statement.data?.pages.at(-1)?.days.at(-1)?.date : undefined,
@@ -244,6 +247,15 @@ export function FinancialAccountStatementDialog({
 										},
 									]
 								: []),
+							...(account.type !== "REWARDS"
+								? [
+										{
+											icon: LuFileUp,
+											label: "Importar extrato",
+											onClick: () => setImportOpen(true),
+										},
+									]
+								: []),
 							{
 								icon: LuPlus,
 								label: "Nova transação",
@@ -252,6 +264,21 @@ export function FinancialAccountStatementDialog({
 						]}
 					/>
 				</ActionGroup>
+				{account.type !== "REWARDS" && (
+					<>
+						<ImportTransactionsDialog
+							defaultFinancialAccountId={account.id}
+							onImported={setReviewingImportId}
+							onOpenChange={setImportOpen}
+							open={importOpen}
+						/>
+						<TransactionImportReviewDialog
+							importId={reviewingImportId}
+							onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
+							open={reviewingImportId !== null}
+						/>
+					</>
+				)}
 				<BalanceAdjustmentsDialog
 					account={account}
 					onOpenChange={setAdjustingBalance}
