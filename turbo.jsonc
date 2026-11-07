@@ -1,17 +1,16 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
-	"globalDependencies": ["scripts/test-runner.ts", "scripts/testing/**", "shared/**"],
 	"tasks": {
 		"backend#build": {
 			"dependsOn": ["^export", "generate"],
 			"env": ["DATABASE_URL"],
-			"inputs": ["scripts/inject.ts", "src/**", ".env*"],
+			"inputs": ["scripts/inject.ts", "src/**", ".env*", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 			"outputs": ["dist/**"],
 		},
 		"backend#check-types": {
 			"dependsOn": ["^export", "generate"],
-			"inputs": ["src/**", "performance/**/*.ts", "tsconfig*.json"],
+			"inputs": ["src/**", "performance/**/*.ts", "tsconfig*.json", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 		},
 		"backend#dev": {
@@ -22,7 +21,7 @@
 		},
 		"backend#export": {
 			"dependsOn": ["^export"],
-			"inputs": ["$TURBO_DEFAULT$", "!out/**"],
+			"inputs": ["$TURBO_DEFAULT$", "!out/**", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 			"outputs": ["out/openapi.json"],
 		},
@@ -52,13 +51,13 @@
 		"frontend#build": {
 			"dependsOn": ["generate"],
 			"env": ["DATABASE_URL", "VITE_API_URL", "VITE_APP_URL"],
-			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
+			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 			"outputs": ["build/**", "dist/**", "out/**", ".next/**", "!.next/cache/**"],
 		},
 		"frontend#check-types": {
 			"dependsOn": ["generate"],
-			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
+			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 		},
 		"frontend#dev": {
