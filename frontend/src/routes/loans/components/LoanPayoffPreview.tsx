@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { LuCalculator } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { viewBoolean } from "@/lib/view-state";
 export function LoanPayoffPreview({ loanId }: { loanId: string }) {
-	const [open, setOpen] = useUrlViewState(`loan.${loanId}.payoff`, false, viewBoolean);
+	const [open, setOpen] = useState(false);
 	const identity = useCacheIdentity();
 	const estimate = useQuery({
 		enabled: open && identity !== null,

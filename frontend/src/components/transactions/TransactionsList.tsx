@@ -1,11 +1,10 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { HiArrowsRightLeft } from "react-icons/hi2";
 import { LuLoaderCircle } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useUrlViewSet } from "@/hooks/use-url-view-state";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
@@ -63,7 +62,6 @@ interface TransactionsListProps {
 	onLoadMoreYields?: () => unknown;
 }
 export function TransactionsList({
-	viewKey = "transactions",
 	transactions,
 	yieldEntries = [],
 	dailyEndingBalances,
@@ -90,7 +88,7 @@ export function TransactionsList({
 	isFetchingMoreYields = false,
 	onLoadMoreYields,
 }: TransactionsListProps) {
-	const [expandedTransactionGroups, setExpandedTransactionGroups] = useUrlViewSet(`${viewKey}.groups`);
+	const [expandedTransactionGroups, setExpandedTransactionGroups] = useState<Set<string>>(() => new Set());
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const canLoadMoreTransactions =
 		hasMoreTransactions && !isFetchingMoreTransactions && !!onLoadMoreTransactions;

@@ -1,7 +1,5 @@
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { LuChevronDown, LuChevronUp } from "react-icons/lu";
-import { useUrlViewState } from "@/hooks/use-url-view-state";
-import { viewBoolean } from "@/lib/view-state";
 import { Button } from "./Button";
 import { ScrollArea } from "./ScrollArea";
 
@@ -12,7 +10,6 @@ export function CollapsibleListingSection({
 	summary,
 	title,
 	toolbar,
-	viewKey,
 }: {
 	children: ReactNode;
 	containedScroll?: boolean;
@@ -22,11 +19,7 @@ export function CollapsibleListingSection({
 	toolbar?: ReactNode;
 	viewKey?: string;
 }) {
-	const [expanded, setExpanded] = useUrlViewState(
-		`listing.${viewKey ?? title}.expanded`,
-		false,
-		viewBoolean,
-	);
+	const [expanded, setExpanded] = useState(false);
 	const contentId = useId();
 	return (
 		<section className="bg-card relative grid min-w-0 gap-4 rounded-2xl border p-4 sm:p-6">

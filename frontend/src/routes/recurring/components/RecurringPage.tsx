@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
-import { useUrlViewSet, useUrlViewState } from "@/hooks/use-url-view-state";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -46,7 +46,7 @@ export function RecurringPage() {
 		"all",
 		z.enum(["all", "INCOME", "EXPENSE", "TRANSFER"]),
 	);
-	const [expandedInactiveSections, setExpandedInactiveSections] = useUrlViewSet("sections");
+	const [expandedInactiveSections, setExpandedInactiveSections] = useState<Set<string>>(() => new Set());
 	const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
 	const markPending = (id: string, pending: boolean) =>
 		setPendingIds(current => {

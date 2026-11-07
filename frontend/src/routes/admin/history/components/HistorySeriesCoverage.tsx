@@ -1,10 +1,9 @@
+import { useState } from "react";
 import { LuChevronDown, LuChevronUp, LuDownload, LuRefreshCw } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
-import { useUrlViewState } from "@/hooks/use-url-view-state";
-import { viewBoolean } from "@/lib/view-state";
 import type { HistoryCoverageSeries } from "./types";
 import { useCoverageCompletion } from "./use-coverage-completion";
 
@@ -26,11 +25,7 @@ export function HistorySeriesCoverage({
 	endDate: string;
 }) {
 	const completion = useCoverageCompletion(data);
-	const [expanded, setExpanded] = useUrlViewState(
-		`history.${data.kind}.${data.series}.expanded`,
-		false,
-		viewBoolean,
-	);
+	const [expanded, setExpanded] = useState(false);
 	const months = new Map<string, HistoryCoverageSeries["days"]>();
 	for (const day of data.days) {
 		const month = day.date.slice(0, 7);

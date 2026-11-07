@@ -204,7 +204,7 @@ may scroll only the input's own ScrollArea, never a background page or parent mo
 ## URL view state
 
 Persist committed data-view controls through `frontend/src/hooks/use-url-view-state.ts`:
-search text, filters, date ranges, selected periods/tabs and listing disclosures.
+search text, filters, date ranges, selected periods/tabs.
 Use simple query parameters (`account`, `search`, `type`, `startDate`, `endDate`),
 never JSON objects or wrappers. Composite controls declare explicit field mappings;
 repeated selections use repeated parameters. Omit default and empty values.
@@ -212,7 +212,7 @@ Validate incoming values with schemas from `frontend/src/lib/view-state.ts` or d
 Use history replacement for every view change, preserving unrelated parameters,
 hashes, router state and the current page/modal. Filters must never add history steps.
 Modal opening retains its own history behavior. Keep draft form values, transient
-popover searches, hover state and automatic infinite-scroll pagination local.
+popover searches, hover state, collapsed/expanded sections and automatic infinite-scroll pagination local.
 Follow AGENTS.md "URL state relevance": load-more counters, previous/next expansion
 counts, cursors and loaded-window size/radius must remain local, never persisted.
 
