@@ -504,6 +504,8 @@ Compras importadas aceitam impostos discriminados, inclusive IOF sobre compras e
 
 Importadores de fatura, atuais e futuros, nunca classificam IOF ou outros impostos de compra como encargo da fatura por padrão, nem os associam automaticamente a uma compra. O item vindo do PDF (ex.: "IOF INTERNACIONAL") permanece sem classificação até o usuário decidir na revisão: associá-lo a uma compra como imposto (valor integra a compra) ou marcá-lo explicitamente como encargo da fatura. Somente IOF de financiamento, juros e multa do banco são encargos da fatura de origem. A edição do item deve oferecer as duas opções, e o rótulo "Encargo da fatura" só aparece após escolha explícita.
 
+O seletor de compras para associar o imposto lista nome e data de cada compra, da mais recente para a mais antiga; quando o nome está em branco usa o nome da loja, sem hífen sobrando.
+
 ## Associação de lançamentos a recorrências
 
 Transações e compras existentes podem ser associadas explicitamente a uma recorrência

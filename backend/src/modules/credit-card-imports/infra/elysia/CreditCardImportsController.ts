@@ -521,6 +521,8 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 									description: row.description,
 									id: row.purchaseId,
 									installmentAmount: row.installmentAmount,
+									purchaseDate: row.purchaseDate,
+									storeName: row.storeName ?? null,
 								},
 							]
 						: [],
@@ -528,7 +530,13 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 		},
 		{
 			response: t.Array(
-				t.Object({ description: t.String(), id: t.String(), installmentAmount: t.Number() }),
+				t.Object({
+					description: t.String(),
+					id: t.String(),
+					installmentAmount: t.Number(),
+					purchaseDate: t.String(),
+					storeName: t.Nullable(t.String()),
+				}),
 			),
 		},
 	)

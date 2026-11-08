@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { type CreditCardImportItem, getCreditCardImportsByIdTaxSources } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { formatLocalDate } from "@/lib/date";
 import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCacheIdentity } from "@/lib/query-cache";
 
@@ -42,7 +43,7 @@ export function ImportedTaxPurchaseSelect({
 						item.installmentAmount > 0 &&
 						!item.metadataMissing?.length,
 				),
-			];
+			].sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate));
 		},
 		queryKey: [identity, "import-tax-purchases", importId, itemId],
 		staleTime: 0,
@@ -60,7 +61,13 @@ export function ImportedTaxPurchaseSelect({
 				options={[
 					{ label: "Não associar", special: true, value: "" },
 					...(purchases.data ?? []).map(item => ({
-						label: `${item.description} - ${createCurrencyFormatter(currencyCode, "pt-BR").format(item.installmentAmount)}`,
+						label: [
+							item.description.trim() || item.storeName?.trim(),
+							formatLocalDate(item.purchaseDate),
+							createCurrencyFormatter(currencyCode, "pt-BR").format(item.installmentAmount),
+						]
+							.filter(Boolean)
+							.join(" - "),
 						value: item.id,
 					})),
 				]}
