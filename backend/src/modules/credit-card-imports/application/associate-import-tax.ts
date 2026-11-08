@@ -7,6 +7,12 @@ import { associateImportTax, readImportTaxes } from "../domain/import-purchase-t
 import { rememberImportIdentity } from "./import-identities";
 import { cleanupItemTags } from "./import-service";
 
+// Raw queries return the stored JSON as is, and legacy rows hold the double-encoded default string "[]".
+function readMetadataMissing(value: unknown): string[] {
+	const parsed = typeof value === "string" ? (JSON.parse(value) as unknown) : value;
+	return Array.isArray(parsed) ? (parsed as string[]) : [];
+}
+
 export async function associateImportedTax(
 	userId: string,
 	importId: string,
@@ -38,10 +44,9 @@ export async function associateImportedTax(
 			[taxId, purchaseId],
 		]);
 		const tax = items.find(item => item.id === taxId);
-		const unresolvedTaxMetadata =
-			(tax?.metadataMissing as string[] | undefined)?.filter(
-				field => !reviewed?.resolvedMetadata?.includes(field),
-			) ?? [];
+		const unresolvedTaxMetadata = readMetadataMissing(tax?.metadataMissing).filter(
+			field => !reviewed?.resolvedMetadata?.includes(field),
+		);
 		const purchase = items.find(item => item.id === purchaseId);
 		if (tax && !purchase) {
 			if (
@@ -103,7 +108,7 @@ export async function associateImportedTax(
 			readImportTaxes(tax.taxes).length ||
 			readImportTaxes(purchase.taxes).length >= 20 ||
 			unresolvedTaxMetadata.length ||
-			(purchase.metadataMissing as string[]).length
+			readMetadataMissing(purchase.metadataMissing).length
 		)
 			throw new HttpException("Selecione um imposto e uma compra da mesma fatura", 400);
 		const result = associateImportTax(
