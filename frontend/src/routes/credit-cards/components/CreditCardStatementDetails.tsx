@@ -269,12 +269,14 @@ export function CreditCardStatementDetails({
 								}
 							</strong>
 							{!isIgnored && carriedOutAmount > 0 && (
-								<p className="text-muted-foreground mt-1 text-xs">
-									Saldo transposto:{" "}
-									<PreferredMoneyAmount
-										values={[{ amount: carriedOutAmount, currency: currencyCode }]}
-									/>
-								</p>
+								<div className="mt-2">
+									<p className="text-muted-foreground text-xs">Saldo transposto</p>
+									<strong className="block text-2xl tabular-nums">
+										<PreferredMoneyAmount
+											values={[{ amount: carriedOutAmount, currency: currencyCode }]}
+										/>
+									</strong>
+								</div>
 							)}
 							{!isIgnored && (statement.creditInAmount ?? 0) > 0 && (
 								<p className="text-muted-foreground mt-1 text-xs">
@@ -295,7 +297,7 @@ export function CreditCardStatementDetails({
 								</p>
 							)}
 							{displayedStatement.manualTotalAmount != null && (
-								<p className="text-muted-foreground mt-1 text-xs">
+								<p className="text-muted-foreground mt-1 text-sm">
 									Valor original:{" "}
 									<PreferredMoneyAmount
 										values={[
@@ -311,7 +313,7 @@ export function CreditCardStatementDetails({
 							{!isIgnored &&
 								displayedStatement.status !== "CARRIED" &&
 								Math.abs(invoiceAmount - remainingAmount) > 0.001 && (
-									<p className="text-muted-foreground mt-1 text-xs">
+									<p className="text-muted-foreground mt-1 text-sm">
 										{remainingAmount < 0 ? "Crédito" : "Restante a pagar"}:{" "}
 										{
 											<PreferredMoneyAmount
