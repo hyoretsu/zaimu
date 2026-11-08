@@ -60,7 +60,7 @@ export function CreditPurchaseRow({
 					{purchase.isRefund ? " · Reembolso" : ""}
 					{purchase.isReimbursed ? " · Reembolsada" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
-					{purchase.isStatementCharge ? " · Encargo da fatura" : ""}
+					{purchase.isStatementCharge ? " · Juros e encargos" : ""}
 					{purchase.installments > 1
 						? ` · ${purchase.currentInstallment}/${purchase.installments}`
 						: ""}

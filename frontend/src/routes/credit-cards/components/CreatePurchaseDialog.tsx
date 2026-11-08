@@ -250,7 +250,7 @@ export function CreatePurchaseDialog({
 								},
 							}}
 						>
-							<span>Encargo da fatura (juros, multa ou IOF)</span>
+							<span>Encargos da fatura (juros, multa ou IOF)</span>
 						</CheckboxField>
 						<div className="grid gap-3 rounded-2xl border p-3">
 							<CheckboxField
