@@ -295,7 +295,7 @@ export function CreditCardStatementDetails({
 								</p>
 							)}
 							{displayedStatement.manualTotalAmount != null && (
-								<p className="text-muted-foreground mt-1 text-sm">
+								<p className="text-muted-foreground mt-1 text-xs">
 									Valor original:{" "}
 									<PreferredMoneyAmount
 										values={[
@@ -308,18 +308,23 @@ export function CreditCardStatementDetails({
 								</p>
 							)}
 
-							{!isIgnored && Math.abs(invoiceAmount - remainingAmount) > 0.001 && (
-								<p className="text-muted-foreground mt-1 text-sm">
-									{remainingAmount < 0 ? "Crédito" : "Restante a pagar"}:{" "}
-									{
-										<PreferredMoneyAmount
-											values={[
-												{ amount: Math.abs(remainingAmount), currency: currencyCode },
-											]}
-										/>
-									}
-								</p>
-							)}
+							{!isIgnored &&
+								displayedStatement.status !== "CARRIED" &&
+								Math.abs(invoiceAmount - remainingAmount) > 0.001 && (
+									<p className="text-muted-foreground mt-1 text-xs">
+										{remainingAmount < 0 ? "Crédito" : "Restante a pagar"}:{" "}
+										{
+											<PreferredMoneyAmount
+												values={[
+													{
+														amount: Math.abs(remainingAmount),
+														currency: currencyCode,
+													},
+												]}
+											/>
+										}
+									</p>
+								)}
 						</div>
 						<div className="grid grid-cols-2 gap-2 border-t pt-2">
 							<div className="min-w-0">
