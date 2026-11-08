@@ -200,7 +200,7 @@ export function CreditCardsPage() {
 			<SuggestionHubDialog
 				onOpenChange={setIsSuggestionOpen}
 				open={isSuggestionOpen}
-				types={["CARD_RULES", "POLICY", "MERGE", "NEW_INSTITUTION"] satisfies SuggestionType[]}
+				types={["CARD_RULES", "POLICY", "MERGE", "NEW_INSTITUTION", "EDIT_INSTITUTION"] satisfies SuggestionType[]}
 			/>
 			<PendingNotices onReviewCreditCardImport={setReviewingImportId} paymentSuggestions />
 			<section className="grid gap-4 sm:grid-cols-2">

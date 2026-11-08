@@ -1,4 +1,6 @@
 import { countryCurrencies } from "@zaimu/finance/country-currencies";
+import { countryCurrency } from "@zaimu/finance/currency-preference";
+import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
@@ -10,6 +12,7 @@ import { assertFinancialInstitutionYieldPolicy } from "../domain/assert-financia
 import { assertInstitutionReview } from "../domain/assert-institution-review";
 import { normalizeFinancialInstitutionName } from "../domain/normalize-financial-institution-name";
 import { consolidateYieldPolicyTimeline } from "./consolidate-yield-policy-timeline";
+import { normalizeInstitutionUpdatePayload } from "./institution-update-payload";
 import {
 	assertInstitutionCardRules,
 	type RawQuery,
@@ -58,6 +61,7 @@ export async function proposeInstitution(
 		payload = { ...payload, name };
 	}
 	if (kind === "CARD_RULES") assertInstitutionCardRules(payload.rules as never);
+	if (kind === "INSTITUTION_UPDATE") payload = normalizeInstitutionUpdatePayload(payload);
 	return withRawTransaction(async query => {
 		await assertPendingProposalLimit(query, userId);
 		let version: number | null = null;
@@ -209,18 +213,25 @@ export async function reviewInstitutionProposal(
 		} else if (action === "APPROVE") {
 			if (proposal.kind === "NEW_INSTITUTION" || proposal.kind === "INSTITUTION_UPDATE") {
 				const name = normalizeFinancialInstitutionName(String(payload.name ?? institution.name));
+				const countries = payload.operatingCountryCodes as string[] | undefined;
+				// A single operating country suggests the institution currency, like the admin catalog editor.
+				const countryDerivedCurrency =
+					countries?.length === 1 && !payload.currency
+						? countryCurrency(countries[0]!, await supportedCurrencies())
+						: null;
 				await query(
-					`UPDATE "FinancialInstitution" SET "name"=$2,"normalizedName"=$3,"currency"=$4,"creditInstallmentRemainderOnFirst"=$5,"operatingCountryCodes"=$6,"creditStatementClosingInclusive"=$7,"status"='APPROVED',"userId"=NULL,"version"="version"+1,"updatedAt"=NOW() WHERE "id"=$1`,
+					`UPDATE "FinancialInstitution" SET "name"=$2,"normalizedName"=$3,"currency"=$4,"creditInstallmentRemainderOnFirst"=$5,"operatingCountryCodes"=$6,"creditStatementClosingInclusive"=$7,"aliases"=$8::varchar[],"status"='APPROVED',"userId"=NULL,"version"="version"+1,"updatedAt"=NOW() WHERE "id"=$1`,
 					[
 						institution.id,
 						name.name,
 						name.normalizedName,
-						payload.currency ?? institution.currency,
+						payload.currency ?? countryDerivedCurrency ?? institution.currency,
 						payload.creditInstallmentRemainderOnFirst ??
 							institution.creditInstallmentRemainderOnFirst,
 						payload.operatingCountryCodes ?? institution.operatingCountryCodes,
 						payload.creditStatementClosingInclusive ??
 							institution.creditStatementClosingInclusive,
+						payload.aliases ?? institution.aliases ?? [],
 					],
 				);
 			} else if (proposal.kind === "PROFILE") {

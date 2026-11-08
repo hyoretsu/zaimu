@@ -178,7 +178,7 @@ export function AccountsPage() {
 				onOpenChange={setIsSuggestionOpen}
 				open={isSuggestionOpen}
 				types={
-					["NEW_INSTITUTION", "PROFILE", "POLICY", "CARD_RULES", "MERGE"] satisfies SuggestionType[]
+					["NEW_INSTITUTION", "EDIT_INSTITUTION", "PROFILE", "POLICY", "CARD_RULES", "MERGE"] satisfies SuggestionType[]
 				}
 			/>
 			<PendingNotices onReviewTransactionImport={setReviewingImportId} />

@@ -271,6 +271,28 @@ describe("universal institution review and calendar coverage", () => {
 		await reviewInstitutionProposal("admin", two.id, "APPROVE", undefined, undefined, current.version);
 		expect((await visibleInstitution("owner", draft.institutionId)).name).toBe("Review Bank B");
 	});
+	test("update proposal changes only the suggested fields once approved", async () => {
+		const draft = await proposeInstitution("owner", null, "NEW_INSTITUTION", {
+			currency: "USD",
+			name: "Edit Bank",
+			operatingCountryCodes: ["US"],
+		});
+		await reviewInstitutionProposal("admin", draft.id, "APPROVE");
+		const proposal = await proposeInstitution("other", draft.institutionId, "INSTITUTION_UPDATE", {
+			operatingCountryCodes: ["US", "BR"],
+		});
+		expect(proposal.status).toBe("PENDING");
+		expect((await visibleInstitution("other", draft.institutionId)).name).toBe("Edit Bank");
+		await reviewInstitutionProposal("admin", proposal.id, "APPROVE");
+		const [after] = await queryRaw<{ name: string; operatingCountryCodes: string[] }>(
+			`SELECT "name","operatingCountryCodes" FROM "FinancialInstitution" WHERE "id"=$1`,
+			[draft.institutionId],
+		);
+		expect(after).toMatchObject({ name: "Edit Bank", operatingCountryCodes: ["US", "BR"] });
+		await expect(proposeInstitution("other", draft.institutionId, "INSTITUTION_UPDATE", {})).rejects.toThrow(
+			"Nenhuma alteração",
+		);
+	});
 	test("merge requires explicit profile resolution and preserves private account source", async () => {
 		const source = await proposeInstitution("owner", null, "NEW_INSTITUTION", {
 			currency: "USD",

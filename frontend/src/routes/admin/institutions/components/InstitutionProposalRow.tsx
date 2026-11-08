@@ -12,6 +12,7 @@ import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import type { InstitutionProposal } from "./InstitutionReviewQueue";
+import { InstitutionUpdateDiff } from "./ProposalDiff";
 import { MergeProfileResolution, type ProfileResolution } from "./MergeProfileResolution";
 
 const labels: Record<string, string> = {
@@ -75,22 +76,26 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 				{proposal.baseVersion ?? "Nova"} - Versão atual: {proposal.version ?? "Nova"}
 				{proposal.effectiveDate ? ` - Vigência: ${proposal.effectiveDate.slice(0, 10)}` : ""}
 			</p>
-			<dl className="grid min-w-0 gap-2 text-sm">
-				{Object.entries(proposal.payload).map(([key, value]) => (
-					<div className="min-w-0 break-words" key={key}>
-						<dt className="font-medium">{key}</dt>
-						<dd>
-							Atual:{" "}
-							{JSON.stringify(
-								Object.entries(current ?? {}).find(
-									([field]) => field === (key === "rules" ? "creditCardRules" : key),
-								)?.[1],
-							) ?? "Sem valor"}{" "}
-							- Proposto: {JSON.stringify(value)}
-						</dd>
-					</div>
-				))}
-			</dl>
+			{proposal.kind === "INSTITUTION_UPDATE" ? (
+				<InstitutionUpdateDiff current={current} payload={proposal.payload} />
+			) : (
+				<dl className="grid min-w-0 gap-2 text-sm">
+					{Object.entries(proposal.payload).map(([key, value]) => (
+						<div className="min-w-0 break-words" key={key}>
+							<dt className="font-medium">{key}</dt>
+							<dd>
+								Atual:{" "}
+								{JSON.stringify(
+									Object.entries(current ?? {}).find(
+										([field]) => field === (key === "rules" ? "creditCardRules" : key),
+									)?.[1],
+								) ?? "Sem valor"}{" "}
+								- Proposto: {JSON.stringify(value)}
+							</dd>
+						</div>
+					))}
+				</dl>
+			)}
 			{proposal.reason && <p className="text-sm">Resultado: {proposal.reason}</p>}
 			{proposal.status === "PENDING" && (
 				<>
