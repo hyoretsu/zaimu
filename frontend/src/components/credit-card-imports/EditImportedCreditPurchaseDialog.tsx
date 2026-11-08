@@ -195,7 +195,7 @@ export function EditImportedCreditPurchaseDialog({
 								taxes={taxes}
 							/>
 						)}
-						{item.installments === 1 && item.installmentAmount > 0 && !item.taxes?.length && (
+						{!isStatementCharge && item.installments === 1 && item.installmentAmount > 0 && !item.taxes?.length && (
 							<ImportedTaxPurchaseSelect
 								currencyCode={currencyCode}
 								importId={importId}
@@ -210,12 +210,15 @@ export function EditImportedCreditPurchaseDialog({
 								id: "imported-purchase-is-charge",
 								onCheckedChange: checked => {
 									setIsStatementCharge(checked === true);
-									if (checked) setTaxes([]);
+									if (checked) {
+										setTaxes([]);
+										setTaxPurchaseItemId("");
+									}
 									if (checked) setIsDebt(false);
 								},
 							}}
 						>
-							Encargo da fatura (juros, multa ou tarifas)
+							Encargos da fatura (juros, multa ou tarifas)
 						</CheckboxField>
 						<div className="grid gap-3 rounded-2xl border p-3">
 							<CheckboxField
@@ -282,7 +285,7 @@ export function EditImportedCreditPurchaseDialog({
 							}
 							onSubmit({
 								taxes: isStatementCharge ? [] : submittedTaxes,
-								...(taxPurchaseItemId ? { taxPurchaseItemId } : {}),
+								...(taxPurchaseItemId && !isStatementCharge ? { taxPurchaseItemId } : {}),
 								debtSplit: isDebt && !isStatementCharge ? debtSplit : null,
 								description: description.trim(),
 								installments: installmentCount,
