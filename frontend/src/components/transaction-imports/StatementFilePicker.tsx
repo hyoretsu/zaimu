@@ -66,7 +66,7 @@ export function StatementFilePicker({
 				htmlFor={inputId}
 			>
 				<LuFileUp className="shrink-0" />
-				<span>Selecionar arquivos ou arrastar PDFs</span>
+				<span>Selecionar arquivos</span>
 			</Label>
 			<ul className="grid gap-1">
 				{files.map((file, index) => (
