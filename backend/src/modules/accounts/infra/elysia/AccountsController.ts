@@ -486,10 +486,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						: countryPreference?.preferredCountry);
 				if (!countryCode || !supportedCountryCodes.includes(countryCode))
 					throw new HttpException("Selecione o país da conta", 400);
-				const currency =
-					body.currency
-						? await assertSupportedCurrency(body.currency)
-						: (countryCurrency(countryCode, await supportedCurrencies()) ?? effectiveCurrency);
+				const currency = body.currency
+					? await assertSupportedCurrency(body.currency)
+					: (countryCurrency(countryCode, await supportedCurrencies()) ?? effectiveCurrency);
 				await ensureAccountCoverage(currency, countryCode);
 				if (body.rewardsAccount)
 					assertRewardsAccountDetails(
@@ -587,14 +586,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				);
 				if (!account) throw new HttpException("FinancialAccount not created", 500);
 				if (type !== "CREDIT_CARD" && body.rewardsAccount?.kind !== "POINTS")
-				{
 					await saveAccountHoldings(account.id, body.assets ?? []);
-					const [derived] = await queryRaw<{ yieldCurrency: string | null }>(
-						`SELECT "yieldCurrency" FROM "FinancialAccount" WHERE "id"=$1`,
-						[account.id],
-					);
-					Object.assign(account, { yieldCurrency: derived?.yieldCurrency ?? null });
-				}
 				Object.assign(account, { assets: await accountHoldings(userId, account.id) });
 				await queryRaw(`UPDATE "FinancialAccount" SET "countryCode"=$2 WHERE "id"=$1`, [
 					account.id,
@@ -834,25 +826,6 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							);
 					}
 				}
-				if (body.currency && body.currency.toUpperCase() !== existing.yieldCurrency) {
-					const [history] = await queryRaw<{ used: boolean }>(
-						`SELECT EXISTS(SELECT 1 FROM "Transaction" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1) OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" p JOIN "CreditCard" c ON c."id"=p."creditCardId" WHERE c."financialAccountId"=$1) OR EXISTS(SELECT 1 FROM "BalanceAdjustment" WHERE "financialAccountId"=$1)
-OR EXISTS(SELECT 1 FROM "FinancialAccount" WHERE "id"=$1 AND EXISTS(SELECT 1 FROM "FinancialAccountAsset" holding WHERE holding."financialAccountId"="FinancialAccount"."id" AND holding."balance"<>0))
-OR EXISTS(SELECT 1 FROM "CreditPurchaseRecord" WHERE "cashbackAccountId"=$1)
-OR EXISTS(SELECT 1 FROM "CreditCard" WHERE "cashbackAccountId"=$1)
-OR EXISTS(SELECT 1 FROM "FinancialAccountYield" WHERE "financialAccountId"=$1)
-OR EXISTS(SELECT 1 FROM "LoanPayment" WHERE "financialAccountId"=$1)
-OR EXISTS(SELECT 1 FROM "Recurrence" WHERE "originFinancialAccountId"=$1 OR "destinationFinancialAccountId"=$1 OR "creditCardId" IN (SELECT "id" FROM "CreditCard" WHERE "financialAccountId"=$1))
-OR EXISTS(SELECT 1 FROM "CreditCard" WHERE "financialAccountId"=$1 AND COALESCE("securityDeposit",0)>0)
-OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s."creditCardId" WHERE c."financialAccountId"=$1 AND (s."totalAmount"<>0 OR s."paidAmount"<>0)) AS used`,
-						[params.id],
-					);
-					if (history?.used)
-						throw new HttpException(
-							"Conta possui histórico, saldo ou compromissos. Crie outro cadastro para usar outra moeda",
-							409,
-						);
-				}
 				if (body.creditCard && existing.type !== "CREDIT_CARD")
 					throw new HttpException(
 						"Dados de cartão exigem uma conta do tipo cartão de crédito",
@@ -986,14 +959,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 						.build(),
 				);
 				if (!account) throw new HttpException("FinancialAccount not found", 404);
-				if (body.assets) {
-					await saveAccountHoldings(account.id, body.assets);
-					const [derived] = await queryRaw<{ yieldCurrency: string | null }>(
-						`SELECT "yieldCurrency" FROM "FinancialAccount" WHERE "id"=$1`,
-						[account.id],
-					);
-					Object.assign(account, { yieldCurrency: derived?.yieldCurrency ?? null });
-				}
+				if (body.assets) await saveAccountHoldings(account.id, body.assets);
 				Object.assign(account, { assets: await accountHoldings(userId, account.id) });
 				Object.assign(account, await saveAccountDefaults(userId, account.id, body));
 				const yieldChanged =

@@ -79,6 +79,12 @@ async function attachAccountAsset(
 		`INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ($1,$2,0) ON CONFLICT ("financialAccountId","assetCode") DO NOTHING`,
 		[accountId, assetCode],
 	);
+	// The default currency is user-chosen; only fill it in when the account has none yet.
+	if (asset.kind === "FIAT")
+		await queryRawDecimal(
+			`UPDATE "FinancialAccount" SET "yieldCurrency"=$2 WHERE "id"=$1 AND "yieldCurrency" IS NULL`,
+			[accountId, assetCode],
+		);
 }
 
 export async function assertFiatHolding(accountId: string, assetCode: string, userId?: string) {

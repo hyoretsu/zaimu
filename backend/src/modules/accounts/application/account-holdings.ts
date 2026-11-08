@@ -22,10 +22,7 @@ export async function accountHoldings(userId: string, accountId: string) {
 }
 
 /** Holdings are denomination declarations, never an alternative ledger write API. */
-export async function saveAccountHoldings(
-	accountId: string,
-	assets: AccountHoldingInput[] | undefined,
-) {
+export async function saveAccountHoldings(accountId: string, assets: AccountHoldingInput[] | undefined) {
 	const declared = assets ?? [];
 	if (new Set(declared.map(asset => asset.assetCode)).size !== declared.length)
 		throw new HttpException("Ativos duplicados", 400);
@@ -81,16 +78,4 @@ export async function saveAccountHoldings(
 				[accountId, holding.assetCode, crypto.randomUUID(), balance],
 			);
 	}
-	await syncPrimaryYieldCurrency(accountId);
-}
-
-/** `yieldCurrency` is server-derived: the primary fiat holding (kept when still held, else the first one). Accounts without fiat holdings keep their value. */
-export async function syncPrimaryYieldCurrency(accountId: string) {
-	await queryRawDecimal(
-		`UPDATE "FinancialAccount" account SET "yieldCurrency"=COALESCE(
- (SELECT holding."assetCode" FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=account."id" AND holding."assetCode"=account."yieldCurrency"),
- (SELECT holding."assetCode" FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=account."id" ORDER BY holding."assetCode" LIMIT 1),
- account."yieldCurrency") WHERE account."id"=$1`,
-		[accountId],
-	);
 }
