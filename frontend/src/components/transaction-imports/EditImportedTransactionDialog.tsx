@@ -14,6 +14,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { DebtSplitInput, FinancialAccount, TransactionImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
@@ -125,7 +126,7 @@ export function EditImportedTransactionDialog({
 			? draft.destinationFinancialAccountId
 			: draft.originFinancialAccountId;
 
-	const currencyCode = accounts.find(account => account.id === primaryAccountId)?.yieldCurrency ?? "BRL";
+	const currencyCode = primaryCurrency(accounts.find(account => account.id === primaryAccountId)) ?? "BRL";
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open={open}>
 			<ImportDialogContent className="sm:max-w-lg">

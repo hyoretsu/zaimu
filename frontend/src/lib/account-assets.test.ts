@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { groupAccountAssets, normalizeAccountAssets, replayAccountAssets } from "./account-assets";
+import {
+	fiatAccountBalance,
+	groupAccountAssets,
+	normalizeAccountAssets,
+	primaryCurrency,
+	replayAccountAssets,
+} from "./account-assets";
 import type { FinancialAccount } from "./api";
 import { calculateFinancialAccountBalances } from "./financial-account";
 
@@ -181,4 +187,38 @@ test("daily totals retain all native assets across wallets without quote convers
 		{ amount: "0.000000000000000002", currency: "ETH" },
 		{ amount: "0.00000001", currency: "BTC" },
 	]);
+});
+
+test("primary currency is the first fiat holding, then card, rewards asset and legacy column", () => {
+	expect(
+		primaryCurrency({
+			assets: [
+				{ assetCode: "BTC", balance: "1" },
+				{ assetCode: "USD", balance: "1" },
+				{ assetCode: "BRL", balance: "1" },
+			],
+			yieldCurrency: "JPY",
+		}),
+	).toBe("USD");
+	expect(primaryCurrency({ assets: [], creditCard: { currency: "EUR" }, yieldCurrency: "JPY" })).toBe(
+		"EUR",
+	);
+	expect(primaryCurrency({ assets: [], rewardsAccount: { assetCode: "BTC" }, yieldCurrency: "JPY" })).toBe(
+		"BTC",
+	);
+	expect(primaryCurrency({ yieldCurrency: "JPY" })).toBe("JPY");
+	expect(primaryCurrency(null)).toBeNull();
+});
+
+test("fiat balance reads the primary fiat position", () => {
+	expect(
+		fiatAccountBalance({
+			assets: [
+				{ assetCode: "BRL", balance: "10.5" },
+				{ assetCode: "USD", balance: "2" },
+				{ assetCode: "BTC", balance: "1" },
+			],
+			yieldCurrency: "BRL",
+		}),
+	).toBe(10.5);
 });

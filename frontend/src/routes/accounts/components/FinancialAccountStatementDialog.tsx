@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/Dialog";
 import { FloatingActionMenu } from "@/components/ui/FloatingActionMenu";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import type { MoneyPosition } from "@/lib/consolidated-money";
@@ -110,7 +111,10 @@ export function FinancialAccountStatementDialog({
 	for (const entry of yieldEntries) {
 		if (!dailyEndingBalances.has(entry.date) && entry.endingBalance !== undefined) {
 			dailyEndingBalances.set(entry.date, [
-				{ amount: entry.endingBalance, currency: entry.currency ?? account.yieldCurrency ?? "BRL" },
+				{
+					amount: entry.endingBalance,
+					currency: entry.currency ?? primaryCurrency(account) ?? "BRL",
+				},
 			]);
 		}
 	}
@@ -176,13 +180,13 @@ export function FinancialAccountStatementDialog({
 						{account.type === "REWARDS" && (
 							<DetachedRewardHistory
 								accountId={account.id}
-								currency={account.yieldCurrency ?? "BRL"}
+								currency={primaryCurrency(account) ?? "BRL"}
 								points={account.rewardsAccount?.kind === "POINTS"}
 							/>
 						)}
 						<TransactionsList
 							canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
-							currencyCode={account.yieldCurrency ?? "BRL"}
+							currencyCode={primaryCurrency(account) ?? "BRL"}
 							dailyEndingBalances={dailyEndingBalances}
 							hasMoreTransactions={statement.hasNextPage}
 							hasMoreYields={yields.hasNextPage}

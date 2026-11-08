@@ -20,6 +20,7 @@ import {
 } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { addDays, format, startOfDay } from "date-fns";
+import { fiatAssets, primaryCurrency } from "./account-assets";
 import type { DashboardPeriod, FinancialAccountYield } from "./api";
 import { activeCurrency } from "./currency-context";
 import { valueAssetPosition } from "./currency-conversion";
@@ -132,11 +133,12 @@ export async function getGuestDashboardFinancialContext(
 								asset.assetCode === account.yieldCurrency
 									? account.id
 									: `${account.id}:${asset.assetCode}`,
-							yieldFixedRate:
-								asset.assetCode === account.yieldCurrency ? account.yieldFixedRate : null,
+							// Yield settings apply to every fiat holding; lots are tracked for the primary one.
+							yieldFixedRate: isCryptoAsset(asset.assetCode) ? null : account.yieldFixedRate,
 							yieldLots: asset.assetCode === account.yieldCurrency ? account.yieldLots : [],
-							yieldReferenceType:
-								asset.assetCode === account.yieldCurrency ? account.yieldReferenceType : null,
+							yieldReferenceType: isCryptoAsset(asset.assetCode)
+								? null
+								: account.yieldReferenceType,
 						})),
 					),
 				),
@@ -198,7 +200,10 @@ export async function getGuestDashboardFinancialContext(
 				.filter(account =>
 					[row.originFinancialAccountId, row.destinationFinancialAccountId].includes(account.id),
 				)
-				.flatMap(account => (account.yieldCurrency ? [account.yieldCurrency] : [])),
+				.flatMap(account => {
+					const code = primaryCurrency(account);
+					return code ? [code] : [];
+				}),
 			...cards.filter(card => card.id === row.creditCardId).map(card => card.currency ?? "BRL"),
 		]),
 		...futureCardBooks.map(row => row.data.card.currency ?? "BRL"),
@@ -209,7 +214,10 @@ export async function getGuestDashboardFinancialContext(
 				.filter(account =>
 					[row.originFinancialAccountId, row.destinationFinancialAccountId].includes(account.id),
 				)
-				.flatMap(account => (account.yieldCurrency ? [account.yieldCurrency] : [])),
+				.flatMap(account => {
+					const code = primaryCurrency(account);
+					return code ? [code] : [];
+				}),
 		]),
 	];
 	if (
@@ -220,8 +228,8 @@ export async function getGuestDashboardFinancialContext(
 		budgets.length
 	)
 		forecastCurrencies.push(
-			accounts.find(row => row.isPrimary)?.yieldCurrency ??
-				accounts.find(row => row.type === "CHECKING" || row.type === "CASH")?.yieldCurrency ??
+			primaryCurrency(accounts.find(row => row.isPrimary)) ??
+				primaryCurrency(accounts.find(row => row.type === "CHECKING" || row.type === "CASH")) ??
 				currency,
 		);
 	const forecastMoney = await guestDashboardCurrencyContext({
@@ -387,13 +395,15 @@ export async function getGuestDashboardFinancialContext(
 					cardPayment: Boolean(item.paymentCreditCardId),
 					currency:
 						item.bookingCurrency ??
-						accounts.find(
-							account =>
-								account.id ===
-								(item.type === "INCOME"
-									? item.destinationFinancialAccountId
-									: item.originFinancialAccountId),
-						)?.yieldCurrency ??
+						primaryCurrency(
+							accounts.find(
+								account =>
+									account.id ===
+									(item.type === "INCOME"
+										? item.destinationFinancialAccountId
+										: item.originFinancialAccountId),
+							),
+						) ??
 						"BRL",
 					date: new Date(`${item.date.slice(0, 10)}T12:00:00`),
 					destinationAccountId: positionId(
@@ -438,30 +448,37 @@ export async function getGuestDashboardFinancialContext(
 				amount: reward.cashbackAmount ?? "0",
 				currency:
 					reward.currency ??
-					accounts.find(account => account.id === reward.cashbackAccountId)?.yieldCurrency ??
+					primaryCurrency(accounts.find(account => account.id === reward.cashbackAccountId)) ??
 					"BRL",
 				date: new Date(`${reward.purchaseDate.slice(0, 10)}T12:00:00`),
 				destinationAccountId: reward.cashbackAccountId,
 				type: "INCOME" as const,
 			})),
-		...accounts.flatMap(account => {
-			const currency = account.yieldCurrency;
-			if (!currency) return [];
-			return calculateFinancialAccountYieldEntries(
-				account,
-				[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
-				holidays,
-				today,
-				(yields as FinancialAccountYield[] | null) ?? [],
-			).map(entry => ({
-				amount: Number(entry.amount),
-				currency,
-				date: new Date(`${entry.date}T12:00:00`),
-				destinationAccountId: account.id,
-				type: "INCOME" as const,
-				yieldIncome: true,
-			}));
-		}),
+		...accounts.flatMap(account =>
+			[
+				...new Set([
+					...(account.yieldCurrency ? [account.yieldCurrency] : []),
+					...fiatAssets(account.assets).map(asset => asset.assetCode),
+				]),
+			].flatMap(currency =>
+				calculateFinancialAccountYieldEntries(
+					account,
+					[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
+					holidays,
+					today,
+					(yields as FinancialAccountYield[] | null) ?? [],
+					currency,
+				).map(entry => ({
+					amount: Number(entry.amount),
+					currency,
+					date: new Date(`${entry.date}T12:00:00`),
+					destinationAccountId:
+						currency === account.yieldCurrency ? account.id : `${account.id}:${currency}`,
+					type: "INCOME" as const,
+					yieldIncome: true,
+				})),
+			),
+		),
 	];
 	const movements: Array<
 		Omit<ForecastMovement, "date"> & {

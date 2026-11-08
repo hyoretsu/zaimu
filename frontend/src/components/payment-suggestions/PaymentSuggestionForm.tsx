@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { PaymentSuggestion } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
@@ -56,7 +57,7 @@ export function PaymentSuggestionForm({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
-	const payerCurrency = accounts.data?.find(account => account.id === accountId)?.yieldCurrency ?? "BRL";
+	const payerCurrency = primaryCurrency(accounts.data?.find(account => account.id === accountId)) ?? "BRL";
 	const foreign = payerCurrency !== (suggestion.currency ?? "BRL");
 	const [validationError, setValidationError] = useState("");
 	const submit = () => {

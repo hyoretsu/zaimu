@@ -3,6 +3,7 @@ import { LuPause, LuPlay, LuSave, LuUnplug } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { primaryCurrency } from "@/lib/account-assets";
 import { type FinancialAccount, openFinanceApi, type OpenFinanceConnection } from "@/lib/api";
 import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { showToast } from "@/stores";
@@ -28,7 +29,8 @@ export function AccountBindingRow({
 			card
 				? a.type === "CREDIT_CARD" && a.creditCard?.currency === account.currencyCode
 				: ["CHECKING", "SAVINGS", "CASH"].includes(a.type) &&
-					a.yieldCurrency === account.currencyCode,
+					(primaryCurrency(a) === account.currencyCode ||
+						a.assets?.some(asset => asset.assetCode === account.currencyCode)),
 		)
 		.map(a => ({ label: getFinancialAccountDisplayName(a), value: card ? a.creditCard!.id : a.id }));
 	const save = async (target: string, paused = false) => {

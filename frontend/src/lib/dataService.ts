@@ -146,8 +146,10 @@ import { useCurrencyStore } from "@/stores/currency";
 import {
 	assetBalance,
 	fiatAccountBalance,
+	fiatAssets,
 	groupAccountAssets,
 	normalizeAccountAssets,
+	primaryCurrency,
 } from "./account-assets";
 import {
 	deleteRecurringById,
@@ -503,15 +505,17 @@ export const dataService = {
 					institutionId: data.institutionId ?? institution?.id ?? null,
 					updatedAt: now.toISOString(),
 					userId,
+					// Derived from the first fiat holding; the form value only covers cards and holding-less accounts.
 					yieldCurrency:
-						data.yieldCurrency !== undefined
+						fiatAssets(data.assets)[0]?.assetCode ??
+						(data.yieldCurrency !== undefined
 							? data.yieldCurrency
 							: ((data.countryCode
 									? countryCurrency(
 											data.countryCode,
 											useCurrencyStore.getState().currencies,
 										)
-									: null) ?? activeCurrency()),
+									: null) ?? activeCurrency())),
 					...(data.yieldPeriod && {
 						yieldRateHistories: [
 							{
@@ -667,13 +671,13 @@ export const dataService = {
 					.filter(({ data }) => !type || data.type === type)
 					.map(({ data }) => ({
 						assets: data.assets,
-						currency: data.yieldCurrency ?? "BRL",
+						currency: primaryCurrency(data) ?? "BRL",
 						id: data.id,
 						institution: data.institution ? { name: data.institution.name } : null,
 						isHidden: data.isHidden ?? false,
 						name: data.name,
 						type: data.type,
-						yieldCurrency: data.yieldCurrency ?? "BRL",
+						yieldCurrency: primaryCurrency(data) ?? "BRL",
 					}));
 			}
 			return getFinancialAccountsOptions({ query: type ? { type } : undefined }).then(
@@ -690,7 +694,11 @@ export const dataService = {
 				const existing = await localAccounts.getById(id);
 				if (!existing) throw new Error("FinancialAccount not found");
 
-				if (data.yieldCurrency !== undefined && data.yieldCurrency !== existing.data.yieldCurrency) {
+				if (
+					existing.data.creditCard &&
+					data.yieldCurrency !== undefined &&
+					data.yieldCurrency !== existing.data.yieldCurrency
+				) {
 					const [transactions, books, recurrences, payments, yields, rewardCards] =
 						await Promise.all([
 							localTransactions.getAll(),
@@ -840,6 +848,9 @@ export const dataService = {
 						...existing.data.assets,
 						...added.map(asset => ({ ...asset, balance: "0" })),
 					];
+					if (!existing.data.creditCard)
+						updated.yieldCurrency =
+							existing.data.yieldCurrency ?? fiatAssets(updated.assets)[0]?.assetCode ?? null;
 					updated.balanceAdjustments = [
 						...(existing.data.balanceAdjustments ?? []),
 						...added
@@ -856,6 +867,8 @@ export const dataService = {
 							})),
 					];
 				}
+				if (!existing.data.creditCard && !data.assets)
+					updated.yieldCurrency = existing.data.yieldCurrency;
 				if (data.yieldCurrency && updated.creditCard)
 					updated.creditCard = { ...updated.creditCard, currency: data.yieldCurrency };
 				if (
@@ -1586,8 +1599,8 @@ export const dataService = {
 			const money = await convertLocalMoney(
 				data.totalAmount,
 				data.purchaseDate,
-				data.currency ?? card.currency ?? account?.yieldCurrency ?? "BRL",
-				card.currency ?? account?.yieldCurrency ?? "BRL",
+				data.currency ?? card.currency ?? primaryCurrency(account) ?? "BRL",
+				card.currency ?? primaryCurrency(account) ?? "BRL",
 				data.fees ?? [],
 			);
 			data = {
@@ -1607,7 +1620,7 @@ export const dataService = {
 				: await guestCashbackSnapshot(
 						card,
 						money.amount,
-						card.currency ?? account?.yieldCurrency ?? "BRL",
+						card.currency ?? primaryCurrency(account) ?? "BRL",
 						data.purchaseDate,
 					);
 			let purchaseId = "";
@@ -1741,7 +1754,7 @@ export const dataService = {
 				cashbackYieldReferencePercentage: details.cashbackYieldReferencePercentage ?? null,
 				cashbackYieldReferenceRate: details.cashbackYieldReferenceRate ?? null,
 				creditLimit: details.creditLimit,
-				currency: account.yieldCurrency ?? activeCurrency(),
+				currency: primaryCurrency(account) ?? activeCurrency(),
 				currentStatement: null,
 				dueDay: details.dueDay,
 				excludeFromTotals: false,
@@ -2279,8 +2292,8 @@ export const dataService = {
 				money = await convertLocalMoney(
 					data.totalAmount,
 					data.purchaseDate,
-					data.currency ?? targetCard?.currency ?? account?.yieldCurrency ?? "BRL",
-					targetCard?.currency ?? account?.yieldCurrency ?? "BRL",
+					data.currency ?? targetCard?.currency ?? primaryCurrency(account) ?? "BRL",
+					targetCard?.currency ?? primaryCurrency(account) ?? "BRL",
 					data.fees ?? [],
 				);
 				data = {
@@ -2785,7 +2798,7 @@ export const dataService = {
 							)
 							.map(account => ({
 								balance: forecastBalances.get(account.id) ?? 0,
-								currency: account.yieldCurrency ?? "BRL",
+								currency: primaryCurrency(account) ?? "BRL",
 								id: account.id,
 								institutionName: account.institution?.name ?? null,
 								name: account.name,
@@ -2859,7 +2872,7 @@ export const dataService = {
 							)
 							.map(account => ({
 								balance: fiatAccountBalance(account),
-								currency: account.yieldCurrency ?? "BRL",
+								currency: primaryCurrency(account) ?? "BRL",
 								id: account.id,
 								institutionName: account.institution?.name ?? null,
 								name: account.name,
@@ -3466,7 +3479,7 @@ export const dataService = {
 				.slice(0, count);
 			if (expectedPaymentId && rows[0]?.id !== expectedPaymentId)
 				throw new Error("Parcela mudou; abra pagamento novamente");
-			const accountCurrency = account?.data.yieldCurrency ?? (account ? "BRL" : null);
+			const accountCurrency = primaryCurrency(account?.data) ?? (account ? "BRL" : null);
 			const amounts = await loanAccountAmounts(
 				rows.map(row => row.totalPaid),
 				loan.data.currency ?? "BRL",
@@ -3657,7 +3670,7 @@ export const dataService = {
 				row => row.data.loanId === id && row.data.installmentNumber === number,
 			)?.data;
 			if (!payment) throw new Error("Parcela não encontrada");
-			const accountCurrency = account?.data.yieldCurrency ?? (account ? "BRL" : null);
+			const accountCurrency = primaryCurrency(account?.data) ?? (account ? "BRL" : null);
 			const [amount] = await loanAccountAmounts(
 				[payment.totalPaid],
 				payment.currency ?? loan.data.currency ?? "BRL",
@@ -4173,8 +4186,8 @@ export const dataService = {
 				const money = await convertLocalMoney(
 					data.amount,
 					data.date,
-					data.currency ?? account?.yieldCurrency ?? activeCurrency(),
-					data.bookingCurrency ?? data.currency ?? account?.yieldCurrency ?? activeCurrency(),
+					data.currency ?? primaryCurrency(account) ?? activeCurrency(),
+					data.bookingCurrency ?? data.currency ?? primaryCurrency(account) ?? activeCurrency(),
 					data.fees ?? [],
 				);
 				const destination = data.destinationFinancialAccountId
@@ -4574,16 +4587,17 @@ export const dataService = {
 					? await convertLocalMoney(
 							data.amount ?? existing.data.originalAmount ?? existing.data.amount,
 							merged.date,
-							merged.currency ?? account?.yieldCurrency ?? activeCurrency(),
+							merged.currency ?? primaryCurrency(account) ?? activeCurrency(),
 							merged.bookingCurrency ??
 								merged.currency ??
-								account?.yieldCurrency ??
+								primaryCurrency(account) ??
 								activeCurrency(),
 							merged.fees ?? [],
 						)
 					: {
 							amount: existing.data.amount,
-							bookingCurrency: existing.data.bookingCurrency ?? account?.yieldCurrency ?? "BRL",
+							bookingCurrency:
+								existing.data.bookingCurrency ?? primaryCurrency(account) ?? "BRL",
 						};
 				const destination = merged.destinationFinancialAccountId
 					? (await localAccounts.getById(merged.destinationFinancialAccountId))?.data

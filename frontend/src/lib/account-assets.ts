@@ -49,11 +49,39 @@ export function assetBalance(assets: AccountAsset[], assetCode: string) {
 	return assets.find(asset => asset.assetCode === assetCode)?.balance ?? "0";
 }
 
+/** Main/display currency of an account: first fiat holding, card, rewards asset, then the legacy column. */
+export function primaryCurrency(
+	account:
+		| {
+				assets?: AccountAsset[] | null;
+				creditCard?: { currency?: string | null } | null;
+				rewardsAccount?: { assetCode?: string | null } | null;
+				yieldCurrency?: string | null;
+		  }
+		| null
+		| undefined,
+): string | null {
+	if (!account) return null;
+	return (
+		account.assets?.find(asset => !isCryptoAsset(asset.assetCode))?.assetCode ??
+		account.creditCard?.currency ??
+		account.rewardsAccount?.assetCode ??
+		account.yieldCurrency ??
+		null
+	);
+}
+
+/** Fiat holdings are the only positions that enter the yield/tax engine. */
+export function fiatAssets<T extends AccountAsset>(assets: T[] | null | undefined) {
+	return (assets ?? []).filter(asset => !isCryptoAsset(asset.assetCode));
+}
+
 /** Only fiat may enter the existing yield/tax engine. */
 export function fiatAccountBalance(account: { assets: AccountAsset[]; yieldCurrency: string | null }) {
-	if (!account.yieldCurrency) return 0;
-	if (isCryptoAsset(account.yieldCurrency)) throw new Error("Rendimento exige moeda fiduciária");
-	return Number(assetBalance(account.assets, account.yieldCurrency));
+	// Single-currency consumers (loan planner, debit checks) read the primary fiat position.
+	const code = primaryCurrency(account);
+	if (!code || isCryptoAsset(code)) return 0;
+	return Number(assetBalance(account.assets, code));
 }
 
 interface AssetMovement {

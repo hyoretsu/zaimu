@@ -12,6 +12,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import {
@@ -120,9 +121,11 @@ export function EditStatementPaymentDialog({
 							<TransactionDetailsFields
 								amount={draft.amount}
 								bookingCurrency={
-									accountsQuery.data?.find(
-										account => account.id === draft.originFinancialAccountId,
-									)?.yieldCurrency ?? draft.currency
+									primaryCurrency(
+										accountsQuery.data?.find(
+											account => account.id === draft.originFinancialAccountId,
+										),
+									) ?? draft.currency
 								}
 								currencyCode={draft.currency}
 								date={draft.date}

@@ -31,7 +31,7 @@ import type {
 	Transaction,
 } from "@/lib/api";
 import { type CacheIdentity, getCurrentCacheIdentity } from "@/lib/query-cache";
-import { fiatAccountBalance, normalizeAccountAssets } from "./account-assets";
+import { fiatAccountBalance, normalizeAccountAssets, primaryCurrency } from "./account-assets";
 import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { requestResult, transactionDone } from "./idb";
@@ -609,7 +609,7 @@ export async function mutateLocalBalanceAdjustment(
 				new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date
 			)
 				throw new Error("Informe uma data válida");
-			const code = input.assetCode ?? target.data.yieldCurrency ?? "BRL";
+			const code = input.assetCode ?? primaryCurrency(target.data) ?? "BRL";
 			if (input.balance == null || (isCryptoAsset(code) && typeof input.balance !== "string"))
 				throw new Error("Informe um saldo decimal válido");
 			decimalToUnits(String(input.balance), code);
@@ -697,7 +697,7 @@ export async function reconcileLocalAdjustments(ownerKey?: StorageOwner) {
 					item =>
 						[
 							item.id,
-							{ currency: item.assetCode ?? row.data.yieldCurrency ?? "BRL", item },
+							{ currency: item.assetCode ?? primaryCurrency(row.data) ?? "BRL", item },
 						] as const,
 				),
 			),
@@ -946,7 +946,7 @@ export async function mutateLocalCreditBook<T>(
 			: null;
 		const book: CreditBook = stored?.data ?? {
 			card: {
-				currency: card.currency ?? accountRow?.data.yieldCurrency ?? "BRL",
+				currency: card.currency ?? primaryCurrency(accountRow?.data) ?? "BRL",
 				dueDay: card.dueDay,
 				id: cardId,
 				ignoreStatementsBefore: card.ignoreStatementsBefore?.slice(0, 10) ?? null,
@@ -1260,7 +1260,7 @@ export async function readLocalCreditBook(cardId: string, owner?: StorageOwner):
 			id: row.data.id,
 		}));
 	const rewardAccounts = new Map(
-		(await localAccounts.getAll(owner)).map(row => [row.data.id, row.data.yieldCurrency ?? "BRL"]),
+		(await localAccounts.getAll(owner)).map(row => [row.data.id, primaryCurrency(row.data) ?? "BRL"]),
 	);
 	for (const purchase of book.purchases)
 		if (purchase.cashbackAccountId)
@@ -1972,24 +1972,26 @@ export async function confirmLocalSuggestedPayment(
 		).find(row => row.id === account.id);
 		const debitAmount =
 			input.accountAmount ??
-			((account.yieldCurrency ?? "BRL") === (book.card.currency ?? "BRL") ? input.amount : Number.NaN);
-		toMinorUnits(debitAmount, account.yieldCurrency ?? "BRL", 1);
+			((primaryCurrency(account) ?? "BRL") === (book.card.currency ?? "BRL")
+				? input.amount
+				: Number.NaN);
+		toMinorUnits(debitAmount, primaryCurrency(account) ?? "BRL", 1);
 		if (
 			input.date <= currentDateKey() &&
 			toMinorUnits(
 				roundMoney(
 					Math.max(0, balance ? fiatAccountBalance(balance) : 0),
-					account.yieldCurrency ?? "BRL",
+					primaryCurrency(account) ?? "BRL",
 				),
-				account.yieldCurrency ?? "BRL",
-			) < toMinorUnits(debitAmount, account.yieldCurrency ?? "BRL", 1)
+				primaryCurrency(account) ?? "BRL",
+			) < toMinorUnits(debitAmount, primaryCurrency(account) ?? "BRL", 1)
 		)
 			throw new Error("Saldo insuficiente na conta pagadora na data informada");
 		const transaction: Transaction = {
 			amount: debitAmount,
-			bookingCurrency: account.yieldCurrency ?? "BRL",
+			bookingCurrency: primaryCurrency(account) ?? "BRL",
 			createdAt: new Date().toISOString(),
-			currency: account.yieldCurrency ?? "BRL",
+			currency: primaryCurrency(account) ?? "BRL",
 			date: input.date,
 			id: input.attemptId,
 			originalAmount: debitAmount,

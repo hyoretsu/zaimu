@@ -20,6 +20,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { primaryCurrency } from "@/lib/account-assets";
 import type {
 	FinancialAccount,
 	Transaction,
@@ -39,7 +40,10 @@ import { ImportReviewDateSection } from "./ImportReviewDateSection";
 import { ImportReviewTransactionItem } from "./ImportReviewTransactionItem";
 import { TransferSuggestionDecisionDialog } from "./TransferSuggestionDecisionDialog";
 
-type TransactionAccountDetails = Pick<FinancialAccount, "rewardsAccount" | "type" | "yieldCurrency"> & {
+type TransactionAccountDetails = Pick<
+	FinancialAccount,
+	"assets" | "creditCard" | "rewardsAccount" | "type" | "yieldCurrency"
+> & {
 	name: string;
 };
 
@@ -63,8 +67,8 @@ function toTransaction(
 		amount: item.amount,
 		bookingCurrency:
 			(item.type === "INCOME" || item.type === "YIELD"
-				? destinationAccount?.yieldCurrency
-				: originAccount?.yieldCurrency) ?? "BRL",
+				? primaryCurrency(destinationAccount)
+				: primaryCurrency(originAccount)) ?? "BRL",
 		createdAt: item.createdAt,
 		creditCardName: item.creditCardName ?? undefined,
 		creditCardStatementDate: item.creditCardStatementDate ?? undefined,
@@ -423,6 +427,8 @@ export function TransactionImportReviewDialog({
 		(accounts.data ?? []).map(account => [
 			account.id,
 			{
+				assets: account.assets,
+				creditCard: account.creditCard,
 				name: account.name || account.institution?.name || "Conta sem nome",
 				rewardsAccount: account.rewardsAccount,
 				type: account.type,
@@ -753,7 +759,7 @@ export function TransactionImportReviewDialog({
 			<DuplicateResolutionDialog
 				accountCurrencies={
 					new Map(
-						(accounts.data ?? []).map(account => [account.id, account.yieldCurrency ?? "BRL"]),
+						(accounts.data ?? []).map(account => [account.id, primaryCurrency(account) ?? "BRL"]),
 					)
 				}
 				accountNames={accountNames}

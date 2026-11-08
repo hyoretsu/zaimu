@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { FinancialAccount } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import {
@@ -59,7 +60,7 @@ export function RecurrenceAccountFields({
 							if (!draft.currencyExplicit && !draft.amount)
 								set(
 									"currency",
-									accounts.find(account => account.id === value)?.yieldCurrency ?? "BRL",
+									primaryCurrency(accounts.find(account => account.id === value)) ?? "BRL",
 								);
 						}}
 						options={balanceOptions}
@@ -80,7 +81,7 @@ export function RecurrenceAccountFields({
 							if (!draft.currencyExplicit && !draft.amount && draft.movement === "INCOME")
 								set(
 									"currency",
-									accounts.find(account => account.id === value)?.yieldCurrency ?? "BRL",
+									primaryCurrency(accounts.find(account => account.id === value)) ?? "BRL",
 								);
 						}}
 						options={balanceOptions.filter(

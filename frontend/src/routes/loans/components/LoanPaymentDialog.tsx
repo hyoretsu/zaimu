@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { LoanPayment } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
@@ -70,7 +71,7 @@ export function LoanPaymentDialog({
 	});
 	const row = payment ?? next.data;
 	const account = accounts.data?.find(row => row.id === accountId);
-	const currency = account?.yieldCurrency ?? "BRL";
+	const currency = primaryCurrency(account) ?? "BRL";
 	const source = row?.currency ?? "BRL";
 	const rate = useQuery({
 		enabled: !!identity && !!row && !!account && source !== currency,
@@ -136,7 +137,7 @@ export function LoanPaymentDialog({
 													),
 												)
 												.map(account => ({
-													label: `${account.name} (${account.yieldCurrency ?? "BRL"})`,
+													label: `${account.name} (${primaryCurrency(account) ?? "BRL"})`,
 													value: account.id,
 												})),
 										]}

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { DebtSplitInput, FinancialAccount, FinancialFee, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { activeCurrency } from "@/lib/currency-context";
@@ -49,7 +50,7 @@ const initialDraft = (account?: FinancialAccount) => ({
 	currency:
 		account?.assets?.length === 1
 			? account.assets[0].assetCode
-			: (account?.yieldCurrency ?? activeCurrency()),
+			: (primaryCurrency(account) ?? activeCurrency()),
 	date: getLocalDateKey(),
 	destinationAmount: "",
 	destinationCurrency: "",
@@ -104,7 +105,7 @@ export function CreateTransactionDialog({
 					!current.amount && !currencyExplicit.current
 						? account?.assets?.length === 1
 							? account.assets[0].assetCode
-							: (account?.yieldCurrency ?? current.currency)
+							: (primaryCurrency(account) ?? current.currency)
 						: current.currency,
 				destinationFinancialAccountId: isSavingsDestination
 					? account.id
@@ -186,12 +187,12 @@ export function CreateTransactionDialog({
 	useEffect(() => {
 		if (!open) return;
 		const currency =
-			(account?.assets?.length === 1 ? account.assets[0].assetCode : account?.yieldCurrency) ??
+			(account?.assets?.length === 1 ? account.assets[0].assetCode : primaryCurrency(account)) ??
 			(() => {
 				const selected = accountsQuery.data?.find(item => item.id === primaryAccountId);
 				return selected?.assets?.length === 1
 					? selected.assets[0].assetCode
-					: selected?.yieldCurrency;
+					: primaryCurrency(selected);
 			})() ??
 			effectiveCurrency;
 		setDraft(current =>
@@ -239,13 +240,15 @@ export function CreateTransactionDialog({
 				amount,
 				bookingCurrency: isCryptoAsset(draft.currency)
 					? draft.currency
-					: (accountsQuery.data?.find(
-							item =>
-								item.id ===
-								(draft.type === "INCOME"
-									? destinationFinancialAccountId
-									: originFinancialAccountId),
-						)?.yieldCurrency ?? draft.currency),
+					: (primaryCurrency(
+							accountsQuery.data?.find(
+								item =>
+									item.id ===
+									(draft.type === "INCOME"
+										? destinationFinancialAccountId
+										: originFinancialAccountId),
+							),
+						) ?? draft.currency),
 				currency: draft.currency,
 				date: draft.date,
 				debtSplit: isDebt && !isCryptoAsset(draft.currency) ? debtSplit : undefined,
@@ -329,7 +332,7 @@ export function CreateTransactionDialog({
 								counterpartValue={counterpartValue}
 								currencyCode={
 									draft.type === "YIELD"
-										? (account?.yieldCurrency ?? draft.currency)
+										? (primaryCurrency(account) ?? draft.currency)
 										: draft.currency
 								}
 								date={draft.date}

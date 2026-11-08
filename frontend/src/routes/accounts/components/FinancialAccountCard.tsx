@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import {
 	getFinancialAccountCurrencyValue,
@@ -151,7 +152,7 @@ export function FinancialAccountCard({
 											amount: getFinancialAccountCurrencyValue(account),
 											currency:
 												account.rewardsAccount.conversionCurrency ??
-												account.yieldCurrency ??
+												primaryCurrency(account) ??
 												"BRL",
 										},
 									]}
@@ -180,7 +181,7 @@ export function FinancialAccountCard({
 									values={[
 										{
 											amount: account.netBalance,
-											currency: account.yieldCurrency ?? "BRL",
+											currency: primaryCurrency(account) ?? "BRL",
 										},
 									]}
 								/>

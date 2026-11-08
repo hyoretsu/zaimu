@@ -103,7 +103,7 @@ export function CreateFinancialAccountDialog({
 		).values(),
 	];
 	const initialInstitution = () => account?.institutionId ?? defaultInstitutionId ?? undefined;
-	const initialCurrency = () => account?.yieldCurrency ?? account?.creditCard?.currency ?? "";
+	const initialCurrency = () => account?.creditCard?.currency ?? "";
 	const [selectedCurrency, setCurrency] = useState(initialCurrency);
 	const initialHoldings = () =>
 		(account?.assets ?? []).map(asset => ({
@@ -135,8 +135,7 @@ export function CreateFinancialAccountDialog({
 				? availableCountries[0]
 				: undefined;
 	const supportedCurrencies = useCurrencyStore(state => state.currencies);
-	const currency =
-		selectedCurrency || (countryCode ? countryCurrency(countryCode, supportedCurrencies) : null) || "";
+	const countryFiatCurrency = countryCode ? countryCurrency(countryCode, supportedCurrencies) : null;
 	const countryNames = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
 	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? defaultType ?? "CHECKING");
@@ -294,6 +293,12 @@ export function CreateFinancialAccountDialog({
 		);
 	};
 	const hasHoldings = type !== "CREDIT_CARD" && !(type === "REWARDS" && rewardsKind === "POINTS");
+	const currency =
+		(type === "CREDIT_CARD"
+			? selectedCurrency
+			: holdings.find(holding => holding.assetCode && !isCryptoAsset(holding.assetCode))?.assetCode) ||
+		countryFiatCurrency ||
+		"";
 	const requiresFiatCurrency = (rows = holdings) =>
 		!hasHoldings ||
 		yieldEnabled ||
@@ -314,8 +319,11 @@ export function CreateFinancialAccountDialog({
 					error = "Selecione um ativo em cada linha, sem repetir.";
 				}
 			}
-			if (yieldEnabled && !submittedHoldings.some(holding => holding.assetCode === currency))
-				error = "Adicione a moeda de rendimento aos ativos da conta.";
+			if (
+				yieldEnabled &&
+				!submittedHoldings.some(holding => holding.assetCode && !isCryptoAsset(holding.assetCode))
+			)
+				error = "Rendimento exige ao menos um ativo fiduciário na conta.";
 		}
 		setValidationError(error);
 		return !error;
@@ -514,15 +522,11 @@ export function CreateFinancialAccountDialog({
 							searchable
 							value={countryCode}
 						/>
-						{fiatCurrencyRequired && (
+						{type === "CREDIT_CARD" && (
 							<CurrencySelect
 								currencies={supportedCurrencies.filter(code => !isCryptoAsset(code))}
 								disabled={!institution || !countryCode}
-								label={
-									type === "CREDIT_CARD"
-										? "Moeda do cartão"
-										: "Moeda fiduciária de rendimento / conversão"
-								}
+								label="Moeda do cartão"
 								onValueChange={setCurrency}
 								value={currency}
 							/>

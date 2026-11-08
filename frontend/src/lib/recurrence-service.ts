@@ -10,6 +10,7 @@ import {
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
+import { primaryCurrency } from "./account-assets";
 import type {
 	DebtSplitInput,
 	deleteRecurringById,
@@ -158,7 +159,7 @@ export async function materializeLocalRecurrences(
 						? recurrence.destinationFinancialAccountId
 						: recurrence.originFinancialAccountId;
 				const target =
-					accounts.find(account => account.id === targetId)?.yieldCurrency ??
+					primaryCurrency(accounts.find(account => account.id === targetId)) ??
 					recurrence.currency ??
 					"BRL";
 				const money = await convertLocalMoney(
@@ -175,9 +176,12 @@ export async function materializeLocalRecurrences(
 						currency: target,
 						destinationCurrency:
 							recurrence.movement === "TRANSFER"
-								? (accounts.find(
-										account => account.id === recurrence.destinationFinancialAccountId,
-									)?.yieldCurrency ?? "BRL")
+								? (primaryCurrency(
+										accounts.find(
+											account =>
+												account.id === recurrence.destinationFinancialAccountId,
+										),
+									) ?? "BRL")
 								: null,
 						paymentCurrency:
 							recurrence.movement === "CARD_PAYMENT" ? (card?.currency ?? "BRL") : null,
@@ -275,7 +279,7 @@ export function createRecurrenceService(deps: Dependencies) {
 		merged.currency ??=
 			merged.movement === "CARD_PURCHASE"
 				? (card?.currency ?? (card ? "BRL" : activeCurrency()))
-				: (accounts.find(account => account.id === accountId)?.yieldCurrency ??
+				: (primaryCurrency(accounts.find(account => account.id === accountId)) ??
 					(accounts.some(account => account.id === accountId) ? "BRL" : activeCurrency()));
 		merged.currency = normalizeCurrency(merged.currency ?? activeCurrency());
 		toMinorUnits(merged.amount, merged.currency, 1);

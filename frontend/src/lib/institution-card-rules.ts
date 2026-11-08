@@ -2,6 +2,7 @@ import {
 	type InstitutionCardRules,
 	resolveInstitutionCardRules,
 } from "@zaimu/finance/institution-card-rules";
+import { primaryCurrency } from "./account-assets";
 import type { FinancialAccount } from "./api";
 import { localAccounts, type StorageOwner } from "./localStorage";
 
@@ -20,14 +21,14 @@ export async function localRuleRewardAccount(
 	rules: InstitutionCardRules,
 	owner?: StorageOwner,
 ): Promise<string | null> {
-	if (!rules.cashback || !account.yieldCurrency) return null;
-	const conversionCurrency = account.yieldCurrency;
+	const conversionCurrency = primaryCurrency(account);
+	if (!rules.cashback || !conversionCurrency) return null;
 	const reward = rules.cashback;
 	const key = JSON.stringify([
 		owner,
 		account.userId,
 		account.institutionId,
-		account.yieldCurrency,
+		conversionCurrency,
 		reward.kind,
 		reward.conversionPoints,
 		reward.conversionAmount,
@@ -42,7 +43,7 @@ export async function localRuleRewardAccount(
 					item.type === "REWARDS" &&
 					item.name === null &&
 					item.institutionId === account.institutionId &&
-					item.yieldCurrency === account.yieldCurrency &&
+					item.yieldCurrency === conversionCurrency &&
 					item.rewardsAccount?.kind === reward.kind &&
 					(item.rewardsAccount.conversionPoints ?? null) === reward.conversionPoints &&
 					(item.rewardsAccount.conversionAmount ?? null) === reward.conversionAmount,
@@ -70,7 +71,7 @@ export async function localRuleRewardAccount(
 				type: "REWARDS",
 				updatedAt: new Date().toISOString(),
 				userId: account.userId,
-				yieldCurrency: account.yieldCurrency,
+				yieldCurrency: conversionCurrency,
 			},
 			id,
 			owner,
