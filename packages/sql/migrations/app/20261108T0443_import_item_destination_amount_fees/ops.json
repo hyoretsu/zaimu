@@ -1,0 +1,132 @@
+[
+  {
+    "id": "column.public.TransactionImportItem.destinationAmount",
+    "label": "Add column \"destinationAmount\" to \"TransactionImportItem\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "destinationAmount",
+        "table": "TransactionImportItem"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"destinationAmount\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TransactionImportItem",
+          "destinationAmount"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"destinationAmount\" on \"TransactionImportItem\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"destinationAmount\"",
+        "sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ADD COLUMN \"destinationAmount\" numeric(38,18)"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"destinationAmount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TransactionImportItem",
+          "destinationAmount"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"destinationAmount\" on \"TransactionImportItem\""
+        }
+      },
+      {
+        "description": "verify column \"destinationAmount\" has type \"numeric(38,18)\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "TransactionImportItem",
+          "destinationAmount",
+          "numeric(38,18)"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.TransactionImportItem.fees",
+    "label": "Add column \"fees\" to \"TransactionImportItem\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "fees",
+        "table": "TransactionImportItem"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"fees\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TransactionImportItem",
+          "fees"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"fees\" on \"TransactionImportItem\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"fees\"",
+        "sql": "ALTER TABLE \"public\".\"TransactionImportItem\" ADD COLUMN \"fees\" json DEFAULT ('[]'::json) NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"fees\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TransactionImportItem",
+          "fees"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"fees\" on \"TransactionImportItem\""
+        }
+      },
+      {
+        "description": "verify column \"fees\" has type \"json\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "TransactionImportItem",
+          "fees",
+          "json"
+        ]
+      },
+      {
+        "description": "verify column \"fees\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "TransactionImportItem",
+          "fees",
+          "NO"
+        ]
+      }
+    ]
+  }
+]

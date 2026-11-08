@@ -1715,6 +1715,8 @@ namespace public {
     externalId          VarChar(200)?
     transferCounterpartExternalId VarChar(200)?
     amount              Numeric(20, 6)
+    destinationAmount   Numeric(38, 18)?
+    fees                Json                     @default(sql`'[]'::json`)
     date                Date
     time                Time(precision: 3)?
     description         VarChar(1000)?
