@@ -195,12 +195,15 @@ export function EditImportedCreditPurchaseDialog({
 								taxes={taxes}
 							/>
 						)}
-						{!isStatementCharge && item.installments === 1 && item.installmentAmount > 0 && !item.taxes?.length && (
+						{item.installments === 1 && item.installmentAmount > 0 && !item.taxes?.length && (
 							<ImportedTaxPurchaseSelect
 								currencyCode={currencyCode}
 								importId={importId}
 								itemId={item.id}
-								onChange={setTaxPurchaseItemId}
+								onChange={value => {
+									setTaxPurchaseItemId(value);
+									if (value) setIsStatementCharge(false);
+								}}
 								value={taxPurchaseItemId}
 							/>
 						)}
