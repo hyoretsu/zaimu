@@ -1,4 +1,4 @@
-import { LuPencil, LuRefreshCw, LuTrash2, LuUndo2 } from "react-icons/lu";
+import { LuFastForward, LuPencil, LuRefreshCw, LuTrash2, LuUndo2 } from "react-icons/lu";
 import { OriginalMoneyDetails } from "@/components/currency";
 import { AssociateRecurrenceButton } from "@/components/recurrences";
 import { TransactionBadges } from "@/components/transactions/TransactionListItem/TransactionBadges";
@@ -12,18 +12,22 @@ import { formatDebtSplitBadge } from "@/lib/debt-split";
 export function CreditPurchaseRow({
 	deleteDisabled,
 	editDisabled,
+	anticipateDisabled,
 	refinanceDisabled,
 	refundDisabled,
+	onAnticipate,
 	onDelete,
 	onEdit,
 	onRefinance,
 	onRefund,
 	purchase,
 }: {
+	anticipateDisabled: boolean;
 	deleteDisabled: boolean;
 	editDisabled: boolean;
 	refinanceDisabled: boolean;
 	refundDisabled: boolean;
+	onAnticipate: () => void;
 	onDelete: () => void | Promise<void>;
 	onEdit: () => void;
 	onRefinance: () => void;
@@ -155,6 +159,29 @@ export function CreditPurchaseRow({
 						</TooltipTrigger>
 						<TooltipContent>Editar</TooltipContent>
 					</Tooltip>
+					{!purchase.isRefund &&
+					!purchase.isStatementCharge &&
+					!purchase.refinancedFromPurchaseId &&
+					!purchase.isSettled &&
+					!purchase.isReimbursed &&
+					!purchase.settledByPurchaseId &&
+					purchase.installments > purchase.currentInstallment ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									aria-label={`Antecipar parcelas de ${purchase.description}`}
+									className="cursor-pointer"
+									disabled={anticipateDisabled}
+									onClick={onAnticipate}
+									size="icon-sm"
+									variant="outline"
+								>
+									<LuFastForward />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Antecipar parcelas</TooltipContent>
+						</Tooltip>
+					) : null}
 					{!purchase.isRefund &&
 					!purchase.isStatementCharge &&
 					!purchase.refinancedFromPurchaseId &&

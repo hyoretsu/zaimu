@@ -1,6 +1,7 @@
 import { comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import {
 	addBookRefund,
+	anticipateBookInstallments,
 	bookPurchase,
 	bookRefinancingLinks,
 	changeBookCalendar,
@@ -110,6 +111,7 @@ import {
 	postCreditCardsByIdPayments,
 	postCreditCardsByIdPaymentSuggestionsConfirm,
 	postCreditCardsByIdPurchases,
+	postCreditCardsByIdPurchasesByPurchaseIdAnticipate,
 	postCreditCardsByIdPurchasesByPurchaseIdRefinance,
 	postCreditCardsByIdPurchasesByPurchaseIdRefunds,
 	postCreditCardsByIdRefundReviewsByReviewIdApprove,
@@ -1676,6 +1678,26 @@ export const dataService = {
 			return creditBookEntries(await readLocalCreditBook(cardId))
 				.filter(row => row.purchaseId === purchaseId || row.id === purchaseId)
 				.map(toPurchasePresentation);
+		},
+		async anticipatePurchase(
+			cardId: string,
+			purchaseId: string,
+			data: { anticipationDate: string; discount?: number; installmentNumbers: number[] },
+		): Promise<void> {
+			if (isGuestMode()) {
+				await mutateLocalCreditBook(cardId, book => {
+					anticipateBookInstallments(
+						book,
+						resolveBookInstallment(book, purchaseId)?.purchaseId ?? purchaseId,
+						data,
+					);
+				});
+				return;
+			}
+			await postCreditCardsByIdPurchasesByPurchaseIdAnticipate({
+				body: data,
+				path: { id: cardId, purchaseId },
+			});
 		},
 		async approveRefundReview(
 			cardId: string,

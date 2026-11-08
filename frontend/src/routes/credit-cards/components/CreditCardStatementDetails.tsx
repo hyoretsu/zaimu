@@ -31,6 +31,7 @@ import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import { AnticipateCreditPurchaseDialog } from "./AnticipateCreditPurchaseDialog";
 import { isVisibleStatementPurchase } from "./credit-card-statement-purchases";
 import { getCreditCardStatementStatus } from "./credit-card-statement-status";
 import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
@@ -66,6 +67,7 @@ export function CreditCardStatementDetails({
 	const [pendingUpdateIds, setPendingUpdateIds] = useState<Set<string>>(new Set());
 	const [choosingEditScope, setChoosingEditScope] = useState<CreditPurchase | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
+	const [anticipatingPurchase, setAnticipatingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const [managingRefunds, setManagingRefunds] = useState<CreditPurchase | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
@@ -73,6 +75,7 @@ export function CreditCardStatementDetails({
 	useBackgroundModalRecovery<StatementActionRecovery>(`credit-statement-action:${statement.id}`, entry => {
 		setRecoveredAction(entry.payload);
 		if (entry.payload.action === "dates") setEditingStatement(true);
+		if (entry.payload.action === "anticipate") setAnticipatingPurchase(entry.payload.purchase ?? null);
 		if (entry.payload.action === "refinance") setRefinancingPurchase(entry.payload.purchase ?? null);
 		if (entry.payload.action === "refund" || entry.payload.action === "delete-refund")
 			setRefundingPurchase(entry.payload.purchase ?? null);
@@ -380,9 +383,11 @@ export function CreditCardStatementDetails({
 							>
 								{forecasts.map(purchase => (
 									<CreditPurchaseRow
+										anticipateDisabled
 										deleteDisabled
 										editDisabled
 										key={purchase.id}
+										onAnticipate={() => {}}
 										onDelete={async () => {}}
 										onEdit={() => {}}
 										onRefinance={() => {}}
@@ -413,6 +418,11 @@ export function CreditCardStatementDetails({
 										<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
 									) : (
 										<CreditPurchaseRow
+											anticipateDisabled={
+												displayedStatement.isPaid ||
+												statement.isForecast === true ||
+												rowPending(entry.purchase)
+											}
 											deleteDisabled={
 												statement.isForecast === true || rowPending(entry.purchase)
 											}
@@ -420,6 +430,10 @@ export function CreditCardStatementDetails({
 												statement.isForecast === true || rowPending(entry.purchase)
 											}
 											key={entry.id}
+											onAnticipate={() => {
+												setRecoveredAction(null);
+												setAnticipatingPurchase(entry.purchase);
+											}}
 											onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
 											onEdit={() =>
 												entry.purchase.isRefund
@@ -548,6 +562,40 @@ export function CreditCardStatementDetails({
 					open
 					pending={pendingUpdateIds.has(editingPurchase.id)}
 					purchase={editingPurchase}
+				/>
+			)}
+			{anticipatingPurchase && (
+				<AnticipateCreditPurchaseDialog
+					initialValues={
+						recoveredAction?.action === "anticipate" ? recoveredAction.data : undefined
+					}
+					onOpenChange={open => {
+						if (!open) {
+							setAnticipatingPurchase(null);
+							setRecoveredAction(null);
+						}
+					}}
+					onSubmit={async data => {
+						backgroundAction(
+							{
+								action: "anticipate",
+								cardId: card.id,
+								data,
+								purchase: anticipatingPurchase,
+								statement,
+							},
+							() => setAnticipatingPurchase(null),
+							() =>
+								dataService.creditCards.anticipatePurchase(
+									card.id,
+									anticipatingPurchase.id,
+									data,
+								),
+						);
+					}}
+					open
+					pending={rowPending(anticipatingPurchase)}
+					purchase={anticipatingPurchase}
 				/>
 			)}
 			{refinancingPurchase && (
