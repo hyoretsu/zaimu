@@ -1,5 +1,6 @@
 import { withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { useEffect, useRef, useState } from "react";
+import { PurchaseFormLayout } from "@/components/credit-card-purchases";
 import { DebtSplitEditor } from "@/components/debts";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { StorePicker } from "@/components/stores";
@@ -107,144 +108,172 @@ export function EditImportedCreditPurchaseDialog({
 				</DialogHeader>
 				<DialogBody>
 					<div className="grid gap-5" ref={fieldsRef}>
-						<FormField
-							autoComplete="off"
-							id="imported-purchase-description"
-							label={getFinancedOperation(item.description) ? "Estabelecimento" : "Descrição"}
-							name="imported-purchase-description"
-							onChange={event => setDescription(event.currentTarget.value)}
-							placeholder="Ex: Mercado Livre"
-							type="text"
-							value={description}
-						/>
-						{item.metadataMissing?.length ? (
-							<p className="text-destructive text-sm">
-								Complete os campos obrigatórios para resolver os dados bancários incompletos.
-							</p>
-						) : null}
-						{item.metadataMissing?.includes("calendar") && (
-							<FormFieldRow className="grid-cols-1 sm:grid-cols-2">
-								<DateField
-									id="imported-statement-date"
-									label="Fechamento da fatura"
-									name="imported-statement-date"
-									onValueChange={setStatementDate}
-									required
-									value={statementDate}
-								/>
-								<DateField
-									id="imported-due-date"
-									label="Vencimento da fatura"
-									name="imported-due-date"
-									onValueChange={setDueDate}
-									required
-									value={dueDate}
-								/>
-							</FormFieldRow>
-						)}
-
-						<FormFieldRow className="grid-cols-1 sm:grid-cols-3">
-							<StorePicker onValueChange={setStoreName} value={storeName} />
-							<MoneyField
-								currencyCode={currencyCode}
-								id="imported-purchase-total"
-								label="Valor total"
-								onValueChange={setTotalAmount}
-								rawValueName="imported-purchase-raw-total"
-								required
-								value={totalAmount}
-							/>
-							<FormField
-								autoComplete="off"
-								disabled={isStatementCharge}
-								id="imported-purchase-installments"
-								inputMode="numeric"
-								label="Total de parcelas"
-								name="imported-purchase-installments"
-								onChange={event =>
-									setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
-								}
-								placeholder="Ex: 12"
-								required
-								type="text"
-								value={isStatementCharge ? "1" : installments}
-							/>
-						</FormFieldRow>
-						<FormFieldRow className="grid-cols-1 sm:grid-cols-2">
-							<DateField
-								autoComplete="off"
-								id="imported-purchase-date"
-								label="Data da primeira parcela"
-								name="imported-purchase-date"
-								onValueChange={setPurchaseDate}
-								required
-								value={purchaseDate}
-							/>
-							<TimeField
-								id="imported-purchase-time"
-								label="Horário"
-								name="imported-purchase-time"
-								onValueChange={setTime}
-								placeholder="Ex: 14:30"
-								value={time}
-							/>
-						</FormFieldRow>
-						<TagPicker onValueChange={setTagIds} value={tagIds} />
-						{!isStatementCharge && (
-							<ImportedPurchaseTaxFields
-								currencyCode={currencyCode}
-								onChange={setTaxes}
-								taxes={taxes}
-							/>
-						)}
-						{item.installments === 1 && item.installmentAmount > 0 && !item.taxes?.length && (
-							<ImportedTaxPurchaseSelect
-								currencyCode={currencyCode}
-								importId={importId}
-								itemId={item.id}
-								onChange={value => {
-									setTaxPurchaseItemId(value);
-									if (value) setIsStatementCharge(false);
-								}}
-								value={taxPurchaseItemId}
-							/>
-						)}
-						<CheckboxField
-							checkboxProps={{
-								checked: isStatementCharge,
-								id: "imported-purchase-is-charge",
-								onCheckedChange: checked => {
-									setIsStatementCharge(checked === true);
-									if (checked) {
-										setTaxes([]);
-										setTaxPurchaseItemId("");
-									}
-									if (checked) setIsDebt(false);
-								},
-							}}
-						>
-							Encargos da fatura (juros, multa ou tarifas)
-						</CheckboxField>
-						<div className="grid gap-3 rounded-2xl border p-3">
-							<CheckboxField
-								checkboxProps={{
-									checked: isDebt,
-									disabled: isStatementCharge,
-									id: "imported-purchase-is-debt",
-									onCheckedChange: checked => setIsDebt(checked === true),
-								}}
-							>
-								<span>Esta compra é de uma dívida</span>
-							</CheckboxField>
-							{isDebt ? (
-								<DebtSplitEditor
-									amount={Number(totalAmount)}
+						<PurchaseFormLayout
+							amount={
+								<MoneyField
 									currencyCode={currencyCode}
-									onChange={setDebtSplit}
-									value={debtSplit}
+									id="imported-purchase-total"
+									label="Valor total"
+									onValueChange={setTotalAmount}
+									rawValueName="imported-purchase-raw-total"
+									required
+									value={totalAmount}
 								/>
-							) : null}
-						</div>
+							}
+							charge={
+								<CheckboxField
+									checkboxProps={{
+										checked: isStatementCharge,
+										id: "imported-purchase-is-charge",
+										onCheckedChange: checked => {
+											setIsStatementCharge(checked === true);
+											if (checked) {
+												setTaxes([]);
+												setTaxPurchaseItemId("");
+											}
+											if (checked) setIsDebt(false);
+										},
+									}}
+								>
+									Encargos da fatura (juros, multa ou tarifas)
+								</CheckboxField>
+							}
+							date={
+								<DateField
+									autoComplete="off"
+									id="imported-purchase-date"
+									label="Data da primeira parcela"
+									name="imported-purchase-date"
+									onValueChange={setPurchaseDate}
+									required
+									value={purchaseDate}
+								/>
+							}
+							debt={
+								<div className="grid gap-3 rounded-2xl border p-3">
+									<CheckboxField
+										checkboxProps={{
+											checked: isDebt,
+											disabled: isStatementCharge,
+											id: "imported-purchase-is-debt",
+											onCheckedChange: checked => setIsDebt(checked === true),
+										}}
+									>
+										<span>Esta compra é de uma dívida</span>
+									</CheckboxField>
+									{isDebt ? (
+										<DebtSplitEditor
+											amount={Number(totalAmount)}
+											currencyCode={currencyCode}
+											onChange={setDebtSplit}
+											value={debtSplit}
+										/>
+									) : null}
+								</div>
+							}
+							description={
+								<FormField
+									autoComplete="off"
+									id="imported-purchase-description"
+									label={
+										getFinancedOperation(item.description)
+											? "Estabelecimento"
+											: "Descrição"
+									}
+									name="imported-purchase-description"
+									onChange={event => setDescription(event.currentTarget.value)}
+									placeholder="Ex: Mercado Livre"
+									type="text"
+									value={description}
+								/>
+							}
+							installments={
+								<FormField
+									autoComplete="off"
+									disabled={isStatementCharge}
+									id="imported-purchase-installments"
+									inputMode="numeric"
+									label="Total de parcelas"
+									name="imported-purchase-installments"
+									onChange={event =>
+										setInstallments(
+											event.currentTarget.value.replace(/\D/g, "").slice(0, 2),
+										)
+									}
+									placeholder="Ex: 12"
+									required
+									type="text"
+									value={isStatementCharge ? "1" : installments}
+								/>
+							}
+							notices={
+								<>
+									{item.metadataMissing?.length ? (
+										<p className="text-destructive text-sm">
+											Complete os campos obrigatórios para resolver os dados bancários
+											incompletos.
+										</p>
+									) : null}
+									{item.metadataMissing?.includes("calendar") && (
+										<FormFieldRow className="grid-cols-1 sm:grid-cols-2">
+											<DateField
+												id="imported-statement-date"
+												label="Fechamento da fatura"
+												name="imported-statement-date"
+												onValueChange={setStatementDate}
+												required
+												value={statementDate}
+											/>
+											<DateField
+												id="imported-due-date"
+												label="Vencimento da fatura"
+												name="imported-due-date"
+												onValueChange={setDueDate}
+												required
+												value={dueDate}
+											/>
+										</FormFieldRow>
+									)}
+								</>
+							}
+							store={<StorePicker onValueChange={setStoreName} value={storeName} />}
+							tags={<TagPicker onValueChange={setTagIds} value={tagIds} />}
+							taxes={
+								<>
+									{!isStatementCharge && (
+										<ImportedPurchaseTaxFields
+											currencyCode={currencyCode}
+											onChange={setTaxes}
+											taxes={taxes}
+										/>
+									)}
+									{item.installments === 1 &&
+										item.installmentAmount > 0 &&
+										!item.taxes?.length && (
+											<ImportedTaxPurchaseSelect
+												currencyCode={currencyCode}
+												importId={importId}
+												itemId={item.id}
+												onChange={value => {
+													setTaxPurchaseItemId(value);
+													if (value) setIsStatementCharge(false);
+												}}
+												value={taxPurchaseItemId}
+											/>
+										)}
+								</>
+							}
+							time={
+								<TimeField
+									id="imported-purchase-time"
+									label="Horário"
+									name="imported-purchase-time"
+									onValueChange={setTime}
+									placeholder="Ex: 14:30"
+									value={time}
+								/>
+							}
+						/>
 					</div>
 				</DialogBody>
 				<DialogFooter>
