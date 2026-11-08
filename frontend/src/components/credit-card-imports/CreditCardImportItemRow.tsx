@@ -162,16 +162,8 @@ export function CreditCardImportItemRow({
 						</span>
 					) : undefined
 				}
-				forceCompactActions
-				icon={
-					item.installmentAmount < 0 ? (
-						<div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-2xl text-emerald-600">
-							<LuUndo2 aria-hidden="true" />
-						</div>
-					) : undefined
-				}
-				metadataPrefix={
-					<div className="flex flex-wrap items-center gap-1.5">
+				badgesLeading={
+					<>
 						<ImportItemDateTime
 							date={
 								requiresOriginal && !item.reconciledCreditPurchaseId
@@ -230,7 +222,15 @@ export function CreditCardImportItemRow({
 								<LuCheck /> Conciliada
 							</span>
 						) : null}
-					</div>
+					</>
+				}
+				forceCompactActions
+				icon={
+					item.installmentAmount < 0 ? (
+						<div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-2xl text-emerald-600">
+							<LuUndo2 aria-hidden="true" />
+						</div>
+					) : undefined
 				}
 				title={
 					anticipated ? (

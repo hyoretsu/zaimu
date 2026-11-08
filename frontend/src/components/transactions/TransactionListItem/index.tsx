@@ -19,6 +19,7 @@ export function TransactionListItem({
 	forceCompactActions = false,
 	deleting = false,
 	icon,
+	badgesLeading,
 	metadataPrefix,
 	onDelete,
 	onEdit,
@@ -33,6 +34,7 @@ export function TransactionListItem({
 	deleting?: boolean;
 	forceCompactActions?: boolean;
 	icon?: ReactNode;
+	badgesLeading?: ReactNode;
 	metadataPrefix?: ReactNode;
 	onDelete?: () => void;
 	onEdit?: () => void;
