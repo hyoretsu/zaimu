@@ -35,7 +35,9 @@ type EditableItem = Omit<
 		| "date"
 		| "debtSplit"
 		| "description"
+		| "destinationAmount"
 		| "destinationFinancialAccountId"
+		| "fees"
 		| "isHidden"
 		| "originFinancialAccountId"
 		| "storeName"
@@ -51,7 +53,9 @@ const toDraft = (item: TransactionImportItem): EditableItem => ({
 	date: item.date.slice(0, 10),
 	debtSplit: debtSplitToInput(item.debtSplit),
 	description: item.description ?? "",
+	destinationAmount: item.destinationAmount ?? null,
 	destinationFinancialAccountId: item.destinationFinancialAccountId ?? null,
+	fees: item.fees ?? [],
 	isHidden: item.isHidden,
 	originFinancialAccountId: item.originFinancialAccountId ?? null,
 	paymentCreditCardId: item.paymentCreditCardId ?? null,
@@ -127,6 +131,14 @@ export function EditImportedTransactionDialog({
 			: draft.originFinancialAccountId;
 
 	const currencyCode = primaryCurrency(accounts.find(account => account.id === primaryAccountId)) ?? "BRL";
+	const destinationCurrency =
+		primaryCurrency(accounts.find(account => account.id === draft.destinationFinancialAccountId)) ??
+		currencyCode;
+	const isCrossCurrencyTransfer =
+		draft.type === "TRANSFER" &&
+		Boolean(draft.destinationFinancialAccountId) &&
+		destinationCurrency !== currencyCode;
+	const fees = draft.fees ?? [];
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open={open}>
 			<ImportDialogContent className="sm:max-w-lg">
@@ -143,9 +155,15 @@ export function EditImportedTransactionDialog({
 						<div className="grid gap-4 pr-1">
 							<TransactionDetailsFields
 								amount={String(draft.amount)}
+								counterpartCurrency={destinationCurrency}
 								currencyCode={currencyCode}
 								date={draft.date}
 								description={description}
+								destinationAmount={
+									draft.destinationAmount ? String(draft.destinationAmount) : ""
+								}
+								fees={fees}
+								feesIncludedInAmount
 								includeYield
 								isHidden={draft.isHidden}
 								onAmountChange={amount =>
@@ -157,6 +175,28 @@ export function EditImportedTransactionDialog({
 									setDraft(current => (current ? { ...current, date } : current))
 								}
 								onDescriptionChange={setDescription}
+								onDestinationAmountChange={
+									isCrossCurrencyTransfer
+										? destinationAmount =>
+												setDraft(current =>
+													current
+														? {
+																...current,
+																destinationAmount:
+																	Number(destinationAmount) || null,
+															}
+														: current,
+												)
+										: undefined
+								}
+								onFeesChange={
+									isCrossCurrencyTransfer
+										? fees =>
+												setDraft(current =>
+													current ? { ...current, fees } : current,
+												)
+										: undefined
+								}
 								onIsHiddenChange={isHidden =>
 									setDraft(current => (current ? { ...current, isHidden } : current))
 								}
@@ -249,7 +289,11 @@ export function EditImportedTransactionDialog({
 										current
 											? current.type === "INCOME" || current.type === "YIELD"
 												? { ...current, destinationFinancialAccountId: accountId }
-												: { ...current, originFinancialAccountId: accountId }
+												: {
+														...current,
+														destinationAmount: null,
+														originFinancialAccountId: accountId,
+													}
 											: current,
 									)
 								}
@@ -267,7 +311,13 @@ export function EditImportedTransactionDialog({
 									label="Conta de destino"
 									onValueChange={destinationFinancialAccountId =>
 										setDraft(current =>
-											current ? { ...current, destinationFinancialAccountId } : current,
+											current
+												? {
+														...current,
+														destinationAmount: null,
+														destinationFinancialAccountId,
+													}
+												: current,
 										)
 									}
 									options={balanceDestinationAccounts
@@ -298,6 +348,13 @@ export function EditImportedTransactionDialog({
 							!primaryAccountId ||
 							(isDebt && !calculateDebtSplit(draft.amount, debtSplit, currencyCode)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
+							(isCrossCurrencyTransfer && !draft.destinationAmount) ||
+							(isCrossCurrencyTransfer &&
+								fees.some(
+									fee =>
+										!fee.name.trim() ||
+										!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(String(fee.amount)),
+								)) ||
 							pending
 						}
 						onClick={() =>
@@ -305,6 +362,8 @@ export function EditImportedTransactionDialog({
 								...draft,
 								debtSplit: isDebt ? debtSplit : null,
 								description,
+								destinationAmount: isCrossCurrencyTransfer ? draft.destinationAmount : null,
+								fees: isCrossCurrencyTransfer ? fees : [],
 								time: draft.time || null,
 							})
 						}

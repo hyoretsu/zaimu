@@ -4139,7 +4139,9 @@ export const dataService = {
 						| "date"
 						| "debtSplit"
 						| "description"
+						| "destinationAmount"
 						| "destinationFinancialAccountId"
+						| "fees"
 						| "isDuplicateIgnored"
 						| "isHidden"
 						| "isSelected"
@@ -4157,7 +4159,11 @@ export const dataService = {
 			if (data.type === "REFUND")
 				throw new Error("Reembolsos não são aceitos nesta edição de importação");
 			return patchTransactionImportsByIdItemsByItemId({
-				body: { ...data, type: data.type },
+				body: {
+					...data,
+					fees: data.fees?.map(fee => ({ ...fee, amount: Number(fee.amount) })),
+					type: data.type,
+				},
 				path: { id: importId, itemId },
 			}).then(result => result.data);
 		},

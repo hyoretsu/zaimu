@@ -16,6 +16,18 @@ import { TransactionConversionPreview } from "./TransactionConversionPreview";
 
 type TransactionFormType = Transaction["type"] | "YIELD";
 
+/** Principal of a debit that already includes its fees; fees paid in another asset are separate debits. */
+function principalWithoutFees(amount: string, fees: FinancialFee[], currencyCode: string) {
+	const total = Number(amount);
+	const feeTotal = fees.reduce((sum, fee) => {
+		if (fee.assetCode && fee.assetCode !== currencyCode) return sum;
+		return (
+			sum + (fee.type === "PERCENTAGE" ? (total * Number(fee.amount)) / 100 : Number(fee.amount) || 0)
+		);
+	}, 0);
+	return String(Math.max(0, total - feeTotal));
+}
+
 export function TransactionDetailsFields({
 	amount,
 	amountIsPoints = false,
@@ -34,6 +46,7 @@ export function TransactionDetailsFields({
 	bookingCurrency = currencyCode,
 	onCurrencyChange,
 	fees = [],
+	feesIncludedInAmount = false,
 	onFeesChange,
 	date,
 	description,
@@ -73,6 +86,8 @@ export function TransactionDetailsFields({
 	bookingCurrency?: string;
 	onCurrencyChange?: (value: string) => void;
 	fees?: FinancialFee[];
+	/** The amount already contains the fees (e.g. a bank statement debit), so the received-amount suggestion must not add them again. */
+	feesIncludedInAmount?: boolean;
 	onFeesChange?: (value: FinancialFee[]) => void;
 	date: string;
 	description: string;
@@ -150,14 +165,31 @@ export function TransactionDetailsFields({
 				/>
 			)}
 			{!counterpart && onDestinationAmountChange && counterpartCurrency !== currencyCode && (
-				<AssetAmountField
-					assetCode={counterpartCurrency ?? currencyCode}
-					id="transaction-destination-amount"
-					label="Valor recebido"
-					onValueChange={onDestinationAmountChange}
-					required
-					value={destinationAmount}
-				/>
+				<div className="space-y-2">
+					<AssetAmountField
+						assetCode={counterpartCurrency ?? currencyCode}
+						id="transaction-destination-amount"
+						label="Valor recebido"
+						onValueChange={onDestinationAmountChange}
+						required
+						value={destinationAmount}
+					/>
+					{!isCryptoAsset(currencyCode) && !isCryptoAsset(counterpartCurrency ?? currencyCode) && (
+						<TransactionConversionPreview
+							amount={
+								feesIncludedInAmount
+									? principalWithoutFees(amount, fees, currencyCode)
+									: amount
+							}
+							bookingCurrency={bookingCurrency}
+							date={date}
+							fees={feesIncludedInAmount ? [] : fees}
+							onUse={onDestinationAmountChange}
+							sourceCurrency={currencyCode}
+							targetCurrency={counterpartCurrency ?? currencyCode}
+						/>
+					)}
+				</div>
 			)}
 			{counterpart && onCounterpartChange ? (
 				counterpartIsPoints ? (
