@@ -53,6 +53,7 @@ export async function writeInstitutionCardRules(
 	institutionId: string,
 	rules: InstitutionCardRules | null,
 	profileId?: string,
+	bumpVersion = true,
 ) {
 	if (profileId) {
 		const [profile] = await query(
@@ -65,9 +66,10 @@ export async function writeInstitutionCardRules(
 			institutionId,
 			JSON.stringify(rules ?? defaultCardRules),
 		]);
-	await query(`UPDATE "FinancialInstitution" SET version=version+1,"updatedAt"=NOW() WHERE id=$1`, [
-		institutionId,
-	]);
+	if (bumpVersion)
+		await query(`UPDATE "FinancialInstitution" SET version=version+1,"updatedAt"=NOW() WHERE id=$1`, [
+			institutionId,
+		]);
 }
 
 export async function configureInstitutionCardRules(
