@@ -173,6 +173,12 @@ export const CreditCardImportsController = new Elysia({ prefix: "/credit-card-im
 				await associateImportedTax(userId, params.id, params.itemId, body.taxPurchaseItemId, {
 					amount: body.totalAmount,
 					name: body.description,
+					resolvedMetadata: [
+						...(body.totalAmount !== undefined ? ["total"] : []),
+						...(body.purchaseDate !== undefined ? ["purchaseDate"] : []),
+						...(body.installments !== undefined ? ["installments"] : []),
+						...(body.statementDate && body.dueDate ? ["calendar"] : []),
+					],
 				});
 				return getImportReturn(userId, params.id);
 			}

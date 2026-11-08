@@ -12,7 +12,7 @@ export async function associateImportedTax(
 	importId: string,
 	taxId: string,
 	purchaseId: string,
-	reviewed?: { name?: string; amount?: number },
+	reviewed?: { name?: string; amount?: number; resolvedMetadata?: string[] },
 ) {
 	return withRawTransaction(async query => {
 		const [batch] = await query<{
@@ -38,13 +38,17 @@ export async function associateImportedTax(
 			[taxId, purchaseId],
 		]);
 		const tax = items.find(item => item.id === taxId);
+		const unresolvedTaxMetadata =
+			(tax?.metadataMissing as string[] | undefined)?.filter(
+				field => !reviewed?.resolvedMetadata?.includes(field),
+			) ?? [];
 		const purchase = items.find(item => item.id === purchaseId);
 		if (tax && !purchase) {
 			if (
 				tax.installments !== 1 ||
 				Number(tax.installmentAmount) <= 0 ||
 				readImportTaxes(tax.taxes).length ||
-				(tax.metadataMissing as string[]).length
+				unresolvedTaxMetadata.length
 			)
 				throw new HttpException("Selecione um lançamento positivo à vista sem impostos", 400);
 			await mutateCreditBook(userId, batch.creditCardId, book => {
@@ -98,7 +102,7 @@ export async function associateImportedTax(
 			Number(tax.installmentAmount) <= 0 ||
 			readImportTaxes(tax.taxes).length ||
 			readImportTaxes(purchase.taxes).length >= 20 ||
-			(tax.metadataMissing as string[]).length ||
+			unresolvedTaxMetadata.length ||
 			(purchase.metadataMissing as string[]).length
 		)
 			throw new HttpException("Selecione um imposto e uma compra da mesma fatura", 400);
