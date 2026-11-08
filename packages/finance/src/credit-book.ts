@@ -777,6 +777,68 @@ export function removeBookRefund(
 	replayCreditBook(book);
 }
 
+/**
+ * Prepay open installments: they move to the statement of the anticipation date and the
+ * optional discount is a partial credit on that same date that never cancels installments.
+ */
+export function anticipateBookInstallments(
+	book: CreditBook,
+	purchaseId: string,
+	input: { anticipationDate: string; discount?: number; installmentNumbers: number[] },
+) {
+	const purchase = bookPurchase(book, purchaseId);
+	assertDateKey(input.anticipationDate);
+	const numbers = [...new Set(input.installmentNumbers)].toSorted((a, b) => a - b);
+	if (
+		!numbers.length ||
+		numbers.length !== input.installmentNumbers.length ||
+		numbers.some(n => !Number.isInteger(n) || n < 1 || n > purchase.installmentAmountsCents.length)
+	)
+		throw new RangeError("Selecione parcelas válidas da compra");
+	const discountCents =
+		input.discount === undefined ? 0 : moneyCents(input.discount, 1, book.card.currency);
+	const target = ensureBookStatement(book, input.anticipationDate);
+	const plan = creditBookPlan(book);
+	const statements = new Map(plan.statements.map(statement => [statement.id, statement]));
+	const rows = plan.installments.filter(item => item.purchaseId === purchase.id);
+	for (const number of numbers) {
+		const row = rows.find(item => item.number === number);
+		const statement = row && statements.get(row.statementId);
+		if (!row || !statement || row.isSettled)
+			throw new RangeError(`A parcela ${number} não pode ser antecipada`);
+		if (statement.statementDate <= target.statementDate)
+			throw new RangeError(`A parcela ${number} já pertence à fatura da antecipação ou a uma anterior`);
+	}
+	const anticipatedCents = sumCents(numbers.map(n => purchase.installmentAmountsCents[n - 1]!));
+	if (discountCents >= anticipatedCents)
+		throw new RangeError("O desconto deve ser menor que o valor antecipado");
+	// Later forecasts are anchored on explicit dates, so freeze the others before moving.
+	const dates = purchase.installmentAmountsCents.map((_, index) =>
+		installmentBookDates(book, purchase, index),
+	);
+	purchase.installmentStatementDates = dates.map((item, index) =>
+		numbers.includes(index + 1) ? { dueDate: target.dueDate, statementDate: target.statementDate } : item,
+	);
+	purchase.installmentImportedNumbers = [
+		...new Set([...(purchase.installmentImportedNumbers ?? []), ...numbers]),
+	];
+	for (const installment of book.installments.filter(
+		item => item.purchaseId === purchase.id && numbers.includes(item.number),
+	))
+		installment.statementId = target.id;
+	purchase.updatedAt = new Date().toISOString();
+	if (!discountCents) {
+		replayCreditBook(book);
+		return { anticipatedCents, refund: undefined };
+	}
+	const refund = addBookRefund(book, purchase.id, {
+		amount: input.discount,
+		creditDate: input.anticipationDate,
+		policy: "KEEP_INSTALLMENTS",
+	});
+	return { anticipatedCents, refund };
+}
+
 export function newBookPurchase(
 	book: CreditBook,
 	input: Pick<BookPurchase, "description" | "purchaseDate"> &

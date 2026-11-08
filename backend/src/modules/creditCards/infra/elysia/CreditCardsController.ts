@@ -1,5 +1,6 @@
 import {
 	addBookRefund,
+	anticipateBookInstallments,
 	type CreditBook,
 	ensureBookStatement,
 	moneyCents,
@@ -1139,6 +1140,28 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 				totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 			}),
 			detail: { operationId: "postCreditCardsByIdPurchasesByPurchaseIdRefinance" },
+		},
+	)
+	.post(
+		"/:id/purchases/:purchaseId/anticipate",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await mutateCreditBook(userId, params.id, book => {
+				anticipateBookInstallments(book, resolveBookPurchase(book, params.purchaseId).id, body);
+			});
+			return { success: true };
+		},
+		{
+			body: t.Object({
+				anticipationDate: t.String({ format: "date" }),
+				discount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				installmentNumbers: t.Array(t.Integer({ maximum: 48, minimum: 1 }), {
+					maxItems: 48,
+					minItems: 1,
+				}),
+			}),
+			detail: { operationId: "postCreditCardsByIdPurchasesByPurchaseIdAnticipate" },
+			response: t.Object({ success: t.Boolean() }),
 		},
 	)
 	.post(
