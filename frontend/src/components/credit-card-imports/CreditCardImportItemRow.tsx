@@ -4,6 +4,7 @@ import { LuCheck, LuCircleAlert, LuLink, LuLoaderCircle, LuPencil, LuUndo2 } fro
 import {
 	AssociateImportedRecurrenceDialog,
 	type PendingImportRecurrence,
+	withRecurrencePreview,
 } from "@/components/recurrences/AssociateImportedRecurrenceDialog";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
@@ -79,7 +80,7 @@ export function CreditCardImportItemRow({
 }) {
 	const [associating, setAssociating] = useState(false);
 	const base = toTransaction(item, creditCardId, creditCardName, currencyCode);
-	const transaction = recurrence ? { ...base, description: recurrence.name } : base;
+	const transaction = withRecurrencePreview(base, recurrence);
 	const financedOperation = getFinancedOperation(item.description);
 	const cancellation = item.installmentAmount < 0 ? importedAnticipation(item.description) : null;
 	const anticipated = item.installmentAmount > 0 ? importedAnticipation(item.description) : null;

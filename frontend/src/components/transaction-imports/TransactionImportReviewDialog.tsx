@@ -8,7 +8,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
-import type { PendingImportRecurrence } from "@/components/recurrences/AssociateImportedRecurrenceDialog";
+import {
+	type PendingImportRecurrence,
+	withRecurrencePreview,
+} from "@/components/recurrences/AssociateImportedRecurrenceDialog";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
@@ -643,12 +646,10 @@ export function TransactionImportReviewDialog({
 														],
 													)}
 													recurrence={recurrences[item.id]}
-													transaction={{
-														...toTransaction(item, accountDetails),
-														...(recurrences[item.id] && {
-															description: recurrences[item.id]!.name,
-														}),
-													}}
+													transaction={withRecurrencePreview(
+														toTransaction(item, accountDetails),
+														recurrences[item.id],
+													)}
 												/>
 											))}
 										</ImportReviewDateSection>

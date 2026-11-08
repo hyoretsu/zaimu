@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { getCurrentCacheIdentity, queryKeys } from "@/lib/query-cache";
 import { showToast } from "@/stores";
+import type { PendingImportRecurrence } from "./AssociateImportedRecurrenceDialog";
 import { RecurrencePeriodField } from "./RecurrencePeriodField";
 
 const periodUnitOptions: { label: string; value: RecurrenceUnit }[] = [
@@ -38,7 +39,7 @@ export default function AssociateRecurrenceDialog({
 	onOpenChange,
 }: {
 	onAssociated?: () => Promise<unknown>;
-	onAssociate?: (selection: { recurrenceId: string; date: string; name: string }) => unknown;
+	onAssociate?: (selection: PendingImportRecurrence) => unknown;
 	target: RecurrenceAssociationTarget;
 	initialDate: string;
 	onOpenChange: (open: boolean) => void;
@@ -61,7 +62,18 @@ export default function AssociateRecurrenceDialog({
 		meta: { cacheOperations: onAssociate ? [] : ["recurring"] },
 		mutationFn: async () => {
 			if (!selected || !date) throw new Error("Selecione uma recorrência e o período da ocorrência.");
-			if (onAssociate) return onAssociate({ date, name: selected.name, recurrenceId: selected.id });
+			if (onAssociate)
+				return onAssociate({
+					date,
+					name: selected.name,
+					preview: {
+						debtSplit: selected.debtSplit,
+						storeName: selected.storeName,
+						tagIds: selected.tagIds,
+						tags: selected.tags,
+					},
+					recurrenceId: selected.id,
+				});
 			return dataService.recurrences.associate(selected.id, {
 				date,
 				kind: target.kind,
