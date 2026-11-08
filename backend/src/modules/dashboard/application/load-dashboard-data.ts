@@ -287,10 +287,16 @@ WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $4::date AND $3::
 const movementsSql = `${comparisonMovementsSql}
 UNION ALL
 SELECT 'forecastTransaction', jsonb_build_object(
-  'currency', transaction."bookingCurrency", 'amount', transaction."amount"::text, 'date', transaction."date", 'description', transaction."description",
+  'currency', transaction."bookingCurrency", 'amount', transaction."amount"::text, 'date', transaction."date", 'description', COALESCE(
+    NULLIF(NULLIF(BTRIM(transaction."description"), ''), 'Compra'), NULLIF(BTRIM(transaction."storeName"), ''), NULLIF(BTRIM(transaction."description"), ''),
+    CASE WHEN transaction."paymentCreditCardId" IS NOT NULL THEN 'Pagamento do cartão - ' || COALESCE(payment_account."name", payment_institution."name", 'Cartão de crédito') END
+  ),
   'id', transaction."id", 'type', transaction."type"::text
 )
 FROM "Transaction" transaction
+LEFT JOIN "CreditCard" payment_card ON payment_card."id" = transaction."paymentCreditCardId"
+LEFT JOIN "FinancialAccount" payment_account ON payment_account."id" = payment_card."financialAccountId"
+LEFT JOIN "FinancialInstitution" payment_institution ON payment_institution."id" = payment_account."institutionId"
 WHERE transaction."userId" = $1 AND transaction."date" > $4::date AND transaction."date" <= $3::date
   AND transaction."type" <> 'TRANSFER'
   AND transaction."recurrenceId" IS NULL
