@@ -50,9 +50,10 @@ export async function enqueueImportBatch(
 	if (!files.length) throw new HttpException("Selecione pelo menos um arquivo", 400);
 	const batchId = crypto.randomUUID();
 	await withRawTransaction(async () => {
-		const table = kind === "account" ? "FinancialAccount" : "CreditCard";
 		const [owner] = await queryRaw<{ id: string }>(
-			`SELECT "id" FROM "${table}" WHERE "id"=$1 AND "userId"=$2`,
+			kind === "account"
+				? `SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2`
+				: `SELECT c."id" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1 AND a."userId"=$2`,
 			[scopeId, userId],
 		);
 		if (!owner) throw new HttpException("Recurso não encontrado", 404);
@@ -207,7 +208,11 @@ export async function handleImportFile(event: EventEnvelope<{ jobId: string }>) 
 	}
 	// Clients waiting on the batch re-read it; a lost push falls back to their slow poll.
 	await userEventBus
-		.publish([job.userId], { aggregateId: job.batchId, aggregateType: "importBatch", eventType: "progress" })
+		.publish([job.userId], {
+			aggregateId: job.batchId,
+			aggregateType: "importBatch",
+			eventType: "progress",
+		})
 		.catch(error => console.warn("Failed to publish import batch progress", error));
 	await recoverImportFiles();
 }
