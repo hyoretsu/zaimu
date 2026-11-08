@@ -89,6 +89,7 @@ export function CreditCardStatementDetails({
 	// The listing replays actual and projected books; detail only replays the projected book.
 	const { invoiceAmount, projectedAmount, remainingAmount } =
 		getCreditCardStatementDisplayAmounts(statement);
+	const carriedOutAmount = statement.carriedOutAmount ?? displayedStatement.carriedOutAmount ?? 0;
 	const forecasts =
 		detail.data?.purchases.filter(
 			purchase => purchase.isForecast && isVisibleStatementPurchase(purchase),
@@ -267,6 +268,14 @@ export function CreditCardStatementDetails({
 									/>
 								}
 							</strong>
+							{!isIgnored && carriedOutAmount > 0 && (
+								<p className="text-muted-foreground mt-1 text-xs">
+									Saldo transposto:{" "}
+									<PreferredMoneyAmount
+										values={[{ amount: carriedOutAmount, currency: currencyCode }]}
+									/>
+								</p>
+							)}
 							{!isIgnored && (statement.creditInAmount ?? 0) > 0 && (
 								<p className="text-muted-foreground mt-1 text-xs">
 									Crédito da fatura anterior:{" "}
