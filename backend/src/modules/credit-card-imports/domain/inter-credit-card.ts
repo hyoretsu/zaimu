@@ -32,7 +32,8 @@ function parseStatementDate(text: string) {
 }
 
 function isPurchase(description: string) {
-	return !/^pagamento\b/iu.test(description);
+	// Points redemptions only settle the invoice, like payments; they are not refunds.
+	return !/^(?:pagamento|resgate\s+pontos)\b/iu.test(description);
 }
 
 export function parseInterCreditCardStatementText(text: string): CreditCardStatement {

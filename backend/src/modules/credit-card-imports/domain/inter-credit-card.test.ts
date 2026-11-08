@@ -52,6 +52,7 @@ Despesas da fatura
 14 de ago. 2026 LOJA - + R$ 25,00
 15 de ago. 2026 Estorno LOJA - + R$ 10,00
 16 de ago. 2026 PAGAMENTO ON LINE - + R$ 100,00
+17 de ago. 2026 RESGATE PONTOS - + R$ 55,00
 Próxima fatura`);
 	expect(result.purchases.map(p => p.installmentAmount)).toEqual([100, -25, -10]);
 	expect(result.purchases.map(p => p.totalAmount)).toEqual([100, -25, -10]);
@@ -59,7 +60,7 @@ Próxima fatura`);
 
 for (const fixture of [
 	{ closing: "2024-02-24", count: 12, due: "2024-03-01", month: "02", total: 580.76 },
-	{ closing: "2024-08-31", count: 16, due: "2024-09-07", month: "08", total: 2211.8 },
+	{ closing: "2024-08-31", count: 15, due: "2024-09-07", month: "08", total: 2216.8 },
 	{ closing: "2024-09-30", count: 18, due: "2024-10-07", month: "09", total: 8815.97 },
 ]) {
 	test(`reads Inter 2024-${fixture.month} PDF text including missing font glyphs`, async () => {
@@ -75,7 +76,7 @@ for (const fixture of [
 		).toBeCloseTo(fixture.total, 2);
 		expect(
 			statement.purchases.some(purchase =>
-				/pagamento|NÃO IMPORTAR|Principal/iu.test(purchase.description),
+				/pagamento|resgate pontos|NÃO IMPORTAR|Principal/iu.test(purchase.description),
 			),
 		).toBe(false);
 		expect(
@@ -83,7 +84,6 @@ for (const fixture of [
 				/Par Shop Inter Mais|PAR SHOP INTER MAIS/u.test(purchase.description),
 			)?.installments,
 		).toBe(10);
-		if (fixture.month === "08") expect(statement.purchases[0]?.installmentAmount).toBe(-5);
 		if (fixture.month === "09") {
 			const pix = statement.purchases.find(purchase => purchase.description === "PIX CRED PARCELADO");
 			expect(pix).toMatchObject({ currentInstallment: 3, installmentAmount: 262.31, installments: 4 });
