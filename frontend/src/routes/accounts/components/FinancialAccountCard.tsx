@@ -8,6 +8,8 @@ import {
 	LuLandmark,
 	LuPiggyBank,
 	LuReceiptText,
+	LuScale,
+	LuSend,
 	LuSparkles,
 	LuTrash2,
 	LuWallet,
@@ -29,6 +31,7 @@ import {
 	getFinancialAccountTypeLabel,
 } from "@/lib/financial-account";
 import { AccountAssetBreakdown } from "./AccountAssetBreakdown";
+import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
@@ -65,6 +68,9 @@ export function FinancialAccountCard({
 	]);
 	const statementOpen = statementAccountId === account.id && account.type !== "CREDIT_CARD";
 	const setStatementOpen = (open: boolean) => setStatementAccountId(open ? account.id : null);
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [transferOpen, setTransferOpen] = useState(false);
+	const [adjustingBalance, setAdjustingBalance] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const config = accountType[account.type];
@@ -72,6 +78,10 @@ export function FinancialAccountCard({
 	const displayName = getFinancialAccountDisplayName(account);
 	const typeLabel = getFinancialAccountTypeLabel(account.type);
 	const listName = getFinancialAccountTitle(account);
+	const canAdjustBalance =
+		account.type !== "CREDIT_CARD" &&
+		(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK");
+	const canImport = account.type !== "CREDIT_CARD" && account.type !== "REWARDS";
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
 		<article className="group bg-card shadow-card hover:border-primary/30 row-span-3 grid grid-rows-subgrid gap-y-0 rounded-2xl border p-5 transition hover:-translate-y-0.5">
@@ -90,7 +100,6 @@ export function FinancialAccountCard({
 					</div>
 				</div>
 				<div className="flex shrink-0 items-center gap-2 self-end sm:self-start">
-					<AccountTransferDialog accountId={account.id} iconOnly />
 					<CreateFinancialAccountDialog
 						account={account}
 						contextual
@@ -101,7 +110,7 @@ export function FinancialAccountCard({
 						pending={false}
 						rewardAccounts={rewardAccounts}
 					/>
-					<Popover>
+					<Popover onOpenChange={setMenuOpen} open={menuOpen}>
 						<PopoverTrigger asChild>
 							<Button
 								aria-label={`Mais ações de ${displayName}`}
@@ -112,7 +121,47 @@ export function FinancialAccountCard({
 								<LuEllipsis />
 							</Button>
 						</PopoverTrigger>
-						<PopoverContent align="end" className="flex w-48 flex-col gap-2 p-2">
+						<PopoverContent align="end" className="flex w-56 flex-col gap-2 p-2">
+							<Button
+								className="w-full cursor-pointer justify-start"
+								onClick={() => {
+									setMenuOpen(false);
+									setTransferOpen(true);
+								}}
+								size="sm"
+								variant="outline"
+							>
+								<LuSend /> Transferir conta
+							</Button>
+							{canAdjustBalance && (
+								<Button
+									className="w-full cursor-pointer justify-start"
+									onClick={() => {
+										setMenuOpen(false);
+										setAdjustingBalance(true);
+									}}
+									size="sm"
+									variant="outline"
+								>
+									<LuScale /> Ajustes de saldo
+								</Button>
+							)}
+							{canImport && (
+								<Button
+									className="w-full cursor-pointer justify-start"
+									onClick={() => {
+										setMenuOpen(false);
+										setImportOpen(true);
+									}}
+									size="sm"
+									variant="outline"
+								>
+									<LuFileUp /> Importar extrato
+								</Button>
+							)}
+							{account.type !== "CREDIT_CARD" && (
+								<RecalculateAccountYieldButton account={account} />
+							)}
 							<Button
 								className="w-full cursor-pointer justify-start"
 								onClick={onHide}
@@ -205,16 +254,8 @@ export function FinancialAccountCard({
 						<LuReceiptText /> Extrato
 					</Button>
 				) : null}
-				{account.type !== "CREDIT_CARD" && account.type !== "REWARDS" ? (
+				{canImport ? (
 					<>
-						<Button
-							className="mt-2 w-full cursor-pointer"
-							onClick={() => setImportOpen(true)}
-							size="sm"
-							variant="outline"
-						>
-							<LuFileUp /> Importar extrato
-						</Button>
 						<ImportTransactionsDialog
 							defaultFinancialAccountId={account.id}
 							onImported={setReviewingImportId}
@@ -228,7 +269,19 @@ export function FinancialAccountCard({
 						/>
 					</>
 				) : null}
-				{account.type !== "CREDIT_CARD" && <RecalculateAccountYieldButton account={account} />}
+				<AccountTransferDialog
+					accountId={account.id}
+					hideTrigger
+					onOpenChange={setTransferOpen}
+					open={transferOpen}
+				/>
+				{canAdjustBalance && (
+					<BalanceAdjustmentsDialog
+						account={account}
+						onOpenChange={setAdjustingBalance}
+						open={adjustingBalance}
+					/>
+				)}
 				{account.type !== "CREDIT_CARD" && (
 					<FinancialAccountStatementDialog
 						account={account}

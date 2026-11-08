@@ -15,7 +15,7 @@ export function RecalculateAccountYieldButton({ account }: { account: FinancialA
 
 	return (
 		<Button
-			className="mt-2 w-full cursor-pointer"
+			className="w-full cursor-pointer justify-start"
 			disabled={mutation.isPending}
 			onClick={() => mutation.mutate()}
 			size="sm"
