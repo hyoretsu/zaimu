@@ -73,6 +73,8 @@ for (const width of [1440, 390])
 			if (url.pathname === "/financial-accounts/options") return route.fulfill({ json: [] });
 			if (url.pathname === "/currency-preferences")
 				return route.fulfill({ json: { effectiveCurrency: "BRL", preferredCurrency: "BRL" } });
+			if (url.pathname === "/yield-calendar")
+				return route.fulfill({ json: { countries: [], coverage: [] } });
 			if (url.hostname === "ipapi.co") return route.fulfill({ json: { country_code: "BR" } });
 			return route.fulfill({ json: [] });
 		});
@@ -101,7 +103,9 @@ for (const width of [1440, 390])
 			.poll(() => paths.filter(p => /\/credit-cards\/[^/]+\/statements$/.test(p)))
 			.toEqual(["/credit-cards/card-9/statements"]);
 		await expect(page.getByText("Não foi possível carregar as faturas")).toHaveCount(0);
-		await page.screenshot({ fullPage: true, path: testInfo.outputPath(`owner-resolved-${width}.png`) });
+		await page
+			.getByRole("dialog")
+			.screenshot({ path: testInfo.outputPath(`owner-resolved-${width}.png`) });
 		expect(paths.filter(p => p === "/credit-cards/statement-owner/invoice")).toHaveLength(1);
 
 		for (const state of ["missing", "error"]) {
@@ -126,7 +130,7 @@ for (const width of [1440, 390])
 		mode = "ready";
 		await page.getByRole("button", { exact: true, name: "Tentar novamente" }).click();
 		await expect(page.getByRole("dialog")).toBeVisible();
-		await page.screenshot({ fullPage: true, path: testInfo.outputPath(`owner-retry-${width}.png`) });
+		await page.getByRole("dialog").screenshot({ path: testInfo.outputPath(`owner-retry-${width}.png`) });
 		await testInfo.attach("statement-requests", {
 			body: JSON.stringify(paths.filter(p => p.startsWith("/credit-cards"))),
 			contentType: "application/json",
