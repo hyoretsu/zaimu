@@ -159,8 +159,48 @@ test("credit below anticipated sum remains an anticipation plus separate discoun
 	const discounted = { ...credit, installmentAmount: -99.99, totalAmount: -99.99 };
 	expect(combineAnticipationRefunds([anticipation, discounted])).toEqual([anticipation, discounted]);
 	for (const amount of [100, 100.01, 150.01]) {
-		const [refund] = combineAnticipationRefunds([anticipation, { ...credit, installmentAmount: -amount }]);
+		const [refund] = combineAnticipationRefunds([
+			anticipation,
+			{ ...credit, installmentAmount: -amount },
+		]);
 		expect(refund?.totalAmount).toBe(-amount);
 		expect(importedAnticipation(refund!.description)).toEqual(parts);
 	}
+});
+
+const discount = {
+	...credit,
+	description: "AMORTIZACAO DE JUROS",
+	externalId: "discount",
+	installmentAmount: -5.71,
+	totalAmount: -5.71,
+};
+
+test("pairs an interest discount smaller than the anticipated installments, without picking a source", () => {
+	const pairs = anticipationRefundPairs(
+		[original, anticipation, discount],
+		[
+			{
+				id: "s",
+				installmentAmountsCents: [5000, 5000, 5000],
+				purchaseDate: "2026-04-30",
+				totalAmount: 5.71,
+			},
+		],
+	);
+	expect(pairs).toHaveLength(1);
+	expect(pairs[0]).toMatchObject({ credit: discount, sourceId: undefined });
+});
+
+test("does not pair a discount dated before the anticipation or an ordinary smaller credit", () => {
+	expect(anticipationRefundPairs([anticipation, { ...discount, purchaseDate: "2026-04-29" }])).toHaveLength(
+		0,
+	);
+	const smaller = { ...credit, installmentAmount: -5.71, totalAmount: -5.71 };
+	expect(anticipationRefundPairs([anticipation, smaller])).toHaveLength(0);
+});
+
+test("keeps an ambiguous discount separate", () => {
+	const other = { ...discount, externalId: "discount-2" };
+	expect(anticipationRefundPairs([anticipation, discount, other])).toHaveLength(0);
 });

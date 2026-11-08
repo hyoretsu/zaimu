@@ -6,6 +6,7 @@ import {
 	editCreditRefund,
 	hasMatchingInstallmentSum,
 	isGenericImportedRefund,
+	isImportedAnticipationDiscount,
 	matchingGenericRefundSource,
 	refundAmountCents,
 	resolveRefundPolicy,
@@ -247,4 +248,11 @@ test("refund above total cancels selected installments and credits every excess 
 		canceledAmountCents: 0,
 		creditAmountCents: 50,
 	});
+});
+
+test("recognises interest amortization as an anticipation discount, not a generic refund", () => {
+	expect(isImportedAnticipationDiscount(" AMORTIZAÇÃO  de Juros ")).toBe(true);
+	expect(isImportedAnticipationDiscount("AMORTIZACAO DE JUROS")).toBe(true);
+	expect(isImportedAnticipationDiscount("AMORTIZACAO DE JUROS LOJA")).toBe(false);
+	expect(isGenericImportedRefund("AMORTIZACAO DE JUROS")).toBe(false);
 });

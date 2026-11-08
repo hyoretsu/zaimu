@@ -1,5 +1,10 @@
 import { distributePurchaseCents } from "@zaimu/finance/credit-purchase";
-import { correctedRefundInstallments, importedAnticipation } from "@zaimu/finance/imported-anticipation";
+import { isImportedAnticipationDiscount } from "@zaimu/finance/credit-refund";
+import {
+	correctedRefundInstallments,
+	importedAnticipation,
+	withoutImportedAnticipation,
+} from "@zaimu/finance/imported-anticipation";
 import { assertTagOwnership } from "~/modules/categories/application/tag-assignments";
 import {
 	mutateCreditBook,
@@ -142,7 +147,9 @@ function applyReview(
 		amount: Math.abs(Number(item.installmentAmount)),
 		creditDate: new Date(item.purchaseDate).toISOString().slice(0, 10),
 		externalId: item.externalId,
-		policy: data.policy,
+		policy: isImportedAnticipationDiscount(withoutImportedAnticipation(item.description))
+			? "KEEP_INSTALLMENTS"
+			: data.policy,
 	});
 	refund.time = item.time ?? refund.time;
 }
