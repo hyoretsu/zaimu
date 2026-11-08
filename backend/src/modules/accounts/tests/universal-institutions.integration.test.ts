@@ -289,9 +289,9 @@ describe("universal institution review and calendar coverage", () => {
 			[draft.institutionId],
 		);
 		expect(after).toMatchObject({ name: "Edit Bank", operatingCountryCodes: ["US", "BR"] });
-		await expect(proposeInstitution("other", draft.institutionId, "INSTITUTION_UPDATE", {})).rejects.toThrow(
-			"Nenhuma alteração",
-		);
+		await expect(
+			proposeInstitution("other", draft.institutionId, "INSTITUTION_UPDATE", {}),
+		).rejects.toThrow("Nenhuma alteração");
 	});
 	test("merge requires explicit profile resolution and preserves private account source", async () => {
 		const source = await proposeInstitution("owner", null, "NEW_INSTITUTION", {
@@ -642,5 +642,129 @@ describe("universal institution review and calendar coverage", () => {
 			if (!value) throw new Error("Unexpected projected account identity");
 			expect(row.values).toEqual(value);
 		}
+	});
+	describe("composite proposals", () => {
+		const composite = () => ({
+			aliases: ["Composite alias"],
+			creditCardRules: { ...defaultCardRules, workingDueDate: true },
+			name: "Composite bank renamed",
+			policies: [
+				{
+					effectiveDate: "2026-03-01",
+					profileName: "Black",
+					rules: [{ upToBalance: null, yieldFixedRate: 5 }],
+					yieldPeriod: "MONTHLY" as const,
+				},
+			],
+			profiles: [{ creditCardRules: { ...defaultCardRules, workingDueDate: true }, name: "  Black " }],
+		});
+		const read = async (institutionId: string) => {
+			const [row] = await queryRaw<{
+				creditCardRules: InstitutionCardRules | null;
+				name: string;
+				version: number;
+			}>(`SELECT "name","creditCardRules","version" FROM "FinancialInstitution" WHERE "id"=$1`, [
+				institutionId,
+			]);
+			const profiles = await queryRaw<{ id: string; name: string }>(
+				`SELECT "id","name" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1`,
+				[institutionId],
+			);
+			const policies = await queryRaw(
+				`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1`,
+				[institutionId],
+			);
+			return { policies, profiles, row: row! };
+		};
+		test("a user proposal stays pending without effect, then approval applies every section", async () => {
+			const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
+				name: "Composite bank",
+			});
+			const before = await read(institution.institutionId);
+			const proposal = await proposeInstitution(
+				"owner",
+				institution.institutionId,
+				"INSTITUTION_UPDATE",
+				composite(),
+				undefined,
+				{ autoApprove: false },
+			);
+			expect(proposal.status).toBe("PENDING");
+			const pending = await read(institution.institutionId);
+			expect(pending.row.name).toBe("Composite bank");
+			expect(pending.profiles).toHaveLength(before.profiles.length);
+			expect(pending.policies).toHaveLength(0);
+			await reviewInstitutionProposal("admin", proposal.id, "APPROVE");
+			const after = await read(institution.institutionId);
+			expect(after.row.name).toBe("Composite bank renamed");
+			expect(after.row.creditCardRules?.workingDueDate).toBe(true);
+			expect(after.row.version).toBe(before.row.version + 1);
+			expect(after.profiles.map(profile => profile.name)).toContain("Black");
+			expect(after.policies).toHaveLength(1);
+		});
+		test("a failing section rolls back the whole approval", async () => {
+			const institution = await proposeInstitution("admin", null, "NEW_INSTITUTION", {
+				name: "Rollback bank",
+			});
+			const proposal = await proposeInstitution(
+				"owner",
+				institution.institutionId,
+				"INSTITUTION_UPDATE",
+				{ ...composite(), policies: [], profiles: [{ name: "Padrão" }] },
+				undefined,
+				{ autoApprove: false },
+			);
+			const before = await read(institution.institutionId);
+			await expect(reviewInstitutionProposal("admin", proposal.id, "APPROVE")).rejects.toThrow(
+				"Já existe",
+			);
+			const after = await read(institution.institutionId);
+			expect(after.row).toEqual(before.row);
+			expect(after.profiles).toHaveLength(before.profiles.length);
+			const [stored] = await queryRaw<{ status: string }>(
+				`SELECT "status" FROM "FinancialInstitutionProposal" WHERE "id"=$1`,
+				[proposal.id],
+			);
+			expect(stored?.status).toBe("PENDING");
+		});
+		test("rejects duplicate new profile names and unresolved policy profiles", async () => {
+			await expect(
+				proposeInstitution("owner", null, "NEW_INSTITUTION", {
+					name: "Invalid composite",
+					profiles: [{ name: "Gold" }, { name: "gold" }],
+				}),
+			).rejects.toThrow("Já existe");
+			await expect(
+				proposeInstitution("owner", null, "NEW_INSTITUTION", {
+					name: "Invalid composite policy",
+					policies: [{ effectiveDate: "2026-03-01", rules: [] }],
+				}),
+			).rejects.toThrow("perfil da política");
+		});
+		test("an admin applies directly with autoApprove and stays pending without it", async () => {
+			const direct = await proposeInstitution(
+				"admin",
+				null,
+				"NEW_INSTITUTION",
+				{ ...composite(), name: "Admin composite" },
+				undefined,
+				{ autoApprove: true },
+			);
+			expect(direct.status).toBe("APPROVED");
+			const applied = await read(direct.institutionId);
+			expect(applied.row.name).toBe("Admin composite");
+			expect(applied.profiles.map(profile => profile.name)).toContain("Black");
+			expect(applied.policies).toHaveLength(1);
+			const pending = await proposeInstitution(
+				"admin",
+				direct.institutionId,
+				"INSTITUTION_UPDATE",
+				{ name: "Admin pending rename" },
+				undefined,
+				{ autoApprove: false },
+			);
+			expect(pending.status).toBe("PENDING");
+			expect((await read(direct.institutionId)).row.name).toBe("Admin composite");
+		});
 	});
 });
