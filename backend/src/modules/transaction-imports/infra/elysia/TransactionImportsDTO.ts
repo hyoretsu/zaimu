@@ -1,4 +1,5 @@
 import { t } from "elysia";
+import { FinancialFeeDTO } from "~/modules/currencies/application/financial-money";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 
 export const TransactionImportItemUpdateDTO = t.Object({
@@ -6,7 +7,9 @@ export const TransactionImportItemUpdateDTO = t.Object({
 	date: t.Optional(t.String()),
 	debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 	description: t.Optional(t.Nullable(t.String({ maxLength: 1000 }))),
+	destinationAmount: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 	destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+	fees: t.Optional(t.Array(FinancialFeeDTO, { maxItems: 20 })),
 	isDuplicateIgnored: t.Optional(t.Boolean()),
 	isHidden: t.Optional(t.Boolean()),
 	isSelected: t.Optional(t.Boolean()),

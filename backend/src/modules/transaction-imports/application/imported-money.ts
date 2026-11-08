@@ -1,7 +1,9 @@
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
+import { calculateFinancialFees } from "~/modules/currencies/application/financial-fees";
 import {
 	creditCardCurrency,
 	financialAccountCurrency,
+	type FinancialFee,
 	resolveFinancialMoney,
 } from "~/modules/currencies/application/financial-money";
 import { ensureCurrencyRates } from "~/modules/currencies/infra/currency-exchange";
@@ -12,6 +14,8 @@ export async function importedMoney(
 		ImportItemToApprove,
 		| "amount"
 		| "date"
+		| "destinationAmount"
+		| "fees"
 		| "type"
 		| "destinationFinancialAccountId"
 		| "originFinancialAccountId"
@@ -33,6 +37,7 @@ export async function importedMoney(
 		{
 			amount: money.amount,
 			currency,
+			destinationAmount: item.destinationAmount == null ? null : Number(item.destinationAmount),
 			destinationCurrency: item.destinationFinancialAccountId
 				? await dependencies.financialAccountCurrency(item.destinationFinancialAccountId)
 				: null,
@@ -48,15 +53,19 @@ export async function importedMoney(
 				[item.id],
 			)
 		: [];
-	const originalAmount = source && Number(source.amount) > 0 ? Number(source.amount) : money.originalAmount;
+	const sourceAmount = source && Number(source.amount) > 0 ? Number(source.amount) : money.originalAmount;
 	const sourceCurrency = source?.currency ?? currency;
+	// The statement amount is the whole debit: fees (e.g. IOF) are part of it, the principal excludes them.
+	const fees = (Array.isArray(item.fees) ? item.fees : []) as FinancialFee[];
+	const originalAmount = sourceAmount - calculateFinancialFees(sourceAmount, fees, sourceCurrency);
 	return {
 		bookingCurrency: currency,
 		conversionSource: sides.conversionSource,
 		currency: sourceCurrency,
 		destinationAmount: nullableNumeric(sides.destinationAmount),
 		destinationCurrency: sides.destinationCurrency,
-		exchangeRate: numeric(money.amount / originalAmount),
+		exchangeRate: numeric(money.amount / sourceAmount),
+		fees: fees.map(fee => ({ ...fee })),
 		originalAmount: numeric(originalAmount),
 		paymentAmount: nullableNumeric(sides.paymentAmount),
 		paymentCurrency: sides.paymentCurrency,

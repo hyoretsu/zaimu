@@ -9,6 +9,11 @@ import {
 } from "~/modules/categories/application/tag-assignments";
 import { isInvoicePayment } from "~/modules/credit-card-imports/domain/invoice-payment";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
+import { calculateFinancialFees } from "~/modules/currencies/application/financial-fees";
+import {
+	financialAccountCurrency,
+	type FinancialFee,
+} from "~/modules/currencies/application/financial-money";
 import {
 	getDebtSplitInput,
 	type getDebtSplitReturn,
@@ -36,6 +41,7 @@ import { rejectLegacyFinancialFields } from "~/shared/infra/elysia/strict-json-b
 import {
 	db,
 	executeStatement,
+	nullableNumeric,
 	numeric,
 	queryFirst,
 	queryRaw,
@@ -621,8 +627,10 @@ async function getImportReturn(
 					"createdAt",
 					"date",
 					"description",
+					"destinationAmount",
 					"destinationFinancialAccountId",
 					"externalId",
+					"fees",
 					"isDuplicateIgnored",
 					"isHidden",
 					"isReconciled",
@@ -712,10 +720,15 @@ async function getImportReturn(
 				creditCardName: creditCardStatement?.creditCardName ?? null,
 				creditCardStatementDate: creditCardStatement?.statementDate ?? null,
 				debtSplit: debtSplitsByItem.get(item.id) ?? null,
+				destinationAmount:
+					item.destinationAmount === null || item.destinationAmount === undefined
+						? null
+						: Number(item.destinationAmount),
 				duplicateReason: duplicates.get(item.id)?.reason ?? null,
 				duplicates: duplicateCandidates.map(
 					({ externalIds: _, externalId: __, ...duplicate }) => duplicate,
 				),
+				fees: item.fees as FinancialFee[],
 				requiresPaymentCard: requiredPaymentItems.has(item.id),
 				tagIds: tags.map(tag => tag.id),
 				tags,
@@ -883,8 +896,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"date",
 					"paymentCreditCardId",
 					"description",
+					"destinationAmount",
 					"destinationFinancialAccountId",
 					"externalId",
+					"fees",
 					"isDuplicateIgnored",
 					"transferCounterpartExternalId",
 					"isHidden",
@@ -910,11 +925,20 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				date: body.date ?? toDateKey(current.date),
 				description:
 					body.description === undefined ? current.description : normalizeText(body.description),
+				destinationAmount:
+					type !== "TRANSFER"
+						? null
+						: body.destinationAmount === undefined
+							? current.destinationAmount === null
+								? null
+								: Number(current.destinationAmount)
+							: body.destinationAmount,
 				destinationFinancialAccountId:
 					body.destinationFinancialAccountId === undefined
 						? current.destinationFinancialAccountId
 						: body.destinationFinancialAccountId,
 				externalId: current.externalId,
+				fees: type === "YIELD" ? [] : (body.fees ?? (current.fees as FinancialFee[])),
 				isDuplicateIgnored: body.isDuplicateIgnored ?? current.isDuplicateIgnored,
 				isHidden: body.isHidden ?? current.isHidden,
 				isSelected: body.isSelected ?? current.isSelected,
@@ -943,6 +967,15 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (body.debtSplit !== undefined && body.debtSplit !== null && type === "TRANSFER")
 				throw new HttpException("Transferências não podem ser vinculadas a dívidas", 400);
 			await validateItemAccounts(next, userId);
+			if (next.fees.length) {
+				const currency = await financialAccountCurrency(
+					next.type === "INCOME"
+						? next.destinationFinancialAccountId
+						: next.originFinancialAccountId,
+				);
+				if (calculateFinancialFees(next.amount, next.fees, currency) >= next.amount)
+					throw new HttpException("As taxas devem ser menores que o valor da transação", 400);
+			}
 			if (next.paymentCreditCardId)
 				await assertCreditCardStatementOwnership(next.paymentCreditCardId, userId);
 			if (next.storeName && next.type !== "EXPENSE")
@@ -955,6 +988,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					...next,
 					amount: numeric(next.amount),
 					date: toDateKey(next.date),
+					destinationAmount: nullableNumeric<38, 18>(next.destinationAmount),
+					fees: next.fees.map(fee => ({ ...fee })),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, current.id))
@@ -1179,6 +1214,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						"isHidden",
 						"isReconciled",
 						"originFinancialAccountId",
+						"destinationAmount",
+						"fees",
 						"reconciledImportItemId",
 						"reconciledTransactionId",
 						"storeName",
@@ -1303,6 +1340,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"isHidden",
 					"isReconciled",
 					"originFinancialAccountId",
+					"destinationAmount",
+					"fees",
 					"reconciledImportItemId",
 					"reconciledTransactionId",
 					"storeName",
@@ -1570,6 +1609,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						"isHidden",
 						"isReconciled",
 						"originFinancialAccountId",
+						"destinationAmount",
+						"fees",
 						"reconciledImportItemId",
 						"reconciledTransactionId",
 						"storeName",

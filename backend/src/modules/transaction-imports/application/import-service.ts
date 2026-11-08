@@ -57,8 +57,10 @@ export interface ImportItemToApprove {
 	paymentCreditCardId: string | null;
 	date: Date;
 	description: string | null;
+	destinationAmount?: number | string | null;
 	destinationFinancialAccountId: string | null;
 	externalId: string | null;
+	fees?: unknown;
 	id: string;
 	isHidden: boolean;
 	isReconciled: boolean;
