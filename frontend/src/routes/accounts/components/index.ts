@@ -10,7 +10,6 @@ export * from "./FinancialInstitutionGroup";
 export { InstitutionActions } from "./InstitutionActions";
 export { InstitutionMergeProposal } from "./InstitutionMergeProposal";
 export { InstitutionProfileDialog } from "./InstitutionProfileDialog";
-export { ProfileProposalForm } from "./ProfileProposalForm";
 export * from "./RecalculateAccountYieldButton";
 export { YieldTaxFields } from "./YieldTaxFields";
 

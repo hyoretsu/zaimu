@@ -177,9 +177,7 @@ export function AccountsPage() {
 			<SuggestionHubDialog
 				onOpenChange={setIsSuggestionOpen}
 				open={isSuggestionOpen}
-				types={
-					["NEW_INSTITUTION", "EDIT_INSTITUTION", "PROFILE", "POLICY", "CARD_RULES", "MERGE"] satisfies SuggestionType[]
-				}
+				types={["INSTITUTION", "MERGE"] satisfies SuggestionType[]}
 			/>
 			<PendingNotices onReviewTransactionImport={setReviewingImportId} />
 			<ImportTransactionsDialog

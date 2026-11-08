@@ -6,17 +6,11 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateRangePicker } from "@/components/ui/DateRangePicker";
 import { DialogBody } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
-import {
-	type FinancialInstitution,
-	type FinancialInstitutionYieldPolicy,
-	getFinancialInstitutionsByIdPolicies,
-	getFinancialInstitutionsByIdProfiles,
-} from "@/lib/api";
+import { type FinancialInstitutionYieldPolicy, getFinancialInstitutionsByIdPolicies } from "@/lib/api";
+import { countryName } from "@/lib/countries";
 import { useCacheIdentity } from "@/lib/query-cache";
-import { useCurrencyStore } from "@/stores/currency";
-import { CreateInstitutionProfileDialog } from "./CreateInstitutionProfileDialog";
-import { InstitutionYieldPolicyForm } from "./InstitutionYieldPolicyForm";
-import { InstitutionYieldTimeline } from "./InstitutionYieldTimeline";
+import { InstitutionYieldPolicyForm } from "@/routes/accounts/components/InstitutionYieldDialog/InstitutionYieldPolicyForm";
+import { InstitutionYieldTimeline } from "@/routes/accounts/components/InstitutionYieldDialog/InstitutionYieldTimeline";
 import {
 	OPEN_START,
 	policyDay,
@@ -25,84 +19,97 @@ import {
 	visibleStart,
 	YIELD_ACCOUNT_TYPES,
 	type YieldAccountType,
-} from "./policy-selection";
+} from "@/routes/accounts/components/InstitutionYieldDialog/policy-selection";
+import { useCurrencyStore } from "@/stores/currency";
+import { DEFAULT_PROFILE_NAME } from "./proposal";
+import type { ExistingProfile, PolicyDraft } from "./types";
 
-export function InstitutionYieldEditor({
-	institution,
+const ID = "id:";
+const NAME = "name:";
+
+/** Option value for the profile a policy targets: existing profiles by id, new ones by name. */
+export const policyProfileKey = (draft: Pick<PolicyDraft, "profileId" | "profileName">) =>
+	draft.profileId ? `${ID}${draft.profileId}` : `${NAME}${draft.profileName}`;
+
+/**
+ * Edits one yield policy and hands it back as a draft instead of posting it:
+ * the form collects every policy and submits them together with the rest of the proposal.
+ */
+export function PolicyDraftEditor({
+	countries,
+	draft,
+	institutionId,
+	newProfileNames,
 	onClose,
-	onUpdate,
+	onSubmit,
+	profiles,
 }: {
-	institution: FinancialInstitution;
+	countries: string[];
+	draft?: PolicyDraft;
+	institutionId?: string;
+	newProfileNames: string[];
 	onClose: () => void;
-	onUpdate: (
-		institution: FinancialInstitution,
-		policy: Omit<FinancialInstitutionYieldPolicy, "effectiveDate">,
-	) => Promise<unknown>;
+	onSubmit: (draft: Omit<PolicyDraft, "key">) => void;
+	profiles: ExistingProfile[];
 }) {
-	const [profileId, setProfile] = useState<string>();
-	const [requestedProfileName, setRequestedProfileName] = useState<string>();
-	const [countryCode, setCountry] = useState<string>();
-	const [accountType, setAccountType] = useState<YieldAccountType>();
-	const [copied, setCopied] = useState<{ policy: FinancialInstitutionYieldPolicy; scope: string }>();
-	const today = new Date().toLocaleDateString("sv-SE");
-	// Blank start means "the whole previous period" (stored as the open start sentinel).
-	const [effectiveDate, setDate] = useState("");
-	// Resolve the source period independently of the draft's editable start date.
-	const [sourceDate, setSourceDate] = useState(today);
-	const [effectiveUntil, setUntil] = useState("");
-	// Start date of the existing period being edited; unset while a new period is created.
-	const [editingStart, setEditingStart] = useState<string>();
 	const identity = useCacheIdentity();
+	const today = new Date().toLocaleDateString("sv-SE");
+	const profileOptions = [
+		...profiles.map(profile => ({ label: profile.name, value: `${ID}${profile.id}` })),
+		...(institutionId ? [] : [{ label: DEFAULT_PROFILE_NAME, value: `${NAME}${DEFAULT_PROFILE_NAME}` }]),
+		...newProfileNames.map(name => ({ label: `${name} (novo)`, value: `${NAME}${name}` })),
+	];
+	const defaultProfileKey =
+		profiles.find(profile => profile.isDefault) !== undefined
+			? `${ID}${profiles.find(profile => profile.isDefault)!.id}`
+			: `${NAME}${DEFAULT_PROFILE_NAME}`;
+	const [profileKey, setProfileKey] = useState(draft ? policyProfileKey(draft) : defaultProfileKey);
+	const [countryCode, setCountry] = useState<string | undefined>(draft?.policy.countryCode ?? undefined);
+	const [accountType, setAccountType] = useState<YieldAccountType | undefined>(
+		draft?.policy.accountType ?? undefined,
+	);
+	const [copied, setCopied] = useState<{ policy: FinancialInstitutionYieldPolicy; scope: string }>();
+	const [draftActive, setDraftActive] = useState(!!draft);
+	const [effectiveDate, setDate] = useState(
+		draft ? visibleStart(draft.policy.requestedEffectiveDate ?? draft.policy.effectiveDate) : "",
+	);
+	const [sourceDate, setSourceDate] = useState(today);
+	const [effectiveUntil, setUntil] = useState(
+		draft?.policy.effectiveUntil ? policyDay(draft.policy.effectiveUntil) : "",
+	);
+	const [editingStart, setEditingStart] = useState<string | undefined>(draft?.policy.replacesEffectiveDate);
 	const preferredCurrency = useCurrencyStore(state => state.currency);
 	const currencies = useCurrencyStore(state => state.currencies);
 	const currency = (countryCode ? countryCurrency(countryCode, currencies) : null) ?? preferredCurrency;
-	const profiles = useQuery({
-		queryFn: () =>
-			getFinancialInstitutionsByIdProfiles({ path: { id: institution.id } }).then(
-				result => result.data,
-			),
-		queryKey: ["identity", identity, "institution-profiles", institution.id],
-	});
 	const policies = useQuery({
+		enabled: !!institutionId,
 		queryFn: () =>
-			getFinancialInstitutionsByIdPolicies({ path: { id: institution.id } }).then(
+			getFinancialInstitutionsByIdPolicies({ path: { id: institutionId! } }).then(
 				result => result.data,
 			),
-		queryKey: ["identity", identity, "institution-policies", institution.id],
+		queryKey: ["identity", identity, "institution-policies", institutionId],
 	});
-	const selectedProfile =
-		profileId ??
-		profiles.data?.find(profile => profile.name === requestedProfileName)?.id ??
-		profiles.data?.find(profile => profile.isDefault)?.id;
-	const timeline = policyTimeline(policies.data ?? [], selectedProfile, countryCode, currency, accountType);
+	const known = policies.data ?? [];
+	const profileId = profileKey.startsWith(ID) ? profileKey.slice(ID.length) : undefined;
+	const profileName = profileKey.startsWith(NAME) ? profileKey.slice(NAME.length) : undefined;
+	const timeline = policyTimeline(known, profileId, countryCode, currency, accountType);
 	const editedPolicy = editingStart
 		? timeline.find(item => policyDay(item.effectiveDate) === editingStart)
 		: undefined;
 	const replacesEffectiveDate = editedPolicy ? editingStart : undefined;
-	const scope = `${selectedProfile}:${countryCode}:${accountType}`;
+	const scope = `${profileKey}:${countryCode}:${accountType}`;
 	const copiedPolicy = copied?.scope === scope && !editedPolicy ? copied.policy : undefined;
 	const policy =
 		editedPolicy ??
 		copiedPolicy ??
-		selectEditablePolicy(
-			policies.data ?? [],
-			selectedProfile,
-			countryCode,
-			sourceDate,
-			currency,
-			accountType,
-		);
-	// Other account types of this profile/country that already have a yield to copy from.
-	const copyOptions: { label: string; value: YieldAccountType | "__all__" }[] = [
-		{ label: "Todos os tipos", value: "__all__" },
-		...YIELD_ACCOUNT_TYPES,
-	];
-	const copySources = copyOptions
+		(draftActive ? draft?.policy : undefined) ??
+		selectEditablePolicy(known, profileId, countryCode, sourceDate, currency, accountType);
+	const copySources = [{ label: "Todos os tipos", value: "__all__" as const }, ...YIELD_ACCOUNT_TYPES]
 		.filter(option => (option.value === "__all__" ? undefined : option.value) !== accountType)
 		.flatMap(option => {
 			const source = selectEditablePolicy(
-				policies.data ?? [],
-				selectedProfile,
+				known,
+				profileId,
 				countryCode,
 				today,
 				currency,
@@ -110,58 +117,47 @@ export function InstitutionYieldEditor({
 			);
 			return source ? [{ label: option.label, source, value: option.value }] : [];
 		});
-	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
+	const resetScope = () => {
+		setDraftActive(false);
+		setEditingStart(undefined);
+		setSourceDate(today);
+		setUntil("");
+	};
 	const controls = (
 		<>
 			<CustomSelect
 				label="Perfil da política"
 				onValueChange={value => {
-					const nextProfile = value || undefined;
+					if (!value) return;
+					const nextProfile = value.startsWith(ID) ? value.slice(ID.length) : undefined;
 					const nextPolicy = selectEditablePolicy(
-						policies.data ?? [],
+						known,
 						nextProfile,
 						countryCode,
 						today,
 						currency,
 						accountType,
 					);
-					setProfile(nextProfile);
-					setEditingStart(undefined);
-					setSourceDate(today);
+					setProfileKey(value);
+					resetScope();
 					setDate(nextPolicy ? visibleStart(nextPolicy.effectiveDate) : "");
 					setUntil(nextPolicy?.effectiveUntil ? policyDay(nextPolicy.effectiveUntil) : "");
 				}}
-				options={(profiles.data ?? []).map(profile => ({ label: profile.name, value: profile.id }))}
+				options={profileOptions}
 				placeholder="Ex: Padrão"
 				required
 				searchable
-				value={selectedProfile}
-			/>
-			<CreateInstitutionProfileDialog
-				institutionId={institution.id}
-				onCreated={async name => {
-					setRequestedProfileName(name);
-					setProfile(undefined);
-					setEditingStart(undefined);
-					setSourceDate(today);
-					setUntil("");
-					await profiles.refetch();
-				}}
+				value={profileKey}
 			/>
 			<CustomSelect
 				label="País aplicável"
 				onValueChange={value => {
 					setCountry(!value || value === "__all__" ? undefined : value);
-					setEditingStart(undefined);
-					setSourceDate(today);
-					setUntil("");
+					resetScope();
 				}}
 				options={[
 					{ label: "Todos os países", special: true, value: "__all__" },
-					...(institution.operatingCountryCodes ?? []).map(value => ({
-						label: names.of(value) ?? value,
-						value,
-					})),
+					...countries.map(value => ({ label: countryName(value), value })),
 				]}
 				placeholder="Todos os países"
 				searchable
@@ -171,9 +167,7 @@ export function InstitutionYieldEditor({
 				label="Tipo de conta"
 				onValueChange={value => {
 					setAccountType(!value || value === "__all__" ? undefined : (value as YieldAccountType));
-					setEditingStart(undefined);
-					setSourceDate(today);
-					setUntil("");
+					resetScope();
 				}}
 				options={[
 					{ label: "Todos os tipos", special: true, value: "__all__" },
@@ -190,6 +184,7 @@ export function InstitutionYieldEditor({
 							key={value}
 							onClick={() => {
 								setCopied({ policy: { ...source, accountType }, scope });
+								setDraftActive(false);
 								setEditingStart(undefined);
 							}}
 							size="sm"
@@ -214,8 +209,7 @@ export function InstitutionYieldEditor({
 					value={{ endDate: effectiveUntil || undefined, startDate: effectiveDate || undefined }}
 				/>
 				<p className="text-muted-foreground text-xs">
-					Opcional. Sem início, vale desde todo o período anterior; sem fim, vale até a próxima
-					mudança.
+					Sem início, vale desde todo o período anterior; sem fim, vale até a próxima mudança.
 				</p>
 			</div>
 			<InstitutionYieldTimeline
@@ -223,23 +217,25 @@ export function InstitutionYieldEditor({
 				countryCode={countryCode}
 				currency={currency}
 				onNew={() => {
+					setDraftActive(false);
 					setEditingStart(undefined);
 					setSourceDate(effectiveDate || today);
 					setUntil("");
 				}}
 				onSelect={item => {
+					setDraftActive(false);
 					setEditingStart(policyDay(item.effectiveDate));
 					setDate(visibleStart(item.effectiveDate));
 					setUntil(item.effectiveUntil ? policyDay(item.effectiveUntil) : "");
 				}}
-				policies={policies.data ?? []}
-				profileId={selectedProfile}
+				policies={known}
+				profileId={profileId}
 				selectedStart={replacesEffectiveDate}
 			/>
 		</>
 	);
 	let content: ReactNode;
-	if (profiles.isPending || policies.isPending) {
+	if (institutionId && policies.isPending) {
 		content = (
 			<DialogBody>
 				<Skeleton className="h-20" />
@@ -247,27 +243,13 @@ export function InstitutionYieldEditor({
 				<Skeleton className="h-72" />
 			</DialogBody>
 		);
-	} else if (profiles.isError || policies.isError) {
+	} else if (institutionId && policies.isError) {
 		content = (
 			<DialogBody>
-				<p role="alert">Não foi possível carregar a configuração.</p>
-				<Button
-					onClick={() => {
-						void profiles.refetch();
-						void policies.refetch();
-					}}
-					variant="outline"
-				>
+				<p role="alert">Não foi possível carregar as políticas atuais.</p>
+				<Button onClick={() => void policies.refetch()} type="button" variant="outline">
 					Tentar novamente
 				</Button>
-			</DialogBody>
-		);
-	} else if (!selectedProfile) {
-		content = (
-			<DialogBody>
-				<p role="alert">
-					Perfil Padrão indisponível. Atualize o catálogo antes de configurar rendimento.
-				</p>
 			</DialogBody>
 		);
 	} else {
@@ -275,23 +257,25 @@ export function InstitutionYieldEditor({
 			<InstitutionYieldPolicyForm
 				controls={controls}
 				currency={currency}
-				key={`${scope}:${replacesEffectiveDate ?? ""}:${copiedPolicy ? "copy" : ""}`}
+				key={`${scope}:${replacesEffectiveDate ?? ""}:${copiedPolicy ? "copy" : ""}:${draftActive ? "draft" : ""}`}
 				onDiscard={onClose}
 				onSave={async body => {
-					if (!selectedProfile) throw new Error("Selecione o perfil.");
 					const startDate = effectiveDate || OPEN_START;
 					if (effectiveUntil && effectiveUntil <= startDate)
 						throw new Error("O fim da vigência deve ser posterior ao início.");
-					await onUpdate(institution, {
-						...body,
-						accountType,
-						countryCode,
-						effectiveUntil: effectiveUntil || undefined,
-						profileId: selectedProfile,
-						replacesEffectiveDate,
-						requestedEffectiveDate: startDate,
+					onSubmit({
+						policy: {
+							...body,
+							accountType,
+							countryCode,
+							effectiveDate: startDate,
+							effectiveUntil: effectiveUntil || undefined,
+							replacesEffectiveDate,
+							requestedEffectiveDate: startDate,
+						},
+						profileId,
+						profileName,
 					});
-					await policies.refetch();
 					onClose();
 				}}
 				policy={policy}

@@ -1,5 +1,6 @@
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { LuArrowLeft } from "react-icons/lu";
+import { INSTITUTION_FORM_RECOVERY_KIND, type InstitutionFormDraft } from "@/components/institution-form";
 import { Button } from "@/components/ui/Button";
 import {
 	Dialog,
@@ -10,29 +11,9 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
-import { type CardRulesSuggestionDraft, CardRulesSuggestionForm } from "./CardRulesSuggestionForm";
-import { EditInstitutionSuggestionForm } from "./EditInstitutionSuggestionForm";
+import { InstitutionSuggestionFlow } from "./InstitutionSuggestionFlow";
 import { MergeSuggestionForm } from "./MergeSuggestionForm";
-import { NewInstitutionSuggestionForm } from "./NewInstitutionSuggestionForm";
-import { PolicySuggestionForm } from "./PolicySuggestionForm";
-import { ProfileSuggestionForm } from "./ProfileSuggestionForm";
 import { SUGGESTION_TYPES, type SuggestionType } from "./suggestion-types";
-
-const FORMS: Record<
-	SuggestionType,
-	(props: {
-		onClose: () => void;
-		recoveredName?: string;
-		recoveredCardRules?: CardRulesSuggestionDraft;
-	}) => ReactNode
-> = {
-	CARD_RULES: CardRulesSuggestionForm,
-	EDIT_INSTITUTION: EditInstitutionSuggestionForm,
-	MERGE: MergeSuggestionForm,
-	NEW_INSTITUTION: NewInstitutionSuggestionForm,
-	POLICY: PolicySuggestionForm,
-	PROFILE: ProfileSuggestionForm,
-};
 
 export function SuggestionHubDialog({
 	onOpenChange,
@@ -44,29 +25,24 @@ export function SuggestionHubDialog({
 	types: SuggestionType[];
 }) {
 	const [selected, setSelected] = useState<SuggestionType>();
-	const [recoveredName, setRecoveredName] = useState<string>();
-	const [recoveredCardRules, setRecoveredCardRules] = useState<CardRulesSuggestionDraft>();
-	useBackgroundModalRecovery<{ name: string }>("institution-suggestion:new", entry => {
-		setRecoveredName(entry.payload.name);
-		setSelected("NEW_INSTITUTION");
+	const [recovered, setRecovered] = useState<InstitutionFormDraft>();
+	useBackgroundModalRecovery<InstitutionFormDraft>(INSTITUTION_FORM_RECOVERY_KIND, entry => {
+		setRecovered(entry.payload);
+		setSelected("INSTITUTION");
 		onOpenChange(true);
 	});
-	useBackgroundModalRecovery<CardRulesSuggestionDraft>("institution-suggestion:card-rules", entry => {
-		setRecoveredCardRules(entry.payload);
-		setSelected("CARD_RULES");
-		onOpenChange(true);
-	});
-	const close = () => {
-		setRecoveredName(undefined);
-		setRecoveredCardRules(undefined);
+	const back = () => {
+		setRecovered(undefined);
 		setSelected(undefined);
+	};
+	const close = () => {
+		back();
 		onOpenChange(false);
 	};
-	const Form = selected ? FORMS[selected] : undefined;
 	return (
 		<Dialog
 			onOpenChange={value => {
-				if (!value) setSelected(undefined);
+				if (!value) back();
 				onOpenChange(value);
 			}}
 			open={open}
@@ -82,50 +58,50 @@ export function SuggestionHubDialog({
 							: "Escolha o que deseja sugerir. Um admin revisa antes de qualquer mudança valer para todos."}
 					</DialogDescription>
 				</DialogHeader>
-				<DialogBody>
-					{Form ? (
-						<div className="grid gap-4">
-							<Button
-								className="w-fit justify-self-start"
-								onClick={() => setSelected(undefined)}
-								size="sm"
-								type="button"
-								variant="ghost"
-							>
-								<LuArrowLeft />
-								Voltar
-							</Button>
-							<Form
-								onClose={close}
-								recoveredCardRules={recoveredCardRules}
-								recoveredName={recoveredName}
-							/>
-						</div>
-					) : (
-						<ul className="grid gap-2">
-							{types.map(type => {
-								const info = SUGGESTION_TYPES[type];
-								return (
-									<li key={type}>
-										<button
-											className="hover:bg-accent flex w-full cursor-pointer items-start gap-3 rounded-xl border p-3 text-left"
-											onClick={() => setSelected(type)}
-											type="button"
-										>
-											<info.icon className="mt-1 size-5 shrink-0" />
-											<span className="grid gap-0.5">
-												<span className="font-semibold">{info.label}</span>
-												<span className="text-muted-foreground text-sm">
-													{info.description}
+				{selected === "INSTITUTION" ? (
+					<InstitutionSuggestionFlow onBack={back} onClose={close} recovered={recovered} />
+				) : (
+					<DialogBody>
+						{selected === "MERGE" ? (
+							<div className="grid gap-4">
+								<Button
+									className="w-fit justify-self-start"
+									onClick={back}
+									size="sm"
+									type="button"
+									variant="ghost"
+								>
+									<LuArrowLeft />
+									Voltar
+								</Button>
+								<MergeSuggestionForm onClose={close} />
+							</div>
+						) : (
+							<ul className="grid gap-2">
+								{types.map(type => {
+									const info = SUGGESTION_TYPES[type];
+									return (
+										<li key={type}>
+											<button
+												className="hover:bg-accent flex w-full cursor-pointer items-start gap-3 rounded-xl border p-3 text-left"
+												onClick={() => setSelected(type)}
+												type="button"
+											>
+												<info.icon className="mt-1 size-5 shrink-0" />
+												<span className="grid gap-0.5">
+													<span className="font-semibold">{info.label}</span>
+													<span className="text-muted-foreground text-sm">
+														{info.description}
+													</span>
 												</span>
-											</span>
-										</button>
-									</li>
-								);
-							})}
-						</ul>
-					)}
-				</DialogBody>
+											</button>
+										</li>
+									);
+								})}
+							</ul>
+						)}
+					</DialogBody>
+				)}
 			</DialogContent>
 		</Dialog>
 	);
