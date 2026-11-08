@@ -38,6 +38,9 @@ beforeAll(async () => {
 	await client.connect();
 	try {
 		await installContractFixture(client, contract);
+		await client.query(
+			`INSERT INTO "Asset" ("code","kind","name","decimals") VALUES ('BRL','FIAT','Brazilian real',2),('USD','FIAT','US dollar',2) ON CONFLICT DO NOTHING`,
+		);
 	} finally {
 		await client.end();
 	}
@@ -45,7 +48,7 @@ beforeAll(async () => {
 		`INSERT INTO "user" (id,email,name) VALUES ('owner','adj-owner@test.invalid','Owner'),('other','adj-other@test.invalid','Other')`,
 	);
 	await queryRaw(
-		`INSERT INTO "FinancialAccount" (id,"userId",name,type,currency) VALUES ('a1','owner','Main','CHECKING','BRL'),('a2','owner','Second','CHECKING','BRL'),('card','owner','Card','CREDIT_CARD','BRL'),('foreign','other','Foreign','CHECKING','BRL')`,
+		`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" (id,"userId",name,type,"yieldCurrency") VALUES ('a1','owner','Main','CHECKING','BRL'),('a2','owner','Second','CHECKING','BRL'),('card','owner','Card','CREDIT_CARD',NULL),('foreign','other','Foreign','CHECKING','BRL') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('a1','BRL',0),('a2','BRL',0),('card','BRL',0),('foreign','BRL',0)`,
 	);
 });
 afterAll(async () => {
@@ -55,28 +58,59 @@ afterAll(async () => {
 });
 
 test("create, list, update, conflict, ownership and delete preserve semantics", async () => {
-	const created = await call("POST", "/", { balance: 10.5, date: "2026-01-10", financialAccountId: "a1" });
+	const created = await call("POST", "/", {
+		assetCode: "BRL",
+		balance: "10.5",
+		date: "2026-01-10",
+		financialAccountId: "a1",
+	});
 	expect(created.status).toBe(200);
 	// Guard: the runtime must really be non-UTC, otherwise the local-day assertions prove nothing.
 	expect(new Date("2026-01-10T00:00:00").getTimezoneOffset()).toBe(180);
-	const adjustment = (await created.json()) as { balance: number; date: string; id: string };
-	expect(adjustment.balance).toBe(10.5);
+	const adjustment = (await created.json()) as { balance: string; date: string; id: string };
+	expect(adjustment.balance).toBe("10.500000000000000000");
 	expect(format(new Date(adjustment.date), "yyyy-MM-dd")).toBe("2026-01-10");
 	expect(adjustment.date).toBe("2026-01-10T03:00:00.000Z");
 	expect(enqueued.at(-1)?.[2]).toBe(`balance-adjustment:${adjustment.id}`);
 
 	expect(
-		(await call("POST", "/", { balance: 1, date: "2026-01-10", financialAccountId: "a1" })).status,
+		(
+			await call("POST", "/", {
+				assetCode: "BRL",
+				balance: "1",
+				date: "2026-01-10",
+				financialAccountId: "a1",
+			})
+		).status,
 	).toBe(409);
 	expect(
-		(await call("POST", "/", { balance: 1, date: "2026-01-10", financialAccountId: "card" })).status,
+		(
+			await call("POST", "/", {
+				assetCode: "BRL",
+				balance: "1",
+				date: "2026-01-10",
+				financialAccountId: "card",
+			})
+		).status,
 	).toBe(400);
 	expect(
-		(await call("POST", "/", { balance: 1, date: "2026-01-10", financialAccountId: "foreign" })).status,
+		(
+			await call("POST", "/", {
+				assetCode: "BRL",
+				balance: "1",
+				date: "2026-01-10",
+				financialAccountId: "foreign",
+			})
+		).status,
 	).toBe(400);
 
 	const second = (await (
-		await call("POST", "/", { balance: 2, date: "2026-01-11", financialAccountId: "a1" })
+		await call("POST", "/", {
+			assetCode: "BRL",
+			balance: "2",
+			date: "2026-01-11",
+			financialAccountId: "a1",
+		})
 	).json()) as { id: string };
 	const list = (await (await call("GET", "/")).json()) as { date: string; id: string; name: string }[];
 	expect(list.map(row => row.id)).toEqual([second.id, adjustment.id]);
@@ -86,30 +120,33 @@ test("create, list, update, conflict, ownership and delete preserve semantics", 
 	expect(
 		(
 			await call("PATCH", `/${adjustment.id}`, {
-				balance: 1,
+				assetCode: "BRL",
+				balance: "1",
 				date: "2026-01-11",
 				financialAccountId: "a1",
 			})
 		).status,
 	).toBe(409);
 	const patched = await call("PATCH", `/${adjustment.id}`, {
-		balance: 20.25,
+		assetCode: "BRL",
+		balance: "20.25",
 		date: "2026-01-12",
 		financialAccountId: "a2",
 	});
 	expect(patched.status).toBe(200);
-	const [row] = await queryRaw<{ balance: number; date: Date; financialAccountId: string }>(
-		`SELECT balance, date, "financialAccountId" FROM "BalanceAdjustment" WHERE id=$1`,
+	const [row] = await queryRaw<{ balance: string; date: Date; financialAccountId: string }>(
+		`SELECT balance::text AS balance, date, "financialAccountId" FROM "BalanceAdjustment" WHERE id=$1`,
 		[adjustment.id],
 	);
-	expect(row).toMatchObject({ balance: 20.25, financialAccountId: "a2" });
+	expect(row).toMatchObject({ balance: "20.250000000000000000", financialAccountId: "a2" });
 
 	currentUser = "other";
 	expect((await call("DELETE", `/${adjustment.id}`)).status).toBe(404);
 	expect(
 		(
 			await call("PATCH", `/${adjustment.id}`, {
-				balance: 1,
+				assetCode: "BRL",
+				balance: "1",
 				date: "2026-01-12",
 				financialAccountId: "foreign",
 			})

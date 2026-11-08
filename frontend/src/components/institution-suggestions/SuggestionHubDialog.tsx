@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/Dialog";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import { type CardRulesSuggestionDraft, CardRulesSuggestionForm } from "./CardRulesSuggestionForm";
+import { EditInstitutionSuggestionForm } from "./EditInstitutionSuggestionForm";
 import { MergeSuggestionForm } from "./MergeSuggestionForm";
 import { NewInstitutionSuggestionForm } from "./NewInstitutionSuggestionForm";
 import { PolicySuggestionForm } from "./PolicySuggestionForm";
@@ -26,6 +27,7 @@ const FORMS: Record<
 	}) => ReactNode
 > = {
 	CARD_RULES: CardRulesSuggestionForm,
+	EDIT_INSTITUTION: EditInstitutionSuggestionForm,
 	MERGE: MergeSuggestionForm,
 	NEW_INSTITUTION: NewInstitutionSuggestionForm,
 	POLICY: PolicySuggestionForm,

@@ -12,7 +12,7 @@ export function FinancialFeeFields({
 	currencyCode = "BRL",
 }: {
 	fees: FinancialFee[];
-	baseAmount: number;
+	baseAmount: number | string;
 	onChange: (fees: FinancialFee[]) => void;
 	currencyCode?: string;
 }) {

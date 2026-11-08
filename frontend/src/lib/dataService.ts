@@ -35,7 +35,13 @@ import { dashboardCardForecasts, isCashFlowRecurrence } from "@zaimu/finance/das
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { loanAccountAmounts, loanInstallments } from "@zaimu/finance/loan";
 import { loanContractSummary } from "@zaimu/finance/loan-contract";
-import { convertFixedSplitAtDate, currencyScale, roundMoney, toMinorUnits } from "@zaimu/finance/money";
+import {
+	convertFixedSplitAtDate,
+	currencyScale,
+	isCryptoAsset,
+	roundMoney,
+	toMinorUnits,
+} from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
 import { trimHistoricalYieldSettings } from "@zaimu/finance/projected-yield";
 import {
@@ -44,7 +50,6 @@ import {
 	shiftRecurrenceDate,
 } from "@zaimu/finance/recurrence";
 import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
-import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { transactionPageDates } from "@zaimu/finance/transaction-page-dates";
 import {
 	deleteBalanceAdjustmentsById,
@@ -139,6 +144,14 @@ import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import { useCurrencyStore } from "@/stores/currency";
 import {
+	assetBalance,
+	fiatAccountBalance,
+	fiatAssets,
+	groupAccountAssets,
+	normalizeAccountAssets,
+	primaryCurrency,
+} from "./account-assets";
+import {
 	deleteRecurringById,
 	getCategories,
 	getCategoriesLookup,
@@ -226,6 +239,7 @@ import {
 	getFinancialInstitutions as getLocalFinancialInstitutions,
 	normalizeInstitutionName,
 } from "./financial-institution";
+import { resolveGuestTransactionMoneySides as resolveTransactionMoneySides } from "./guest-transaction-money";
 import { guestTransactionPage } from "./guest-transaction-page";
 /**
  * Data Service - Abstracts local vs remote data operations
@@ -322,8 +336,18 @@ async function hydrateLocalDebtSplit(
 
 export type FinancialAccountDraft = Omit<
 	FinancialAccount,
-	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "rewardsAccount" | "updatedAt" | "userId"
+	| "assets"
+	| "yieldCurrency"
+	| "createdAt"
+	| "creditCard"
+	| "id"
+	| "institution"
+	| "rewardsAccount"
+	| "updatedAt"
+	| "userId"
 > & {
+	assets?: import("./account-assets").AccountAsset[];
+	yieldCurrency?: string | null;
 	creditCard?: Pick<
 		CreditCard,
 		| "paymentAccountId"
@@ -355,9 +379,10 @@ export type FinancialAccountDraft = Omit<
 };
 
 export interface FinancialAccountUpdateDraft {
+	assets?: import("./account-assets").AccountAsset[];
 	institutionId?: string;
 	countryCode?: string;
-	currency?: string;
+	yieldCurrency?: string | null;
 	isPrimary?: boolean;
 	isDefaultForStatements?: boolean;
 	isHidden?: boolean;
@@ -393,6 +418,13 @@ function isConnectivityError(error: unknown): boolean {
 
 function cacheRemoteData(operation: Promise<unknown>): void {
 	void operation.catch(() => undefined);
+}
+
+function fiatAmount(value: string | number, currency: string): number {
+	if (isCryptoAsset(currency)) throw new Error("Operação exige moeda fiduciária");
+	const amount = Number(value);
+	if (!Number.isFinite(amount)) throw new Error("Valor monetário inválido");
+	return amount;
 }
 
 // ============== ACCOUNTS ==============
@@ -454,19 +486,36 @@ export const dataService = {
 				const now = new Date();
 				let newAccount: FinancialAccount = {
 					...accountData,
-					balance: data.type === "CREDIT_CARD" ? null : 0,
+					assets: (data.assets ?? []).map(asset => ({ ...asset, balance: "0" })),
+					balanceAdjustments: (data.assets ?? [])
+						.filter(asset => !/^0(?:\.0+)?$/.test(asset.balance))
+						.map(asset => ({
+							assetCode: asset.assetCode,
+							balance: asset.balance,
+							calculatedBalance: "0",
+							createdAt: now.toISOString(),
+							date: getLocalDateKey(now),
+							financialAccountId: "",
+							id: crypto.randomUUID(),
+							name: data.name ?? null,
+						})),
 					createdAt: now.toISOString(),
-					currency:
-						data.currency ??
-						(data.countryCode
-							? countryCurrency(data.countryCode, useCurrencyStore.getState().currencies)
-							: null) ??
-						activeCurrency(),
 					id: crypto.randomUUID(),
 					institution,
 					institutionId: data.institutionId ?? institution?.id ?? null,
 					updatedAt: now.toISOString(),
 					userId,
+					// Derived from the first fiat holding; the form value only covers cards and holding-less accounts.
+					yieldCurrency:
+						fiatAssets(data.assets)[0]?.assetCode ??
+						(data.yieldCurrency !== undefined
+							? data.yieldCurrency
+							: ((data.countryCode
+									? countryCurrency(
+											data.countryCode,
+											useCurrencyStore.getState().currencies,
+										)
+									: null) ?? activeCurrency())),
 					...(data.yieldPeriod && {
 						yieldRateHistories: [
 							{
@@ -483,6 +532,10 @@ export const dataService = {
 						],
 					}),
 				};
+				newAccount.balanceAdjustments = newAccount.balanceAdjustments?.map(item => ({
+					...item,
+					financialAccountId: newAccount.id,
+				}));
 				if (data.type === "REWARDS" && rewardsAccount) {
 					newAccount = {
 						...newAccount,
@@ -533,8 +586,9 @@ export const dataService = {
 						: undefined,
 				},
 			}).then(result => result.data);
-			cacheRemoteData(localAccounts.put(account, account.id));
-			return account;
+			const normalized = normalizeAccountAssets(account);
+			cacheRemoteData(localAccounts.put(normalized, normalized.id));
+			return normalized;
 		},
 
 		async delete(id: string): Promise<void> {
@@ -578,10 +632,16 @@ export const dataService = {
 			}
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
-			const accounts = await getFinancialAccounts({}).then(result => result.data);
+			const accounts = await getFinancialAccounts({}).then(result =>
+				result.data.map(account => normalizeAccountAssets(account)),
+			);
 			cacheRemoteData(
 				localAccounts.replaceSnapshot(
-					accounts.map(a => ({ data: a, localId: a.id, syncedAt: Date.now() })),
+					accounts.map(a => ({
+						data: normalizeAccountAssets(a),
+						localId: a.id,
+						syncedAt: Date.now(),
+					})),
 					owner,
 				),
 			);
@@ -595,7 +655,9 @@ export const dataService = {
 			const owner = getCurrentCacheIdentity();
 			if (!owner) throw new Error("Identidade local indisponível.");
 			try {
-				return await getFinancialAccountsById({ path: { id } }).then(result => result.data);
+				return await getFinancialAccountsById({ path: { id } }).then(result =>
+					normalizeAccountAssets(result.data),
+				);
 			} catch (error) {
 				if (!isConnectivityError(error) || getCurrentCacheIdentity() !== owner) throw error;
 				// Fallback to local cache
@@ -608,12 +670,14 @@ export const dataService = {
 				return (await localAccounts.getAll())
 					.filter(({ data }) => !type || data.type === type)
 					.map(({ data }) => ({
-						currency: data.currency ?? "BRL",
+						assets: data.assets,
+						currency: primaryCurrency(data) ?? "BRL",
 						id: data.id,
 						institution: data.institution ? { name: data.institution.name } : null,
 						isHidden: data.isHidden ?? false,
 						name: data.name,
 						type: data.type,
+						yieldCurrency: primaryCurrency(data) ?? "BRL",
 					}));
 			}
 			return getFinancialAccountsOptions({ query: type ? { type } : undefined }).then(
@@ -630,7 +694,11 @@ export const dataService = {
 				const existing = await localAccounts.getById(id);
 				if (!existing) throw new Error("FinancialAccount not found");
 
-				if (data.currency && data.currency !== (existing.data.currency ?? "BRL")) {
+				if (
+					existing.data.creditCard &&
+					data.yieldCurrency !== undefined &&
+					data.yieldCurrency !== existing.data.yieldCurrency
+				) {
 					const [transactions, books, recurrences, payments, yields, rewardCards] =
 						await Promise.all([
 							localTransactions.getAll(),
@@ -642,7 +710,10 @@ export const dataService = {
 						]);
 					const cardId = existing.data.creditCard?.id;
 					const used =
-						Boolean(existing.data.balance || existing.data.creditCard?.securityDeposit) ||
+						Boolean(
+							existing.data.assets.some(asset => !/^0(?:\.0+)?$/.test(asset.balance)) ||
+							existing.data.creditCard?.securityDeposit,
+						) ||
 						rewardCards.some(row => row.data.cashbackAccountId === id) ||
 						books.some(row => row.data.purchases.some(p => p.cashbackAccountId === id)) ||
 						transactions.some(
@@ -768,8 +839,38 @@ export const dataService = {
 					updatedAt: new Date().toISOString(),
 					yieldRateHistories: nextYieldHistory,
 				};
-				if (data.currency && updated.creditCard)
-					updated.creditCard = { ...updated.creditCard, currency: data.currency };
+				if (data.assets) {
+					const added = data.assets.filter(
+						asset =>
+							!existing.data.assets.some(previous => previous.assetCode === asset.assetCode),
+					);
+					updated.assets = [
+						...existing.data.assets,
+						...added.map(asset => ({ ...asset, balance: "0" })),
+					];
+					if (!existing.data.creditCard)
+						updated.yieldCurrency =
+							existing.data.yieldCurrency ?? fiatAssets(updated.assets)[0]?.assetCode ?? null;
+					updated.balanceAdjustments = [
+						...(existing.data.balanceAdjustments ?? []),
+						...added
+							.filter(asset => !/^0(?:\.0+)?$/.test(asset.balance))
+							.map(asset => ({
+								assetCode: asset.assetCode,
+								balance: asset.balance,
+								calculatedBalance: "0",
+								createdAt: new Date().toISOString(),
+								date: getLocalDateKey(),
+								financialAccountId: id,
+								id: crypto.randomUUID(),
+								name: updated.name,
+							})),
+					];
+				}
+				if (!existing.data.creditCard && !data.assets)
+					updated.yieldCurrency = existing.data.yieldCurrency;
+				if (data.yieldCurrency && updated.creditCard)
+					updated.creditCard = { ...updated.creditCard, currency: data.yieldCurrency };
 				if (
 					updated.creditCard &&
 					data.creditCard &&
@@ -783,7 +884,7 @@ export const dataService = {
 					isDefaultForStatements: data.isDefaultForStatements,
 					isPrimary: data.isPrimary,
 				});
-				if (updated.creditCard && (data.creditCard || data.currency)) {
+				if (updated.creditCard && (data.creditCard || data.yieldCurrency)) {
 					const card = updated.creditCard;
 					await localCreditCards.put(card, card.id);
 					if (
@@ -842,8 +943,9 @@ export const dataService = {
 				},
 				path: { id },
 			}).then(result => result.data);
-			cacheRemoteData(localAccounts.put(account, account.id));
-			return account;
+			const normalized = normalizeAccountAssets(account);
+			cacheRemoteData(localAccounts.put(normalized, normalized.id));
+			return normalized;
 		},
 	},
 
@@ -1007,10 +1109,12 @@ export const dataService = {
 				),
 				items: page.items.map(entry => ({
 					...entry,
-					endingBalance:
-						balancesByDate
+					endingBalance: (() => {
+						const account = balancesByDate
 							.get(entry.date)
-							?.find(account => account.id === entry.financialAccountId)?.balance ?? undefined,
+							?.find(account => account.id === entry.financialAccountId);
+						return account ? fiatAccountBalance(account) : undefined;
+					})(),
 				})),
 			};
 		},
@@ -1130,7 +1234,7 @@ export const dataService = {
 
 	// ============== TRANSACTIONS ==============
 	balanceAdjustments: {
-		async create(data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
+		async create(data: Pick<BalanceAdjustment, "assetCode" | "balance" | "date" | "financialAccountId">) {
 			if (isGuestMode()) return mutateLocalBalanceAdjustment(data);
 			return postBalanceAdjustments({ body: data }).then(result => result.data);
 		},
@@ -1155,25 +1259,32 @@ export const dataService = {
 								item => item.id !== adjustment.id,
 							),
 						};
-						const calculated =
-							calculateFinancialAccountBalances(
-								[without],
-								[
-									...transactions.map(item => item.data),
-									...loanAccountMovements(loans.map(item => item.data)),
-								],
-								books.flatMap(item => creditBookRewards(item.data)),
-								cachedYieldCalendar(),
-								new Date(`${adjustment.date.slice(0, 10)}T12:00:00`),
-								(yields as FinancialAccountYield[] | undefined) ?? [],
-							)[0]?.balance ?? 0;
-						return { ...adjustment, calculatedBalance: calculated };
+						const calculated = calculateFinancialAccountBalances(
+							[without],
+							[
+								...transactions.map(item => item.data),
+								...loanAccountMovements(loans.map(item => item.data)),
+							],
+							books.flatMap(item => creditBookRewards(item.data)),
+							cachedYieldCalendar(),
+							new Date(`${adjustment.date.slice(0, 10)}T12:00:00`),
+							(yields as FinancialAccountYield[] | undefined) ?? [],
+						)[0];
+						return {
+							...adjustment,
+							calculatedBalance: calculated
+								? assetBalance(calculated.assets, adjustment.assetCode)
+								: "0",
+						};
 					}),
 				);
 			}
 			return getBalanceAdjustments({}).then(result => result.data);
 		},
-		async update(id: string, data: Pick<BalanceAdjustment, "balance" | "date" | "financialAccountId">) {
+		async update(
+			id: string,
+			data: Pick<BalanceAdjustment, "assetCode" | "balance" | "date" | "financialAccountId">,
+		) {
 			if (isGuestMode()) return mutateLocalBalanceAdjustment({ ...data, id });
 			return patchBalanceAdjustmentsById({ body: data, path: { id } }).then(result => result.data);
 		},
@@ -1341,6 +1452,7 @@ export const dataService = {
 					}).then(result => result.data),
 				batchId =>
 					waitForImportBatch(
+						batchId,
 						() =>
 							getCreditCardImportsBatchByBatchId({ path: { batchId } }).then(
 								result => result.data,
@@ -1467,9 +1579,19 @@ export const dataService = {
 			},
 		): Promise<CreditPurchase[]> {
 			if (!isGuestMode()) {
-				return postCreditCardsByIdPurchases({ body: data, path: { id: cardId } }).then(
-					result => result.data,
-				);
+				return postCreditCardsByIdPurchases({
+					body: {
+						...data,
+						fees: data.fees?.map(fee => ({
+							...fee,
+							amount: fiatAmount(
+								fee.amount,
+								fee.assetCode ?? data.currency ?? activeCurrency(),
+							),
+						})),
+					},
+					path: { id: cardId },
+				}).then(result => result.data);
 			}
 			const card = (await localCreditCards.getById(cardId))?.data;
 			if (!card) throw new Error("Cartão não encontrado");
@@ -1477,8 +1599,8 @@ export const dataService = {
 			const money = await convertLocalMoney(
 				data.totalAmount,
 				data.purchaseDate,
-				data.currency ?? card.currency ?? account?.currency ?? "BRL",
-				card.currency ?? account?.currency ?? "BRL",
+				data.currency ?? card.currency ?? primaryCurrency(account) ?? "BRL",
+				card.currency ?? primaryCurrency(account) ?? "BRL",
 				data.fees ?? [],
 			);
 			data = {
@@ -1491,14 +1613,14 @@ export const dataService = {
 					money.bookingCurrency,
 					(date, from, to) => guestRate(String(date), from, to),
 				),
-				totalAmount: money.amount,
+				totalAmount: fiatAmount(money.amount, money.bookingCurrency),
 			};
 			const rewards = data.isStatementCharge
 				? {}
 				: await guestCashbackSnapshot(
 						card,
 						money.amount,
-						card.currency ?? account?.currency ?? "BRL",
+						card.currency ?? primaryCurrency(account) ?? "BRL",
 						data.purchaseDate,
 					);
 			let purchaseId = "";
@@ -1534,6 +1656,10 @@ export const dataService = {
 				}
 				const p = newBookPurchase(book, {
 					...data,
+					fees: data.fees?.map(fee => ({
+						...fee,
+						amount: fiatAmount(fee.amount, fee.assetCode ?? money.bookingCurrency),
+					})),
 					...rewards,
 					debtSplitRule: data.debtSplit ?? null,
 					description: data.description ?? "",
@@ -1628,7 +1754,7 @@ export const dataService = {
 				cashbackYieldReferencePercentage: details.cashbackYieldReferencePercentage ?? null,
 				cashbackYieldReferenceRate: details.cashbackYieldReferenceRate ?? null,
 				creditLimit: details.creditLimit,
-				currency: account.currency ?? activeCurrency(),
+				currency: primaryCurrency(account) ?? activeCurrency(),
 				currentStatement: null,
 				dueDay: details.dueDay,
 				excludeFromTotals: false,
@@ -2138,7 +2264,21 @@ export const dataService = {
 		): Promise<CreditPurchase> {
 			if (!isGuestMode()) {
 				return patchCreditCardsByIdPurchasesByPurchaseId({
-					body: data,
+					body:
+						"installmentAmount" in data
+							? data
+							: {
+									...data,
+									fees: data.fees?.map(fee => ({
+										...fee,
+										amount: fiatAmount(
+											fee.amount,
+											fee.assetCode ??
+												("currency" in data ? data.currency : undefined) ??
+												activeCurrency(),
+										),
+									})),
+								},
 					path: { id: cardId, purchaseId },
 				}).then(result => result.data);
 			}
@@ -2152,8 +2292,8 @@ export const dataService = {
 				money = await convertLocalMoney(
 					data.totalAmount,
 					data.purchaseDate,
-					data.currency ?? targetCard?.currency ?? account?.currency ?? "BRL",
-					targetCard?.currency ?? account?.currency ?? "BRL",
+					data.currency ?? targetCard?.currency ?? primaryCurrency(account) ?? "BRL",
+					targetCard?.currency ?? primaryCurrency(account) ?? "BRL",
 					data.fees ?? [],
 				);
 				data = {
@@ -2165,7 +2305,7 @@ export const dataService = {
 						money.bookingCurrency,
 						(date, from, to) => guestRate(String(date), from, to),
 					),
-					totalAmount: money.amount,
+					totalAmount: fiatAmount(money.amount, money.bookingCurrency),
 				};
 			}
 
@@ -2640,7 +2780,9 @@ export const dataService = {
 					const iOwe = people
 						.filter(person => person.balance < 0)
 						.reduce((sum, person) => sum - person.balance, 0);
-					const forecastCurrency = (row: Dashboard["forecasts"][number]) =>
+					const forecastCurrency = (
+						row: Omit<Dashboard["forecasts"][number], "amount"> & { amount: string | number },
+					) =>
 						row.type === "CARD"
 							? (cards.find(card => card.id === row.sourceId)?.currency ?? "BRL")
 							: row.type === "LOAN"
@@ -2656,7 +2798,7 @@ export const dataService = {
 							)
 							.map(account => ({
 								balance: forecastBalances.get(account.id) ?? 0,
-								currency: account.currency ?? "BRL",
+								currency: primaryCurrency(account) ?? "BRL",
 								id: account.id,
 								institutionName: account.institution?.name ?? null,
 								name: account.name,
@@ -2697,7 +2839,7 @@ export const dataService = {
 									.map(row => ({
 										...row,
 										amount: financialContext.money.convert(
-											row.amount,
+											fiatAmount(row.amount, forecastCurrency(row)),
 											forecastCurrency(row),
 											row.date,
 										),
@@ -2729,8 +2871,8 @@ export const dataService = {
 								["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
 							)
 							.map(account => ({
-								balance: account.balance ?? 0,
-								currency: account.currency ?? "BRL",
+								balance: fiatAccountBalance(account),
+								currency: primaryCurrency(account) ?? "BRL",
 								id: account.id,
 								institutionName: account.institution?.name ?? null,
 								name: account.name,
@@ -2739,7 +2881,13 @@ export const dataService = {
 						balanceBreakdown: null,
 						consolidation: error.consolidation
 							? { ...error.consolidation, unavailable: true }
-							: undefined,
+							: {
+									forecastAvailable: false,
+									histories: [],
+									method: "EXPONENTIAL_90_DAY_HALF_LIFE",
+									publishedDates: {},
+									unavailable: true,
+								},
 						creditCards,
 						currency: activeCurrency(),
 						dailyBalances: [],
@@ -3331,7 +3479,7 @@ export const dataService = {
 				.slice(0, count);
 			if (expectedPaymentId && rows[0]?.id !== expectedPaymentId)
 				throw new Error("Parcela mudou; abra pagamento novamente");
-			const accountCurrency = account?.data.currency ?? (account ? "BRL" : null);
+			const accountCurrency = primaryCurrency(account?.data) ?? (account ? "BRL" : null);
 			const amounts = await loanAccountAmounts(
 				rows.map(row => row.totalPaid),
 				loan.data.currency ?? "BRL",
@@ -3522,7 +3670,7 @@ export const dataService = {
 				row => row.data.loanId === id && row.data.installmentNumber === number,
 			)?.data;
 			if (!payment) throw new Error("Parcela não encontrada");
-			const accountCurrency = account?.data.currency ?? (account ? "BRL" : null);
+			const accountCurrency = primaryCurrency(account?.data) ?? (account ? "BRL" : null);
 			const [amount] = await loanAccountAmounts(
 				[payment.totalPaid],
 				payment.currency ?? loan.data.currency ?? "BRL",
@@ -3706,7 +3854,10 @@ export const dataService = {
 							...person.data,
 							hiddenAt: person.deleted ? new Date(person.modifiedAt).toISOString() : undefined,
 						})),
-						financialAccounts: accounts.map(a => a.data),
+						financialAccounts: accounts.map(a => ({
+							...a.data,
+							balance: a.data.pointsBalance ?? null,
+						})),
 						financialAccountYieldHolidays: [],
 						financialAccountYields: ((yields as FinancialAccountYield[] | null) ?? []).filter(
 							yieldEntry => yieldEntry.origin !== "SYSTEM",
@@ -3759,7 +3910,7 @@ export const dataService = {
 				await Promise.all([
 					localAccounts.replaceSnapshot(
 						response.serverData.financialAccounts.map(a => ({
-							data: a,
+							data: normalizeAccountAssets(a),
 							localId: a.id,
 							syncedAt: Date.now(),
 						})),
@@ -3934,6 +4085,7 @@ export const dataService = {
 					}).then(result => result.data),
 				batchId =>
 					waitForImportBatch(
+						batchId,
 						() =>
 							getTransactionImportsBatchByBatchId({ path: { batchId } }).then(
 								result => result.data,
@@ -3987,7 +4139,9 @@ export const dataService = {
 						| "date"
 						| "debtSplit"
 						| "description"
+						| "destinationAmount"
 						| "destinationFinancialAccountId"
+						| "fees"
 						| "isDuplicateIgnored"
 						| "isHidden"
 						| "isSelected"
@@ -4005,7 +4159,11 @@ export const dataService = {
 			if (data.type === "REFUND")
 				throw new Error("Reembolsos não são aceitos nesta edição de importação");
 			return patchTransactionImportsByIdItemsByItemId({
-				body: { ...data, type: data.type },
+				body: {
+					...data,
+					fees: data.fees?.map(fee => ({ ...fee, amount: Number(fee.amount) })),
+					type: data.type,
+				},
 				path: { id: importId, itemId },
 			}).then(result => result.data);
 		},
@@ -4034,8 +4192,8 @@ export const dataService = {
 				const money = await convertLocalMoney(
 					data.amount,
 					data.date,
-					data.currency ?? account?.currency ?? activeCurrency(),
-					account?.currency ?? activeCurrency(),
+					data.currency ?? primaryCurrency(account) ?? activeCurrency(),
+					data.bookingCurrency ?? data.currency ?? primaryCurrency(account) ?? activeCurrency(),
 					data.fees ?? [],
 				);
 				const destination = data.destinationFinancialAccountId
@@ -4049,12 +4207,18 @@ export const dataService = {
 						amount: money.amount,
 						currency: money.bookingCurrency,
 						destinationAmount: data.destinationAmount,
-						destinationCurrency: destination?.currency,
+						destinationCurrency: destination
+							? (data.destinationCurrency ?? money.bookingCurrency)
+							: undefined,
 						paymentAmount: data.paymentAmount,
 						paymentCurrency: card?.currency,
 					},
 					(from, to) => guestRate(data.date, from, to),
 				);
+				if (isCryptoAsset(money.bookingCurrency) && (data.debtSplit || data.recurrenceId))
+					throw new Error(
+						"Divisão de dívida e recorrência crypto ainda não são suportadas no modo visitante",
+					);
 				data = {
 					...data,
 					...money,
@@ -4084,7 +4248,11 @@ export const dataService = {
 					? (await localRecurrences.getById(data.recurrenceId))?.data
 					: undefined;
 				const debtSplit = explicitDebtSplit
-					? await hydrateLocalDebtSplit(data.amount, explicitDebtSplit, money.bookingCurrency)
+					? await hydrateLocalDebtSplit(
+							fiatAmount(data.amount, money.bookingCurrency),
+							explicitDebtSplit,
+							money.bookingCurrency,
+						)
 					: linkedRecurrence && "debtSplit" in linkedRecurrence
 						? linkedRecurrence.debtSplit
 						: undefined;
@@ -4106,12 +4274,16 @@ export const dataService = {
 			const transaction = await postTransactions({
 				body: {
 					...data,
-					destinationAmount: data.destinationAmount ?? undefined,
+					amount: String(data.amount),
+					destinationAmount:
+						data.destinationAmount == null ? undefined : String(data.destinationAmount),
+					destinationCurrency: data.destinationCurrency ?? undefined,
 					destinationFinancialAccountId: data.destinationFinancialAccountId ?? undefined,
-					feeAmount: data.feeAmount ?? undefined,
+					feeAmount: data.feeAmount == null ? undefined : String(data.feeAmount),
 					feeDescription: data.feeDescription ?? undefined,
+					fees: data.fees?.map(fee => ({ ...fee, amount: String(fee.amount) })),
 					originFinancialAccountId: data.originFinancialAccountId ?? undefined,
-					paymentAmount: data.paymentAmount ?? undefined,
+					paymentAmount: data.paymentAmount == null ? undefined : String(data.paymentAmount),
 					paymentCreditCardId: data.paymentCreditCardId ?? undefined,
 					recurrenceId: data.recurrenceId ?? undefined,
 					recurrenceOccurrenceDate: data.recurrenceOccurrenceDate ?? undefined,
@@ -4310,9 +4482,9 @@ export const dataService = {
 				accountEndingBalances?: Array<{
 					financialAccountId: string;
 					currency: string;
-					amount: number;
+					amount: string | number;
 				}>;
-				endingBalances?: Array<{ currency: string; amount: number }>;
+				endingBalances?: Array<{ currency: string; amount: string | number }>;
 				transactions: Transaction[];
 			}>;
 			hasMore: boolean;
@@ -4346,23 +4518,20 @@ export const dataService = {
 							new Date(`${date}T12:00:00`),
 							(yields ?? []) as FinancialAccountYield[],
 						);
-						const grouped = new Map<string, number>();
-						for (const account of balances.filter(account =>
-							["CHECKING", "CASH", "SAVINGS"].includes(account.type),
-						))
-							grouped.set(
-								account.currency ?? "BRL",
-								(grouped.get(account.currency ?? "BRL") ?? 0) + (account.balance ?? 0),
-							);
+						const endingBalances = groupAccountAssets(balances);
 						return {
-							accountEndingBalances: balances.map(account => ({
-								amount: account.balance ?? 0,
-								currency: account.currency ?? "BRL",
-								financialAccountId: account.id,
-							})),
+							accountEndingBalances: balances.flatMap(account =>
+								account.assets.map(asset => ({
+									amount: asset.balance,
+									currency: asset.assetCode,
+									financialAccountId: account.id,
+								})),
+							),
 							date,
-							endingBalance: grouped.get("BRL") ?? 0,
-							endingBalances: [...grouped].map(([currency, amount]) => ({ amount, currency })),
+							endingBalance: Number(
+								endingBalances.find(position => position.currency === "BRL")?.amount ?? 0,
+							),
+							endingBalances,
 							transactions: page.items.filter(row => row.date.slice(0, 10) === date),
 						};
 					}),
@@ -4424,13 +4593,17 @@ export const dataService = {
 					? await convertLocalMoney(
 							data.amount ?? existing.data.originalAmount ?? existing.data.amount,
 							merged.date,
-							merged.currency ?? account?.currency ?? activeCurrency(),
-							account?.currency ?? activeCurrency(),
+							merged.currency ?? primaryCurrency(account) ?? activeCurrency(),
+							merged.bookingCurrency ??
+								merged.currency ??
+								primaryCurrency(account) ??
+								activeCurrency(),
 							merged.fees ?? [],
 						)
 					: {
 							amount: existing.data.amount,
-							bookingCurrency: existing.data.bookingCurrency ?? account?.currency ?? "BRL",
+							bookingCurrency:
+								existing.data.bookingCurrency ?? primaryCurrency(account) ?? "BRL",
 						};
 				const destination = merged.destinationFinancialAccountId
 					? (await localAccounts.getById(merged.destinationFinancialAccountId))?.data
@@ -4447,7 +4620,11 @@ export const dataService = {
 							(!moneyChanged && data.destinationFinancialAccountId === undefined
 								? existing.data.destinationAmount
 								: undefined),
-						destinationCurrency: destination?.currency,
+						destinationCurrency: destination
+							? (data.destinationCurrency ??
+								merged.destinationCurrency ??
+								money.bookingCurrency)
+							: undefined,
 						paymentAmount:
 							data.paymentAmount ??
 							(!moneyChanged && data.paymentCreditCardId === undefined
@@ -4457,6 +4634,13 @@ export const dataService = {
 					},
 					(from, to) => guestRate(merged.date, from, to),
 				);
+				if (
+					isCryptoAsset(money.bookingCurrency) &&
+					(debtSplitInput || merged.debtSplit || merged.recurrenceId)
+				)
+					throw new Error(
+						"Divisão de dívida e recorrência crypto ainda não são suportadas no modo visitante",
+					);
 				const updated: Transaction = {
 					...existing.data,
 					...transactionChanges,
@@ -4467,7 +4651,7 @@ export const dataService = {
 					}),
 					...(debtSplitInput !== undefined && {
 						debtSplit: await hydrateLocalDebtSplit(
-							money.amount,
+							debtSplitInput ? fiatAmount(money.amount, money.bookingCurrency) : 0,
 							await convertFixedSplitAtDate(
 								debtSplitInput,
 								merged.date,
@@ -4486,10 +4670,14 @@ export const dataService = {
 			const transaction = await patchTransactionsById({
 				body: {
 					...data,
-					destinationAmount: data.destinationAmount ?? undefined,
-					feeAmount: data.feeAmount ?? undefined,
+					amount: data.amount == null ? undefined : String(data.amount),
+					destinationAmount:
+						data.destinationAmount == null ? undefined : String(data.destinationAmount),
+					destinationCurrency: data.destinationCurrency ?? undefined,
+					feeAmount: data.feeAmount == null ? undefined : String(data.feeAmount),
 					feeDescription: data.feeDescription ?? undefined,
-					paymentAmount: data.paymentAmount ?? undefined,
+					fees: data.fees?.map(fee => ({ ...fee, amount: String(fee.amount) })),
+					paymentAmount: data.paymentAmount == null ? undefined : String(data.paymentAmount),
 					type: data.type,
 				},
 				path: { id },

@@ -1,7 +1,8 @@
 import type { IconType } from "react-icons";
-import { LuBadgePercent, LuCreditCard, LuLandmark, LuLink, LuUserPlus } from "react-icons/lu";
+import { LuBadgePercent, LuCreditCard, LuLandmark, LuLink, LuPencil, LuUserPlus } from "react-icons/lu";
 
-export type SuggestionType = "CARD_RULES" | "MERGE" | "NEW_INSTITUTION" | "POLICY" | "PROFILE";
+export type SuggestionType =
+	"CARD_RULES" | "EDIT_INSTITUTION" | "MERGE" | "NEW_INSTITUTION" | "POLICY" | "PROFILE";
 
 export interface SuggestionTypeInfo {
 	description: string;
@@ -14,6 +15,12 @@ export const SUGGESTION_TYPES: Record<SuggestionType, SuggestionTypeInfo> = {
 		description: "Regras de fechamento, vencimento e recompensas de cartão de uma instituição.",
 		icon: LuCreditCard,
 		label: "Regras de cartão",
+	},
+	EDIT_INSTITUTION: {
+		description:
+			"Corrija nome, países de operação ou fechamento de fatura de uma instituição do catálogo.",
+		icon: LuPencil,
+		label: "Editar instituição",
 	},
 	MERGE: {
 		description: "Associe uma instituição criada por você a uma já aprovada no catálogo.",

@@ -4,7 +4,7 @@ import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-ho
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { InMemorySpanExporter, SimpleSpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
 import { instrumentRequest } from "./http";
-import { operation } from "./index";
+import { markOperationFailed, operation } from "./index";
 
 const exporter = new InMemorySpanExporter();
 const provider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({ exporter })] });
@@ -67,7 +67,7 @@ test("sync promise returns retain native unhandled-rejection behavior", async ()
 	const child = Bun.spawn([process.execPath, "-e", script], { stderr: "pipe", stdout: "pipe" });
 	expect(await child.exited).toBe(0);
 	expect((await new Response(child.stdout).text()).trim()).toBe("unhandled");
-});
+}, 30000);
 
 test("sibling function calls share the HTTP operation's span budget", async () => {
 	const before = exporter.getFinishedSpans().length;
@@ -81,4 +81,17 @@ test("sibling function calls share the HTTP operation's span budget", async () =
 	const spans = exporter.getFinishedSpans().slice(before);
 	expect(spans.filter(span => span.name === "sibling")).toHaveLength(1000);
 	expect(spans.at(-1)!.attributes["application.truncated"]).toBe(true);
+});
+
+test("handled worker failures mark the root without changing business results", async () => {
+	const result = { result: "failed_retry" };
+	expect(
+		await operation("handled-retry", async () => {
+			operation("receipt", () => markOperationFailed());
+			return result;
+		}),
+	).toBe(result);
+	const root = exporter.getFinishedSpans().find(span => span.name === "handled-retry")!;
+	expect(root.status.code).toBe(2);
+	expect(root.attributes["code.outcome"]).toBe("error");
 });

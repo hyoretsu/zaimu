@@ -50,3 +50,18 @@ test("records infrastructure failures and rethrows original error", async () => 
 	expect(records[0]?.outcome).toBe("error");
 	expect(JSON.stringify(records)).not.toContain(failure.message);
 });
+
+test("classifies a handled retry without changing its result", async () => {
+	const records: Record<string, unknown>[] = [];
+	const result = { result: "failed_retry" };
+	expect(
+		await instrumentJob(
+			"retry",
+			undefined,
+			async () => result,
+			record => records.push(record),
+			() => "error",
+		),
+	).toBe(result);
+	expect(records[0]?.outcome).toBe("error");
+});

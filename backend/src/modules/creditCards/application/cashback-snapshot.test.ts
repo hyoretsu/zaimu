@@ -18,15 +18,16 @@ test("approval reuses policies while rounding each reward and isolating date, cu
 				cashbackRate: 1,
 			},
 			currency: source,
-			rate: date === "2024-01-01" ? 1 : 2,
+			date,
+			source,
 		};
 	};
 	const reward = createRewardSnapshotLoader(context);
 	const base = [{ id: "card" }, "BRL", "2024-01-01", "owner"] as const;
-	expect((await reward(base[0], 10.99, base[1], base[2], base[3])).cashbackAmount).toBe(0.11);
-	expect((await reward(base[0], 20.05, base[1], base[2], base[3])).cashbackAmount).toBe(0.2);
+	expect((await reward(base[0], 10.99, base[1], base[2], base[3])).cashbackAmount).toBe("0.11");
+	expect((await reward(base[0], 20.05, base[1], base[2], base[3])).cashbackAmount).toBe("0.20");
 	expect(loads).toBe(1);
-	expect((await reward({ id: "card" }, 100, "BRL", "2024-01-02", "owner")).cashbackAmount).toBe(2);
+	expect((await reward({ id: "card" }, 100, "BRL", "2024-01-02", "owner")).cashbackAmount).toBe("1.00");
 	expect((await reward({ id: "card" }, 100, "USD", "2024-01-01", "owner")).cashbackCurrency).toBe("USD");
 	expect((await reward({ id: "other" }, 100, "BRL", "2024-01-01", "owner")).cashbackAccountId).toBe(
 		"owner-other",

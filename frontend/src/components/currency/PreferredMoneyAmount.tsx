@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { consolidateMoney, type MoneyPosition } from "@/lib/consolidated-money";
-import { guestRate } from "@/lib/currency-conversion";
+import { guestRate, valueAssetPosition } from "@/lib/currency-conversion";
 import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useCurrencyStore } from "@/stores/currency";
@@ -30,18 +29,36 @@ export function PreferredMoneyAmount({
 	const query = useQuery({
 		enabled: identity !== null && ready && !pending && !error,
 		queryFn: () =>
-			consolidateMoney(values, currency, (from, to) =>
-				client.fetchQuery({
-					queryFn: () => guestRate(date, from, to),
-					queryKey: [identity, "display-currency-rate", date, from, to],
-					staleTime: 60 * 60 * 1000,
-				}),
+			consolidateMoney(
+				values,
+				currency,
+				(from, to) =>
+					client.fetchQuery({
+						queryFn: () => guestRate(date, from, to),
+						queryKey: [identity, "display-currency-rate", date, from, to],
+						staleTime: 60 * 60 * 1000,
+					}),
+				(position, target) => valueAssetPosition(position, target, date),
 			),
 		queryKey: [identity, "consolidated-money", currency, date, values],
 	});
-	if (!ready || pending) return <Skeleton className="inline-block h-6 w-32 align-middle" />;
+	if (!ready || pending)
+		return (
+			<span
+				aria-label="Carregando valor"
+				className="bg-muted inline-block h-6 w-32 animate-pulse rounded-xl align-middle"
+				role="img"
+			/>
+		);
 	if (error) return <span>Valores indisponíveis</span>;
-	if (query.isPending) return <Skeleton className="inline-block h-6 w-32 align-middle" />;
+	if (query.isPending)
+		return (
+			<span
+				aria-label="Carregando valor"
+				className="bg-muted inline-block h-6 w-32 animate-pulse rounded-xl align-middle"
+				role="img"
+			/>
+		);
 	if (query.isError) return <span>Conversão indisponível</span>;
 	const formatter = createCurrencyFormatter(currency, navigator.languages);
 	if (debt === "absolute") return <span>{formatter.format(Math.abs(query.data))}</span>;

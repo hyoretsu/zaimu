@@ -8,6 +8,7 @@ export function instrumentJob<Result>(
 	publishedAt: number | undefined,
 	operation: () => Promise<Result>,
 	emit: (record: Record<string, unknown>) => void = record => console.info(JSON.stringify(record)),
+	classify: (result: Result) => "ok" | "error" = () => "ok",
 ) {
 	return withQueryMetrics(async () => {
 		const metrics = getQueryMetrics()!;
@@ -24,7 +25,7 @@ export function instrumentJob<Result>(
 		let outcome = "error";
 		try {
 			const result = await operation();
-			outcome = "ok";
+			outcome = classify(result);
 			return result;
 		} finally {
 			recordJob(queue, queueLagMs, outcome);

@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LuPlus, LuScale } from "react-icons/lu";
+import { LuFileUp, LuPlus, LuScale } from "react-icons/lu";
+import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import {
@@ -13,8 +14,10 @@ import {
 } from "@/components/ui/Dialog";
 import { FloatingActionMenu } from "@/components/ui/FloatingActionMenu";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
+import type { MoneyPosition } from "@/lib/consolidated-money";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -71,6 +74,8 @@ export function FinancialAccountStatementDialog({
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [creatingTransaction, setCreatingTransaction] = useState(false);
 	const [adjustingBalance, setAdjustingBalance] = useState(false);
+	const [importOpen, setImportOpen] = useState(false);
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const yieldFilters = {
 		startDate: statement.hasNextPage ? statement.data?.pages.at(-1)?.days.at(-1)?.date : undefined,
@@ -93,7 +98,7 @@ export function FinancialAccountStatementDialog({
 		queryKey: [...queryKeys.accountYields.list(identity!, account.id), "statement", yieldFilters],
 	});
 	const yieldEntries = yields.data?.pages.flatMap(page => page.items) ?? [];
-	const dailyEndingBalances = new Map(
+	const dailyEndingBalances = new Map<string, MoneyPosition[]>(
 		statement.data?.pages
 			.flatMap(page => page.days)
 			.map(day => [
@@ -106,7 +111,10 @@ export function FinancialAccountStatementDialog({
 	for (const entry of yieldEntries) {
 		if (!dailyEndingBalances.has(entry.date) && entry.endingBalance !== undefined) {
 			dailyEndingBalances.set(entry.date, [
-				{ amount: entry.endingBalance, currency: entry.currency ?? account.currency ?? "BRL" },
+				{
+					amount: entry.endingBalance,
+					currency: entry.currency ?? primaryCurrency(account) ?? "BRL",
+				},
 			]);
 		}
 	}
@@ -172,13 +180,13 @@ export function FinancialAccountStatementDialog({
 						{account.type === "REWARDS" && (
 							<DetachedRewardHistory
 								accountId={account.id}
-								currency={account.currency ?? "BRL"}
+								currency={primaryCurrency(account) ?? "BRL"}
 								points={account.rewardsAccount?.kind === "POINTS"}
 							/>
 						)}
 						<TransactionsList
 							canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
-							currencyCode={account.currency ?? "BRL"}
+							currencyCode={primaryCurrency(account) ?? "BRL"}
 							dailyEndingBalances={dailyEndingBalances}
 							hasMoreTransactions={statement.hasNextPage}
 							hasMoreYields={yields.hasNextPage}
@@ -243,6 +251,15 @@ export function FinancialAccountStatementDialog({
 										},
 									]
 								: []),
+							...(account.type !== "REWARDS"
+								? [
+										{
+											icon: LuFileUp,
+											label: "Importar extrato",
+											onClick: () => setImportOpen(true),
+										},
+									]
+								: []),
 							{
 								icon: LuPlus,
 								label: "Nova transação",
@@ -251,6 +268,21 @@ export function FinancialAccountStatementDialog({
 						]}
 					/>
 				</ActionGroup>
+				{account.type !== "REWARDS" && (
+					<>
+						<ImportTransactionsDialog
+							defaultFinancialAccountId={account.id}
+							onImported={setReviewingImportId}
+							onOpenChange={setImportOpen}
+							open={importOpen}
+						/>
+						<TransactionImportReviewDialog
+							importId={reviewingImportId}
+							onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
+							open={reviewingImportId !== null}
+						/>
+					</>
+				)}
 				<BalanceAdjustmentsDialog
 					account={account}
 					onOpenChange={setAdjustingBalance}

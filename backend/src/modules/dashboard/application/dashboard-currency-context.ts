@@ -1,6 +1,7 @@
 import { matchesBudgetCommitment, monthEnd } from "@zaimu/finance/monthly-budget";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates } from "@zaimu/finance/recurrence-projection";
+import { convertAssetAmount } from "~/modules/currencies/infra/asset-exchange";
 import {
 	ensureCurrencyRates,
 	getLatestCurrencyRate,
@@ -28,6 +29,7 @@ const defaultDependencies = {
 };
 
 type CurrencyDependencies = Omit<typeof defaultDependencies, "historicalMany"> & {
+	assetConvert?: typeof convertAssetAmount;
 	historicalMany?: typeof getStoredCurrencyFactors;
 };
 
@@ -41,6 +43,64 @@ export async function dashboardCurrencyContext(
 	forecastThrough = `${today.getFullYear() + 2}-12-31`,
 ) {
 	const reference = dateKey(today);
+	const assetBalances = new Map<string, number>();
+	const nonYieldBalances = new Map<string, number>();
+	for (const row of loaded.balanceRows) {
+		if (!row.assetCode) continue;
+		const date = row.date.localeCompare(reference) < 0 ? row.date : reference;
+		try {
+			const target =
+				loaded.accounts.find(account => account.id === row.accountId)?.currency ?? currency;
+			const converted = await (dependencies.assetConvert ?? convertAssetAmount)(
+				String(row.balance),
+				row.assetCode,
+				target,
+				date,
+			);
+			const key = `${row.accountId}:${row.date}`;
+			assetBalances.set(key, (assetBalances.get(key) ?? 0) + Number(converted));
+			if (row.assetCode !== loaded.accounts.find(account => account.id === row.accountId)?.currency)
+				nonYieldBalances.set(key, (nonYieldBalances.get(key) ?? 0) + Number(converted));
+		} catch {
+			throw new DashboardConversionUnavailable(row.assetCode, date);
+		}
+	}
+	for (const row of loaded.flows) {
+		if (typeof row.amount !== "string") continue;
+		const date = dateKey(row.date) > reference ? reference : dateKey(row.date);
+		const source = row.currency ?? "BRL";
+		try {
+			row.nativeCurrency = source;
+			row.amount = Number(
+				await (dependencies.assetConvert ?? convertAssetAmount)(row.amount, source, currency, date),
+			);
+			if (row.destinationAmount != null)
+				row.destinationAmount = Number(
+					await (dependencies.assetConvert ?? convertAssetAmount)(
+						String(row.destinationAmount),
+						row.destinationCurrency ?? source,
+						currency,
+						date,
+					),
+				);
+			row.currency = currency;
+		} catch {
+			throw new DashboardConversionUnavailable(source, date);
+		}
+	}
+	for (const row of loaded.forecastTransactions ?? []) {
+		if (typeof row.amount !== "string") continue;
+		const source = row.currency ?? "BRL";
+		const date = dateKey(row.date) > reference ? reference : dateKey(row.date);
+		try {
+			row.amount = Number(
+				await (dependencies.assetConvert ?? convertAssetAmount)(row.amount, source, currency, date),
+			);
+			row.currency = currency;
+		} catch {
+			throw new DashboardConversionUnavailable(source, date);
+		}
+	}
 	const accountCurrencies = new Map(loaded.accounts.map(row => [row.id, row.currency ?? "BRL"]));
 	const processed = new Set(
 		(loaded.linkedTransactions ?? []).map(row => `${row.sourceId}:${String(row.date).slice(0, 10)}`),
@@ -48,8 +108,10 @@ export async function dashboardCurrencyContext(
 	const currentCurrencies = new Set<string>();
 	const forecastCurrencies = new Set<string>();
 	for (const row of loaded.balanceRows) {
-		if (!Number(row.balance) || row.date !== reference) continue;
-		const source = accountCurrencies.get(row.accountId) ?? "BRL";
+		if (/^-?0(?:\.0+)?$/.test(String(row.balance)) || row.date !== reference) continue;
+		const source = row.assetCode
+			? (loaded.accounts.find(account => account.id === row.accountId)?.currency ?? currency)
+			: (accountCurrencies.get(row.accountId) ?? "BRL");
 		currentCurrencies.add(source);
 		forecastCurrencies.add(source);
 	}
@@ -163,8 +225,10 @@ export async function dashboardCurrencyContext(
 	// Historical flows use their event date; positions use their position date.
 	const needed = new Map<string, { source: string; date: string }>();
 	for (const row of loaded.balanceRows) {
-		const source = accountCurrencies.get(row.accountId) ?? "BRL";
-		if (source !== currency && row.date < reference && Number(row.balance))
+		const source = row.assetCode
+			? (loaded.accounts.find(account => account.id === row.accountId)?.currency ?? currency)
+			: (accountCurrencies.get(row.accountId) ?? "BRL");
+		if (source !== currency && row.date < reference && !/^-?0(?:\.0+)?$/.test(String(row.balance)))
 			needed.set(`${source}:${row.date}`, { date: row.date, source });
 	}
 	for (const row of loaded.flows) {
@@ -260,6 +324,7 @@ export async function dashboardCurrencyContext(
 		return value;
 	}
 	return {
+		assetBalances,
 		collections,
 		convert: (amount: number, source = "BRL", date = reference) =>
 			amount === 0 ? 0 : amount * factor(source, date),
@@ -267,6 +332,7 @@ export async function dashboardCurrencyContext(
 		factor,
 		forecastAvailable: forecastForeign.every(source => forecastFactors.has(source)),
 		missing: [...missing],
+		nonYieldBalances,
 		publishedDates,
 	};
 }

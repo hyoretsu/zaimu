@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { FinancialAccount } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import {
@@ -31,9 +31,17 @@ export function RecurrenceAccountFields({
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: queryKeys.creditCards.list(identity!),
 	});
+	const currentCardAccount = draft.creditCardId
+		? accounts.find(account => account.creditCard?.id === draft.creditCardId)
+		: undefined;
+	const currentCardOption = currentCardAccount
+		? [{ label: getFinancialAccountOptionLabel(currentCardAccount), value: draft.creditCardId }]
+		: [];
 	const cardOptions = (cards.data ?? []).map(card => ({
 		label: accounts.find(account => account.id === card.financialAccountId)
-			? getFinancialAccountOptionLabel(accounts.find(account => account.id === card.financialAccountId)!)
+			? getFinancialAccountOptionLabel(
+					accounts.find(account => account.id === card.financialAccountId)!,
+				)
 			: (card.accountName ?? "Cartão"),
 		value: card.id,
 	}));
@@ -50,7 +58,10 @@ export function RecurrenceAccountFields({
 						onValueChange={value => {
 							set("originFinancialAccountId", value);
 							if (!draft.currencyExplicit && !draft.amount)
-								set("currency", accounts.find(account => account.id === value)?.currency ?? "BRL");
+								set(
+									"currency",
+									primaryCurrency(accounts.find(account => account.id === value)) ?? "BRL",
+								);
 						}}
 						options={balanceOptions}
 						placeholder="Selecione conta de saída"
@@ -68,10 +79,15 @@ export function RecurrenceAccountFields({
 						onValueChange={value => {
 							set("destinationFinancialAccountId", value);
 							if (!draft.currencyExplicit && !draft.amount && draft.movement === "INCOME")
-								set("currency", accounts.find(account => account.id === value)?.currency ?? "BRL");
+								set(
+									"currency",
+									primaryCurrency(accounts.find(account => account.id === value)) ?? "BRL",
+								);
 						}}
 						options={balanceOptions.filter(
-							option => draft.movement !== "TRANSFER" || option.value !== draft.originFinancialAccountId,
+							option =>
+								draft.movement !== "TRANSFER" ||
+								option.value !== draft.originFinancialAccountId,
 						)}
 						placeholder="Selecione conta de entrada"
 						required
@@ -82,20 +98,25 @@ export function RecurrenceAccountFields({
 			)}
 			{needsCard && (
 				<div className="grid gap-2">
-					{cards.isPending ? (
-						<Skeleton className="h-16 rounded-xl" />
-					) : cards.isError ? (
+					{cards.isError ? (
 						<p role="alert">Não foi possível carregar cartões.</p>
 					) : (
 						<CustomSelect
-							disabled={disabled}
+							disabled={disabled || cards.isPending}
 							label="Cartão"
 							onValueChange={value => {
 								set("creditCardId", value);
-								if (!draft.currencyExplicit && !draft.amount && draft.movement === "CARD_PURCHASE")
-									set("currency", cards.data?.find(card => card.id === value)?.currency ?? "BRL");
+								if (
+									!draft.currencyExplicit &&
+									!draft.amount &&
+									draft.movement === "CARD_PURCHASE"
+								)
+									set(
+										"currency",
+										cards.data?.find(card => card.id === value)?.currency ?? "BRL",
+									);
 							}}
-							options={cardOptions}
+							options={cards.isPending ? currentCardOption : cardOptions}
 							placeholder="Selecione cartão"
 							required
 							searchable

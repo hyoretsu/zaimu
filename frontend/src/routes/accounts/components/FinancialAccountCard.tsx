@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import {
 	getFinancialAccountCurrencyValue,
@@ -27,6 +28,7 @@ import {
 	getFinancialAccountTitle,
 	getFinancialAccountTypeLabel,
 } from "@/lib/financial-account";
+import { AccountAssetBreakdown } from "./AccountAssetBreakdown";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
@@ -135,80 +137,52 @@ export function FinancialAccountCard({
 			<div className="border-border/70 mt-6 border-t pt-4">
 				{account.type === "CREDIT_CARD" ? (
 					<CreditCardAccountSummary accountId={account.id} />
-				) : account.type === "REWARDS" ? (
+				) : account.type === "REWARDS" && account.rewardsAccount?.kind === "POINTS" ? (
 					<>
-						<p className="text-muted-foreground text-xs">
-							{account.rewardsAccount?.kind === "CASHBACK"
-								? "Cashback disponível"
-								: "Pontos acumulados"}
-						</p>
+						<p className="text-muted-foreground text-xs">Pontos acumulados</p>
 						<p className="mt-1 text-2xl font-bold">
-							{account.rewardsAccount?.kind === "CASHBACK" ? (
+							{points.format(account.pointsBalance ?? 0)} pontos
+						</p>
+						{account.rewardsAccount.conversionPoints ? (
+							<p className="text-muted-foreground mt-1 text-sm">
+								Equivalente a{" "}
 								<PreferredMoneyAmount
 									values={[
 										{
-											amount: account.balance ?? 0,
+											amount: getFinancialAccountCurrencyValue(account),
 											currency:
-												account.rewardsAccount?.conversionCurrency ??
-												account.currency ??
+												account.rewardsAccount.conversionCurrency ??
+												primaryCurrency(account) ??
 												"BRL",
 										},
 									]}
 								/>
-							) : (
-								`${points.format(account.balance ?? 0)} pontos`
-							)}
-						</p>
-						{account.rewardsAccount?.kind === "POINTS" &&
-						account.rewardsAccount.conversionPoints ? (
-							<p className="text-muted-foreground mt-1 text-sm">
-								Equivalente a{" "}
-								{
-									<PreferredMoneyAmount
-										values={[
-											{
-												amount: getFinancialAccountCurrencyValue(account),
-												currency:
-													account.rewardsAccount?.conversionCurrency ??
-													account.currency ??
-													"BRL",
-											},
-										]}
-									/>
-								}
 							</p>
 						) : null}
 					</>
 				) : (
 					<>
-						<p className="text-muted-foreground text-xs">Saldo disponível</p>
-						<p
-							className={
-								(account.balance ?? 0) < 0
-									? "text-destructive mt-1 text-2xl font-bold"
-									: "mt-1 text-2xl font-bold"
-							}
-						>
-							{
-								<PreferredMoneyAmount
-									values={[
-										{
-											amount: account.balance ?? 0,
-											currency:
-												account.rewardsAccount?.conversionCurrency ??
-												account.currency ??
-												"BRL",
-										},
-									]}
-								/>
-							}
+						<p className="text-muted-foreground text-xs">
+							{account.type === "REWARDS" ? "Cashback disponível" : "Saldo disponível"}
 						</p>
+						<p className="mt-1 text-2xl font-bold">
+							<PreferredMoneyAmount
+								values={account.assets.map(asset => ({
+									amount: asset.balance,
+									currency: asset.assetCode,
+								}))}
+							/>
+						</p>
+						<AccountAssetBreakdown assets={account.assets} />
 						{account.netBalance != null && (
 							<p className="text-muted-foreground mt-1 text-sm">
 								Saldo líquido:{" "}
 								<PreferredMoneyAmount
 									values={[
-										{ amount: account.netBalance, currency: account.currency ?? "BRL" },
+										{
+											amount: account.netBalance,
+											currency: primaryCurrency(account) ?? "BRL",
+										},
 									]}
 								/>
 							</p>

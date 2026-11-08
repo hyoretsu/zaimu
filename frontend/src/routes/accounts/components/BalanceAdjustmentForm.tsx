@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toMinorUnits } from "@zaimu/finance/money";
+import { assetSymbol, decimalToUnits } from "@zaimu/finance/asset-amount";
 import { useState } from "react";
+import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
@@ -13,7 +14,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { MoneyField } from "@/components/ui/MoneyField";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
@@ -26,6 +26,7 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export interface BalanceAdjustmentDraft {
 	adjustment: BalanceAdjustment | null;
+	assetCode?: string;
 	balance: string;
 	date: string;
 	financialAccountId: string;
@@ -47,7 +48,9 @@ export function BalanceAdjustmentForm({
 	const [balance, setBalance] = useState(
 		initialDraft?.balance ?? (adjustment ? String(adjustment.balance) : ""),
 	);
-	const [date, setDate] = useState(initialDraft?.date ?? adjustment?.date.slice(0, 10) ?? getLocalDateKey());
+	const [date, setDate] = useState(
+		initialDraft?.date || adjustment?.date.slice(0, 10) || getLocalDateKey(),
+	);
 	const [financialAccountId, setFinancialAccountId] = useState(
 		initialDraft?.financialAccountId ?? adjustment?.financialAccountId ?? "",
 	);
@@ -63,6 +66,16 @@ export function BalanceAdjustmentForm({
 				(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK"),
 		)
 		.toSorted(compareFinancialAccountsByOptionLabel);
+	const [selectedAsset, setSelectedAsset] = useState(
+		initialDraft?.assetCode ?? adjustment?.assetCode ?? "",
+	);
+	const selectedAccount = accounts.find(account => account.id === financialAccountId);
+	const holdings = selectedAccount?.assets ?? [];
+	const assetCode = holdings.some(asset => asset.assetCode === selectedAsset)
+		? selectedAsset
+		: holdings.length === 1
+			? holdings[0].assetCode
+			: "";
 	const [error, setError] = useState<string | null>(null);
 	const save = (form: HTMLFormElement) => {
 		const values = new FormData(form);
@@ -74,14 +87,14 @@ export function BalanceAdjustmentForm({
 			!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
 			getLocalDateKey(parseLocalDate(date)) !== date ||
 			!submittedBalance ||
-			!Number.isFinite(Number(submittedBalance)) ||
-			Math.abs(Number(submittedBalance)) > 9999999999.99
+			!assetCode ||
+			!/^-?\d{1,20}(\.\d{1,18})?$/.test(submittedBalance)
 		) {
 			setError("Preencha conta, data e saldo válido antes de salvar.");
 			return;
 		}
 		try {
-			toMinorUnits(Math.abs(Number(submittedBalance)), selectedAccount.currency);
+			decimalToUnits(submittedBalance, assetCode);
 		} catch {
 			setError("Informe um saldo válido para a moeda da conta.");
 			return;
@@ -91,15 +104,17 @@ export function BalanceAdjustmentForm({
 				existing =>
 					existing.id !== adjustment?.id &&
 					existing.financialAccountId === financialAccountId &&
+					existing.assetCode === assetCode &&
 					existing.date.slice(0, 10) === date,
 			)
 		) {
-			setError("Já existe um ajuste para esta conta nesta data. Edite o ajuste existente.");
+			setError("Já existe um ajuste para este ativo nesta conta e data. Edite o ajuste existente.");
 			return;
 		}
-		const draft = { adjustment, balance: submittedBalance, date, financialAccountId };
+		const draft = { adjustment, assetCode, balance: submittedBalance, date, financialAccountId };
 		const data = {
-			balance: Number(draft.balance),
+			assetCode: draft.assetCode,
+			balance: draft.balance,
 			date: draft.date,
 			financialAccountId: draft.financialAccountId,
 		};
@@ -121,10 +136,12 @@ export function BalanceAdjustmentForm({
 		<Dialog onOpenChange={open => !open && onClose()} open>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<DialogTitle>{adjustment ? "Editar ajuste de saldo" : "Novo ajuste de saldo"}</DialogTitle>
+					<DialogTitle>
+						{adjustment ? "Editar ajuste de saldo" : "Novo ajuste de saldo"}
+					</DialogTitle>
 					<DialogDescription>
-						Informe o saldo real da conta ao fim deste dia. Movimentações anteriores recalculam a diferença
-						automaticamente.
+						Informe o saldo real da conta ao fim deste dia. Movimentações anteriores recalculam a
+						diferença automaticamente.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -162,19 +179,29 @@ export function BalanceAdjustmentForm({
 								required
 								value={date}
 							/>
-							<MoneyField
-								currencyCode={
-									accounts.find(account => account.id === financialAccountId)?.currency ??
-									adjustment?.currency ??
-									"BRL"
-								}
-								id="balance-adjustment-balance"
-								label="Saldo real"
-								onValueChange={setBalance}
-								rawValueName="balance"
+							<CustomSelect
+								label="Ativo"
+								onValueChange={setSelectedAsset}
+								options={holdings.map(asset => ({
+									label: assetSymbol(asset.assetCode),
+									value: asset.assetCode,
+								}))}
+								placeholder="Selecione o ativo"
 								required
-								value={balance}
+								searchable
+								value={assetCode}
 							/>
+							{assetCode && (
+								<AssetAmountField
+									assetCode={assetCode}
+									id="balance-adjustment-balance"
+									label="Saldo real"
+									onValueChange={setBalance}
+									rawValueName="balance"
+									required
+									value={balance}
+								/>
+							)}
 						</div>
 					</DialogBody>
 					<DialogFooter>

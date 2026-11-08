@@ -1,6 +1,6 @@
 #!/bin/sh
 # Docker invokes this inside the dev container. Only PID 1 is signalled.
-if bun run --cwd backend ../scripts/dev-healthcheck.ts; then
+if bun run --cwd backend scripts/dev-healthcheck.ts; then
   echo 0 > /tmp/zaimu-dev-health-failures
   exit 0
 fi

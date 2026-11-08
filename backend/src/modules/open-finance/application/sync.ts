@@ -1,3 +1,4 @@
+import { assertFiatHolding } from "~/modules/accounts/application/account-assets";
 import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
@@ -74,7 +75,11 @@ export async function syncStatus(userId: string, runId?: string) {
 	return {
 		reviews,
 		run: run
-			? { ...run, finishedAt: run.finishedAt?.toISOString() ?? null, startedAt: run.startedAt.toISOString() }
+			? {
+					...run,
+					finishedAt: run.finishedAt?.toISOString() ?? null,
+					startedAt: run.startedAt.toISOString(),
+				}
 			: null,
 	};
 }
@@ -116,21 +121,40 @@ export async function handleOpenFinanceSync(event: EventEnvelope) {
 				]);
 				await executeRaw(
 					`UPDATE "OpenFinanceConnection" SET "status"=$2, "bankUpdatedAt"=$3, "remoteAccounts"=$4::jsonb WHERE "id"=$1 AND "userId"=$5 AND "status"<>'DISCONNECTED'`,
-					[connection.id, item.status, item.lastUpdatedAt ?? null, JSON.stringify(accounts), userId],
+					[
+						connection.id,
+						item.status,
+						item.lastUpdatedAt ?? null,
+						JSON.stringify(accounts),
+						userId,
+					],
 				);
 				const bindings = await queryRaw<Binding>(
 					'SELECT * FROM "OpenFinanceBinding" WHERE "connectionId"=$1 AND NOT "paused"',
 					[connection.id],
 				);
 				for (const binding of bindings) {
-					const [local] = await queryRaw<{ currency: string; countryCode: string | null }>(
-						`SELECT a."currency",a."countryCode" FROM "FinancialAccount" a LEFT JOIN "CreditCard" c ON c."financialAccountId"=a."id" WHERE a."userId"=$1 AND (a."id"=$2 OR c."id"=$3)`,
+					const account = accounts.find(a => a.id === binding.remoteAccountId);
+					if (!account || account.itemId !== connection.itemId)
+						throw new Error("Conta remota indisponível");
+					const [local] = await queryRaw<{ currency: string | null; countryCode: string | null }>(
+						`SELECT c."currency",a."countryCode" FROM "FinancialAccount" a LEFT JOIN "CreditCard" c ON c."financialAccountId"=a."id" WHERE a."userId"=$1 AND (a."id"=$2 OR c."id"=$3)`,
 						[userId, binding.financialAccountId, binding.creditCardId],
 					);
-					if (local) await ensureAccountCoverage(local.currency, local.countryCode);
+					if (local) {
+						const currency = binding.creditCardId
+							? local.currency
+							: (
+									await assertFiatHolding(
+										binding.financialAccountId!,
+										account.currencyCode ?? "BRL",
+										userId,
+									)
+								).assetCode;
+						if (!currency) throw new Error("Moeda do destino indisponível");
+						await ensureAccountCoverage(currency, local.countryCode);
+					}
 
-					const account = accounts.find(a => a.id === binding.remoteAccountId);
-					if (!account || account.itemId !== connection.itemId) throw new Error("Conta remota indisponível");
 					let bills: RemoteBill[] = [];
 					if (binding.creditCardId) {
 						try {
@@ -140,7 +164,9 @@ export async function handleOpenFinanceSync(event: EventEnvelope) {
 							errors.push({
 								connectionId: connection.id,
 								message:
-									error instanceof HttpException ? error.message : "Não foi possível consultar faturas",
+									error instanceof HttpException
+										? error.message
+										: "Não foi possível consultar faturas",
 							});
 						}
 					}
@@ -149,7 +175,11 @@ export async function handleOpenFinanceSync(event: EventEnvelope) {
 						for (const transaction of page) {
 							if (transaction.accountId !== binding.remoteAccountId)
 								throw new Error("Transação de conta incompatível");
-							const remote = normalizeTransaction(transaction, Boolean(binding.creditCardId), bills);
+							const remote = normalizeTransaction(
+								transaction,
+								Boolean(binding.creditCardId),
+								bills,
+							);
 							const namespaces: CacheNamespace[] = [
 								"transactions:list",
 								"transactions:detail",
@@ -164,42 +194,48 @@ export async function handleOpenFinanceSync(event: EventEnvelope) {
 								"debts:events",
 								"debts:overview",
 							];
-							if (binding.creditCardId) namespaces.push(`credit-cards:${binding.creditCardId}:statements`);
+							if (binding.creditCardId)
+								namespaces.push(`credit-cards:${binding.creditCardId}:statements`);
 							const debtUsers = await queryRaw<{ userId: string }>(
 								`SELECT CASE WHEN "requesterId"=$1 THEN "recipientId" ELSE "requesterId" END AS "userId" FROM "DebtConnection" WHERE "status" IN ('PENDING','ACCEPTED') AND ("requesterId"=$1 OR "recipientId"=$1)`,
 								[userId],
 							);
-							await withWorkerCacheWrite([userId, ...debtUsers.map(u => u.userId)], namespaces, async () => {
-								await queryRaw('SELECT "userId" FROM "OpenFinanceConfig" WHERE "userId"=$1 FOR UPDATE', [
-									userId,
-								]);
-								const [lease] = await queryRaw<{ id: string }>(
-									`SELECT "id" FROM "OpenFinanceRun" WHERE "id"=$1 AND "workerToken"=$2 AND "status"='RUNNING' AND "lockedUntil">now() FOR UPDATE`,
-									[runId, token],
-								);
-								if (!lease) throw new Error("Busca perdeu bloqueio");
-								const [currentBinding] = await queryRaw<Binding>(
-									`SELECT b.* FROM "OpenFinanceBinding" b JOIN "OpenFinanceConnection" c ON c."id"=b."connectionId" WHERE b."id"=$1 AND c."userId"=$2 AND NOT b."paused"`,
-									[binding.id, userId],
-								);
-								if (
-									!currentBinding ||
-									currentBinding.financialAccountId !== binding.financialAccountId ||
-									currentBinding.creditCardId !== binding.creditCardId
-								)
-									return;
-								const result = await processRecord(userId, binding, remote);
-								await executeRaw(
-									`UPDATE "OpenFinanceRun" SET "processed"="processed"+1, "imported"="imported"+$2, "linked"="linked"+$3, "pending"="pending"+$4, "lockedUntil"=now()+interval '2 minutes' WHERE "id"=$1 AND "workerToken"=$5`,
-									[
-										runId,
-										result === "imported" ? 1 : 0,
-										result === "linked" ? 1 : 0,
-										result === "pending" ? 1 : 0,
-										token,
-									],
-								);
-							});
+							await withWorkerCacheWrite(
+								[userId, ...debtUsers.map(u => u.userId)],
+								namespaces,
+								async () => {
+									await queryRaw(
+										'SELECT "userId" FROM "OpenFinanceConfig" WHERE "userId"=$1 FOR UPDATE',
+										[userId],
+									);
+									const [lease] = await queryRaw<{ id: string }>(
+										`SELECT "id" FROM "OpenFinanceRun" WHERE "id"=$1 AND "workerToken"=$2 AND "status"='RUNNING' AND "lockedUntil">now() FOR UPDATE`,
+										[runId, token],
+									);
+									if (!lease) throw new Error("Busca perdeu bloqueio");
+									const [currentBinding] = await queryRaw<Binding>(
+										`SELECT b.* FROM "OpenFinanceBinding" b JOIN "OpenFinanceConnection" c ON c."id"=b."connectionId" WHERE b."id"=$1 AND c."userId"=$2 AND NOT b."paused"`,
+										[binding.id, userId],
+									);
+									if (
+										!currentBinding ||
+										currentBinding.financialAccountId !== binding.financialAccountId ||
+										currentBinding.creditCardId !== binding.creditCardId
+									)
+										return;
+									const result = await processRecord(userId, binding, remote);
+									await executeRaw(
+										`UPDATE "OpenFinanceRun" SET "processed"="processed"+1, "imported"="imported"+$2, "linked"="linked"+$3, "pending"="pending"+$4, "lockedUntil"=now()+interval '2 minutes' WHERE "id"=$1 AND "workerToken"=$5`,
+										[
+											runId,
+											result === "imported" ? 1 : 0,
+											result === "linked" ? 1 : 0,
+											result === "pending" ? 1 : 0,
+											token,
+										],
+									);
+								},
+							);
 						}
 					}
 				}
@@ -226,7 +262,10 @@ export async function handleOpenFinanceSync(event: EventEnvelope) {
 				JSON.stringify([
 					{
 						connectionId: "",
-						message: error instanceof HttpException ? error.message : "Busca interrompida. Tente novamente.",
+						message:
+							error instanceof HttpException
+								? error.message
+								: "Busca interrompida. Tente novamente.",
 					},
 				]),
 			],

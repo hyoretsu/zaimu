@@ -3,7 +3,8 @@ import { LuPause, LuPlay, LuSave, LuUnplug } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { type FinancialAccount, type OpenFinanceConnection, openFinanceApi } from "@/lib/api";
+import { primaryCurrency } from "@/lib/account-assets";
+import { type FinancialAccount, openFinanceApi, type OpenFinanceConnection } from "@/lib/api";
 import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { showToast } from "@/stores";
 export function AccountBindingRow({
@@ -25,7 +26,11 @@ export function AccountBindingRow({
 	const card = account.type === "CREDIT";
 	const options = destinations
 		.filter(a =>
-			card ? a.type === "CREDIT_CARD" && a.creditCard : ["CHECKING", "SAVINGS", "CASH"].includes(a.type),
+			card
+				? a.type === "CREDIT_CARD" && a.creditCard?.currency === account.currencyCode
+				: ["CHECKING", "SAVINGS", "CASH"].includes(a.type) &&
+					(primaryCurrency(a) === account.currencyCode ||
+						a.assets?.some(asset => asset.assetCode === account.currencyCode)),
 		)
 		.map(a => ({ label: getFinancialAccountDisplayName(a), value: card ? a.creditCard!.id : a.id }));
 	const save = async (target: string, paused = false) => {
@@ -54,12 +59,18 @@ export function AccountBindingRow({
 			<div>
 				<p className="font-medium">{account.name}</p>
 				<p className="text-muted-foreground text-xs">
-					{card ? "Cartão de crédito" : account.type === "BANK" ? "Conta bancária" : "Tipo indisponível"} -{" "}
-					{binding?.paused ? "Pausado" : binding ? "Vinculado" : "Sem vínculo"}
+					{card
+						? "Cartão de crédito"
+						: account.type === "BANK"
+							? "Conta bancária"
+							: "Tipo indisponível"}{" "}
+					- {binding?.paused ? "Pausado" : binding ? "Vinculado" : "Sem vínculo"}
 				</p>
 			</div>
 			<CustomSelect
-				disabled={pending || !["BANK", "CREDIT"].includes(account.type) || account.currencyCode !== "BRL"}
+				disabled={
+					pending || !["BANK", "CREDIT"].includes(account.type) || account.currencyCode !== "BRL"
+				}
 				label="Destino local"
 				onValueChange={setDestination}
 				options={[{ label: "Não importar esta conta", special: true, value: "none" }, ...options]}
@@ -76,14 +87,24 @@ export function AccountBindingRow({
 					<>
 						<Button
 							disabled={pending}
-							onClick={() => void save(binding.creditCardId ?? binding.financialAccountId!, !binding.paused)}
+							onClick={() =>
+								void save(
+									binding.creditCardId ?? binding.financialAccountId!,
+									!binding.paused,
+								)
+							}
 							size="sm"
 							variant="outline"
 						>
 							{binding.paused ? <LuPlay /> : <LuPause />}
 							{binding.paused ? "Retomar" : "Pausar"}
 						</Button>
-						<Button disabled={pending} onClick={() => void save("none")} size="sm" variant="outline">
+						<Button
+							disabled={pending}
+							onClick={() => void save("none")}
+							size="sm"
+							variant="outline"
+						>
 							<LuUnplug />
 							Desvincular
 						</Button>

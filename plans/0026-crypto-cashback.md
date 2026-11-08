@@ -9,27 +9,35 @@ Permitir criptomoedas em todas as contas e moeda própria para cashback. Mercado
 - [x] Inspecionar catálogo, conversão, snapshots de cashback e criação automática de contas.
 - [x] Consultar endpoints públicos gratuitos para verificar viabilidade MELI.
 - [ ] Resolver acesso à cotação histórica diária MELI.
-- [ ] Ampliar catálogo com identidade, tipo, precisão e identificador de provedor; manter preferência geral fiduciária.
-- [ ] Integrar Coinbase, persistência com origem e conversão via USD na mesma data; preservar cache e concorrência.
-- [ ] Ampliar campos de moeda, validações, máscaras, formatação e cálculos com limites seguros.
-- [ ] Configurar moeda de cashback; reutilizar destino somente por instituição, tipo e moeda.
-- [ ] Atualizar modo visitante, consolidações, DTOs, OpenAPI, SDK e traduções.
-- [ ] Preparar migrations e snapshots locais, atualizar regras de negócio e testar fluxos.
+- [x] Ampliar catálogo com identidade, tipo, precisão e identificador de provedor; manter preferência geral fiduciária.
+- [x] Integrar Coinbase, persistência com origem e conversão via USD na mesma data; preservar cache e concorrência.
+- [x] Ampliar campos de moeda, validações, máscaras, formatação e cálculos com limites seguros.
+- [x] Configurar moeda de cashback; reutilizar destino somente por instituição, tipo e moeda.
+- [x] Atualizar modo visitante, consolidações, DTOs, OpenAPI e SDK; sem novos namespaces de tradução.
+- [x] Preparar migrations e snapshots locais e atualizar regras de negócio; cenários focados SQL/visitante aprovados, suítes completas em andamento.
 - [ ] Validar hooks e builds afetados; criar commits locais sem push ou migrations remotas.
+
+## Integração de 2026-11-05
+
+Escopo ampliado autorizado: concluir os pré-requisitos `feat/asset-balances` e `feat/asset-quote-provider` junto de `feat/crypto-cashback`, sem modificar seus worktrees de origem. A premissa inicial de que a main já continha carteira multiativo estava incorreta; o modelo foi implementado integralmente nesta integração, com holdings e quantidades exatas.
+
+O catálogo Coinbase preserva 413 identidades. ETH mantém 18 casas apesar do expoente de exibição da fonte; símbolos de uma letra recebem código interno normalizado, preservando o identificador do provedor. MELI/MUSD não são incluídos nem associados por homonímia. Preferência geral continua fiat. `PopupLayerContext` da main substitui o antigo patch de camada de seletores, sem restaurar infraestrutura obsoleta. Sincronização preserva arrays de impostos omitidos e aceita limpeza explícita.
+
+Type-check e builds afetados aprovados; testes SQL de cashback composto e reversões nativas, valoração histórica e projeção visitante aprovados. Ainda pendentes as suítes runtime completas, validação visual completa, hooks, commits e integração local. Meli Dólar continua bloqueado por identidade/provedor, não por implementação genérica. Nenhum push ou migração compartilhada autorizado ou realizado.
 
 ## Bloqueio de provedor
 
 Consultas reais realizadas em 2026-10-12, sem alterações externas:
 
-| Endpoint | Resultado |
-| --- | --- |
-| `https://api.coinbase.com/v2/prices/MELI-BRL/spot` | HTTP 404 |
-| `https://api.coinbase.com/v2/prices/MELI-USD/spot?date=2026-10-01` | HTTP 404 |
-| `https://api.coinbase.com/v2/exchange-rates?currency=MELI` | HTTP 400 |
-| `https://api.coinbase.com/v2/currencies/crypto` | Nenhum registro correspondente a MELI |
-| `https://api.coinbase.com/v2/prices/BTC-USD/spot?date=2026-10-01` | HTTP 200, preço `83556.145` USD |
-| `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json` | Nenhum código/nome MELI ou Mercado |
-| `https://www.coinbase.com/pt-br/converter/meli/brl` | HTTP 403, bloqueio Cloudflare |
+| Endpoint                                                                           | Resultado                             |
+| ---------------------------------------------------------------------------------- | ------------------------------------- |
+| `https://api.coinbase.com/v2/prices/MELI-BRL/spot`                                 | HTTP 404                              |
+| `https://api.coinbase.com/v2/prices/MELI-USD/spot?date=2026-10-01`                 | HTTP 404                              |
+| `https://api.coinbase.com/v2/exchange-rates?currency=MELI`                         | HTTP 400                              |
+| `https://api.coinbase.com/v2/currencies/crypto`                                    | Nenhum registro correspondente a MELI |
+| `https://api.coinbase.com/v2/prices/BTC-USD/spot?date=2026-10-01`                  | HTTP 200, preço `83556.145` USD       |
+| `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json` | Nenhum código/nome MELI ou Mercado    |
+| `https://www.coinbase.com/pt-br/converter/meli/brl`                                | HTTP 403, bloqueio Cloudflare         |
 
 Esses resultados demonstram indisponibilidade de MELI nos endpoints consultados, não ausência em todos os produtos Coinbase. Página de conversão fornecida pelo usuário não determina endpoint público gratuito nem disponibilidade histórica. Suporte Mercado Pago não pode ser concluído sem acesso diário comprovado. Próximo passo: identificar endpoint ou identificador alternativo oficial para o mesmo ativo e verificar histórico por data. Não substituir por outro token, preço atual ou paridade presumida.
 

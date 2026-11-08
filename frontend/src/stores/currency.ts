@@ -1,5 +1,11 @@
+import { cryptoAssets } from "@zaimu/finance/crypto-assets";
 import { type CurrencyLocation, effectiveCurrency } from "@zaimu/finance/currency-preference";
+import { isCryptoAsset } from "@zaimu/finance/money";
 import { create } from "zustand";
+
+const withCryptoCatalog = (codes: string[]) =>
+	[...new Set([...codes, ...cryptoAssets.map(asset => asset.code)])].sort();
+const fiatCurrencies = (codes: string[]) => codes.filter(code => !isCryptoAsset(code));
 import { getCurrencyPreferences, getFinancialHistoryCurrencies, patchCurrencyPreferences } from "@/lib/api";
 import { setActiveCurrency } from "@/lib/currency-context";
 import { detectCurrencyLocation } from "@/lib/currency-location";
@@ -24,9 +30,9 @@ interface CurrencyState {
 }
 let pending: Promise<void> | undefined;
 const resolved = (preferred: string | null, location: CurrencyLocation | null, currencies: string[]) =>
-	effectiveCurrency(preferred, location, navigator.languages, currencies);
+	effectiveCurrency(preferred, location, navigator.languages, fiatCurrencies(currencies));
 export const useCurrencyStore = create<CurrencyState>((set, get) => ({
-	currencies: provisionalCurrencies,
+	currencies: withCryptoCatalog(provisionalCurrencies),
 	currency: "USD",
 	error: null,
 	loading: true,
@@ -53,7 +59,7 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 					let currencies =
 						((await localMeta.get("currency-catalog", owner)) as string[] | undefined) ??
 						get().currencies;
-					if (useAuthStore.getState().isGuestMode) return currencies;
+					if (useAuthStore.getState().isGuestMode) return withCryptoCatalog(currencies);
 					try {
 						const value = await getFinancialHistoryCurrencies({
 							...{
@@ -64,15 +70,15 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 						if (
 							Array.isArray(value) &&
 							value.includes("USD") &&
-							value.every(code => typeof code === "string" && /^[A-Z]{3}$/.test(code))
+							value.every(code => typeof code === "string" && /^[A-Z0-9]{2,12}$/.test(code))
 						) {
-							currencies = value;
+							currencies = withCryptoCatalog(value);
 							await localMeta.set("currency-catalog", currencies, owner);
 						}
 					} catch {
 						/* Retain cached supported currencies offline. */
 					}
-					return currencies;
+					return withCryptoCatalog(currencies);
 				})();
 				const preferencePromise = (async () => {
 					if (!useAuthStore.getState().isAuthenticated) return cached?.preferredCurrency ?? null;
@@ -86,7 +92,7 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 				})();
 				const [currencies, storedPreference] = await Promise.all([catalogPromise, preferencePromise]);
 				let preferred = storedPreference;
-				const location = await detectCurrencyLocation(currencies);
+				const location = await detectCurrencyLocation(fiatCurrencies(currencies));
 				if (getCurrentCacheIdentity() !== owner) return;
 				if (!preferred && location) {
 					preferred = location.currency;
@@ -123,7 +129,7 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 	refreshLocation: async () => {
 		const owner = getCurrentCacheIdentity();
 		if (!owner || owner !== get().owner) return;
-		const location = await detectCurrencyLocation(get().currencies);
+		const location = await detectCurrencyLocation(fiatCurrencies(get().currencies));
 		if (location && getCurrentCacheIdentity() === owner) {
 			set({ location });
 			if (!get().preferredCurrency) await get().refresh();
@@ -132,7 +138,8 @@ export const useCurrencyStore = create<CurrencyState>((set, get) => ({
 	setPreference: async preferredCurrency => {
 		const owner = getCurrentCacheIdentity();
 		if (!owner || owner !== get().owner) throw new Error("Preferências ainda carregando");
-		if (!get().currencies.includes(preferredCurrency)) throw new Error("Moeda não suportada");
+		if (isCryptoAsset(preferredCurrency) || !get().currencies.includes(preferredCurrency))
+			throw new Error("Moeda não suportada");
 		if (useAuthStore.getState().isAuthenticated)
 			await patchCurrencyPreferences({ body: { preferredCurrency } }).then(result => result.data);
 		await localMeta.set("currency-preference", { preferredCurrency }, owner);

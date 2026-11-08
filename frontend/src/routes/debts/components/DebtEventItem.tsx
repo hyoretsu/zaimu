@@ -1,12 +1,18 @@
-import { LuPencil, LuShoppingCart, LuTrash2, LuWalletCards } from "react-icons/lu";
+import { LuCalendarClock, LuPencil, LuShoppingCart, LuTrash2, LuWalletCards } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
+import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { DebtEvent } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { useCacheIdentity } from "@/lib/query-cache";
-import { getDebtEventCreatorLabel, getDebtEventLabel } from "./debt-event";
+import {
+	getDebtEventCreatorLabel,
+	getDebtEventInstallmentLabel,
+	getDebtEventKindLabel,
+	getDebtEventLabel,
+} from "./debt-event";
 
 export function DebtEventItem({
 	event,
@@ -23,6 +29,7 @@ export function DebtEventItem({
 }) {
 	const identity = useCacheIdentity();
 	const pending = useModalRecoveryStore(state => state.pending);
+	const installmentLabel = getDebtEventInstallmentLabel(event);
 	return (
 		<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-xl border p-3">
 			<div className="text-muted-foreground">
@@ -36,14 +43,39 @@ export function DebtEventItem({
 					{event.date || event.time ? " · " : ""}
 					{getDebtEventCreatorLabel(event)}
 				</p>
+				{installmentLabel ? (
+					<p className="text-muted-foreground text-xs">{installmentLabel}</p>
+				) : null}
+				<ul aria-label="Detalhes do lançamento" className="mt-1.5 flex list-none flex-wrap gap-1.5">
+					<li>
+						<AppBadge variant="outline">{getDebtEventKindLabel(event)}</AppBadge>
+					</li>
+					{event.dueDate ? (
+						<li>
+							<AppBadge variant="outline">
+								<LuCalendarClock aria-hidden="true" />
+								<span>
+									<span className="text-muted-foreground">Vence</span>{" "}
+									{formatLocalDate(event.dueDate)}
+								</span>
+							</AppBadge>
+						</li>
+					) : null}
+				</ul>
 			</div>
-			<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-				{event.effect === 0 ? "" : event.effect > 0 ? "Te deve " : "Você deve "}
-				{new Intl.NumberFormat("pt-BR", {
-					currency: event.currency ?? "BRL",
-					style: "currency",
-				}).format(Math.abs(event.effect))}
-			</span>
+			<div className="text-right">
+				<strong className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
+					{new Intl.NumberFormat("pt-BR", {
+						currency: event.currency ?? "BRL",
+						style: "currency",
+					}).format(Math.abs(event.effect))}
+				</strong>
+				{event.effect !== 0 ? (
+					<p className="text-muted-foreground text-sm">
+						{event.effect > 0 ? "Te deve" : "Você deve"}
+					</p>
+				) : null}
+			</div>
 			{event.kind === "ORIGIN" && event.createdByMe ? (
 				<ActionGroup className="col-span-3 border-t pt-2">
 					{event.kind === "ORIGIN" && event.createdByMe ? (

@@ -1,6 +1,8 @@
+import { isCryptoAsset } from "@zaimu/finance/money";
 import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
+import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
@@ -14,6 +16,18 @@ import { TransactionConversionPreview } from "./TransactionConversionPreview";
 
 type TransactionFormType = Transaction["type"] | "YIELD";
 
+/** Principal of a debit that already includes its fees; fees paid in another asset are separate debits. */
+function principalWithoutFees(amount: string, fees: FinancialFee[], currencyCode: string) {
+	const total = Number(amount);
+	const feeTotal = fees.reduce((sum, fee) => {
+		if (fee.assetCode && fee.assetCode !== currencyCode) return sum;
+		return (
+			sum + (fee.type === "PERCENTAGE" ? (total * Number(fee.amount)) / 100 : Number(fee.amount) || 0)
+		);
+	}, 0);
+	return String(Math.max(0, total - feeTotal));
+}
+
 export function TransactionDetailsFields({
 	amount,
 	amountIsPoints = false,
@@ -22,6 +36,9 @@ export function TransactionDetailsFields({
 	counterpartIsPoints = false,
 	counterpartValue = "",
 	onCounterpartChange,
+	onDestinationCurrencyChange,
+	onDestinationAmountChange,
+	destinationAmount = "",
 	paymentCurrency,
 	paymentAmount = "",
 	onPaymentAmountChange,
@@ -29,6 +46,7 @@ export function TransactionDetailsFields({
 	bookingCurrency = currencyCode,
 	onCurrencyChange,
 	fees = [],
+	feesIncludedInAmount = false,
 	onFeesChange,
 	date,
 	description,
@@ -57,6 +75,9 @@ export function TransactionDetailsFields({
 	counterpartCurrency?: string;
 	counterpartIsPoints?: boolean;
 	counterpartValue?: string;
+	onDestinationCurrencyChange?: (value: string) => void;
+	onDestinationAmountChange?: (value: string) => void;
+	destinationAmount?: string;
 	onCounterpartChange?: (value: string) => void;
 	paymentCurrency?: string;
 	paymentAmount?: string;
@@ -65,6 +86,8 @@ export function TransactionDetailsFields({
 	bookingCurrency?: string;
 	onCurrencyChange?: (value: string) => void;
 	fees?: FinancialFee[];
+	/** The amount already contains the fees (e.g. a bank statement debit), so the received-amount suggestion must not add them again. */
+	feesIncludedInAmount?: boolean;
 	onFeesChange?: (value: FinancialFee[]) => void;
 	date: string;
 	description: string;
@@ -104,10 +127,11 @@ export function TransactionDetailsFields({
 					value={type}
 				/>
 			) : null}
-			<FormFieldRow>
+			<FormFieldRow className="max-sm:grid-cols-1">
 				{onCurrencyChange ? (
 					<CurrencySelect
-						label="Moeda da transação"
+						allowCrypto={type !== "YIELD"}
+						label="Ativo da transação"
 						onValueChange={onCurrencyChange}
 						value={currencyCode}
 					/>
@@ -122,8 +146,8 @@ export function TransactionDetailsFields({
 						value={amount}
 					/>
 				) : (
-					<MoneyField
-						currencyCode={currencyCode}
+					<AssetAmountField
+						assetCode={currencyCode}
 						id="transaction-amount"
 						label="Valor"
 						onValueChange={onAmountChange}
@@ -132,6 +156,41 @@ export function TransactionDetailsFields({
 					/>
 				)}
 			</FormFieldRow>
+			{onDestinationCurrencyChange && !counterpartIsPoints && (
+				<CurrencySelect
+					allowCrypto
+					label="Ativo de destino"
+					onValueChange={onDestinationCurrencyChange}
+					value={counterpartCurrency ?? currencyCode}
+				/>
+			)}
+			{!counterpart && onDestinationAmountChange && counterpartCurrency !== currencyCode && (
+				<div className="space-y-2">
+					<AssetAmountField
+						assetCode={counterpartCurrency ?? currencyCode}
+						id="transaction-destination-amount"
+						label="Valor recebido"
+						onValueChange={onDestinationAmountChange}
+						required
+						value={destinationAmount}
+					/>
+					{!isCryptoAsset(currencyCode) && !isCryptoAsset(counterpartCurrency ?? currencyCode) && (
+						<TransactionConversionPreview
+							amount={
+								feesIncludedInAmount
+									? principalWithoutFees(amount, fees, currencyCode)
+									: amount
+							}
+							bookingCurrency={bookingCurrency}
+							date={date}
+							fees={feesIncludedInAmount ? [] : fees}
+							onUse={onDestinationAmountChange}
+							sourceCurrency={currencyCode}
+							targetCurrency={counterpartCurrency ?? currencyCode}
+						/>
+					)}
+				</div>
+			)}
 			{counterpart && onCounterpartChange ? (
 				counterpartIsPoints ? (
 					<NumericField
@@ -143,8 +202,8 @@ export function TransactionDetailsFields({
 						value={counterpartValue}
 					/>
 				) : (
-					<MoneyField
-						currencyCode={counterpartCurrency ?? currencyCode}
+					<AssetAmountField
+						assetCode={counterpartCurrency ?? currencyCode}
 						id="transaction-counterpart-amount"
 						label={counterpart === "payment" ? "Valor creditado na fatura" : "Valor recebido"}
 						onValueChange={onCounterpartChange}
@@ -163,25 +222,28 @@ export function TransactionDetailsFields({
 							id="transaction-payment-amount"
 							label="Valor creditado na fatura"
 							onValueChange={onPaymentAmountChange}
+							required={isCryptoAsset(currencyCode)}
 							value={paymentAmount}
 						/>
 						<p className="text-muted-foreground text-xs">
 							Informe valor efetivo ou deixe conversão automática.
 						</p>
-						<TransactionConversionPreview
-							amount={amount}
-							bookingCurrency={bookingCurrency}
-							date={date}
-							fees={fees}
-							onUse={onPaymentAmountChange}
-							sourceCurrency={currencyCode}
-							targetCurrency={paymentCurrency}
-						/>
+						{!isCryptoAsset(currencyCode) && (
+							<TransactionConversionPreview
+								amount={amount}
+								bookingCurrency={bookingCurrency}
+								date={date}
+								fees={fees}
+								onUse={onPaymentAmountChange}
+								sourceCurrency={currencyCode}
+								targetCurrency={paymentCurrency}
+							/>
+						)}
 					</div>
 				)}
 			{onFeesChange ? (
 				<FinancialFeeFields
-					baseAmount={Number(amount) || 0}
+					baseAmount={amount || "0"}
 					currencyCode={currencyCode}
 					fees={fees}
 					onChange={onFeesChange}

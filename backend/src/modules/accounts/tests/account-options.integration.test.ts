@@ -22,6 +22,9 @@ beforeAll(async () => {
 	await client.connect();
 	try {
 		await installContractFixture(client, contract);
+		await client.query(
+			`INSERT INTO "Asset" ("code","kind","name","decimals") VALUES ('BRL','FIAT','Brazilian real',2),('USD','FIAT','US dollar',2) ON CONFLICT DO NOTHING`,
+		);
 	} finally {
 		await client.end();
 	}
@@ -29,7 +32,7 @@ beforeAll(async () => {
 		`INSERT INTO "user" (id,email,name) VALUES ('owner','options-owner@test.invalid','Owner'),('other','options-other@test.invalid','Other')`,
 	);
 	await queryRaw(
-		`INSERT INTO "FinancialAccount" (id,"userId",name,type,currency,"isHidden") VALUES ('cash','owner','Cash','CASH','BRL',false),('visible','owner','Visible','CREDIT_CARD','BRL',false),('hidden','owner','Hidden','CREDIT_CARD','BRL',true),('foreign','other','Private','CREDIT_CARD','USD',false)`,
+		`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" (id,"userId",name,type,"yieldCurrency","isHidden") VALUES ('cash','owner','Cash','CASH','BRL',false),('visible','owner','Visible','CREDIT_CARD',NULL,false),('hidden','owner','Hidden','CREDIT_CARD',NULL,true),('foreign','other','Private','CREDIT_CARD',NULL,false) RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('cash','BRL',0),('visible','BRL',0),('hidden','BRL',0),('foreign','USD',0)`,
 	);
 });
 afterAll(() => closeDatabase());
@@ -40,10 +43,23 @@ test("options use one query, preserve hidden accounts and omit financial/private
 		expect(getQueryMetrics()?.queryCount).toBe(1);
 		expect(rows.map(row => row.id).sort()).toEqual(["hidden", "visible"]);
 		expect(rows.find(row => row.id === "hidden")?.isHidden).toBeTrue();
-		for (const row of rows)
+		for (const row of rows) {
 			expect(Object.keys(row).sort()).toEqual(
-				["currency", "id", "institution", "isHidden", "name", "type"].sort(),
+				[
+					"assets",
+					"currency",
+					"id",
+					"institution",
+					"isHidden",
+					"name",
+					"type",
+					"yieldCurrency",
+				].sort(),
 			);
+			expect(row.currency).toBe("BRL");
+			expect(row.yieldCurrency).toBeNull();
+			expect(row.assets).toEqual([{ assetCode: "BRL", balance: "0.000000000000000000" }]);
+		}
 	});
 });
 

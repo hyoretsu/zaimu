@@ -9,7 +9,8 @@ Approved scope: correlated logs, traces and metrics in Zaimu and ts-monorepo, ba
 - [x] API lifecycle, SQL/Redis/HTTP, workers, durable outbox context and compatible migrations.
 - [x] Web/Tauri fetch/navigation/error/Web Vitals signals and restricted gateway.
 - [x] Compose, storage, sampling, dashboards and alerts.
-- [ ] Template parity, local integration/E2E, benchmarks, image builds and operational documentation.
+- [x] Template SDK/application parity and operational documentation implemented.
+- [ ] Fresh local integration/E2E, benchmarks, image builds and final live stack verification.
 - [ ] Integrate verified commits into original main branches and remove worktrees.
 
 ## Evidence
@@ -35,3 +36,13 @@ Local sampling verification retained 8/100 ordinary production traces and all er
 Current hook: 56 affected backend tests passed. SDK fixtures: 14 passed; AST fixture exceeded the default 5-second test budget under host load (~7 seconds), so it now has a 30-second explicit timeout while preserving every assertion. SQL spans now report allowlisted contract entity names and row counts only. Template core committed as 39ce172, current main merged in its isolated worktree pending validation; Tauri origins are shared between gateway and CORS.
 
 Six dashboard JSON definitions are structurally equivalent between projects after project-name substitution. Local screenshots were captured and visually inspected at 1440×1000 and 390×844; empty application panels display No data, while Collector panels show real queue/export metrics. The 26 PromQL queries and sampling evidence apply to these shared definitions. Client resource identity now includes namespace and a bounded per-instance UUID; the gateway forwards it only in traces and strips arbitrary attributes. E2E fixtures now use a real loopback HTTP listener. Fresh E2E execution and overhead measurements are still pending.
+
+## November 8 continuation
+
+Current main a11bc7d5 is being merged into the isolated task branch. Worker bootstrap retains SDK-first loading while worker-app preserves the current held-asset quote job. Turbo keeps current shared-source inputs and OTEL environment forwarding. Original main's unrelated staged frontend fields remain untouched.
+
+Worker consumption now owns a linked root covering receipt deduplication, handler, retries, DLQ and existing operational logs. Handled failure outcomes retain business returns while marking the root and worker metrics as errors. Regression checks preserve confirmation/ack ordering and lease behavior. A native nullable outbox migration is being generated from the latest graph head instead of leaving standalone DDL that would cause schema drift.
+
+Fresh SDK run: 16 tests passed including AST/source maps and the new handled-failure assertion; Collector-outage subprocess exceeded its cold-start limit before SDK initialization under host load ~57. Its shutdown-duration assertion remains enforced; fresh complete validation is pending. Compose configuration validates in both projects. Empty metric sums were corrected in observed availability and telemetry-loss alert expressions. The earlier isolated stack no longer exists; prior live query/screenshot evidence is historical.
+
+Native migration `20261108T0626_otel_outbox_context` generated from current main head aa516107... to432e5b...; official export and offline migration check passed. Its only operation adds nullable JSONB metadata; no shared database was accessed. Standalone DDL draft removed. Code is complete and this plan is archived according to repository policy. Validation is ongoing: twelve worker regressions passed (33 assertions), HTTP dependency regression passed (7 assertions); fresh complete hook/E2E, images, benchmark comparison, live stack checks and final integration remain explicitly pending.

@@ -90,4 +90,15 @@ Não há hoje modelo de "investimento" separado: investimentos são `FinancialAc
 
 ## Progresso
 
-Nenhuma fase iniciada. Plano aprovado; implementação aguardando pedido do usuário.
+Escopo ampliado pelo usuário em 2026-11-05: integrar `feat/asset-balances`, `feat/asset-quote-provider` e `feat/crypto-cashback`; copiar e concluir o trabalho não commitado de `asset-balances` no worktree persistente `crypto-cashback-integration`, sem modificar o worktree de origem. Integração local somente, sem push ou migrações compartilhadas.
+
+- Catálogo/provedor puro de cotações integrado ao índice; merge ainda não commitado.
+- Trabalho de schema, saldos e testes copiado do worktree original; adaptação ao baseline nativo atual e consumidores em andamento.
+
+- Precisão: leitura SQL decimal exata adicionada, com testes de roundtrip transacional e rollback. Os demais consumidores ainda estão em adaptação; isso não conclui a fase 2.
+- Schema e saldos por ativo em andamento. Runner SQL integration descartável aprovado em 2026-11-01: 31 testes, incluindo 5 cenários novos de cutover, denominações históricas, 18 casas/gas, identidade das pernas e rollback. Corrigidos postcheck pré-cutover e holdings dos ajustes/rendimentos históricos. Consumidores backend/API/visitante ainda incompletos; não integrar o schema isoladamente.
+- Provedor puro brapi e valoração decimal por snapshots concluídos na branch `feat/asset-quote-provider` (commits `d944c22e`, `bedabb9e`), com 76 testes aprovados. Persistência `AssetQuoteSnapshot`, coleta e integração com a aplicação ainda pendentes.
+- Correção da premissa do ledger após leitura do controller: `amount` usa `bookingCurrency`; `originalAmount` usa `currency`; `paymentAmount`/`paymentCurrency` são o lado do cartão, e não o débito da conta. Preservar esses pares em dados legados e novos. Testes de moedas distintas pendentes.
+- Em 2026-11-05, schema/backfill adaptados ao head nativo `5c0c1d...` e sucessor `20261105T1246_multi_asset_wallet_final`; histórico versionado anterior preservado. Contratos e SDK regenerados oficialmente. Type-check e build dos pacotes backend/frontend/sql/finance aprovados na integração.
+- Runner SQL integration descartável aprovado: leitura exata de 38/18 casas por projeção com alias e transação, rollback, cutover, gas, checkpoints por ativo, capitalização mensal/anual de cashback e reversões cumulativas de cinco wei. Regressões de visitante aprovadas: 16 testes de moeda/projeção e 35 de saldo/empréstimos; projeção separa BRL 100 de cripto equivalente a BRL 500 e rende apenas sobre BRL 100.
+- Validação restante em andamento: suítes backend completas, teste de sucessores SQL oficiais, screenshots de carteira mista e fluxos móveis, hooks e integração local das ancestralidades. Não considerar entrega concluída antes desses gates.

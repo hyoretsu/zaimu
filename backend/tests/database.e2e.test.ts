@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { decimalToUnits, unitsToDecimal } from "@zaimu/finance/asset-amount";
 import { requireFixtureUrl } from "../../scripts/testing/fixture";
 
 const databaseTestUrl = requireFixtureUrl("DATABASE_TEST_URL");
@@ -14,6 +15,14 @@ let closeDatabase: () => Promise<void>;
 let executeStatement: (typeof import("sql"))["executeStatement"];
 let queryRows: (typeof import("sql"))["queryRows"];
 const userIds: string[] = [];
+
+// NUMERIC(38,18) may retain storage scale; compare exact values without coercing to number.
+const nativeDecimal = (value: string) => {
+	if (typeof value !== "string") throw new TypeError("Expected decimal string");
+	return value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value;
+};
+const nativeHoldings = (assets: Array<{ assetCode: string; balance: string }>) =>
+	assets.map(asset => ({ ...asset, balance: nativeDecimal(asset.balance) }));
 
 const jsonRequest = (path: string, method: string, body?: unknown, cookie?: string) =>
 	server.handle(
@@ -152,22 +161,35 @@ suite("Prisma 8 SQL query builder", () => {
 		const accountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ institutionName: "Mercado Pago", name: accountName, type: "CHECKING" },
+			{
+				assets: [{ assetCode: "BRL", balance: "0" }],
+				institutionName: "Mercado Pago",
+				name: accountName,
+				type: "CHECKING",
+				yieldCurrency: "BRL",
+			},
 			owner.cookie,
 		);
-		expect(accountResponse.status).toBe(200);
+		expect(accountResponse.status, await accountResponse.clone().text()).toBe(200);
 		const account = (await accountResponse.json()) as {
-			balance: number;
+			assets: Array<{ assetCode: string; balance: string }>;
+			balance: null;
 			id: string;
 			institution: { id: string; name: string };
 		};
-		expect(account.balance).toBe(0);
-		expect(typeof account.balance).toBe("number");
+		expect(account.balance).toBeNull();
+		expect(nativeHoldings(account.assets)).toEqual([{ assetCode: "BRL", balance: "0" }]);
+		expect(typeof account.assets[0]!.balance).toBe("string");
 		expect(account.institution.name).toBe("Mercado Pago");
 		const cashAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: `Dinheiro ${crypto.randomUUID()}`, type: "CASH" },
+			{
+				assets: [{ assetCode: "BRL", balance: "0" }],
+				name: `Dinheiro ${crypto.randomUUID()}`,
+				type: "CASH",
+				yieldCurrency: "BRL",
+			},
 			owner.cookie,
 		);
 		expect(cashAccountResponse.status).toBe(200);
@@ -176,7 +198,12 @@ suite("Prisma 8 SQL query builder", () => {
 		const unnamedAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ institutionName: "Mercado Pago", type: "SAVINGS" },
+			{
+				assets: [{ assetCode: "BRL", balance: "0" }],
+				institutionName: "Mercado Pago",
+				type: "SAVINGS",
+				yieldCurrency: "BRL",
+			},
 			owner.cookie,
 		);
 		expect(unnamedAccountResponse.status).toBe(200);
@@ -187,6 +214,7 @@ suite("Prisma 8 SQL query builder", () => {
 			"/financial-accounts/",
 			"POST",
 			{
+				assets: [],
 				creditCard: {
 					creditLimit: 1500,
 					dueDay: 17,
@@ -196,6 +224,7 @@ suite("Prisma 8 SQL query builder", () => {
 				institutionName: " mercado   PAGO ",
 				name: accountName,
 				type: "CREDIT_CARD",
+				yieldCurrency: "BRL",
 			},
 			owner.cookie,
 		);
@@ -233,7 +262,13 @@ suite("Prisma 8 SQL query builder", () => {
 		const duplicateAccount = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ institutionName: "Mercado Pago", name: accountName, type: "CHECKING" },
+			{
+				assets: [{ assetCode: "BRL", balance: "0" }],
+				institutionName: "Mercado Pago",
+				name: accountName,
+				type: "CHECKING",
+				yieldCurrency: "BRL",
+			},
 			owner.cookie,
 		);
 		expect(duplicateAccount.status).toBe(409);
@@ -254,7 +289,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 10,
+				amount: "10",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-23",
 				originFinancialAccountId: creditCardAccount.id,
 				type: "EXPENSE",
@@ -351,7 +388,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 80,
+				amount: "80",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-10",
 				recurrenceId: recurring.id,
 				type: "EXPENSE",
@@ -390,7 +429,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 80,
+				amount: "80",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-10",
 				recurrenceId: recurring.id,
 				recurrenceOccurrenceDate: "2026-08-10",
@@ -533,7 +574,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 5000,
+				amount: "5000",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-10",
 				recurrenceId: salary.id,
 				type: "INCOME",
@@ -550,7 +593,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 5000,
+				amount: "5000",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-10",
 				recurrenceId: salary.id,
 				type: "INCOME",
@@ -749,7 +794,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 19.75,
+				amount: "19.75",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-23",
 				destinationFinancialAccountId: account.id,
 				tagIds: [category.id],
@@ -759,8 +806,8 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(incomeResponse.status).toBe(200);
-		const income = (await incomeResponse.json()) as { amount: number; id: string; time: string };
-		expect(income.amount).toBe(19.75);
+		const income = (await incomeResponse.json()) as { amount: string; id: string; time: string };
+		expect(nativeDecimal(income.amount)).toBe("19.75");
 		expect(income.time).toStartWith("08:15");
 
 		const transactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
@@ -786,12 +833,22 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		expect(((await updatedAccount.json()) as { balance: number }).balance).toBe(5019.75);
+		expect(
+			nativeHoldings(
+				((await updatedAccount.json()) as { assets: Array<{ assetCode: string; balance: string }> })
+					.assets,
+			),
+		).toEqual([{ assetCode: "BRL", balance: "5019.75" }]);
 
 		const destinationResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: `Destino ${crypto.randomUUID()}`, type: "SAVINGS" },
+			{
+				assets: [{ assetCode: "BRL", balance: "0" }],
+				name: `Destino ${crypto.randomUUID()}`,
+				type: "SAVINGS",
+				yieldCurrency: "BRL",
+			},
 			owner.cookie,
 		);
 		const destination = (await destinationResponse.json()) as { id: string };
@@ -801,7 +858,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 10,
+				amount: "10",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-23",
 				originFinancialAccountId: account.id,
 				storeName: "Mercado do bairro",
@@ -817,7 +876,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions/",
 			"POST",
 			{
-				amount: 20,
+				amount: "20",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-23",
 				destinationFinancialAccountId: destination.id,
 				originFinancialAccountId: account.id,
@@ -840,8 +901,24 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		expect(((await transferredOrigin.json()) as { balance: number }).balance).toBe(4989.75);
-		expect(((await transferredDestination.json()) as { balance: number }).balance).toBe(20);
+		expect(
+			nativeHoldings(
+				(
+					(await transferredOrigin.json()) as {
+						assets: Array<{ assetCode: string; balance: string }>;
+					}
+				).assets,
+			),
+		).toEqual([{ assetCode: "BRL", balance: "4989.75" }]);
+		expect(
+			nativeHoldings(
+				(
+					(await transferredDestination.json()) as {
+						assets: Array<{ assetCode: string; balance: string }>;
+					}
+				).assets,
+			),
+		).toEqual([{ assetCode: "BRL", balance: "20" }]);
 
 		expect(
 			(await jsonRequest(`/transactions/${transfer.id}`, "DELETE", undefined, owner.cookie)).status,
@@ -855,9 +932,11 @@ suite("Prisma 8 SQL query builder", () => {
 			"/financial-accounts/",
 			"POST",
 			{
+				assets: [],
 				creditCard: { creditLimit: 1500, dueDay: 10, statementDay: 3 },
 				name: cardAccountName,
 				type: "CREDIT_CARD",
+				yieldCurrency: "BRL",
 			},
 			owner.cookie,
 		);
@@ -982,7 +1061,7 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(statementPaymentResponse.status).toBe(200);
 		const statementPayment = (await statementPaymentResponse.json()) as {
 			transaction: {
-				amount: number;
+				amount: string;
 				paymentCreditCardId: string;
 				description: string | null;
 				id: string;
@@ -990,8 +1069,11 @@ suite("Prisma 8 SQL query builder", () => {
 				type: string;
 			};
 		};
-		expect(statementPayment.transaction).toMatchObject({
-			amount: 60,
+		expect({
+			...statementPayment.transaction,
+			amount: nativeDecimal(statementPayment.transaction.amount),
+		}).toMatchObject({
+			amount: "60",
 			description: null,
 			paymentCreditCardId: cardAccount.creditCard.id,
 			time: expect.stringMatching(/^18:45/),
@@ -1066,7 +1148,9 @@ suite("Prisma 8 SQL query builder", () => {
 			`/transactions/${statementPayment.transaction.id}`,
 			"PATCH",
 			{
-				amount: 40,
+				amount: "40",
+				bookingCurrency: "BRL",
+				currency: "BRL",
 				date: "2026-08-24",
 				originFinancialAccountId: account.id,
 				paymentCreditCardId: cardAccount.creditCard.id,
@@ -1076,9 +1160,12 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(editedStatementPaymentResponse.status).toBe(200);
 		expect(
-			(await editedStatementPaymentResponse.json()) as { amount: number; time: string },
+			((payment: { amount: string; time: string }) => ({
+				...payment,
+				amount: nativeDecimal(payment.amount),
+			}))((await editedStatementPaymentResponse.json()) as { amount: string; time: string }),
 		).toMatchObject({
-			amount: 40,
+			amount: "40",
 			time: expect.stringMatching(/^20:15/),
 		});
 		const statementAfterPaymentEdit = (await (
@@ -1100,7 +1187,9 @@ suite("Prisma 8 SQL query builder", () => {
 					"/transactions/",
 					"POST",
 					{
-						amount,
+						amount: String(amount),
+						bookingCurrency: "BRL",
+						currency: "BRL",
 						date: "2026-08-25",
 						originFinancialAccountId: account.id,
 						paymentCreditCardId: cardAccount.creditCard.id,
@@ -1204,10 +1293,15 @@ suite("Prisma 8 SQL query builder", () => {
 		const dashboard = await jsonRequest("/dashboard/", "GET", undefined, owner.cookie);
 		expect(dashboard.status).toBe(200);
 		expect(
-			(await dashboard.json()) as { accounts: Array<{ id: string; balance: number }> },
+			(await dashboard.json()) as {
+				accounts: Array<{ id: string; assets: Array<{ assetCode: string; balance: string }> }>;
+			},
 		).toMatchObject({
 			accounts: expect.arrayContaining([
-				expect.objectContaining({ balance: expect.any(Number), id: account.id }),
+				expect.objectContaining({
+					assets: [{ assetCode: "BRL", balance: expect.any(String) }],
+					id: account.id,
+				}),
 			]),
 		});
 		const beforeIncomeDeletion = await jsonRequest(
@@ -1216,8 +1310,9 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		const beforeIncomeDeletionBalance = ((await beforeIncomeDeletion.json()) as { balance: number })
-			.balance;
+		const beforeIncomeDeletionBalance = (
+			(await beforeIncomeDeletion.json()) as { assets: Array<{ assetCode: string; balance: string }> }
+		).assets.find(asset => asset.assetCode === "BRL")!.balance;
 
 		const deletion = await jsonRequest(`/transactions/${income.id}`, "DELETE", undefined, owner.cookie);
 		expect(deletion.status).toBe(200);
@@ -1227,15 +1322,32 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		expect(((await reversed.json()) as { balance: number }).balance).toBeCloseTo(
-			beforeIncomeDeletionBalance - income.amount,
-			2,
-		);
+		expect(
+			nativeHoldings(
+				((await reversed.json()) as { assets: Array<{ assetCode: string; balance: string }> }).assets,
+			),
+		).toEqual([
+			{
+				assetCode: "BRL",
+				balance: nativeDecimal(
+					unitsToDecimal(
+						decimalToUnits(beforeIncomeDeletionBalance, "BRL") -
+							decimalToUnits(income.amount, "BRL"),
+						"BRL",
+					),
+				),
+			},
+		]);
 
 		const outsiderAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: `Externa ${crypto.randomUUID()}`, type: "CHECKING" },
+			{
+				assets: [{ assetCode: "BRL", balance: "0" }],
+				name: `Externa ${crypto.randomUUID()}`,
+				type: "CHECKING",
+				yieldCurrency: "BRL",
+			},
 			outsider.cookie,
 		);
 		const outsiderAccount = (await outsiderAccountResponse.json()) as { id: string };
@@ -1245,10 +1357,12 @@ suite("Prisma 8 SQL query builder", () => {
 			name: string;
 			type: "CASH" | "CHECKING" | "SAVINGS";
 		}) => ({
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
+			balance: null,
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 			userId: owner.userId,
+			yieldCurrency: "BRL",
 			...overrides,
 		});
 		const conflictSync = await jsonRequest(
@@ -1298,6 +1412,178 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(sync.status).toBe(200);
 		const syncBody = (await sync.json()) as { syncResults: Record<string, { synced: number }> };
 		expect(Object.values(syncBody.syncResults).every(result => result.synced === 0)).toBe(true);
+	});
+
+	test("known crypto holdings bootstrap their catalog and reject unknown assets", async () => {
+		const owner = await createSession("native-crypto-catalog", "USD");
+		const response = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{
+				assets: [{ assetCode: "ETH", balance: "0.000000000000000001" }],
+				countryCode: "US",
+				name: "First native crypto holding",
+				type: "INVESTMENT",
+				yieldCurrency: null,
+			},
+			owner.cookie,
+		);
+		expect(response.status, await response.clone().text()).toBe(200);
+		const cryptoAccount = (await response.json()) as {
+			assets: Array<{ assetCode: string; balance: string }>;
+			balance: null;
+			yieldCurrency: null;
+		};
+		expect({ ...cryptoAccount, assets: nativeHoldings(cryptoAccount.assets) }).toMatchObject({
+			assets: [{ assetCode: "ETH", balance: "0.000000000000000001" }],
+			balance: null,
+			yieldCurrency: null,
+		});
+		const catalog = await queryRows(
+			db.sql.public.Asset.select("code", "kind", "decimals", "quoteProvider")
+				.where((fields, functions) => functions.eq(fields.code, "ETH"))
+				.build(),
+		);
+		expect(catalog).toEqual([
+			expect.objectContaining({
+				code: "ETH",
+				decimals: 18,
+				kind: "CRYPTO",
+				quoteProvider: "coinbase:ETH",
+			}),
+		]);
+		const unsupported = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{
+				assets: [{ assetCode: "ZZZZZ", balance: "0" }],
+				countryCode: "US",
+				name: "Unsupported native holding",
+				type: "INVESTMENT",
+				yieldCurrency: null,
+			},
+			owner.cookie,
+		);
+		expect(unsupported.status).toBe(400);
+		expect(await unsupported.json()).toEqual({ error: "Ativo inválido" });
+		expect(
+			await queryRows(
+				db.sql.public.Asset.select("code")
+					.where((fields, functions) => functions.eq(fields.code, "ZZZZZ"))
+					.build(),
+			),
+		).toEqual([]);
+	});
+
+	test("card payments preserve native source and settlement denominations", async () => {
+		const owner = await createSession("native-card-payment", "USD");
+		const date = "2026-09-02";
+		// Both dated sides are stored explicitly; this regression must never fetch external rates.
+		await executeStatement(
+			db.sql.public.CurrencyRateSnapshot.insert([
+				{ baseCurrency: "USD", date, rates: { EUR: 0.8, USD: 1 } },
+				{ baseCurrency: "EUR", date, rates: { EUR: 1, USD: 1.25 } },
+			]).build(),
+		);
+		const sourceResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{
+				assets: [{ assetCode: "USD", balance: "0" }],
+				countryCode: "US",
+				name: "Native payment source",
+				type: "CHECKING",
+				yieldCurrency: "USD",
+			},
+			owner.cookie,
+		);
+		expect(sourceResponse.status, await sourceResponse.clone().text()).toBe(200);
+		const source = (await sourceResponse.json()) as { id: string };
+		const fundingResponse = await jsonRequest(
+			"/transactions/",
+			"POST",
+			{
+				amount: "100",
+				bookingCurrency: "USD",
+				currency: "USD",
+				date,
+				destinationFinancialAccountId: source.id,
+				type: "INCOME",
+			},
+			owner.cookie,
+		);
+		expect(fundingResponse.status, await fundingResponse.clone().text()).toBe(200);
+		for (const currency of ["USD", "EUR"]) {
+			const cardResponse = await jsonRequest(
+				"/financial-accounts/",
+				"POST",
+				{
+					assets: [],
+					countryCode: "US",
+					creditCard: { creditLimit: 1000, dueDay: 20, statementDay: 10 },
+					name: `Native ${currency} card`,
+					type: "CREDIT_CARD",
+					yieldCurrency: currency,
+				},
+				owner.cookie,
+			);
+			expect(cardResponse.status, await cardResponse.clone().text()).toBe(200);
+			const card = (await cardResponse.json()) as { creditCard: { id: string } };
+			const paymentResponse = await jsonRequest(
+				`/credit-cards/${card.creditCard.id}/payments`,
+				"POST",
+				{
+					amount: 25,
+					currency: "USD",
+					date,
+					financialAccountId: source.id,
+				},
+				owner.cookie,
+			);
+			expect(paymentResponse.status, await paymentResponse.clone().text()).toBe(200);
+			const payment = (await paymentResponse.json()) as { transaction: { id: string } };
+			const persisted = await queryRows(
+				db.sql.public.Transaction.select(
+					"amount",
+					"bookingCurrency",
+					"currency",
+					"paymentAmount",
+					"paymentCurrency",
+				)
+					.where((fields, functions) => functions.eq(fields.id, payment.transaction.id))
+					.build(),
+			);
+			expect(
+				persisted.map(row => ({
+					...row,
+					amount: nativeDecimal(row.amount),
+					paymentAmount: row.paymentAmount === null ? null : nativeDecimal(row.paymentAmount),
+				})),
+			).toEqual([
+				expect.objectContaining({
+					amount: "25",
+					bookingCurrency: "USD",
+					currency: "USD",
+					paymentAmount: currency === "USD" ? "25" : "20",
+					paymentCurrency: currency,
+				}),
+			]);
+		}
+		const balanceResponse = await jsonRequest(
+			`/financial-accounts/${source.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(balanceResponse.status).toBe(200);
+		const balance = (await balanceResponse.json()) as {
+			assets: Array<{ assetCode: string; balance: string }>;
+			balance: null;
+		};
+		expect({ ...balance, assets: nativeHoldings(balance.assets) }).toMatchObject({
+			assets: [{ assetCode: "USD", balance: "50" }],
+			balance: null,
+		});
 	});
 
 	test("shared debt ledger keeps one bilateral balance and sanitizes remote history", async () => {
@@ -1402,7 +1688,12 @@ suite("Prisma 8 SQL query builder", () => {
 		const previewAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ currency: "USD", name: "Conta do preview pendente", type: "CHECKING" },
+			{
+				assets: [{ assetCode: "USD", balance: "0" }],
+				name: "Conta do preview pendente",
+				type: "CHECKING",
+				yieldCurrency: "USD",
+			},
 			owner.cookie,
 		);
 		expect(previewAccountResponse.status).toBe(200);
@@ -1411,7 +1702,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions",
 			"POST",
 			{
-				amount: 20,
+				amount: "20",
+				bookingCurrency: "USD",
+				currency: "USD",
 				date,
 				debtSplit: {
 					mode: "SHARES",
@@ -1484,7 +1777,12 @@ suite("Prisma 8 SQL query builder", () => {
 		const peerAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ currency: "USD", name: `Conta dívida ${crypto.randomUUID()}`, type: "CHECKING" },
+			{
+				assets: [{ assetCode: "USD", balance: "0" }],
+				name: `Conta dívida ${crypto.randomUUID()}`,
+				type: "CHECKING",
+				yieldCurrency: "USD",
+			},
 			peer.cookie,
 		);
 		const peerAccount = (await peerAccountResponse.json()) as { id: string };
@@ -1492,7 +1790,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions",
 			"POST",
 			{
-				amount: 50,
+				amount: "50",
+				bookingCurrency: "USD",
+				currency: "USD",
 				date,
 				debtSplit: {
 					mode: "SHARES",
@@ -1525,7 +1825,12 @@ suite("Prisma 8 SQL query builder", () => {
 		const ownerAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ currency: "USD", name: `Conta pareada ${crypto.randomUUID()}`, type: "CHECKING" },
+			{
+				assets: [{ assetCode: "USD", balance: "0" }],
+				name: `Conta pareada ${crypto.randomUUID()}`,
+				type: "CHECKING",
+				yieldCurrency: "USD",
+			},
 			owner.cookie,
 		);
 		const ownerAccount = (await ownerAccountResponse.json()) as { id: string };
@@ -1533,7 +1838,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions",
 			"POST",
 			{
-				amount: 50,
+				amount: "50",
+				bookingCurrency: "USD",
+				currency: "USD",
 				date,
 				destinationFinancialAccountId: ownerAccount.id,
 				matchDebtEventId: sharedPayment!.id,
@@ -1555,7 +1862,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"/transactions",
 			"POST",
 			{
-				amount: 150,
+				amount: "150",
+				bookingCurrency: "USD",
+				currency: "USD",
 				date,
 				debtSplit: {
 					mode: "SHARES",
@@ -1587,10 +1896,11 @@ suite("Prisma 8 SQL query builder", () => {
 			"/financial-accounts/",
 			"POST",
 			{
+				assets: [],
 				creditCard: { creditLimit: 1000, dueDay: 20, statementDay: 10 },
-				currency: "USD",
 				name: `Cartão dívida ${crypto.randomUUID()}`,
 				type: "CREDIT_CARD",
+				yieldCurrency: "USD",
 			},
 			owner.cookie,
 		);
@@ -1661,7 +1971,8 @@ suite("Prisma 8 SQL query builder", () => {
 		};
 		expect(refund.isRefund).toBe(true);
 		expect((await jsonRequest("/transactions/", "GET", undefined, owner.cookie)).status).toBe(200);
-		expect((await jsonRequest("/sync/", "POST", {}, owner.cookie)).status).toBe(200);
+		const emptySyncResponse = await jsonRequest("/sync/", "POST", {}, owner.cookie);
+		expect(emptySyncResponse.status, await emptySyncResponse.clone().text()).toBe(200);
 		expect(
 			(
 				await jsonRequest(
@@ -1856,9 +2167,11 @@ suite("Prisma 8 SQL query builder", () => {
 			"/financial-accounts/",
 			"POST",
 			{
+				assets: [],
 				creditCard: { creditLimit: 1000, dueDay: 20, statementDay: 10 },
 				name: "Review card",
 				type: "CREDIT_CARD",
+				yieldCurrency: "BRL",
 			},
 			owner.cookie,
 		);
@@ -1912,7 +2225,14 @@ suite("Prisma 8 SQL query builder", () => {
 				await jsonRequest(
 					"/transactions/",
 					"POST",
-					{ amount: 10, categoryId: "old", date: "2026-10-01", type: "EXPENSE" },
+					{
+						amount: "10",
+						bookingCurrency: "BRL",
+						categoryId: "old",
+						currency: "BRL",
+						date: "2026-10-01",
+						type: "EXPENSE",
+					},
 					owner.cookie,
 				)
 			).status,
@@ -1922,7 +2242,13 @@ suite("Prisma 8 SQL query builder", () => {
 				await jsonRequest(
 					"/financial-accounts/",
 					"POST",
-					{ name: "Old", type: "CASH", yieldRate: 2 },
+					{
+						assets: [{ assetCode: "BRL", balance: "0" }],
+						name: "Old",
+						type: "CASH",
+						yieldCurrency: "BRL",
+						yieldRate: 2,
+					},
 					owner.cookie,
 				)
 			).status,

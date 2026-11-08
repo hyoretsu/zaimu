@@ -12,14 +12,14 @@ test("guest rewards convert on purchase date to native ISO precision and preserv
 	const owner = "guest:cashback-currency";
 	await localAccounts.put(
 		{
-			balance: 0,
+			assets: [{ assetCode: "JPY", balance: "0" }],
 			createdAt: "2026-01-01",
-			currency: "JPY",
 			id: "reward",
 			name: "Reward",
 			type: "CASH",
 			updatedAt: "2026-01-01",
 			userId: "guest",
+			yieldCurrency: "JPY",
 		},
 		"reward",
 		owner,

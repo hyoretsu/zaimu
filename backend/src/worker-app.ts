@@ -1,4 +1,6 @@
+import { markOperationFailed, operation } from "@zaimu/observability";
 import { shutdown as shutdownTelemetry } from "@zaimu/observability/sdk";
+import { refreshHeldAssetQuotes } from "./modules/financial-history/application/asset-quote-refresh";
 import { handleCurrencyHistoryCommand } from "./modules/financial-history/application/currency-history-jobs";
 import { recoverHistoryCollections } from "./modules/financial-history/application/history-collections";
 import { deliverNotifications } from "./modules/notifications/notification-deliveries";
@@ -76,17 +78,27 @@ await deliverNotifications();
 await recoverOpenFinanceRuns();
 await recoverImportFiles();
 await recoverHistoryCollections();
-scheduleTimer = setInterval(() => {
-	Promise.all([
-		deliverNotifications(),
-		publishScheduleMaterialization(broker),
-		recoverOpenFinanceRuns(),
-		recoverImportFiles(),
-		recoverHistoryCollections(),
-		ensureReferenceRateBootstrapJobs(),
-		enqueueDailyReferenceRateFetches(),
-		enqueueDailyAccountYieldRecalculations(),
-	]).catch(error => console.error("Failed to publish scheduled commands", error));
-}, scheduleIntervalMs);
+void refreshHeldAssetQuotes().catch(() => console.warn("Held asset quote refresh unavailable"));
+scheduleTimer = setInterval(
+	/* @otel-ignore */ () => {
+		void operation("schedule.tick", async () => {
+			await Promise.all([
+				deliverNotifications(),
+				publishScheduleMaterialization(broker),
+				recoverOpenFinanceRuns(),
+				recoverImportFiles(),
+				recoverHistoryCollections(),
+				refreshHeldAssetQuotes(),
+				ensureReferenceRateBootstrapJobs(),
+				enqueueDailyReferenceRateFetches(),
+				enqueueDailyAccountYieldRecalculations(),
+			]).catch(error => {
+				markOperationFailed();
+				console.error("Failed to publish scheduled commands", error);
+			});
+		});
+	},
+	scheduleIntervalMs,
+);
 console.log("Zaimu worker running");
 await publisher.run();

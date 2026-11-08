@@ -7,16 +7,21 @@ import type { RecurringListItemData } from "./types";
 export function recurrenceToListItem(
 	recurrence: Recurrence,
 	accounts: FinancialAccount[],
-	monthStart: string,
+	forecastStart: string,
 	monthEnd: string,
 ): RecurringListItemData {
 	const account = accounts.find(
 		account =>
-			account.id === (recurrence.originFinancialAccountId ?? recurrence.destinationFinancialAccountId) ||
+			account.id ===
+				(recurrence.originFinancialAccountId ?? recurrence.destinationFinancialAccountId) ||
 			account.creditCard?.id === recurrence.creditCardId,
 	);
 	const direction =
-		recurrence.movement === "INCOME" ? "INCOME" : recurrence.movement === "TRANSFER" ? "TRANSFER" : "EXPENSE";
+		recurrence.movement === "INCOME"
+			? "INCOME"
+			: recurrence.movement === "TRANSFER"
+				? "TRANSFER"
+				: "EXPENSE";
 	const destination = accounts.find(account => account.id === recurrence.destinationFinancialAccountId);
 	return {
 		accountName: account ? getFinancialAccountDisplayName(account) : undefined,
@@ -33,7 +38,7 @@ export function recurrenceToListItem(
 		financialAccountId: account?.id,
 		id: recurrence.id,
 		interval: recurrence.interval,
-		monthlyAmount: recurrenceDates(recurrence, monthStart, monthEnd).length * recurrence.amount,
+		monthlyAmount: recurrenceDates(recurrence, forecastStart, monthEnd).length * recurrence.amount,
 		movement: recurrence.movement,
 		recurrence,
 		startDate: recurrence.startDate,

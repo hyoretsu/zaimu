@@ -17,7 +17,7 @@ import type { FinancialAccount } from "@/lib/api";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate } from "@/lib/date";
+import { formatLocalDate, getLocalDateKey } from "@/lib/date";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { type BalanceAdjustmentDraft, BalanceAdjustmentForm } from "../BalanceAdjustmentForm";
@@ -119,7 +119,9 @@ export function BalanceAdjustmentsDialog({
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Ajustes de saldo</DialogTitle>
-					<DialogDescription>Selecione uma conta para consultar e gerenciar seus ajustes.</DialogDescription>
+					<DialogDescription>
+						Selecione uma conta para consultar e gerenciar seus ajustes.
+					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
 					<div>
@@ -128,7 +130,9 @@ export function BalanceAdjustmentsDialog({
 								<Skeleton className="h-28 rounded-xl" />
 							) : null}
 							{adjustmentsQuery.isError || accountsQuery.isError ? (
-								<p className="text-destructive text-sm">Não foi possível carregar os ajustes.</p>
+								<p className="text-destructive text-sm">
+									Não foi possível carregar os ajustes.
+								</p>
 							) : null}
 							{!accountsQuery.isPending &&
 							!accountsQuery.isError &&
@@ -143,7 +147,7 @@ export function BalanceAdjustmentsDialog({
 								!adjustmentsQuery.isError &&
 								groups.map(([accountId, entries]) => (
 									<button
-										className="flex min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 text-left hover:bg-muted/50"
+										className="hover:bg-muted/50 flex min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border p-3 text-left"
 										key={accountId}
 										onClick={() => setAccountId(accountId)}
 										type="button"
@@ -154,7 +158,9 @@ export function BalanceAdjustmentsDialog({
 											</span>
 											<span className="text-muted-foreground text-sm">
 												{entries.length} {entries.length === 1 ? "ajuste" : "ajustes"}
-												{entries[0] ? ` · Último em ${formatLocalDate(entries[0].date)}` : ""}
+												{entries[0]
+													? ` · Último em ${formatLocalDate(entries[0].date)}`
+													: ""}
 											</span>
 										</span>
 										<LuChevronRight className="shrink-0" />
@@ -164,7 +170,10 @@ export function BalanceAdjustmentsDialog({
 					</div>
 				</DialogBody>
 				<DialogFooter>
-					<Button className="cursor-pointer disabled:cursor-not-allowed" onClick={() => setEditing("new")}>
+					<Button
+						className="cursor-pointer disabled:cursor-not-allowed"
+						onClick={() => setEditing("new")}
+					>
 						<LuPlus /> Novo ajuste
 					</Button>
 				</DialogFooter>
@@ -182,7 +191,12 @@ export function BalanceAdjustmentsDialog({
 						"Conta"
 					}
 					onAdd={() => {
-						setRecoveredDraft({ adjustment: null, balance: "", date: "", financialAccountId: accountId });
+						setRecoveredDraft({
+							adjustment: null,
+							balance: "",
+							date: getLocalDateKey(),
+							financialAccountId: accountId,
+						});
 						setEditing("new");
 					}}
 					onClose={() => {

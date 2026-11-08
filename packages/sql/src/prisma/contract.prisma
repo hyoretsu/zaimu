@@ -297,9 +297,10 @@ namespace public {
   }
 
   model DetachedRewardCredit {
+    assetCode VarChar(12)
     id VarChar(36) @id
     financialAccountId VarChar(36)
-    amount Numeric(20, 8)
+    amount Numeric(38,18)
     date Date
     yieldReferenceRate Numeric(7, 4)?
     yieldReferencePercentage Numeric(7, 4)?
@@ -590,14 +591,56 @@ namespace public {
     @@map("TagAssignment")
   }
 
+  model Asset {
+    code VarChar(12) @id
+    kind VarChar(6)
+    name VarChar(100)
+    decimals SmallInt
+    quoteProvider VarChar(40)?
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    holdings FinancialAccountAsset[]
+    quotes AssetQuoteSnapshot[]
+    @@map("Asset")
+  }
+
+  model AssetQuoteSnapshot {
+    id VarChar(36) @id @default(sql`cuid2()`)
+    assetCode VarChar(12)
+    quoteCurrency VarChar(12)
+    date Date
+    price Numeric(38,18)
+    sourceTime TimestampJsDate(3)
+    provider VarChar(80)
+    createdAt TimestampJsDate(3) @default(now())
+    asset Asset @relation(fields: [assetCode], references: [code], onDelete: Cascade, index: false)
+    @@index([assetCode, quoteCurrency, date, provider], map: "AssetQuoteSnapshot_identity_key", unique: true)
+    @@index([date, quoteCurrency])
+    @@map("AssetQuoteSnapshot")
+  }
+
+  model FinancialAccountAsset {
+    financialAccountId VarChar(36)
+    assetCode VarChar(12)
+    balance Numeric(38,18) @default(sql`0`)
+    createdAt TimestampJsDate(3) @default(now())
+    updatedAt TimestampJsDate(3) @default(now())
+    financialAccount FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, map: "FinancialAccountAsset_account_fkey", index: false)
+    asset Asset @relation(fields: [assetCode], references: [code], map: "FinancialAccountAsset_asset_fkey", index: false)
+    @@id([financialAccountId, assetCode])
+    @@index([assetCode])
+    @@map("FinancialAccountAsset")
+  }
+
   model FinancialAccount {
+    assets FinancialAccountAsset[]
     transferredProfileContext Json?
     detachedRewardCredits DetachedRewardCredit[]
     historicalYieldSettings Json?
     legacyYieldCalendar Json?
     legacyInstitutionId VarChar(36)?
     countryCode VarChar(2)?
-    currency VarChar(3) @default("BRL")
+    yieldCurrency VarChar(3)?
     id                      VarChar(36)                   @id(map: "Account_pkey") @default(sql`cuid2()`)
     userId                  VarChar(36)
     name                    VarChar(70)?
@@ -605,7 +648,6 @@ namespace public {
     isHidden                Boolean                      @default(false)
     isPrimary               Boolean                      @default(false)
     isDefaultForStatements  Boolean                      @default(false)
-    balance                 Numeric(20, 6)?               @default(sql`0`)
     institutionId           VarChar(36)?
     yieldReferenceType       pg.enum(ReferenceRateType)?
     yieldReferencePercentage Numeric(7, 4)?
@@ -689,23 +731,24 @@ namespace public {
   }
 
   model BalanceAdjustment {
-    currency VarChar(3) @default("BRL")
+    assetCode VarChar(12)
 
     id                 VarChar(36) @id(map: "BalanceAdjustment_pkey") @default(sql`cuid2()`)
     userId             VarChar(36)
     financialAccountId VarChar(36)
     date               Date
-    balance            Numeric(20, 6)
+    balance            Numeric(38, 18)
     createdAt          TimestampJsDate(3) @default(now())
     updatedAt          TimestampJsDate(3) @default(now())
     user               User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_userId_fkey", index: false)
     financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, map: "BalanceAdjustment_financialAccountId_fkey", index: false)
 
-    @@index([userId, financialAccountId, date], map: "BalanceAdjustment_userId_account_date_key", unique: true)
+    @@index([userId, financialAccountId, assetCode, date], map: "BalanceAdjustment_userId_account_date_key", unique: true)
     @@map("BalanceAdjustment")
   }
 
   model FinancialAccountYieldRateHistory {
+    currency VarChar(3)
     id                 VarChar(36)                         @id(map: "FinancialAccountYieldRateHistory_pkey") @default(sql`cuid2()`)
     financialAccountId VarChar(36)
     effectiveDate      Date
@@ -726,13 +769,13 @@ namespace public {
   }
 
   model FinancialAccountYield {
-    currency VarChar(3) @default("BRL")
+    assetCode VarChar(12)
 
     id                 VarChar(36)                       @id(map: "FinancialAccountYield_pkey") @default(sql`cuid2()`)
     financialAccountId VarChar(36)
     date               Date
     time               Time(precision: 3)?
-    amount             Numeric(20, 8)?
+    amount             Numeric(38, 18)?
     isHidden           Boolean                           @default(false)
     externalId         VarChar(200)?
     kind               pg.enum(FinancialAccountYieldKind)
@@ -742,7 +785,7 @@ namespace public {
     updatedAt          TimestampJsDate(3)                      @default(now())
     financialAccount   FinancialAccount                  @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYield_financialAccountId_fkey", index: false)
 
-    @@index([financialAccountId, date], map: "FinancialAccountYield_accountId_date_key", unique: true)
+    @@index([financialAccountId, assetCode, date], map: "FinancialAccountYield_accountId_date_key", unique: true)
     @@index([externalId], map: "FinancialAccountYield_externalId_idx")
     @@map("FinancialAccountYield")
   }
@@ -834,6 +877,7 @@ namespace public {
     schemaVersion Int          @default(1)
     correlationId VarChar(36)
     payload       Json         @default(json`"{}"`)
+    telemetryContext Jsonb?
     attempts      Int          @default(0)
     lockedUntil   TimestampJsDate(3)?
     publishedAt   TimestampJsDate(3)?
@@ -902,12 +946,13 @@ namespace public {
   }
 
   model RewardsAccount {
+    assetCode VarChar(12)
     conversionCurrency VarChar(3) @default("BRL")
 
     id                    VarChar(36)                   @id(map: "RewardsAccount_pkey") @default(sql`cuid2()`)
     financialAccountId    VarChar(36)                   @unique(map: "RewardsAccount_financialAccountId_key")
     kind                  pg.enum(RewardsAccountKind)
-    initialBalance        Numeric(18, 4)
+    initialBalance        Numeric(38, 18)
     conversionPoints      Numeric(18, 4)?
     conversionAmount      Numeric(20, 6)?
     createdAt             TimestampJsDate(3)                  @default(now())
@@ -968,6 +1013,7 @@ namespace public {
   }
 
   model CreditPurchaseRecord {
+    cashbackCurrency VarChar(12)?
     bookingCurrency VarChar(3) @default("BRL")
 
     currency VarChar(3) @default("BRL")
@@ -986,7 +1032,7 @@ namespace public {
     feeAmount            Numeric(20, 6)?
     refinancingFeeAmount Numeric(20, 6)?
     cashbackAccountId    VarChar(36)?
-    cashbackAmount       Numeric(18, 4)?
+    cashbackAmount       Numeric(38, 18)?
     cashbackYieldReferenceRate       Numeric(7, 4)?
     cashbackYieldReferencePercentage Numeric(7, 4)?
     cashbackYieldPeriod              pg.enum(CashbackYieldPeriod)?
@@ -1522,20 +1568,20 @@ namespace public {
 
 
   model Transaction {
-    bookingCurrency VarChar(3) @default("BRL")
-    destinationAmount Numeric(20, 6)?
-    destinationCurrency VarChar(3)?
-    paymentAmount Numeric(20, 6)?
-    paymentCurrency VarChar(3)?
+    bookingCurrency VarChar(12) @default("BRL")
+    destinationAmount Numeric(38, 18)?
+    destinationCurrency VarChar(12)?
+    paymentAmount Numeric(38, 18)?
+    paymentCurrency VarChar(12)?
     conversionSource VarChar(20) @default("DAILY")
 
-    currency VarChar(3) @default("BRL")
-    originalAmount Numeric(20, 6)?
-    exchangeRate Numeric(24, 12)?
+    currency VarChar(12) @default("BRL")
+    originalAmount Numeric(38, 18)?
+    exchangeRate Numeric(38, 18)?
     fees Json @default(sql`'[]'::json`)
     id                            VarChar(36)              @id(map: "Transaction_pkey") @default(sql`cuid2()`)
     userId                        VarChar(36)
-    amount                        Numeric(20, 6)
+    amount                        Numeric(38, 18)
     date                          Date
     time                          Time(precision: 3)?
     description                   VarChar(1000)?
@@ -1670,6 +1716,8 @@ namespace public {
     externalId          VarChar(200)?
     transferCounterpartExternalId VarChar(200)?
     amount              Numeric(20, 6)
+    destinationAmount   Numeric(38, 18)?
+    fees                Json                     @default(sql`'[]'::json`)
     date                Date
     time                Time(precision: 3)?
     description         VarChar(1000)?

@@ -19,9 +19,10 @@ export interface OwnershipTransferPreview {
 		name: string | null;
 		destinationName: string;
 		type: string;
-		currency: string;
+		yieldCurrency: string | null;
 		institutionName: string | null;
-		balance: number;
+		assets: import("../account-assets").AccountAsset[];
+		pointsBalance: number | null;
 		isHidden: boolean;
 		rewardsKind: "POINTS" | "CASHBACK" | null;
 		statements: Array<{

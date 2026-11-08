@@ -31,11 +31,12 @@ export function MobileNavigation({ activeTab, onReselect, routes, searchByPath }
 							onClick={event => {
 								if (!isActive) return;
 								const staysOnScreen = destination === routes[item.tabId];
-								if (staysOnScreen) event.preventDefault();
+								const hasSearch = Object.keys(searchByPath[destination] ?? {}).length > 0;
+								if (staysOnScreen && !hasSearch) event.preventDefault();
 								onReselect(item.tabId, staysOnScreen);
 							}}
 							resetScroll={false}
-							search={searchByPath[destination] ?? {}}
+							search={isActive ? {} : (searchByPath[destination] ?? {})}
 							to={destination}
 						>
 							<item.icon aria-hidden className="size-5" />

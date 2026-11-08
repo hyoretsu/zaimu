@@ -2,7 +2,7 @@ name: CD - apps
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       platform:
@@ -27,8 +27,8 @@ env:
   VITE_APP_URL: ${{ vars.VITE_APP_URL }}
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
   # Pin compiler and Bun (packageManager) for every platform.
-  RUST_TOOLCHAIN: '1.95.0'
-  ANDROID_TARGET_SDK: '36'
+  RUST_TOOLCHAIN: "1.95.0"
+  ANDROID_TARGET_SDK: "36"
 
 jobs:
   plan:
@@ -104,6 +104,12 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: package.json
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
@@ -120,7 +126,7 @@ jobs:
         if: matrix.kind == 'android'
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         if: matrix.kind == 'android'
         with:

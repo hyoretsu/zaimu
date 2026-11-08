@@ -32,6 +32,12 @@ Local work is fine: edit files, run local builds/tests, commit locally. If a tas
 
 Cloud/remote sessions have an ephemeral container and cannot rely on the user pushing: follow the environment's own instructions (push the designated branch, open a draft PR). Never run migrations against a remote/shared database from any session without explicit authorization.
 
+## Parallel work
+
+Always do in parallel whatever can be done in parallel: issue independent tool calls (reads, searches, shell commands) in one batch and delegate independent subtasks to concurrent subagents. Serialize only when a step needs another step's output or when steps would contend for the same files, locks or git index.
+
+Delegate unrelated tasks to subagents: when a request contains tasks with no dependency on each other (different projects, packages or concerns), hand each one to its own subagent and launch them concurrently in a single batch instead of working through them one by one in the main session. Give every subagent a self-contained prompt with the context it needs, keep file ownership disjoint, and verify and integrate their results yourself.
+
 ## Commits
 
 After every completed task, commit with the local Git user as author and committer and a `Co-authored-by:` trailer for the agent:
@@ -48,7 +54,7 @@ On the user's machine add `-c commit.gpgsign=false`. Cloud sessions keep their p
 - Atomic: one commit = one coherent, revertible change. Revert formatter edits outside your change. Prefer several small commits.
 - Always split hunks: when a file already has uncommitted changes you did not make, stage only your own hunks (`git add -p`, or `git apply --cached` with a filtered patch) and commit just those. Never bundle the user's work-in-progress into your commit; leave it unstaged.
 - Adjustments to something just delivered amend or rebase instead of adding noise, but only while the commits are still local. Never amend, rebase, reset or otherwise rewrite a commit that was already pushed (it exists on a remote branch, e.g. `git branch -r --contains <sha>` is non-empty); add a new commit on top instead.
-- Validation is hook-driven (`.githooks/pre-commit` → lint-staged → `scripts/validate-staged.ts`). Do not run format/lint/type-check as manual pre-commit steps; fix hook failures at the root cause and commit again. Never bypass with `--no-verify` or `LEFTHOOK=0`.
+- Validation is hook-driven (`.githooks/pre-commit` → lint-staged → `scripts/validate-staged.ts`). Do not run format/lint/type-check as manual pre-commit steps; fix hook failures at the root cause and commit again. Never bypass with `--no-verify` or `LEFTHOOK=0`, with one exception: when the hook fails only on errors outside your changes (e.g. type errors in files holding the user's uncommitted work-in-progress, or pre-existing breakage) and you commit only your own hunks, `--no-verify` is allowed for that commit; say so in the report. Failures caused by your changes must still be fixed.
 - Never run type-checkers by hand (`tsc`, `npx tsc`, `bunx tsc`, `bun check`, `turbo run check-types`) to "verify" before committing, nor linters or formatters outside the hook: the pre-commit hook already runs them on exactly what you staged, and every extra run competes for CPU with the hooks of other concurrent sessions, slowing all commits. Commit, let the hook report errors, fix them and commit again. Only run one yourself when the user explicitly asks, or for the pre-PR/pre-merge check below.
 
 ## Agent changes
@@ -78,6 +84,8 @@ Run type-check and build for affected packages before a PR or merge. Local valid
 ## Structure and naming
 
 **File naming follows responsibilities.** Components, classes, use cases and DTO schemas use PascalCase: `AuthTabs.tsx`, `LoginForm.tsx`, `FormField.tsx`. Utilities, hooks and configs use kebab-case. Preserve established directory structures and their index barrels. Avoid unrelated renames.
+
+**Producer scripts are named `export` and write to `out/`.** Any script that generates artifacts consumed by other tasks or projects (contract emission, schemas, OpenAPI, clients) is a workspace `export` script writing into that workspace's `out/`, backed by a cached Turbo `export` task with `outputs: ["out/**"]`; consumers depend on `^export`. Never invent per-tool names such as `contract:emit`, `codegen` or `emit`.
 
 ## Tests
 

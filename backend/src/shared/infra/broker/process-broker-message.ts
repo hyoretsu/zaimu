@@ -1,4 +1,4 @@
-import { linkedOperation } from "@zaimu/observability";
+import { operation } from "@zaimu/observability";
 import type { ConfirmChannel, ConsumeMessage } from "amqplib";
 import type { EventEnvelope } from "~/shared/application/events";
 
@@ -47,18 +47,20 @@ export async function processBrokerMessage(
 		)
 			throw new Error("Invalid event envelope");
 	} catch {
-		channel.sendToQueue(`${queue}.dlq`, message.content, message.properties);
-		await channel.waitForConfirms();
-		channel.ack(message);
+		await operation("messaging.dlq", async () => {
+			channel.sendToQueue(`${queue}.dlq`, message.content, message.properties);
+			await channel.waitForConfirms();
+			channel.ack(message);
+		});
 		return { result: "invalid_dlq" };
 	}
-	const claim = await deduplicator.claim(queue, event.eventId);
+	const claim = await operation("messaging.deduplicate", () => deduplicator.claim(queue, event.eventId));
 	if (claim === "completed") {
 		channel.ack(message);
 		return { eventType: event.eventType, result: "duplicate" };
 	}
 	if (claim === "busy") {
-		channel.reject(message, false);
+		operation("messaging.retry", () => channel.reject(message, false));
 		return { eventType: event.eventType, result: "busy" };
 	}
 	const token = typeof claim === "object" ? claim.token : undefined;
@@ -76,7 +78,7 @@ export async function processBrokerMessage(
 				}, 20_000)
 			: undefined;
 	try {
-		await linkedOperation("messaging.process", event.telemetryContext, () => handler(event));
+		await handler(event);
 		if (leaseLost) throw new Error("Consumer receipt lease lost");
 		await deduplicator.complete(queue, event.eventId, token);
 		channel.ack(message);
@@ -90,12 +92,14 @@ export async function processBrokerMessage(
 				?.filter(death => !death.queue || (death.queue === queue && death.reason === "rejected"))
 				.reduce((total, death) => total + Number(death.count ?? 0), 0) ?? 0;
 		if (retries >= maxRetries || (error as { historyExhausted?: boolean })?.historyExhausted) {
-			channel.sendToQueue(`${queue}.dlq`, message.content, message.properties);
-			await channel.waitForConfirms();
-			channel.ack(message);
+			await operation("messaging.dlq", async () => {
+				channel.sendToQueue(`${queue}.dlq`, message.content, message.properties);
+				await channel.waitForConfirms();
+				channel.ack(message);
+			});
 			return { eventType: event.eventType, result: "failed_dlq", retries };
 		}
-		channel.reject(message, false);
+		operation("messaging.retry", () => channel.reject(message, false));
 		return { eventType: event.eventType, result: "failed_retry", retries };
 	} finally {
 		if (heartbeat) clearInterval(heartbeat);

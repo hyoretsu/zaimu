@@ -4,13 +4,12 @@ import {
 	type SetStateAction,
 	useCallback,
 	useEffect,
-	useMemo,
 	useRef,
 	useState,
 	useSyncExternalStore,
 } from "react";
 import type { z } from "zod";
-import { readViewState, type ViewParameter, viewStringList, writeViewState } from "@/lib/view-state";
+import { readViewState, type ViewParameter, writeViewState } from "@/lib/view-state";
 
 /** URL is the source of truth. Search-only navigation keeps the current screen mounted. */
 export function useUrlViewState<T>(
@@ -71,18 +70,4 @@ export function useUrlViewState<T>(
 		[fallback, fields, key, pathname, router, schema],
 	);
 	return [value, setValue] as const;
-}
-
-export function useUrlViewSet(key: string) {
-	const [items, setItems] = useUrlViewState<string[]>(key, [], viewStringList);
-	const setValue: Dispatch<SetStateAction<Set<string>>> = useCallback(
-		update => {
-			setItems(previous =>
-				[...(typeof update === "function" ? update(new Set(previous)) : update)].sort(),
-			);
-		},
-		[setItems],
-	);
-	const set = useMemo(() => new Set(items), [items.join("\u0000")]);
-	return [set, setValue] as const;
 }

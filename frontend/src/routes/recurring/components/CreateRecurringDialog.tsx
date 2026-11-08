@@ -18,6 +18,7 @@ import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { DebtSplitInput } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
@@ -106,7 +107,7 @@ export function CreateRecurringDialog({
 							currency:
 								current.amount || amountEntered.current || current.currencyExplicit
 									? current.currency
-									: (primary.currency ?? "BRL"),
+									: (primaryCurrency(primary) ?? "BRL"),
 							originFinancialAccountId: primary.id,
 						}
 					: current,

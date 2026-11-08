@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { endOfMonth, format, startOfMonth } from "date-fns";
+import { endOfMonth, format } from "date-fns";
 import { useState } from "react";
 import { HiArrowDown, HiArrowPath, HiArrowUp, HiPlus } from "react-icons/hi2";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { QueryRefreshStatus } from "@/components/ui/QueryRefreshStatus";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
-import { useUrlViewSet, useUrlViewState } from "@/hooks/use-url-view-state";
+import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { runBackgroundModalAction, useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -46,7 +46,7 @@ export function RecurringPage() {
 		"all",
 		z.enum(["all", "INCOME", "EXPENSE", "TRANSFER"]),
 	);
-	const [expandedInactiveSections, setExpandedInactiveSections] = useUrlViewSet("sections");
+	const [expandedInactiveSections, setExpandedInactiveSections] = useState<Set<string>>(() => new Set());
 	const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
 	const markPending = (id: string, pending: boolean) =>
 		setPendingIds(current => {
@@ -130,13 +130,16 @@ export function RecurringPage() {
 	const isError =
 		(accountsQuery.isError && accountsQuery.data === undefined) ||
 		(recurringQuery.isError && recurringQuery.data === undefined);
-	const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
+	// Past occurrences are already materialized (or did not happen), so the forecast starts today.
+	const forecastStart = format(new Date(), "yyyy-MM-dd");
 	const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
 	const periodLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(
 		new Date(),
 	);
 	const items = (recurringQuery.data ?? [])
-		.map(recurrence => recurrenceToListItem(recurrence, accountsQuery.data ?? [], monthStart, monthEnd))
+		.map(recurrence =>
+			recurrenceToListItem(recurrence, accountsQuery.data ?? [], forecastStart, monthEnd),
+		)
 		.sort(
 			(left, right) =>
 				Number(right.active) - Number(left.active) || left.title.localeCompare(right.title, "pt-BR"),

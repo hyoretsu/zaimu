@@ -82,7 +82,9 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	const [dueDate, setDueDate] = useState("");
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [personId, setPersonId] = useState("");
-	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => initialDebtSplit(initialPersonId));
+	const [editedSplit, setDebtSplit] = useState<DebtSplitInput>(() => initialDebtSplit(initialPersonId));
+	// Opened from a person's card: the debt is exclusive with that person, so no split is edited.
+	const debtSplit = initialPersonId ? initialDebtSplit(initialPersonId) : editedSplit;
 	const [isOwedToMe, setIsOwedToMe] = useState(true);
 	useEffect(() => {
 		if (!open || !initialValue) return;
@@ -160,16 +162,14 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
 			<DialogContent className="sm:max-w-lg" showCloseButton={!pending}>
-				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 p-6" onSubmit={submit}>
+				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
 					<DialogHeader>
 						<DialogTitle>{mode === "edit" ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
-						<DialogDescription>
-							{mode === "edit"
-								? "A alteração recalcula o saldo dos dois participantes."
-								: isOwedToMe
-									? "Este valor aumenta o total que a pessoa deve a você."
-									: "Este valor aumenta o total que você deve à pessoa."}
-						</DialogDescription>
+						{mode === "edit" ? (
+							<DialogDescription>
+								A alteração recalcula o saldo dos dois participantes.
+							</DialogDescription>
+						) : null}
 					</DialogHeader>
 					<DialogBody>
 						<div className="grid grid-cols-2 gap-2">
@@ -179,7 +179,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								type="button"
 								variant={isOwedToMe ? "default" : "outline"}
 							>
-								Recebimentos
+								Te devem
 							</Button>
 							<Button
 								className="cursor-pointer"
@@ -187,12 +187,12 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								type="button"
 								variant={!isOwedToMe ? "destructive" : "outline"}
 							>
-								Pagamentos
+								Eu devo
 							</Button>
 						</div>
 						{mode === "edit" ? (
 							<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
-						) : (
+						) : initialPersonId ? null : (
 							<DebtSplitEditor
 								amount={Number(amount)}
 								currencyCode={currency}

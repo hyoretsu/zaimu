@@ -1,6 +1,6 @@
-/** Cumulative ISO rounding conserves the booked reward across multiple refunds. */
+/** Cumulative asset-unit rounding conserves the booked reward across multiple refunds. */
 export const cashbackReversalsSql = `
-SELECT purchase."cashbackAccountId", purchase."id" AS "purchaseId", refund."creditDate" AS "date",
+SELECT purchase."cashbackAccountId", purchase."cashbackCurrency" AS "assetCode", purchase."id" AS "purchaseId", refund."creditDate" AS "date",
  -(round(purchase."cashbackAmount" * refund.cumulative / purchase."totalAmount", precision.digits)
  -round(purchase."cashbackAmount" * (refund.cumulative-refund."amount") / purchase."totalAmount", precision.digits)) AS amount
 FROM (
@@ -9,9 +9,6 @@ FROM (
 ) refund
 JOIN "CreditPurchaseRecord" purchase ON purchase."id"=refund."purchaseId"
 JOIN "FinancialAccount" account ON account."id"=purchase."cashbackAccountId"
-CROSS JOIN LATERAL (SELECT CASE
- WHEN account."currency" IN ('BIF','CLP','DJF','GNF','ISK','JPY','KMF','KRW','PYG','RWF','UGX','UYI','VND','VUV','XAF','XOF','XPF') THEN 0
- WHEN account."currency" IN ('BHD','IQD','JOD','KWD','LYD','OMR','TND') THEN 3
- WHEN account."currency" IN ('CLF','UYW') THEN 4
- ELSE 2 END AS digits) precision
+JOIN "Asset" reward_asset ON reward_asset."code"=purchase."cashbackCurrency"
+CROSS JOIN LATERAL (SELECT reward_asset."decimals"::integer AS digits) precision
 WHERE purchase."totalAmount">0 AND purchase."cashbackAmount">0`;

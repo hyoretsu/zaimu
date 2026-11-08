@@ -29,7 +29,9 @@ beforeAll(async () => {
 	await client.connect();
 	try {
 		await installContractFixture(client, contract);
-		await client.query('ALTER TABLE "OutboxEvent" ADD COLUMN "telemetryContext" jsonb NULL');
+		await client.query(
+			'ALTER TABLE "OutboxEvent" ADD COLUMN IF NOT EXISTS "telemetryContext" jsonb NULL',
+		);
 	} finally {
 		await client.end();
 	}
@@ -118,5 +120,46 @@ test("HTTP to SQL/Redis and durable outbox to worker retain correlation after pu
 				span.links.some(link => link.context.traceId === "1".repeat(32)),
 		),
 	).toBe(true);
+	const failed = spans.find(span => span.name === "messaging.process" && span.status.code === 2);
+	expect(failed?.links.some(link => link.context.traceId === "1".repeat(32))).toBe(true);
+	expect(
+		spans.some(
+			span =>
+				span.name === "messaging.retry" &&
+				span.spanContext().traceId === failed?.spanContext().traceId,
+		),
+	).toBe(true);
 	expect(JSON.stringify(spans.map(span => span.attributes))).not.toContain("private-id");
-});
+}, 180000);
+
+test("disabled outbox context remains compatible with the previous schema", async () => {
+	const client = new Client({ connectionString: requireFixtureUrl("DATABASE_TEST_URL") });
+	await client.connect();
+	try {
+		await client.query('ALTER TABLE "OutboxEvent" DROP COLUMN "telemetryContext"');
+		process.env.OTEL_OUTBOX_CONTEXT_ENABLED = "false";
+		const event = createEventEnvelope({
+			aggregateId: crypto.randomUUID(),
+			aggregateType: "fixture",
+			correlationId: crypto.randomUUID(),
+			eventId: crypto.randomUUID(),
+			eventType: "command.schedule-materialization",
+			payload: { technical: true },
+			userIds: [],
+		});
+		const outbox = new PostgresOutbox();
+		await outbox.append(event);
+		const bulk = { ...event, eventId: crypto.randomUUID() };
+		await outbox.appendMany([bulk]);
+		const pending = await outbox.claim(10, 1000);
+		expect(pending.find(item => item.eventId === event.eventId)?.payload).toEqual(event.payload);
+		expect(pending.find(item => item.eventId === event.eventId)?.telemetryContext).toBeUndefined();
+		expect(pending.find(item => item.eventId === bulk.eventId)?.payload).toEqual(event.payload);
+	} finally {
+		await client.query(
+			'ALTER TABLE "OutboxEvent" ADD COLUMN IF NOT EXISTS "telemetryContext" jsonb NULL',
+		);
+		process.env.OTEL_OUTBOX_CONTEXT_ENABLED = "true";
+		await client.end();
+	}
+}, 180000);

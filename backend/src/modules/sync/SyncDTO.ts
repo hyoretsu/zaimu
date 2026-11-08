@@ -46,7 +46,6 @@ const SyncOccurrence = t.Object({
 });
 const SyncAccount = t.Object({
 	...contracts.FinancialAccountReturn.properties,
-	initialBalance: t.Optional(t.Number()),
 });
 const SyncPerson = t.Object({
 	...contracts.DebtPersonReturn.properties,

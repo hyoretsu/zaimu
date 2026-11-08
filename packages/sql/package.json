@@ -7,7 +7,7 @@
 	},
 	"scripts": {
 		"check-types": "bun check",
-		"contract:emit": "prisma contract emit --output-path out/prisma",
+		"export": "prisma contract emit --output-path out/prisma",
 		"db:sign": "prisma db sign",
 		"db:verify": "prisma db verify",
 		"migrate:deploy": "bun scripts/migrate.ts",

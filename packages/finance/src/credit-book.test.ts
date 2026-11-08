@@ -740,8 +740,44 @@ test("native cashback reversals conserve KWD thousandths and JPY units", () => {
 		const rewards = creditBookRewards(book);
 		expect(rewards.map(row => row.currency)).toEqual([currency, currency, currency, currency]);
 		expect(rewards.map(row => row.cashbackAmount || 0)).toEqual([...expected]);
-		expect(Math.abs(rewards.reduce((sum, row) => sum + row.cashbackAmount, 0))).toBeLessThan(1e-10);
+		expect(
+			Math.abs(
+				rewards.reduce((sum, row) => {
+					if (typeof row.cashbackAmount !== "number")
+						throw new Error("Expected legacy fiat reward");
+					return sum + row.cashbackAmount;
+				}, 0),
+			),
+		).toBeLessThan(1e-10);
 	}
+});
+
+test("native ETH cashback keeps one-wei cumulative refunds and principal scaling exact", () => {
+	const book = emptyBook();
+	const purchase = newBookPurchase(book, {
+		cashbackAccountId: "reward",
+		cashbackAmount: "0.000000000000000003",
+		cashbackCurrency: "ETH",
+		description: "Native reward",
+		installments: 1,
+		purchaseDate: "2026-01-01",
+		totalAmount: 3,
+	});
+	for (let day = 2; day <= 4; day++)
+		addBookRefund(book, purchase.id, {
+			amount: 1,
+			creditDate: `2026-01-0${day}`,
+			policy: "KEEP_INSTALLMENTS",
+		});
+	expect(creditBookRewards(book).map(row => row.cashbackAmount)).toEqual([
+		"0.000000000000000003",
+		"-0.000000000000000001",
+		"-0.000000000000000001",
+		"-0.000000000000000001",
+	]);
+	purchase.totalAmountCents = 600;
+	resizePurchaseCashback(purchase, 300);
+	expect(purchase.cashbackAmount).toBe("0.000000000000000006");
 });
 
 test("principal edits retain booked cashback factor and ISO denomination", () => {

@@ -4,6 +4,7 @@ export interface InstitutionCardRules {
 	installmentMode?: "PER_CYCLE" | "PER_MONTH";
 	cashback: null | {
 		kind: "CASHBACK" | "POINTS";
+		assetCode?: string;
 		rate: number;
 		conversionPoints: number | null;
 		conversionAmount: number | null;

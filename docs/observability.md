@@ -44,7 +44,7 @@ Queues are bounded to 2048 records, export requests have a 3-second timeout and 
 
 ## Optional outbox column
 
-`packages/sql/migration-drafts/otel-outbox.sql` contains additive nullable JSONB DDL. It is outside executable migration roots. Integrate it with the repository's native migration workflow, review and apply it yourself before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
+`packages/sql/migrations/app/20261108T0626_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
 
 ## Production sampling and cost
 
@@ -65,3 +65,7 @@ Wrap a new dependency at its physical execution boundary with `startDependency`;
 Production operators configure allowed web origins and public API URL, pin backend/client release identifiers, apply the reviewed additive outbox migration, then enable its flag. Route only the restricted application gateway publicly; keep Collector credentials and storage ports private. Attach containerized API/worker services to the Compose project's `telemetry` network and set the internal Collector address. Back up persistent volumes before changing retention. Collector refusal, queue saturation and failed export counters require capacity review before enabling detailed capture at production volume.
 
 The disabled/enabled comparison measures the instrumentation switch in the same build. SDK imports and transformed call sites can still contribute startup/bundle cost with the switch disabled; this is not an unmodified-application baseline. Benchmark under comparable host load and record cold startup separately from steady request latency, CPU and RSS.
+
+## Metric exemplars
+
+The pinned Collector spanmetrics connector derives bounded HTTP diagnostic histograms before tail sampling, with exemplars linking measurements to Tempo. These `otel_request_*` diagnostics remain separate from canonical unsampled `http_server_*` application metrics. A retained error, slow or development trace resolves its exemplar; ordinary traces can be discarded by tail sampling. The connector is experimental in this pinned Collector release. Its cardinality limit is 2,000, resource cache 128, and metric expiration five minutes; include its CPU and memory in capacity planning.

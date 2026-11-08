@@ -1,0 +1,62 @@
+[
+  {
+    "id": "column.public.OutboxEvent.telemetryContext",
+    "label": "Add column \"telemetryContext\" to \"OutboxEvent\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "telemetryContext",
+        "table": "OutboxEvent"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"telemetryContext\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "OutboxEvent",
+          "telemetryContext"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"telemetryContext\" on \"OutboxEvent\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"telemetryContext\"",
+        "sql": "ALTER TABLE \"public\".\"OutboxEvent\" ADD COLUMN \"telemetryContext\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"telemetryContext\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "OutboxEvent",
+          "telemetryContext"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"telemetryContext\" on \"OutboxEvent\""
+        }
+      },
+      {
+        "description": "verify column \"telemetryContext\" has type \"jsonb\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "OutboxEvent",
+          "telemetryContext",
+          "jsonb"
+        ]
+      }
+    ]
+  }
+]

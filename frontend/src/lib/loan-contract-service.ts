@@ -19,6 +19,7 @@ import {
 } from "@zaimu/finance/loan-contract";
 import { legacyLoanBook, loanBookPaymentRows } from "@zaimu/finance/loan-legacy";
 import { useAuthStore } from "@/stores/auth";
+import { primaryCurrency } from "./account-assets";
 import {
 	type IndicatorContext,
 	type Loan,
@@ -110,7 +111,7 @@ async function booking(book: LoanContractBook, amount: number, date: string, inp
 	)
 		throw new Error("Conta indisponível");
 	const currency = activeLoanVersion(book).terms.currency;
-	const accountCurrency = account ? (account.data.currency ?? "BRL") : null;
+	const accountCurrency = account ? (primaryCurrency(account.data) ?? "BRL") : null;
 	const [accountAmount] = await loanAccountAmounts(
 		[amount],
 		currency,
@@ -152,7 +153,7 @@ export const loanContractService = {
 			if (
 				!account ||
 				!["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(account.data.type) ||
-				(account.data.currency ?? "BRL") !== input.terms.currency
+				(primaryCurrency(account.data) ?? "BRL") !== input.terms.currency
 			)
 				throw new Error("Conta de crédito incompatível");
 			transaction = {

@@ -144,6 +144,10 @@ export function ImportTransactionsDialog({
 			);
 		},
 	});
+	// A preset account already carries its institution, so the pickers only show when it can't be resolved.
+	const accountPreset =
+		!!defaultFinancialAccountId &&
+		(accounts.isPending || institutions.isPending || (!!financialAccountId && !!provider));
 	const selectableAccounts = getSelectableImportAccounts(
 		accounts.data ?? [],
 		institutions.data ?? [],
@@ -155,7 +159,11 @@ export function ImportTransactionsDialog({
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Importar extrato</DialogTitle>
-					<DialogDescription>Selecione a conta ou a instituição do extrato.</DialogDescription>
+					<DialogDescription>
+						{accountPreset
+							? "Selecione os arquivos do extrato desta conta."
+							: "Selecione a conta ou a instituição do extrato."}
+					</DialogDescription>
 				</DialogHeader>
 				<form
 					className="flex min-h-0 min-w-0 flex-1 flex-col gap-5"
@@ -166,45 +174,49 @@ export function ImportTransactionsDialog({
 					}}
 				>
 					<DialogBody>
-						<CustomSelect
-							disabled={createImport.isPending}
-							isLoading={accounts.isPending || institutions.isPending}
-							label="Instituição"
-							onValueChange={value => {
-								setInstitutionId(value);
-								if (
-									accounts.data?.find(account => account.id === financialAccountId)
-										?.institution?.id !== value
-								) {
-									setFinancialAccountId("");
-								}
-							}}
-							options={(institutions.data ?? [])
-								.filter(institution => getTransactionImportProvider(institution))
-								.map(institutionOption)}
-							placeholder="Selecione a instituição"
-							required
-							searchable
-							value={institutionId}
-						/>
-						<CustomSelect
-							disabled={createImport.isPending}
-							isLoading={accounts.isPending || institutions.isPending}
-							label="Conta que receberá as transações"
-							onValueChange={value => {
-								setFinancialAccountId(value);
-								const account = accounts.data?.find(account => account.id === value);
-								if (account?.institution) setInstitutionId(account.institution.id);
-							}}
-							options={selectableAccounts.map(account => ({
-								label: getFinancialAccountOptionLabel(account),
-								value: account.id,
-							}))}
-							placeholder="Selecione a conta"
-							required
-							searchable
-							value={financialAccountId}
-						/>
+						{!accountPreset && (
+							<>
+								<CustomSelect
+									disabled={createImport.isPending}
+									isLoading={accounts.isPending || institutions.isPending}
+									label="Instituição"
+									onValueChange={value => {
+										setInstitutionId(value);
+										if (
+											accounts.data?.find(account => account.id === financialAccountId)
+												?.institution?.id !== value
+										) {
+											setFinancialAccountId("");
+										}
+									}}
+									options={(institutions.data ?? [])
+										.filter(institution => getTransactionImportProvider(institution))
+										.map(institutionOption)}
+									placeholder="Selecione a instituição"
+									required
+									searchable
+									value={institutionId}
+								/>
+								<CustomSelect
+									disabled={createImport.isPending}
+									isLoading={accounts.isPending || institutions.isPending}
+									label="Conta que receberá as transações"
+									onValueChange={value => {
+										setFinancialAccountId(value);
+										const account = accounts.data?.find(account => account.id === value);
+										if (account?.institution) setInstitutionId(account.institution.id);
+									}}
+									options={selectableAccounts.map(account => ({
+										label: getFinancialAccountOptionLabel(account),
+										value: account.id,
+									}))}
+									placeholder="Selecione a conta"
+									required
+									searchable
+									value={financialAccountId}
+								/>
+							</>
+						)}
 						{createImport.isPending && (
 							<p className="text-muted-foreground text-sm" role="status">
 								Processando arquivos: {progress.completed} de {progress.total || files.length}

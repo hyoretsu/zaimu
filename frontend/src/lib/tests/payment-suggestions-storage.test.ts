@@ -42,13 +42,14 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 	const storage = await import("../localStorage");
 	const owner = "guest:suggestions" as const;
 	const account = {
-		balance: 0,
+		assets: [{ assetCode: "BRL", balance: "0" }],
 		createdAt: "2026-01-01",
 		id: "payer",
 		name: "Conta",
 		type: "CHECKING" as const,
 		updatedAt: "2026-01-01",
 		userId: "suggestions",
+		yieldCurrency: "BRL",
 	};
 	await storage.saveLocalAccountDefaults(account, { create: true });
 	expect((await storage.localAccounts.getById("payer", owner))?.data.isPrimary).toBe(true);
@@ -90,7 +91,10 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		"guest:other",
 	);
 	await Promise.all([
-		storage.saveLocalAccountDefaults({ ...account, id: "statement-payer" }, { isDefaultForStatements: true }),
+		storage.saveLocalAccountDefaults(
+			{ ...account, id: "statement-payer" },
+			{ isDefaultForStatements: true },
+		),
 		storage.saveLocalAccountDefaults(
 			{ ...account, id: "next-statement-payer" },
 			{ isDefaultForStatements: true },
@@ -99,9 +103,9 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 	expect(
 		(await storage.localAccounts.getAll(owner)).filter(row => row.data.isDefaultForStatements),
 	).toHaveLength(1);
-	expect((await storage.localAccounts.getById("isolated", "guest:other"))?.data.isDefaultForStatements).toBe(
-		true,
-	);
+	expect(
+		(await storage.localAccounts.getById("isolated", "guest:other"))?.data.isDefaultForStatements,
+	).toBe(true);
 	await storage.localAccounts.delete("isolated", "guest:other");
 	await storage.setLocalPrimaryAccount("payer");
 	expect((await storage.localAccounts.getById("payer", owner))?.data.isPrimary).toBe(true);
@@ -213,7 +217,11 @@ test("visitor payment validates balance and date, serializes attempts and isolat
 		storage.confirmLocalSuggestedPayment("card", { ...input, attemptId: crypto.randomUUID() }),
 	).rejects.toThrow();
 	expect(await storage.localTransactions.getAll("guest:other")).toEqual([]);
-	await storage.localAccounts.put({ ...account, currency: "JPY" }, "payer", owner);
+	await storage.localAccounts.put(
+		{ ...account, assets: [{ assetCode: "JPY", balance: "0" }], yieldCurrency: "JPY" },
+		"payer",
+		owner,
+	);
 	await storage.localCreditCards.put({ ...card, currency: "KWD" }, "card", owner);
 	const nativeBook: CreditBook = {
 		...book,

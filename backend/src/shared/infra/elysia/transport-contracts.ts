@@ -271,17 +271,19 @@ export const CreditCardReturn = t.Object({
 export type CreditCardReturn = typeof CreditCardReturn.static;
 
 export const RewardsAccountReturn = t.Object({
+	assetCode: t.Optional(t.String()),
 	conversionAmount: t.Optional(t.Union([t.Null(), t.Number()])),
 	conversionCurrency: t.Optional(t.String()),
 	conversionPoints: t.Optional(t.Union([t.Null(), t.Number()])),
 	financialAccountId: t.String(),
 	id: t.String(),
-	initialBalance: t.Number(),
+	initialBalance: t.Union([t.String(), t.Number()]),
 	kind: t.Union([t.Literal("CASHBACK"), t.Literal("POINTS")]),
 });
 export type RewardsAccountReturn = typeof RewardsAccountReturn.static;
 
 export const FinancialAccountReturn = t.Object({
+	assets: t.Array(t.Object({ assetCode: t.String(), balance: t.String() })),
 	balance: t.Union([t.Null(), t.Number()]),
 	cardRulesProfiles: t.Optional(
 		t.Array(
@@ -347,6 +349,7 @@ export const FinancialAccountReturn = t.Object({
 	]),
 	updatedAt: t.String(),
 	userId: t.String(),
+	yieldCurrency: t.Nullable(t.String()),
 	yieldFixedRate: t.Optional(t.Union([t.Null(), t.Number()])),
 	yieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	yieldRateHistories: t.Optional(t.Array(FinancialAccountYieldRateHistoryReturn)),
@@ -366,6 +369,7 @@ export type FinancialAccountReturn = typeof FinancialAccountReturn.static;
 export const FinancialAccountYieldReturn = t.Object({
 	accountName: t.Optional(t.String()),
 	amount: t.Union([t.Null(), t.Number()]),
+	assetCode: t.Optional(t.String()),
 	currency: t.Optional(t.String()),
 	date: t.String(),
 	endingBalance: t.Optional(t.Number()),
@@ -598,7 +602,7 @@ export const CreditCardImportSummaryReturn = t.Object({
 export type CreditCardImportSummaryReturn = typeof CreditCardImportSummaryReturn.static;
 
 export const FinancialFeeReturn = t.Object({
-	amount: t.Number(),
+	amount: t.Union([t.String(), t.Number()]),
 	assetCode: t.Optional(t.String()),
 	name: t.String(),
 	type: t.Union([t.Literal("PERCENTAGE"), t.Literal("FIXED")]),
@@ -608,7 +612,8 @@ export type FinancialFeeReturn = typeof FinancialFeeReturn.static;
 export const CreditPurchaseReturn = t.Object({
 	bookingCurrency: t.Optional(t.String()),
 	cashbackAccountId: t.Optional(t.Union([t.Null(), t.String()])),
-	cashbackAmount: t.Optional(t.Union([t.Null(), t.Number()])),
+	cashbackAmount: t.Optional(t.Union([t.Null(), t.String(), t.Number()])),
+	cashbackCurrency: t.Optional(t.String()),
 	cashbackYieldPeriod: t.Optional(t.Union([t.Null(), t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	cashbackYieldReferencePercentage: t.Optional(t.Union([t.Null(), t.Number()])),
 	cashbackYieldReferenceRate: t.Optional(t.Union([t.Null(), t.Number()])),
@@ -740,7 +745,7 @@ export const DebtSplitSummaryReturn = t.Object({
 export type DebtSplitSummaryReturn = typeof DebtSplitSummaryReturn.static;
 
 export const TransactionReturn = t.Object({
-	amount: t.Number(),
+	amount: t.Union([t.String(), t.Number()]),
 	bookingCurrency: t.Optional(t.String()),
 	conversionSource: t.Optional(
 		t.Union([t.Null(), t.Literal("MANUAL"), t.Literal("DAILY"), t.Literal("POINTS")]),
@@ -820,15 +825,15 @@ export const TransactionReturn = t.Object({
 			t.Literal("REWARDS"),
 		]),
 	),
-	destinationAmount: t.Optional(t.Union([t.Null(), t.Number()])),
+	destinationAmount: t.Optional(t.Union([t.Null(), t.String(), t.Number()])),
 	destinationCurrency: t.Optional(t.Union([t.Null(), t.String()])),
 	destinationFinancialAccountId: t.Optional(t.Union([t.Null(), t.String()])),
 	destinationName: t.Optional(t.Union([t.Null(), t.String()])),
 	detachedKind: t.Optional(t.String()),
 	entryKind: t.Optional(t.Union([t.Literal("INSTALLMENT"), t.Literal("REFUND"), t.Literal("CHARGE")])),
-	exchangeRate: t.Optional(t.Union([t.Null(), t.Number()])),
+	exchangeRate: t.Optional(t.Union([t.Null(), t.String(), t.Number()])),
 	externalIds: t.Optional(t.Array(t.String())),
-	feeAmount: t.Optional(t.Union([t.Null(), t.Number()])),
+	feeAmount: t.Optional(t.Union([t.Null(), t.String(), t.Number()])),
 	feeDescription: t.Optional(t.Union([t.Null(), t.String()])),
 	fees: t.Optional(t.Array(FinancialFeeReturn)),
 	hasRefund: t.Optional(t.Boolean()),
@@ -851,11 +856,11 @@ export const TransactionReturn = t.Object({
 			t.Literal("REWARDS"),
 		]),
 	),
-	originalAmount: t.Optional(t.Union([t.Null(), t.Number()])),
+	originalAmount: t.Optional(t.Union([t.Null(), t.String(), t.Number()])),
 	originFinancialAccountId: t.Optional(t.Union([t.Null(), t.String()])),
 	originName: t.Optional(t.Union([t.Null(), t.String()])),
 	parentId: t.Optional(t.Nullable(t.String())),
-	paymentAmount: t.Optional(t.Union([t.Null(), t.Number()])),
+	paymentAmount: t.Optional(t.Union([t.Null(), t.String(), t.Number()])),
 	paymentCreditCardId: t.Optional(t.Nullable(t.String())),
 	paymentCurrency: t.Optional(t.Union([t.Null(), t.String()])),
 	recurrenceId: t.Optional(t.Nullable(t.String())),
@@ -1060,6 +1065,8 @@ export const DebtEventReturn = t.Object({
 	dueDate: t.Optional(t.Union([t.Null(), t.String()])),
 	effect: t.Number(),
 	id: t.String(),
+	installmentAmount: t.Optional(t.Union([t.Null(), t.Number()])),
+	installments: t.Optional(t.Union([t.Null(), t.Integer()])),
 	kind: t.Union([
 		t.Literal("TRANSACTION"),
 		t.Literal("ORIGIN"),
@@ -1430,9 +1437,11 @@ export const TransactionImportItemReturn = t.Object({
 		]),
 	),
 	description: t.Optional(t.Union([t.Null(), t.String()])),
+	destinationAmount: t.Optional(t.Union([t.Null(), t.Number()])),
 	destinationFinancialAccountId: t.Optional(t.Union([t.Null(), t.String()])),
 	duplicateReason: t.Union([t.Null(), t.Literal("DATE_AMOUNT"), t.Literal("EXTERNAL_ID")]),
 	duplicates: t.Array(TransactionImportDuplicateReturn),
+	fees: t.Optional(t.Array(FinancialFeeReturn)),
 	id: t.String(),
 	isDuplicateIgnored: t.Boolean(),
 	isHidden: t.Boolean(),

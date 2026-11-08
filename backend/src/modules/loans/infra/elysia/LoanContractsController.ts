@@ -11,8 +11,8 @@ import {
 	simulateLoanOperation,
 } from "@zaimu/finance/loan-contract";
 import { Elysia, t } from "elysia";
+import { assertFiatHolding, resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { assertBalanceAccountOwnership, requireUserId } from "~/modules/auth";
-import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
 import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
@@ -48,7 +48,9 @@ const booking = async (
 	body: typeof LoanBookingDTO.static,
 ) => {
 	if (body.accountId) await assertBalanceAccountOwnership(body.accountId, userId);
-	const accountCurrency = body.accountId ? await financialAccountCurrency(body.accountId, userId) : null;
+	const accountCurrency = body.accountId
+		? (await resolveAccountAsset(body.accountId, undefined, { fiatOnly: true, userId })).assetCode
+		: null;
 	const [accountAmount] = await loanAccountAmounts(
 		[amount],
 		loanCurrency,
@@ -174,7 +176,9 @@ export const LoanContractsController = new Elysia({ detail: { tags: ["Loans"] },
 					throw new HttpException("Selecione apenas criar ou vincular crédito", 400);
 				if (body.disbursementAccountId) {
 					await assertBalanceAccountOwnership(body.disbursementAccountId, userId);
-					const currency = await financialAccountCurrency(body.disbursementAccountId, userId);
+					const currency = (
+						await assertFiatHolding(body.disbursementAccountId, body.terms.currency, userId)
+					).assetCode;
 					if (currency !== body.terms.currency)
 						throw new HttpException("Crédito recebido exige conta na moeda do contrato", 400);
 					const id = crypto.randomUUID();

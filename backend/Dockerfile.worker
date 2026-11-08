@@ -31,7 +31,7 @@ ENV DO_NOT_TRACK=1 PRISMA_TELEMETRY_DISABLED=1
 
 COPY . .
 
-RUN --mount=type=secret,id=DATABASE_URL DATABASE_URL="$(cat /run/secrets/DATABASE_URL)" PRISMA_DISABLE_TELEMETRY=1 bun run --cwd packages/sql contract:emit
+RUN --mount=type=secret,id=DATABASE_URL DATABASE_URL="$(cat /run/secrets/DATABASE_URL)" PRISMA_DISABLE_TELEMETRY=1 bun run --cwd packages/sql export
 
 WORKDIR /app/backend
 

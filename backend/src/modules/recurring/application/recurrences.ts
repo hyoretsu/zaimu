@@ -10,6 +10,7 @@ import {
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
+import { assertFiatHolding, resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership } from "~/modules/auth";
 import {
 	assertTagOwnership,
@@ -21,11 +22,7 @@ import { rewardSnapshot } from "~/modules/creditCards/application/cashback-snaps
 import { mutateCreditBook, newBookPurchase } from "~/modules/creditCards/application/normalized-credit-book";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
-import {
-	creditCardCurrency,
-	financialAccountCurrency,
-	resolveFinancialMoney,
-} from "~/modules/currencies/application/financial-money";
+import { creditCardCurrency, resolveFinancialMoney } from "~/modules/currencies/application/financial-money";
 import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import {
 	getDebtSplitInput,
@@ -136,6 +133,7 @@ export async function validateRecurrence(userId: string, input: RecurrenceBody, 
 	for (const accountId of [input.originFinancialAccountId, input.destinationFinancialAccountId])
 		if (accountId) {
 			await assertBalanceAccountOwnership(accountId, userId);
+			await assertFiatHolding(accountId, input.currency ?? "BRL", userId);
 			const [account] = await queryRaw<{ type: string }>(
 				'SELECT "type" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2',
 				[accountId, userId],
@@ -190,15 +188,20 @@ export async function saveRecurrence(
 			...input,
 			debtSplit: input.debtSplit === undefined ? existingSplit : input.debtSplit,
 		} as RecurrenceBody;
+		const accountId =
+			next.movement === "INCOME" ? next.destinationFinancialAccountId : next.originFinancialAccountId;
 		const linkedCurrency =
 			next.movement === "CARD_PURCHASE" && next.creditCardId
 				? await creditCardCurrency(next.creditCardId)
-				: await financialAccountCurrency(
-						next.movement === "INCOME"
-							? next.destinationFinancialAccountId
-							: next.originFinancialAccountId,
-						await defaultCurrency(userId),
-					);
+				: accountId
+					? (
+							await resolveAccountAsset(accountId, next.currency, {
+								create: true,
+								fiatOnly: true,
+								userId,
+							})
+						).assetCode
+					: await defaultCurrency(userId);
 		next.currency = await assertSupportedCurrency(next.currency ?? linkedCurrency);
 		next.name = next.name?.trim();
 		next.installments ??= 1;
@@ -356,12 +359,13 @@ export async function materializeRecurrence(
 				);
 			} else {
 				const type = recurrence.movement === "CARD_PAYMENT" ? "EXPENSE" : recurrence.movement;
-				const targetCurrency = await financialAccountCurrency(
+				const accountId =
 					recurrence.movement === "INCOME"
 						? recurrence.destinationFinancialAccountId
-						: recurrence.originFinancialAccountId,
-					recurrence.currency ?? "BRL",
-				);
+						: recurrence.originFinancialAccountId;
+				const targetCurrency = (
+					await assertFiatHolding(accountId!, recurrence.currency ?? "BRL", userId)
+				).assetCode;
 				const money = await resolveFinancialMoney({
 					amount: recurrence.amount,
 					currency: recurrence.currency,
@@ -374,7 +378,13 @@ export async function materializeRecurrence(
 						currency: targetCurrency,
 						destinationCurrency:
 							recurrence.movement === "TRANSFER"
-								? await financialAccountCurrency(recurrence.destinationFinancialAccountId)
+								? (
+										await assertFiatHolding(
+											recurrence.destinationFinancialAccountId!,
+											recurrence.currency ?? "BRL",
+											userId,
+										)
+									).assetCode
 								: null,
 						paymentCurrency:
 							recurrence.movement === "CARD_PAYMENT"
@@ -384,6 +394,9 @@ export async function materializeRecurrence(
 					(from, to) => getCurrencyRate(financialDate, from, to),
 				);
 
+				// Income/transfer occurrences are standalone records: no association with the recurrence.
+				const associated =
+					recurrence.movement === "EXPENSE" || recurrence.movement === "CARD_PAYMENT";
 				const [transaction] = await query<{ id: string }>(
 					'INSERT INTO "Transaction" ("userId","amount","date","description","storeName","type","originFinancialAccountId","destinationFinancialAccountId","paymentCreditCardId","recurrenceId","recurrenceOccurrenceDate","time","currency","bookingCurrency","originalAmount","exchangeRate","destinationAmount","destinationCurrency","paymentAmount","paymentCurrency","conversionSource") VALUES ($1,$2,$3,$4,$5,$6::"TransactionType",$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING "id"',
 					[
@@ -396,8 +409,8 @@ export async function materializeRecurrence(
 						recurrence.originFinancialAccountId ?? null,
 						recurrence.destinationFinancialAccountId ?? null,
 						recurrence.movement === "CARD_PAYMENT" ? recurrence.creditCardId : null,
-						id,
-						date,
+						associated ? id : null,
+						associated ? date : null,
 						advance?.time ?? null,
 						money.currency,
 						money.bookingCurrency,
@@ -425,10 +438,11 @@ export async function materializeRecurrence(
 						type: type as "INCOME" | "EXPENSE",
 						userId,
 					});
-				await query(
-					'UPDATE "RecurrenceOccurrence" SET "transactionId"=$1 WHERE "recurrenceId"=$2 AND "date"=$3',
-					[transaction!.id, id, date],
-				);
+				if (associated)
+					await query(
+						'UPDATE "RecurrenceOccurrence" SET "transactionId"=$1 WHERE "recurrenceId"=$2 AND "date"=$3',
+						[transaction!.id, id, date],
+					);
 				if (recurrence.movement === "CARD_PAYMENT")
 					await withTransaction(executor =>
 						recalculateStatementPayments(executor, [recurrence.creditCardId!]),

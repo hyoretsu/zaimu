@@ -15,7 +15,7 @@ describe("atomic recurrence processing", () => {
 		await client.connect();
 
 		await client.query(
-			`INSERT INTO "user" ("id","email","name") VALUES ('owner','owner@example.test','Owner'); INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('a','owner','A','CHECKING'),('b','owner','B','SAVINGS'),('c','owner','Card','CREDIT_CARD'); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('card','c',1000,15,25);`,
+			`INSERT INTO "user" ("id","email","name") VALUES ('owner','owner@example.test','Owner'); WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('a','owner','A','CHECKING'),('b','owner','B','SAVINGS'),('c','owner','Card','CREDIT_CARD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('a','BRL',0),('b','BRL',0),('c','BRL',0); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('card','c',1000,15,25);`,
 		);
 		service = await import("../application/recurrences");
 		sql = await import("sql");
@@ -347,7 +347,7 @@ describe("atomic recurrence processing", () => {
 		setSystemTime(new Date("2026-10-26T01:21:00Z"));
 		try {
 			await client.query(
-				`INSERT INTO "user" ("id","email","name","preferredCountry") VALUES ('timezone-owner','timezone@example.test','Timezone','BR'); INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('timezone-account','timezone-owner','Account','CHECKING')`,
+				`INSERT INTO "user" ("id","email","name","preferredCountry") VALUES ('timezone-owner','timezone@example.test','Timezone','BR'); WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('timezone-account','timezone-owner','Account','CHECKING') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('timezone-account','BRL',0)`,
 			);
 			const recurrence = await service.saveRecurrence("timezone-owner", {
 				amount: 15,
@@ -366,7 +366,7 @@ describe("atomic recurrence processing", () => {
 				service.materializeRecurrence("timezone-owner", recurrence.id, "2026-10-26"),
 			).rejects.toThrow("Ocorrências futuras");
 			await client.query(
-				`INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('timezone-card-account','timezone-owner','Card','CREDIT_CARD'); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('timezone-card','timezone-card-account',1000,15,25)`,
+				`WITH inserted_accounts AS (INSERT INTO "FinancialAccount" ("id","userId","name","type") VALUES ('timezone-card-account','timezone-owner','Card','CREDIT_CARD') RETURNING "id") INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ('timezone-card-account','BRL',0); INSERT INTO "CreditCard" ("id","financialAccountId","creditLimit","statementDay","dueDay") VALUES ('timezone-card','timezone-card-account',1000,15,25)`,
 			);
 			const purchase = await service.saveRecurrence("timezone-owner", {
 				amount: 30,

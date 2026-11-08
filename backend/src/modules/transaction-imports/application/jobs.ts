@@ -3,6 +3,7 @@ import { createEventEnvelope, type EventEnvelope } from "~/shared/application/ev
 import { HttpException } from "~/shared/errors";
 import { withWorkerCacheFence } from "~/shared/infra/cache/worker-cache-write";
 import { PostgresOutbox } from "~/shared/infra/outbox";
+import { userEventBus } from "~/shared/infra/realtime";
 import { executeRaw, queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { createUploadedTransactionImport } from "./upload";
 
@@ -204,6 +205,14 @@ export async function handleImportFile(event: EventEnvelope<{ jobId: string }>) 
 		clearInterval(timer);
 		await renewal;
 	}
+	// Clients waiting on the batch re-read it; a lost push falls back to their slow poll.
+	await userEventBus
+		.publish([job.userId], {
+			aggregateId: job.batchId,
+			aggregateType: "importBatch",
+			eventType: "progress",
+		})
+		.catch(error => console.warn("Failed to publish import batch progress", error));
 	await recoverImportFiles();
 }
 

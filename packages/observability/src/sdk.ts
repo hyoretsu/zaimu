@@ -10,7 +10,7 @@ import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { AlwaysOnSampler, BatchSpanProcessor } from "@opentelemetry/sdk-trace";
-import { getOperationRoute, operation } from "./index";
+import { getOperationRoute, markCurrentOperationFailed, operation } from "./index";
 import { operationalLog } from "./log-record";
 
 let sdk: NodeSDK | undefined;
@@ -62,14 +62,17 @@ export function initialize(service: "api" | "worker", project: string) {
 	globalThis.fetch = Object.assign((input: Parameters<typeof fetch>[0], init?: RequestInit) => {
 		const url = input instanceof Request ? input.url : String(input);
 		if (url.startsWith(base)) return originalFetch(input, init);
-		return operation("http.client", () => {
+		return operation("http.client", async () => {
 			const headers = new Headers(
 				init?.headers ?? (input instanceof Request ? input.headers : undefined),
 			);
 			const carrier: Record<string, string> = {};
 			propagation.inject(context.active(), carrier);
 			for (const [key, value] of Object.entries(carrier)) headers.set(key, value);
-			return originalFetch(input, { ...init, headers });
+			const response = await originalFetch(input, { ...init, headers });
+			trace.getSpan(context.active())?.setAttribute("http.response.status_code", response.status);
+			if (response.status >= 500) markCurrentOperationFailed();
+			return response;
 		});
 	}, originalFetch);
 	if (typeof originalFetch.preconnect === "function")

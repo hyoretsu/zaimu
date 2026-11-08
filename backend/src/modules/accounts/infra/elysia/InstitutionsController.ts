@@ -26,6 +26,7 @@ import { InstitutionCardRulesDTO } from "../dto/institution-card-rules";
 import { InstitutionCatalogResult } from "../dto/institution-catalog";
 import { InstitutionCountriesBody } from "../dto/institution-countries";
 import { InstitutionNameBody } from "../dto/institution-name";
+import { InstitutionUpdateProposalBody } from "../dto/institution-update-proposal";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const DateDTO = t.String({ format: "date" });
@@ -53,6 +54,7 @@ const ProposalReturn = t.Object(
 		payload: t.Object({
 			...InstitutionBody.properties,
 			...t.Partial(FinancialInstitutionYieldPolicyReturn).properties,
+			aliases: t.Optional(t.Array(t.String())),
 			profileId: t.Optional(Id),
 			targetId: t.Optional(Id),
 		}),
@@ -182,6 +184,17 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		{
 			body: InstitutionNameBody,
 			detail: { operationId: "patchFinancialInstitutionsById" },
+			params: t.Object({ id: Id }),
+			response: MutationReturn,
+		},
+	)
+	.post(
+		"/:id/update-proposal",
+		async ({ params, body, request }) =>
+			proposeInstitution(await requireUserId(request), params.id, "INSTITUTION_UPDATE", body),
+		{
+			body: InstitutionUpdateProposalBody,
+			detail: { operationId: "postFinancialInstitutionsByIdUpdateProposal" },
 			params: t.Object({ id: Id }),
 			response: MutationReturn,
 		},

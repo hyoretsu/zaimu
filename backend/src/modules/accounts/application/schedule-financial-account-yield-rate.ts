@@ -1,6 +1,7 @@
 import { addDays, format, startOfDay } from "date-fns";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
+import { HttpException } from "~/shared/errors";
 import {
 	db,
 	executeRaw,
@@ -11,6 +12,7 @@ import {
 	queryRows,
 } from "~/shared/infra/sql";
 import type { YieldPeriod } from "../domain/calculate-financial-account-yields";
+import { fiatHoldingCodes } from "./account-assets";
 
 export async function scheduleFinancialAccountYieldRate({
 	effectiveDate,
@@ -36,10 +38,17 @@ export async function scheduleFinancialAccountYieldRate({
 	yieldTaxModes?: unknown;
 }) {
 	const current = await queryRows(
-		db.sql.public.FinancialAccount.select("yieldTaxIds")
+		db.sql.public.FinancialAccount.select("yieldTaxIds", "yieldCurrency")
 			.where((f, fn) => fn.eq(f.id, financialAccountId))
 			.build(),
 	);
+	const fiat = await fiatHoldingCodes(financialAccountId);
+	const currency = fiat.includes(current[0]?.yieldCurrency ?? "") ? current[0]!.yieldCurrency! : fiat[0];
+	if (!currency)
+		throw new HttpException(
+			"Adicione ao menos um ativo fiduciário à conta para configurar o rendimento",
+			400,
+		);
 	await assertTaxSelection(
 		yieldTaxIds,
 		current.flatMap(row => row.yieldTaxIds),
@@ -55,7 +64,7 @@ export async function scheduleFinancialAccountYieldRate({
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.financialAccountId, financialAccountId),
-					functions.raw`${fields.effectiveDate} > ${param(date, { codecId: "pg/date@1" })}`.returns(
+					functions.raw`${fields.effectiveDate} > ${param(format(date, "yyyy-MM-dd"), { codecId: "pg/date-string@1" })}`.returns(
 						"pg/bool@1",
 					),
 				),
@@ -74,6 +83,7 @@ export async function scheduleFinancialAccountYieldRate({
 			.build(),
 	);
 	const values = {
+		currency,
 		effectiveDate: format(date, "yyyy-MM-dd"),
 		updatedAt: new Date(),
 		yieldFixedRate: nullableNumeric<7, 4>(yieldFixedRate ?? null),

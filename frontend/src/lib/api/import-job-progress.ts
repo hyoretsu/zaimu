@@ -1,3 +1,8 @@
+import { onImportBatchProgress } from "../realtime";
+
+// Safety net only: progress normally arrives over the realtime stream.
+const fallbackPollMs = 20_000;
+
 export interface ImportProgress {
 	completed: number;
 	total: number;
@@ -38,15 +43,36 @@ export async function waitForImportBatch<
 		status: "QUEUED" | "RUNNING" | "COMPLETED";
 		results: { status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" }[];
 	},
->(read: () => Promise<T>, onProgress?: (progress: ImportProgress) => void): Promise<T> {
-	for (;;) {
-		const batch = await read();
-		onProgress?.({
-			completed: batch.results.filter(item => item.status === "SUCCEEDED" || item.status === "FAILED")
-				.length,
-			total: batch.results.length,
-		});
-		if (batch.status === "COMPLETED") return batch;
-		await new Promise(resolve => setTimeout(resolve, 1500));
+>(batchId: string, read: () => Promise<T>, onProgress?: (progress: ImportProgress) => void): Promise<T> {
+	let wake: (() => void) | undefined;
+	// A push that lands while a read is in flight must trigger another read.
+	let dirty = false;
+	const unsubscribe = onImportBatchProgress(batchId, () => {
+		dirty = true;
+		wake?.();
+	});
+	try {
+		for (;;) {
+			dirty = false;
+			const batch = await read();
+			onProgress?.({
+				completed: batch.results.filter(
+					item => item.status === "SUCCEEDED" || item.status === "FAILED",
+				).length,
+				total: batch.results.length,
+			});
+			if (batch.status === "COMPLETED") return batch;
+			if (dirty) continue;
+			await new Promise<void>(resolve => {
+				const timer = setTimeout(resolve, fallbackPollMs);
+				wake = () => {
+					clearTimeout(timer);
+					resolve();
+				};
+			});
+			wake = undefined;
+		}
+	} finally {
+		unsubscribe();
 	}
 }

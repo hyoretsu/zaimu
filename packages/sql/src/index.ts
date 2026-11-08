@@ -18,8 +18,12 @@ import type { Contract } from "../out/prisma/contract";
 import contractJson from "../out/prisma/contract.json" with { type: "json" };
 
 type NormalizeDatabaseValue<T> =
-	T extends Numeric<infer _Precision, infer _Scale>
-		? number
+	T extends Numeric<infer Precision, infer Scale>
+		? Precision extends 38
+			? Scale extends 18
+				? string
+				: number
+			: number
 		: T extends Date
 			? Date
 			: T extends string
@@ -165,6 +169,24 @@ const transactionalPool = new Proxy(pool, {
 });
 export const queryRaw = async <Row extends Record<string, unknown>>(text: string, values: unknown[] = []) =>
 	(await transactionalPool.query<Row>(text, values)).rows;
+/** Preserve asset quantities before the legacy global NUMERIC parser can round them. */
+export const queryRawDecimal = async <Row extends Record<string, unknown>>(
+	text: string,
+	values: unknown[] = [],
+) =>
+	(
+		await transactionalPool.query<Row>({
+			text,
+			types: {
+				getTypeParser: (oid: number, format?: "text" | "binary") =>
+					oid === types.builtins.NUMERIC && format !== "binary"
+						? (value: string) => value
+						: types.getTypeParser(oid, format),
+			},
+			values,
+		})
+	).rows;
+
 export const executeRaw = async (text: string, values: unknown[] = []) =>
 	transactionalPool.query(text, values);
 export const withRawTransaction = async <Result>(
@@ -214,7 +236,7 @@ interface PlanSource {
 }
 interface ProjectionItem {
 	alias?: string;
-	codec?: { codecId?: string };
+	codec?: { codecId?: string; typeParams?: { precision?: number; scale?: number } };
 	expr?: { column?: string; kind?: string; name?: string; table?: string };
 }
 interface ProjectedPlan {
@@ -273,6 +295,16 @@ const normalizeCodecColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 				.flatMap(item => (item.alias ? [item.alias] : [])),
 		);
 	const numericColumns = aliasesFor(["pg/numeric@1"]);
+	const exactNumericColumns = new Set(
+		projection
+			.filter(
+				item =>
+					item.codec?.codecId === "pg/numeric@1" &&
+					item.codec.typeParams?.precision === 38 &&
+					item.codec.typeParams.scale === 18,
+			)
+			.flatMap(item => (item.alias ? [item.alias] : [])),
+	);
 	const legacyJson = new Map<string, string>();
 	for (const item of projection) {
 		if (!item.alias || !item.codec?.codecId || !["pg/json@1", "pg/jsonb@1"].includes(item.codec.codecId))
@@ -286,7 +318,10 @@ const normalizeCodecColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 		const normalized = { ...row } as Record<string, unknown>;
 		for (const column of numericColumns) {
 			const value = normalized[column];
-			if (typeof value === "string") normalized[column] = Number(value);
+			if (typeof value === "string" && !exactNumericColumns.has(column))
+				normalized[column] = Number(value);
+			if (exactNumericColumns.has(column) && typeof value === "number")
+				throw new RangeError("Quantidade decimal perdeu precisão no executor SQL");
 		}
 		for (const [column, sentinel] of legacyJson)
 			if (normalized[column] === sentinel) normalized[column] = JSON.parse(sentinel) as unknown;

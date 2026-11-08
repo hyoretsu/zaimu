@@ -6,14 +6,12 @@ import { RefundImportReviewDialog } from "@/components/credit-card-imports/Refun
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useUrlViewState } from "@/hooks/use-url-view-state";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { viewBoolean } from "@/lib/view-state";
 import { showToast } from "@/stores";
 
 export function PendingRefundReviews({ cardId, count }: { cardId: string; count: number }) {
-	const [expanded, setExpanded] = useUrlViewState(`refunds.${cardId}.expanded`, false, viewBoolean);
+	const [expanded, setExpanded] = useState(false);
 	const identity = useCacheIdentity();
 	const queryClient = useQueryClient();
 	const [selectedId, setSelectedId] = useState<string | null>(null);

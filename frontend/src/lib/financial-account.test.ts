@@ -15,6 +15,17 @@ import {
 	getTransactionSourceAccounts,
 } from "./financial-account";
 
+const baseAccount: FinancialAccount = {
+	assets: [{ assetCode: "BRL", balance: "0" }],
+	createdAt: "2026-01-01",
+	id: "account",
+	name: null,
+	type: "CASH",
+	updatedAt: "2026-01-01",
+	userId: "guest",
+	yieldCurrency: "BRL",
+};
+
 describe("getEffectiveYieldRate", () => {
 	test("adds referenced and fixed portions", () => {
 		expect(
@@ -213,10 +224,11 @@ describe("compareFinancialAccountsByOptionLabel", () => {
 describe("calculateFinancialAccountBalances", () => {
 	test("compounds account yield on weekdays and excludes user holidays", () => {
 		const account = {
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			createdAt: "2026-01-05T12:00:00",
 			id: "checking",
 			type: "INVESTMENT" as const,
+			yieldCurrency: "BRL",
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 		};
@@ -225,20 +237,31 @@ describe("calculateFinancialAccountBalances", () => {
 		const dailyRate = 1.1 ** (1 / 21) - 1;
 
 		expect(
-			calculateFinancialAccountBalances([account] as never, transactions, [], [], today)[0]?.balance,
+			Number(
+				calculateFinancialAccountBalances([account] as never, transactions, [], [], today)[0]
+					?.assets[0]?.balance,
+			),
 		).toBeCloseTo(100 * (1 + dailyRate) ** 2, 4);
 		expect(
-			calculateFinancialAccountBalances([account] as never, transactions, [], ["2026-01-06"], today)[0]
-				?.balance,
+			Number(
+				calculateFinancialAccountBalances(
+					[account] as never,
+					transactions,
+					[],
+					["2026-01-06"],
+					today,
+				)[0]?.assets[0]?.balance,
+			),
 		).toBeCloseTo(100 * (1 + dailyRate), 4);
 	});
 
 	test("on-redemption tax keeps the balance gross and exposes the net balance", () => {
 		const base = {
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			createdAt: "2026-01-05T12:00:00",
 			id: "checking",
 			type: "INVESTMENT" as const,
+			yieldCurrency: "BRL",
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 			yieldTaxRate: 20,
@@ -256,16 +279,17 @@ describe("calculateFinancialAccountBalances", () => {
 		);
 		const gross = 100 * (1 + dailyRate) ** 2;
 		expect(daily?.netBalance).toBeNull();
-		expect(deferred?.balance).toBeCloseTo(gross, 4);
+		expect(Number(deferred?.assets[0]?.balance)).toBeCloseTo(gross, 4);
 		expect(deferred?.netBalance).toBeCloseTo(gross - (gross - 100) * 0.2, 3);
 	});
 
 	test("reduces automatic yields by the configured tax rate", () => {
 		const account = {
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			createdAt: "2026-01-05T12:00:00",
 			id: "checking",
 			type: "INVESTMENT" as const,
+			yieldCurrency: "BRL",
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 			yieldTaxRate: 15,
@@ -273,22 +297,39 @@ describe("calculateFinancialAccountBalances", () => {
 		const dailyRate = 1.1 ** (1 / 21) - 1;
 
 		expect(
-			calculateFinancialAccountBalances(
-				[account] as never,
-				[{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }],
-				[],
-				[],
-				new Date("2026-01-05T12:00:00"),
-			)[0]?.balance,
+			Number(
+				calculateFinancialAccountBalances(
+					[account] as never,
+					[{ amount: 100, date: "2026-01-04", destinationFinancialAccountId: "checking" }],
+					[],
+					[],
+					new Date("2026-01-05T12:00:00"),
+				)[0]?.assets[0]?.balance,
+			),
 		).toBeCloseTo(100 * (1 + dailyRate * 0.85), 4);
 	});
 
 	test("derives balances from account transactions", () => {
 		const accounts = calculateFinancialAccountBalances(
 			[
-				{ balance: 999, id: "checking", type: "CHECKING" },
-				{ balance: 999, id: "savings", type: "SAVINGS" },
-				{ balance: 999, id: "card", type: "CREDIT_CARD" },
+				{
+					assets: [{ assetCode: "BRL", balance: "999" }],
+					id: "checking",
+					type: "CHECKING",
+					yieldCurrency: "BRL",
+				},
+				{
+					assets: [{ assetCode: "BRL", balance: "999" }],
+					id: "savings",
+					type: "SAVINGS",
+					yieldCurrency: "BRL",
+				},
+				{
+					assets: [{ assetCode: "BRL", balance: "999" }],
+					id: "card",
+					type: "CREDIT_CARD",
+					yieldCurrency: "BRL",
+				},
 			] as never,
 			[
 				{ amount: 100, destinationFinancialAccountId: "checking" },
@@ -301,14 +342,17 @@ describe("calculateFinancialAccountBalances", () => {
 			],
 		);
 
-		expect(accounts.map(account => account.balance)).toEqual([65, 10, null]);
+		expect(accounts[0].assets[0]?.balance).toBe("65");
+		expect(accounts[1].assets[0]?.balance).toBe("10");
+		expect(accounts[2].assets).toEqual([]);
 	});
 
 	test("keeps the prior rate for yields already recorded in the statement", () => {
 		const account = {
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			id: "checking",
 			type: "INVESTMENT" as const,
+			yieldCurrency: "BRL",
 			yieldFixedRate: 20,
 			yieldPeriod: "MONTHLY" as const,
 			yieldRateHistories: [
@@ -337,9 +381,10 @@ describe("calculateFinancialAccountBalances", () => {
 
 	test("includes manually created and edited yields in the statement", () => {
 		const account = {
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			id: "checking",
 			type: "INVESTMENT" as const,
+			yieldCurrency: "BRL",
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
 		};
@@ -401,10 +446,11 @@ describe("calculateFinancialAccountBalances", () => {
 		const accounts = calculateFinancialAccountBalances(
 			[
 				{
-					balance: 0,
+					assets: [{ assetCode: "BRL", balance: "0" }],
 					id: "rewards",
 					rewardsAccount: { initialBalance: 100, kind: "POINTS" },
 					type: "REWARDS",
+					yieldCurrency: "BRL",
 				},
 			] as never,
 			[],
@@ -423,14 +469,14 @@ describe("calculateFinancialAccountBalances", () => {
 		);
 
 		const dailyRate = 1.05 ** (1 / 21) - 1;
-		expect(accounts[0]?.balance).toBeCloseTo(100 + 10 * (1 + dailyRate), 4);
+		expect(accounts[0]?.pointsBalance).toBeCloseTo(100 + 10 * (1 + dailyRate), 4);
 	});
 
 	test("uses institution brackets for checking accounts without a specific rule", () => {
 		const accounts = calculateFinancialAccountBalances(
 			[
 				{
-					balance: 0,
+					assets: [{ assetCode: "BRL", balance: "0" }],
 					id: "checking",
 					institution: {
 						id: "bank",
@@ -447,6 +493,7 @@ describe("calculateFinancialAccountBalances", () => {
 						],
 					},
 					type: "CHECKING",
+					yieldCurrency: "BRL",
 				},
 			] as never,
 			[{ amount: 15_000, date: "2026-01-04", destinationFinancialAccountId: "checking" }],
@@ -455,14 +502,26 @@ describe("calculateFinancialAccountBalances", () => {
 			new Date("2026-01-05T12:00:00"),
 		);
 		const expected = 15_000 + 10_000 * (1.1 ** (1 / 252) - 1) + 5_000 * (1.2 ** (1 / 252) - 1);
-		expect(accounts[0]?.balance).toBeCloseTo(expected, 2);
+		expect(Number(accounts[0]?.assets[0]?.balance)).toBeCloseTo(expected, 2);
 	});
 });
 
 test("cross-currency transfers credit actual destination value instead of debit amount", () => {
 	const accounts = [
-		{ currency: "USD", id: "usd", type: "CHECKING" },
-		{ currency: "JPY", id: "jpy", type: "CHECKING" },
+		{
+			...baseAccount,
+			assets: [{ assetCode: "USD", balance: "0" }],
+			id: "usd",
+			type: "CHECKING",
+			yieldCurrency: "USD",
+		},
+		{
+			...baseAccount,
+			assets: [{ assetCode: "JPY", balance: "0" }],
+			id: "jpy",
+			type: "CHECKING",
+			yieldCurrency: "JPY",
+		},
 	] as FinancialAccount[];
 	const balances = calculateFinancialAccountBalances(
 		accounts,
@@ -477,22 +536,22 @@ test("cross-currency transfers credit actual destination value instead of debit 
 		[],
 		[],
 	);
-	expect(balances.find(account => account.id === "usd")?.balance).toBe(-100);
-	expect(balances.find(account => account.id === "jpy")?.balance).toBe(14912);
+	expect(balances.find(account => account.id === "usd")?.assets[0]?.balance).toBe("-100");
+	expect(balances.find(account => account.id === "jpy")?.assets[0]?.balance).toBe("14912");
 });
 
 test("offline balances and yield entries preserve frozen history and require current calendar coverage", () => {
 	const account: FinancialAccount = {
-		balance: 0,
+		assets: [{ assetCode: "BRL", balance: "0" }],
 		countryCode: null,
 		createdAt: "2026-01-05",
-		currency: "BRL",
 		id: "legacy",
 		legacyYieldCalendar: { holidays: ["2026-01-06"], throughDate: "2026-01-07" },
 		name: "Legada",
 		type: "INVESTMENT",
 		updatedAt: "2026-01-05",
 		userId: "owner",
+		yieldCurrency: "BRL",
 		yieldFixedRate: 10,
 		yieldPeriod: "MONTHLY",
 	};
@@ -500,7 +559,10 @@ test("offline balances and yield entries preserve frozen history and require cur
 	const calendar = { countries: [], coverage: [], currencyCountries: [], holidays: [] };
 	const today = new Date("2026-01-08T12:00:00");
 	expect(
-		calculateFinancialAccountBalances([account], movements, [], calendar, today)[0].balance,
+		Number(
+			calculateFinancialAccountBalances([account], movements, [], calendar, today)[0].assets[0]
+				?.balance,
+		),
 	).toBeCloseTo(1000 * 1.1 ** (1 / 21), 4);
 	expect(
 		calculateFinancialAccountYieldEntries(account, movements, calendar, today).map(entry => entry.date),
@@ -509,16 +571,35 @@ test("offline balances and yield entries preserve frozen history and require cur
 
 describe("guest balance checkpoints", () => {
 	test("applies each closing checkpoint after movements and reports underlying balance", () => {
-		const account = {
+		const account: FinancialAccount = {
+			...baseAccount,
 			balanceAdjustments: [
-				{ balance: 100, date: "2026-01-02", financialAccountId: "account", id: "a" },
-				{ balance: 150, date: "2026-01-04", financialAccountId: "account", id: "b" },
+				{
+					assetCode: "BRL",
+					balance: "100",
+					calculatedBalance: "100",
+					createdAt: "2026-01-01",
+					date: "2026-01-02",
+					financialAccountId: "account",
+					id: "a",
+					name: null,
+				},
+				{
+					assetCode: "BRL",
+					balance: "150",
+					calculatedBalance: "125",
+					createdAt: "2026-01-01",
+					date: "2026-01-04",
+					financialAccountId: "account",
+					id: "b",
+					name: null,
+				},
 			],
 			createdAt: "2026-01-01",
-			currency: "BRL",
 			id: "account",
 			type: "CASH",
-		} as FinancialAccount;
+			yieldCurrency: "BRL",
+		};
 		const movements = [
 			{ amount: 100, date: "2026-01-01", destinationFinancialAccountId: "account", id: "t" },
 			{ amount: 25, date: "2026-01-03", destinationFinancialAccountId: "account", id: "u" },
@@ -533,7 +614,7 @@ describe("guest balance checkpoints", () => {
 			[],
 			(id, calculated, complete) => computed.push([id, calculated, complete]),
 		);
-		expect(result[0].balance).toBe(150);
+		expect(result[0].assets[0]?.balance).toBe("150");
 		expect(computed).toEqual([
 			["a", 100, true],
 			["b", 125, true],
@@ -545,20 +626,22 @@ describe("guest balance checkpoints", () => {
 				[],
 				[],
 				new Date("2026-01-03T12:00:00"),
-			)[0].balance,
-		).toBe(125);
+			)[0].assets[0]?.balance,
+		).toBe("125");
 	});
 });
 
 test("same-day transfer starts earning on the next eligible day", () => {
-	const account = {
-		balance: 0,
+	const account: FinancialAccount = {
+		...baseAccount,
+		assets: [{ assetCode: "BRL", balance: "0" }],
 		createdAt: "2026-09-26",
 		id: "savings",
 		type: "SAVINGS",
+		yieldCurrency: "BRL",
 		yieldFixedRate: 10,
 		yieldPeriod: "MONTHLY",
-	} as FinancialAccount;
+	};
 	const transactions = [
 		{
 			amount: 580,
@@ -569,8 +652,8 @@ test("same-day transfer starts earning on the next eligible day", () => {
 	];
 	expect(
 		calculateFinancialAccountBalances([account], transactions, [], [], new Date("2026-09-30T12:00:00"))[0]
-			.balance,
-	).toBe(580);
+			.assets[0]?.balance,
+	).toBe("580");
 	expect(
 		calculateFinancialAccountYieldEntries(account, transactions, [], new Date("2026-09-30T12:00:00")),
 	).toEqual([]);
@@ -581,12 +664,13 @@ test("same-day transfer starts earning on the next eligible day", () => {
 
 for (const day of ["2026-01-05", "2026-01-10"]) {
 	test(`guest reported yield replaces automatic yield on ${day}`, () => {
-		const account = {
+		const account: FinancialAccount = {
+			...baseAccount,
 			id: "account",
 			type: "CHECKING",
 			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY",
-		} as FinancialAccount;
+		};
 		const entries = calculateFinancialAccountYieldEntries(
 			account,
 			[{ amount: 100, date: day, destinationFinancialAccountId: "account" }],
@@ -631,13 +715,14 @@ for (const size of [10, 10000, 100000]) {
 			origin: "USER",
 		}));
 		const account: FinancialAccount = {
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			createdAt: "2026-01-01T12:00:00Z",
 			id: "indexed",
 			name: "Indexed",
 			type: "CHECKING",
 			updatedAt: "2026-01-01T12:00:00Z",
 			userId: "visitor",
+			yieldCurrency: "BRL",
 		};
 		const balance = calculateFinancialAccountBalances(
 			[account],
@@ -646,8 +731,8 @@ for (const size of [10, 10000, 100000]) {
 			[],
 			new Date("2026-10-04T12:00:00Z"),
 			yields,
-		)[0]?.balance;
-		expect(balance).toBe(1000);
+		)[0]?.assets[0]?.balance;
+		expect(balance).toBe("1000");
 		expect(reads).toBeLessThanOrEqual(size * 4);
 	});
 }

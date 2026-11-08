@@ -41,6 +41,22 @@ function getInstruments() {
 	return instruments;
 }
 export const getOperationRoot = () => state.getStore()?.root;
+const failedOperations = new WeakSet<Span>();
+export function markOperationFailed() {
+	const span = getOperationRoot() ?? trace.getSpan(context.active());
+	if (span) {
+		failedOperations.add(span);
+		span.setStatus({ code: SpanStatusCode.ERROR });
+	}
+}
+/** Mark a handled dependency failure without failing the enclosing operation. */
+export function markCurrentOperationFailed() {
+	const span = trace.getSpan(context.active());
+	if (span) {
+		failedOperations.add(span);
+		span.setStatus({ code: SpanStatusCode.ERROR });
+	}
+}
 const operationRoutes = new WeakMap<object, string>();
 export function setOperationRoute(span: Span, route: string) {
 	operationRoutes.set(span, route);
@@ -91,6 +107,7 @@ export function operation<T>(
 			let ended = false;
 			const finish = (error = false) => {
 				if (ended) return;
+				error ||= failedOperations.has(span);
 				ended = true;
 				span.setAttribute("code.outcome", error ? "error" : "ok");
 				if (error) {

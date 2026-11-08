@@ -1,4 +1,4 @@
-import { recordDelivery } from "@zaimu/observability";
+import { linkedOperation, markOperationFailed, recordDelivery } from "@zaimu/observability";
 import amqp, { type ChannelModel, type ConfirmChannel } from "amqplib";
 import type { EventEnvelope } from "~/shared/application/events";
 import type { EventBrokerPort } from "~/shared/application/ports";
@@ -103,20 +103,36 @@ export class RabbitMqBroker implements EventBrokerPort {
 	) {
 		await channel.consume(
 			brokerQueue(queue),
-			message => {
+			/* @otel-ignore */ message => {
 				if (!message) return;
 				const startedAt = performance.now();
-				instrumentJob(queue, message.properties.timestamp, () =>
-					processBrokerMessage(
-						brokerQueue(queue),
-						message,
-						channel,
-						this.deduplicator,
-						handler,
-						Number(process.env.RABBITMQ_MAX_RETRIES ?? 5),
-					),
-				)
-					.then(result => {
+				let carrier: Record<string, string> | undefined;
+				try {
+					carrier = (JSON.parse(message.content.toString()) as EventEnvelope).telemetryContext;
+				} catch {
+					/* Invalid envelopes follow the existing DLQ policy. */
+				}
+				linkedOperation("messaging.process", carrier, () =>
+					instrumentJob(
+						queue,
+						message.properties.timestamp,
+						() =>
+							processBrokerMessage(
+								brokerQueue(queue),
+								message,
+								channel,
+								this.deduplicator,
+								handler,
+								Number(process.env.RABBITMQ_MAX_RETRIES ?? 5),
+							),
+						undefined,
+						result =>
+							result.result.startsWith("failed_") || result.result === "invalid_dlq"
+								? "error"
+								: "ok",
+					).then(result => {
+						if (result.result.startsWith("failed_") || result.result === "invalid_dlq")
+							markOperationFailed();
 						recordDelivery(queue, result.result);
 						return console.info(
 							JSON.stringify({
@@ -126,14 +142,14 @@ export class RabbitMqBroker implements EventBrokerPort {
 								type: "broker_consume",
 							}),
 						);
-					})
-					.catch(() => {
-						try {
-							channel.nack(message, false, true);
-						} catch {
-							/* Connection loss requeues unacknowledged messages. */
-						}
-					});
+					}),
+				).catch(() => {
+					try {
+						channel.nack(message, false, true);
+					} catch {
+						/* Connection loss requeues unacknowledged messages. */
+					}
+				});
 			},
 			{ noAck: false },
 		);
