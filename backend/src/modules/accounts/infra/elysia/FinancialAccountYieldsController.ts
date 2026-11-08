@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { resolveAccountAsset } from "~/modules/accounts/application/account-assets";
+import { fiatHoldingCodes, resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { getAccountBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
 import { requireUserId } from "~/modules/auth";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -210,14 +210,16 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			const account = await assertYieldAccount(body.financialAccountId, userId);
-			if (!account.yieldCurrency)
-				throw new HttpException("Selecione um ativo fiat para o rendimento da conta", 400);
-			const asset = await resolveAccountAsset(account.id, body.assetCode ?? account.yieldCurrency, {
+			const fiatCodes = await fiatHoldingCodes(account.id);
+			const defaultCode = fiatCodes.includes(account.yieldCurrency ?? "")
+				? account.yieldCurrency
+				: fiatCodes[0];
+			if (!defaultCode)
+				throw new HttpException("Adicione ao menos um ativo fiduciário à conta para registrar rendimentos", 400);
+			const asset = await resolveAccountAsset(account.id, body.assetCode ?? defaultCode, {
 				fiatOnly: true,
 				userId,
 			});
-			if (body.kind === "AUTOMATIC" && asset.assetCode !== account.yieldCurrency)
-				throw new HttpException("Selecione o ativo configurado para rendimento automático", 400);
 			const date = parseDate(body.date);
 			if (body.kind === "MANUAL" && body.amount === undefined)
 				throw new HttpException("Informe o valor do rendimento manual", 400);

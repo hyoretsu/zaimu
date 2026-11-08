@@ -75,7 +75,7 @@ export async function getFinancialCoverage(
 ): Promise<FinancialCoverageReturn> {
 	const window = financialCoverageWindow(start, end);
 	const accounts = await queryRaw<Account & { userId: string }>(
-		`SELECT "id","userId","name","countryCode","yieldCurrency" AS "currency","institutionId" FROM "FinancialAccount" WHERE ($1::boolean OR "userId"=$2) AND "yieldCurrency" IS NOT NULL ORDER BY "createdAt","id"`,
+		`SELECT account."id",account."userId",account."name",account."countryCode",holding."assetCode" AS "currency",account."institutionId" FROM "FinancialAccount" account JOIN "FinancialAccountAsset" holding ON holding."financialAccountId"=account."id" JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE ($1::boolean OR account."userId"=$2) ORDER BY account."createdAt",account."id",holding."assetCode"`,
 		[admin, userId],
 	);
 	const countries = [

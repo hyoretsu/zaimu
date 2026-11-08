@@ -84,3 +84,12 @@ async function attachAccountAsset(
 export async function assertFiatHolding(accountId: string, assetCode: string, userId?: string) {
 	return resolveAccountAsset(accountId, assetCode, { fiatOnly: true, userId });
 }
+
+/** Fiat holdings of an account, ordered by code; yields apply to every one of them. */
+export async function fiatHoldingCodes(accountId: string) {
+	const rows = await queryRawDecimal<{ assetCode: string }>(
+		`SELECT holding."assetCode" FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=$1 ORDER BY holding."assetCode"`,
+		[accountId],
+	);
+	return rows.map(row => row.assetCode);
+}

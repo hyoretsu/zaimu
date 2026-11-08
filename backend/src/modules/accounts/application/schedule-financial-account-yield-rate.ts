@@ -12,7 +12,7 @@ import {
 	queryRows,
 } from "~/shared/infra/sql";
 import type { YieldPeriod } from "../domain/calculate-financial-account-yields";
-import { assertFiatHolding } from "./account-assets";
+import { fiatHoldingCodes } from "./account-assets";
 
 export async function scheduleFinancialAccountYieldRate({
 	effectiveDate,
@@ -42,9 +42,10 @@ export async function scheduleFinancialAccountYieldRate({
 			.where((f, fn) => fn.eq(f.id, financialAccountId))
 			.build(),
 	);
-	const currency = current[0]?.yieldCurrency;
-	if (!currency) throw new HttpException("Selecione um ativo fiat para o rendimento da conta", 400);
-	await assertFiatHolding(financialAccountId, currency);
+	const fiat = await fiatHoldingCodes(financialAccountId);
+	const currency = fiat.includes(current[0]?.yieldCurrency ?? "") ? current[0]!.yieldCurrency! : fiat[0];
+	if (!currency)
+		throw new HttpException("Adicione ao menos um ativo fiduciário à conta para configurar o rendimento", 400);
 	await assertTaxSelection(
 		yieldTaxIds,
 		current.flatMap(row => row.yieldTaxIds),

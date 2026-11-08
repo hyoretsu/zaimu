@@ -1,4 +1,4 @@
-/** A fiat yield replay uses only its configured holding. Side identity is independent of quantity. */
+/** A fiat yield replay runs per fiat holding. Side identity is independent of quantity. */
 export const yieldMovementsSql = `
 WITH legs AS (
  SELECT movement."id",movement."date",side."side",side."accountId",side."assetCode",side.amount
@@ -14,7 +14,7 @@ WITH legs AS (
 SELECT legs."id" || ':' || legs."side" || ':' || legs."accountId" AS id,legs.amount,legs."date",legs."assetCode",NULL::numeric AS "destinationAmount",
  CASE WHEN legs."side"='DESTINATION' THEN legs."accountId" END AS "destinationFinancialAccountId",
  CASE WHEN legs."side"<>'DESTINATION' THEN legs."accountId" END AS "originFinancialAccountId"
-FROM legs JOIN "FinancialAccount" account ON account."id"=legs."accountId" AND account."yieldCurrency"=legs."assetCode"
+FROM legs JOIN "FinancialAccount" account ON account."id"=legs."accountId"
 JOIN "FinancialAccountAsset" holding ON holding."financialAccountId"=account."id" AND holding."assetCode"=legs."assetCode"
 JOIN "Asset" asset ON asset."code"=legs."assetCode" AND asset."kind"='FIAT'
 WHERE legs."accountId"=ANY($1::text[])

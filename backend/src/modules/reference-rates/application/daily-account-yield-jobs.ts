@@ -8,7 +8,7 @@ export async function enqueueDailyAccountYieldRecalculations(now = new Date()) {
 	const accounts = await queryRaw<{ id: string; createdAt: Date }>(
 		`SELECT account."id", account."createdAt" FROM "FinancialAccount" account
 		 WHERE account."type" <> 'CREDIT_CARD'
-		 AND EXISTS (SELECT 1 FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=account."id" AND holding."assetCode"=account."yieldCurrency")
+		 AND EXISTS (SELECT 1 FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=account."id")
 		 AND account."createdAt" < ($1::date + interval '1 day') AND (
 		 account."yieldFixedRate" IS NOT NULL OR account."yieldReferenceType" IS NOT NULL
 		 OR account."historicalYieldSettings" IS NOT NULL

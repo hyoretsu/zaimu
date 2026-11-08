@@ -3,6 +3,7 @@ import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { type LoanContractBook, sameLoanContract, validateLoanTerms } from "@zaimu/finance/loan-contract";
 import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia from "elysia";
+import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
 import { accountHoldings, saveAccountHoldings } from "~/modules/accounts/application/account-holdings";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
@@ -284,15 +285,15 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						);
 						if (existing && existing.userId !== userId)
 							throw new Error(`Conta financeira ${id} pertence a outro usuário`);
-						const requestedYieldCurrency =
-							"yieldCurrency" in entity
+						// Server-derived from fiat holdings after saving them; an existing value is never overwritten here.
+						const requestedYieldCurrency = existing
+							? existing.yieldCurrency
+							: "yieldCurrency" in entity
 								? value<string | null>(entity, "yieldCurrency")
-								: existing?.yieldCurrency;
+								: null;
 						const currency = requestedYieldCurrency
 							? await assertSupportedCurrency(requestedYieldCurrency)
 							: null;
-						if (existing && currency !== existing.yieldCurrency)
-							throw new Error("Moeda da conta existente não pode mudar pela sincronização");
 						const institutionInput = value<{ id?: string; name?: string } | null | undefined>(
 							entity,
 							"institution",
@@ -390,11 +391,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							);
 						const assets =
 							value<Array<{ assetCode: string; balance: string }>>(entity, "assets") ?? [];
-						await saveAccountHoldings(
-							id,
-							assets,
-							assets.some(asset => asset.assetCode === currency) ? currency : undefined,
-						);
+						await saveAccountHoldings(id, assets);
 						await saveAccountDefaults(
 							userId,
 							id,
@@ -554,7 +551,15 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								.limit(1)
 								.build(),
 						);
-						if (!account?.yieldCurrency || account.type === "CREDIT_CARD")
+						if (!account || account.type === "CREDIT_CARD")
+							throw new Error("Conta de rendimento indisponível");
+						const fiatCodes = await fiatHoldingCodes(financialAccountId);
+						const assetCode =
+							value<string | null | undefined>(entity, "assetCode") ??
+							(fiatCodes.includes(account.yieldCurrency ?? "")
+								? account.yieldCurrency
+								: fiatCodes[0]);
+						if (!assetCode || !fiatCodes.includes(assetCode))
 							throw new Error("Conta de rendimento indisponível");
 						const existing = await queryFirst(
 							db.sql.public.FinancialAccountYield.select(
@@ -568,6 +573,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 										functions.eq(fields.id, id),
 										functions.and(
 											functions.eq(fields.financialAccountId, financialAccountId),
+											functions.eq(fields.assetCode, assetCode),
 											functions.eq(fields.date, date.toISOString().slice(0, 10)),
 										),
 									),
@@ -582,7 +588,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							amount: nullableNumeric<12, 4>(
 								value<number | null | undefined>(entity, "amount") ?? null,
 							),
-							assetCode: account.yieldCurrency,
+							assetCode,
 							date: date.toISOString().slice(0, 10),
 							isExcluded: value<boolean | undefined>(entity, "isExcluded") ?? false,
 							kind,

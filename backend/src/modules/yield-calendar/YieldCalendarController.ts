@@ -24,7 +24,7 @@ const Result = t.Object({ success: t.Boolean() });
 
 async function recalculate(currencies: string[], date: string, cause: string) {
 	const accounts = await queryRaw<{ id: string }>(
-		`SELECT "id" FROM "FinancialAccount" WHERE "type" <> 'CREDIT_CARD' AND "yieldCurrency"=ANY($1::text[])`,
+		`SELECT account."id" FROM "FinancialAccount" account WHERE account."type" <> 'CREDIT_CARD' AND EXISTS (SELECT 1 FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=account."id" AND holding."assetCode"=ANY($1::text[]))`,
 		[currencies],
 	);
 	for (const account of accounts)

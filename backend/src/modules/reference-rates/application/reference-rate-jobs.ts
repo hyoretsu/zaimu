@@ -5,6 +5,7 @@ import {
 	balanceAdjustmentSourceVersion,
 	reconcileBalanceAdjustments,
 } from "~/modules/accounts/application/balance-adjustment-reconciliation";
+import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
 import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
 import {
 	calculateFinancialAccountYieldBalances,
@@ -236,10 +237,13 @@ async function processFetchJob(
 		return rates.length;
 	});
 }
-export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAccount[]> {
+export async function loadYieldAccounts(
+	accountIds: string[],
+	currencies?: ReadonlyMap<string, string>,
+): Promise<YieldAccount[]> {
 	if (!accountIds.length) return [];
 	await loadTaxCatalog();
-	const loaded = await loadFinancialAccountBalanceInput(accountIds);
+	const loaded = await loadFinancialAccountBalanceInput(accountIds, currencies);
 	if (!loaded.input) return [];
 	const snapshots = new Map<string, YieldLot[]>();
 	calculateFinancialAccountYieldBalances({ ...loaded.input, lotSnapshots: snapshots });
@@ -249,8 +253,14 @@ export async function loadYieldAccounts(accountIds: string[]): Promise<YieldAcco
 		yieldLots: snapshots.get(account.id) ?? [],
 	}));
 }
-export async function loadYieldAccount(accountId: string): Promise<YieldAccount | null> {
-	return (await loadYieldAccounts([accountId]))[0] ?? null;
+export async function loadYieldAccount(
+	accountId: string,
+	currency?: string,
+): Promise<YieldAccount | null> {
+	return (
+		(await loadYieldAccounts([accountId], currency ? new Map([[accountId, currency]]) : undefined))[0] ??
+		null
+	);
 }
 
 function requiredReferenceTypes(settings: ReturnType<typeof getYieldSettings>) {
@@ -267,12 +277,9 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	if (!job.financialAccountId || !job.fromDate) throw new Error("Job de recálculo incompleto");
 	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
 	const account = await loadYieldAccount(job.financialAccountId);
-	if (!account?.currency) return;
-	const [holding] = await queryRaw<{ assetCode: string }>(
-		`SELECT holding."assetCode" FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" AND asset."kind"='FIAT' WHERE holding."financialAccountId"=$1 AND holding."assetCode"=$2`,
-		[account.id, account.currency],
-	);
-	if (!holding) return;
+	if (!account) return;
+	const fiatCodes = await fiatHoldingCodes(account.id);
+	if (!fiatCodes.length) return;
 	const firstBalance = await accountFirstBalanceDate(account.id);
 	if (!firstBalance) return;
 	const reconcile = (from: string, before: string | null = null) =>
@@ -303,19 +310,50 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		{ length: endDate.getFullYear() - fromDate.getFullYear() + 1 },
 		(_, index) => fromDate.getFullYear() + index,
 	);
-	if (!(await ensureAccountCoverage(account.currency, account.countryCode, years))) {
-		// Without a country no yield is ever generated, so the balance only depends on movements.
-		if (!account.countryCode) await reconcile(dateKey(fromDate));
-		return;
+	// Yields apply to every fiat holding; the earliest gap of any currency bounds the settled checkpoints.
+	let firstGap: string | null = null;
+	for (const currency of fiatCodes) {
+		const currencyAccount = (await loadYieldAccount(account.id, currency)) ?? account;
+		if (!(await ensureAccountCoverage(currency, currencyAccount.countryCode, years))) {
+			// Without a country no yield is ever generated, so the balance only depends on movements.
+			if (!currencyAccount.countryCode) {
+				await reconcile(dateKey(fromDate));
+				return;
+			}
+			continue;
+		}
+		const gap = await replayAccountCurrency(currencyAccount, currency, fromDate, endDate);
+		if (gap && (!firstGap || gap < firstGap)) firstGap = gap;
 	}
+	// A checkpoint only depends on days before it, so missing rates later on do not block it.
+	await reconcile(dateKey(fromDate), firstGap);
+	await outbox.append(
+		createEventEnvelope({
+			aggregateId: account.id,
+			aggregateType: "financialAccount",
+			correlationId: commandId(job.deduplicationKey),
+			eventType: "yieldRecalculated",
+			payload: { fromDate: dateKey(fromDate) },
+			userIds: [(account as YieldAccount & { userId: string }).userId],
+		}),
+	);
+}
+
+/** Regenerates the automatic yields of one fiat holding and returns its first day lacking published rates. */
+async function replayAccountCurrency(
+	account: YieldAccount,
+	currency: string,
+	fromDate: Date,
+	endDate: Date,
+) {
 	await loadTaxCatalog();
 	await executeRaw(
 		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "assetCode" = $4 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2 AND "date" <= $3`,
-		[account.id, dateKey(fromDate), dateKey(endDate), account.currency],
+		[account.id, dateKey(fromDate), dateKey(endDate), currency],
 	);
 	const holidayKeys = await getCountryHolidays(account.countryCode!);
-	const loaded = await loadFinancialAccountBalanceInput([account.id]);
-	if (!loaded.input) return;
+	const loaded = await loadFinancialAccountBalanceInput([account.id], new Map([[account.id, currency]]));
+	if (!loaded.input) return null;
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };
 	let firstGap: string | null = null;
 	for (let day = fromDate; day <= endDate; day = addDays(day, 1)) {
@@ -350,7 +388,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 					functions.and(
 						functions.eq(fields.financialAccountId, account.id),
 						functions.eq(fields.date, key),
-						functions.eq(fields.assetCode, account.currency!),
+						functions.eq(fields.assetCode, currency),
 						functions.eq(fields.origin, "USER"),
 					),
 				)
@@ -381,6 +419,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 		if (amount === 0) continue;
 		input.yields.push({
 			amount,
+			assetCode: currency,
 			date: day,
 			financialAccountId: account.id,
 			isExcluded: false,
@@ -391,7 +430,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			db.sql.public.FinancialAccountYield.insert([
 				{
 					amount: numeric<38, 18>(amount),
-					assetCode: account.currency!,
+					assetCode: currency,
 					date: key,
 					financialAccountId: account.id,
 					isExcluded: false,
@@ -401,18 +440,7 @@ async function processAccountRecalculation(job: ClaimedJob) {
 			]).build(),
 		);
 	}
-	// A checkpoint only depends on days before it, so missing rates later on do not block it.
-	await reconcile(dateKey(fromDate), firstGap);
-	await outbox.append(
-		createEventEnvelope({
-			aggregateId: account.id,
-			aggregateType: "financialAccount",
-			correlationId: commandId(job.deduplicationKey),
-			eventType: "yieldRecalculated",
-			payload: { fromDate: dateKey(fromDate) },
-			userIds: [(account as YieldAccount & { userId: string }).userId],
-		}),
-	);
+	return firstGap;
 }
 
 const requiredString = (payload: unknown, key: string) => {
