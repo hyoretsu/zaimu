@@ -12,8 +12,8 @@ import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from
 import { showToast } from "@/stores";
 import { useAuthStore } from "@/stores/auth";
 import type { InstitutionProposal } from "./InstitutionReviewQueue";
-import { InstitutionUpdateDiff } from "./ProposalDiff";
 import { MergeProfileResolution, type ProfileResolution } from "./MergeProfileResolution";
+import { InstitutionUpdateDiff } from "./ProposalDiff";
 
 const labels: Record<string, string> = {
 	APPROVED: "Aprovada",
@@ -76,8 +76,13 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 				{proposal.baseVersion ?? "Nova"} - Versão atual: {proposal.version ?? "Nova"}
 				{proposal.effectiveDate ? ` - Vigência: ${proposal.effectiveDate.slice(0, 10)}` : ""}
 			</p>
-			{proposal.kind === "INSTITUTION_UPDATE" ? (
-				<InstitutionUpdateDiff current={current} payload={proposal.payload} />
+			{proposal.kind === "INSTITUTION_UPDATE" || proposal.kind === "NEW_INSTITUTION" ? (
+				<InstitutionUpdateDiff
+					current={current}
+					institutionId={proposal.institutionId ?? undefined}
+					isNew={proposal.kind === "NEW_INSTITUTION"}
+					payload={proposal.payload}
+				/>
 			) : (
 				<dl className="grid min-w-0 gap-2 text-sm">
 					{Object.entries(proposal.payload).map(([key, value]) => (
