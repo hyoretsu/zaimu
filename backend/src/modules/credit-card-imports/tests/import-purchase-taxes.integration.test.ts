@@ -124,6 +124,10 @@ test("tax can be linked after purchase approval without another purchase or char
 		`UPDATE "CreditCardImport" SET "statementDate"='2026-06-10', "dueDate"='2026-06-20' WHERE "id"='approved-tax-batch'`,
 	);
 	await associate("import-tax-user", "approved-tax-batch", "approved-tax-source", purchase.id);
+	expect(
+		(await client.query(`SELECT "status" FROM "CreditCardImport" WHERE "id"='approved-tax-batch'`))
+			.rows[0].status,
+	).toBe("APPROVED");
 	await expect(
 		associate("import-tax-user", "approved-tax-batch", "approved-tax-source", purchase.id),
 	).rejects.toThrow();

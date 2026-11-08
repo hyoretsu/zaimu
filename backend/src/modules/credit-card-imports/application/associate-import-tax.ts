@@ -5,7 +5,9 @@ import { HttpException } from "~/shared/errors";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { associateImportTax, readImportTaxes } from "../domain/import-purchase-taxes";
 import { rememberImportIdentity } from "./import-identities";
-import { cleanupItemTags } from "./import-service";
+import { cleanupItemTags, markStatementAsFullySynced } from "./import-service";
+
+type RawQuery = Parameters<Parameters<typeof withRawTransaction>[0]>[0];
 
 // Raw queries return the stored JSON as is, and legacy rows hold the double-encoded default string "[]".
 function readMetadataMissing(value: unknown): string[] {
@@ -20,7 +22,7 @@ export async function associateImportedTax(
 	purchaseId: string,
 	reviewed?: { name?: string; amount?: number; resolvedMetadata?: string[] },
 ) {
-	return withRawTransaction(async query => {
+	const finished = await withRawTransaction(async query => {
 		const [batch] = await query<{
 			status: string;
 			creditCardId: string;
@@ -95,7 +97,7 @@ export async function associateImportedTax(
 			await rememberImportIdentity(query, tax.externalId, purchaseId);
 			await cleanupItemTags([tax.id]);
 			await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [tax.id]);
-			return;
+			return finishWhenEmpty(query, importId, batch);
 		}
 		if (
 			!tax ||
@@ -134,5 +136,25 @@ export async function associateImportedTax(
 		);
 		await cleanupItemTags([tax.id]);
 		await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [tax.id]);
+		return finishWhenEmpty(query, importId, batch);
 	});
+	if (finished) await markStatementAsFullySynced(finished);
+}
+
+// The associated tax item is consumed, so it may have been the last pending one: approve the import like the other review flows.
+async function finishWhenEmpty(
+	query: RawQuery,
+	importId: string,
+	batch: { creditCardId: string; dueDate: Date; statementDate: Date },
+) {
+	const [remaining] = await query(
+		`SELECT 1 FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 LIMIT 1`,
+		[importId],
+	);
+	if (remaining) return null;
+	await query(
+		`UPDATE "CreditCardImport" SET "status"='APPROVED', "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`,
+		[importId],
+	);
+	return batch;
 }
