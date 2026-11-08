@@ -470,14 +470,13 @@ export function EditCreditPurchaseDialog({
 											confirmado.
 										</p>
 									) : null}
-									<fieldset className="min-w-0" disabled={isFullySynced}>
-										<FinancialFeeFields
-											baseAmount={Number(amount) || 0}
-											currencyCode={currencyCode}
-											fees={fees}
-											onChange={setFees}
-										/>
-									</fieldset>
+									<FinancialFeeFields
+										baseAmount={Number(amount) || 0}
+										currencyCode={currencyCode}
+										disabled={isFullySynced}
+										fees={fees}
+										onChange={setFees}
+									/>
 								</>
 							}
 							installments={

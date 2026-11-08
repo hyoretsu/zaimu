@@ -48,13 +48,13 @@ export function PurchaseFormLayout({
 				{amount}
 				{installments}
 			</FormFieldRow>
-			{fees}
 			<FormFieldRow>
 				{date}
 				{time}
 			</FormFieldRow>
 			{tags}
 			{charge}
+			{fees}
 			{taxes}
 			{debt}
 			{summary}

@@ -247,6 +247,7 @@ export function TransactionDetailsFields({
 					currencyCode={currencyCode}
 					fees={fees}
 					onChange={onFeesChange}
+					selectableAsset
 				/>
 			) : null}
 			{showDescription ? (

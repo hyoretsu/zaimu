@@ -1,6 +1,7 @@
 import { withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { useEffect, useRef, useState } from "react";
 import { PurchaseFormLayout } from "@/components/credit-card-purchases";
+import { FinancialFeeFields } from "@/components/currency";
 import { DebtSplitEditor } from "@/components/debts";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { StorePicker } from "@/components/stores";
@@ -25,7 +26,6 @@ import type { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { cleanFinancedDescription, getFinancedOperation } from "@/lib/financing-source-reference";
 import { showToast } from "@/stores";
-import { ImportedPurchaseTaxFields } from "./ImportedPurchaseTaxFields";
 import { ImportedTaxPurchaseSelect } from "./ImportedTaxPurchaseSelect";
 
 export function EditImportedCreditPurchaseDialog({
@@ -187,6 +187,25 @@ export function EditImportedCreditPurchaseDialog({
 									value={description}
 								/>
 							}
+							fees={
+								isStatementCharge ? null : (
+									<FinancialFeeFields
+										baseAmount={totalAmount}
+										currencyCode={currencyCode}
+										description="Valores já incluídos no valor total da compra."
+										fees={taxes.map(tax => ({ ...tax, type: "FIXED" as const }))}
+										maxItems={20}
+										onChange={fees =>
+											setTaxes(
+												fees.map(fee => ({
+													amount: Number(fee.amount),
+													name: fee.name,
+												})),
+											)
+										}
+									/>
+								)
+							}
 							installments={
 								<FormField
 									autoComplete="off"
@@ -239,29 +258,20 @@ export function EditImportedCreditPurchaseDialog({
 							store={<StorePicker onValueChange={setStoreName} value={storeName} />}
 							tags={<TagPicker onValueChange={setTagIds} value={tagIds} />}
 							taxes={
-								<>
-									{!isStatementCharge && (
-										<ImportedPurchaseTaxFields
-											currencyCode={currencyCode}
-											onChange={setTaxes}
-											taxes={taxes}
-										/>
-									)}
-									{item.installments === 1 &&
-										item.installmentAmount > 0 &&
-										!item.taxes?.length && (
-											<ImportedTaxPurchaseSelect
-												currencyCode={currencyCode}
-												importId={importId}
-												itemId={item.id}
-												onChange={value => {
-													setTaxPurchaseItemId(value);
-													if (value) setIsStatementCharge(false);
-												}}
-												value={taxPurchaseItemId}
-											/>
-										)}
-								</>
+								item.installments === 1 &&
+								item.installmentAmount > 0 &&
+								!item.taxes?.length && (
+									<ImportedTaxPurchaseSelect
+										currencyCode={currencyCode}
+										importId={importId}
+										itemId={item.id}
+										onChange={value => {
+											setTaxPurchaseItemId(value);
+											if (value) setIsStatementCharge(false);
+										}}
+										value={taxPurchaseItemId}
+									/>
+								)
 							}
 							time={
 								<TimeField
@@ -287,14 +297,12 @@ export function EditImportedCreditPurchaseDialog({
 							const submittedTaxes = taxes.map((tax, index) => ({
 								amount: Number(
 									fieldsRef.current?.querySelector<HTMLInputElement>(
-										`input[name="import-tax-raw-${index}"]`,
+										`input[name="fee-raw-${index}"]`,
 									)?.value ?? tax.amount,
 								),
 								name:
 									fieldsRef.current
-										?.querySelector<HTMLInputElement>(
-											`input[name="import-tax-name-${index}"]`,
-										)
+										?.querySelector<HTMLInputElement>(`input[name="fee-name-${index}"]`)
 										?.value.trim() ?? tax.name,
 							}));
 							const submittedTotal = Number(
