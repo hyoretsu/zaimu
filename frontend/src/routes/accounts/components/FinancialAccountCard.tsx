@@ -167,6 +167,7 @@ export function FinancialAccountCard({
 						</p>
 						<p className="mt-1 text-2xl font-bold">
 							<PreferredMoneyAmount
+								highlightNegative
 								values={account.assets.map(asset => ({
 									amount: asset.balance,
 									currency: asset.assetCode,

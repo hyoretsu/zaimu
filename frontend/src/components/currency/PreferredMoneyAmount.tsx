@@ -11,6 +11,7 @@ export function PreferredMoneyAmount({
 	pending = false,
 	error = false,
 	debt,
+	highlightNegative = false,
 }: {
 	values: readonly MoneyPosition[];
 	date?: string;
@@ -21,6 +22,8 @@ export function PreferredMoneyAmount({
 	 * "absolute" renders the magnitude only, for callers that label the direction themselves.
 	 */
 	debt?: "absolute" | "plural";
+	/** Renders negative totals in red. */
+	highlightNegative?: boolean;
 }) {
 	const identity = useCacheIdentity();
 	const client = useQueryClient();
@@ -74,5 +77,9 @@ export function PreferredMoneyAmount({
 			</>
 		);
 	}
-	return <span>{formatter.format(query.data)}</span>;
+	return (
+		<span className={highlightNegative && query.data < 0 ? "text-red-500" : undefined}>
+			{formatter.format(query.data)}
+		</span>
+	);
 }
