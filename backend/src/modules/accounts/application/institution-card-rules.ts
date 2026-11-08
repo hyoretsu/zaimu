@@ -3,9 +3,7 @@ import {
 	defaultCardRules,
 	type InstitutionCardRules,
 } from "@zaimu/finance/institution-card-rules";
-import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
-import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import { assertCashbackSettings } from "../domain/assert-cashback-settings";
 import { ensureAccountAssetCatalog } from "./account-assets";
@@ -70,36 +68,6 @@ export async function writeInstitutionCardRules(
 		await query(`UPDATE "FinancialInstitution" SET version=version+1,"updatedAt"=NOW() WHERE id=$1`, [
 			institutionId,
 		]);
-}
-
-export async function configureInstitutionCardRules(
-	institutionId: string,
-	rules: InstitutionCardRules | null,
-	profileId?: string,
-) {
-	assertInstitutionCardRules(rules);
-	return withRawTransaction(async query => {
-		const [institution] = await query(`SELECT id FROM "FinancialInstitution" WHERE id=$1 FOR UPDATE`, [
-			institutionId,
-		]);
-		if (!institution) throw new HttpException("Instituição não encontrada", 404);
-		await writeInstitutionCardRules(query, institutionId, rules, profileId);
-		const users = await query<{ userId: string }>(
-			`SELECT DISTINCT "userId" FROM "FinancialAccount" WHERE "institutionId"=$1`,
-			[institutionId],
-		);
-		await new PostgresOutbox().append(
-			createEventEnvelope({
-				aggregateId: institutionId,
-				aggregateType: "account",
-				correlationId: crypto.randomUUID(),
-				eventType: "account.institution.reviewed",
-				payload: { profileId, rulesUpdated: true },
-				userIds: users.map(user => user.userId),
-			}),
-		);
-		return { id: profileId ?? institutionId };
-	});
 }
 
 /** Destination is internal bookkeeping, never a user-selectable benefit setting. */
