@@ -1,4 +1,5 @@
 import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
+import { applyRecurrenceToImportItem } from "~/modules/recurring/application/apply-recurrence-to-import-item";
 import { associateRecurrence } from "~/modules/recurring/application/associate-recurrence";
 import { getStoredRecurrence } from "~/modules/recurring/application/recurrences";
 import type { ImportRecurrenceDTO } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
@@ -36,6 +37,7 @@ export function approveWithRecurrence(
 			getFinancingTarget(item.description)
 		)
 			throw new HttpException("Somente compras comuns podem ser associadas a recorrências.", 400);
+		await applyRecurrenceToImportItem(userId, recurrence.recurrenceId, "PURCHASE", itemId);
 		const result = await approveItems(userId, importId, itemId);
 		const [purchase] = await query<{ id: string }>(
 			`SELECT p."id" FROM "CreditPurchaseImportIdentity" i JOIN "CreditPurchaseRecord" p ON p."id"=i."purchaseId" WHERE i."externalId"=$1 AND p."creditCardId"=$2 AND p."userId"=$3`,

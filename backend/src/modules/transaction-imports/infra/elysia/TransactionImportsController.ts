@@ -25,6 +25,7 @@ import {
 	discardExternalReviews,
 	refreshAppliedSnapshots,
 } from "~/modules/open-finance/application/review-tracking";
+import { applyRecurrenceToImportItem } from "~/modules/recurring/application/apply-recurrence-to-import-item";
 import { associateRecurrence } from "~/modules/recurring/application/associate-recurrence";
 import { getStoredRecurrence } from "~/modules/recurring/application/recurrences";
 import { ApproveImportItemBody } from "~/modules/recurring/infra/elysia/RecurrenceDTO";
@@ -1232,6 +1233,16 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						.build(),
 				);
 				if (!item) throw new HttpException("Item da importação não encontrado", 404);
+				if (body?.recurrence)
+					Object.assign(
+						item,
+						await applyRecurrenceToImportItem(
+							userId,
+							body.recurrence.recurrenceId,
+							"TRANSACTION",
+							item.id,
+						),
+					);
 				await assertImportItemIsNotReconciliationTarget(item.id);
 				const importItem = { ...item, date: new Date(item.date), type: item.type as ImportItemType };
 				const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [
