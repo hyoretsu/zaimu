@@ -4,6 +4,7 @@ const paths = staged.stdout.toString().split("\0");
 if (
 	paths.some(
 		path =>
+			path === "scripts/setup-worktree.ts" ||
 			path === "scripts/test-runner.ts" ||
 			path === "scripts/tsconfig.json" ||
 			path.startsWith("scripts/testing/") ||
