@@ -1,30 +1,28 @@
 import type { RecurrenceAssociationTarget } from "@zaimu/finance/recurrence";
-import { dataService } from "@/lib/dataService";
 import AssociateRecurrenceDialog from "./AssociateRecurrenceDialog";
 
+export interface PendingImportRecurrence {
+	date: string;
+	name: string;
+	recurrenceId: string;
+}
+
+/** Records the chosen recurrence on the pending item; the link is only saved when the item is approved. */
 export function AssociateImportedRecurrenceDialog({
-	importId,
 	target,
 	date,
 	onOpenChange,
-	onAssociated,
+	onSelect,
 }: {
-	importId: string;
 	target: RecurrenceAssociationTarget;
 	date: string;
 	onOpenChange: (open: boolean) => void;
-	onAssociated?: () => Promise<unknown>;
+	onSelect: (recurrence: PendingImportRecurrence) => void;
 }) {
 	return (
 		<AssociateRecurrenceDialog
 			initialDate={date}
-			onAssociate={async (recurrenceId, date) => {
-				const recurrence = { date, recurrenceId };
-				if (target.kind === "PURCHASE")
-					return dataService.creditCardImports.approveItem(importId, target.id, { recurrence });
-				return dataService.transactionImports.approveItem(importId, target.id, { recurrence });
-			}}
-			onAssociated={onAssociated}
+			onAssociate={onSelect}
 			onOpenChange={onOpenChange}
 			target={target}
 		/>

@@ -144,7 +144,7 @@ export function CreditCardImportReviewDialog({
 		return false;
 	};
 
-	const approveItem = (item: CreditCardImportItem) => {
+	const approveItem = (item: CreditCardImportItem, recurrence?: { recurrenceId: string; date: string }) => {
 		const targetImportId = importId!;
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["statement"] },
@@ -163,7 +163,12 @@ export function CreditCardImportReviewDialog({
 				kind: "credit-card-import-action",
 				payload: { importId: targetImportId },
 			},
-			run: () => dataService.creditCardImports.approveItem(targetImportId, item.id),
+			run: () =>
+				dataService.creditCardImports.approveItem(
+					targetImportId,
+					item.id,
+					recurrence && { recurrence },
+				),
 			successMessage:
 				item.installmentAmount < 0
 					? "Reembolso aprovado e faturas recalculadas."
@@ -272,8 +277,7 @@ export function CreditCardImportReviewDialog({
 											importId={importId ?? undefined}
 											item={item}
 											key={item.id}
-											onApprove={() => approveItem(item)}
-											onAssociated={() => refreshReview(importId!)}
+											onApprove={recurrence => approveItem(item, recurrence)}
 											onEdit={() => setEditingItem(item)}
 											onReconcile={() => {
 												if (!importId) return;

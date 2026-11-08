@@ -277,7 +277,7 @@ export function TransactionImportReviewDialog({
 			);
 		},
 	});
-	const approveItem = (itemId: string) => {
+	const approveItem = (itemId: string, recurrence?: { recurrenceId: string; date: string }) => {
 		const targetImportId = getReviewedImportId();
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["transaction"] },
@@ -300,7 +300,12 @@ export function TransactionImportReviewDialog({
 				kind: "transaction-import-action",
 				payload: { importId: targetImportId },
 			},
-			run: () => dataService.transactionImports.approveItem(targetImportId, itemId),
+			run: () =>
+				dataService.transactionImports.approveItem(
+					targetImportId,
+					itemId,
+					recurrence && { recurrence },
+				),
 			successMessage: "Transação aprovada.",
 		});
 	};
@@ -594,16 +599,7 @@ export function TransactionImportReviewDialog({
 													isIgnoringDuplicate={false}
 													item={item}
 													key={item.id}
-													onApprove={() => approveItem(item.id)}
-													onAssociated={async () => {
-														const batch =
-															await dataService.transactionImports.get(
-																importId!,
-															);
-														if (batch.pendingItemCount === 0)
-															await closeFinishedReview();
-														else await invalidate(importId!);
-													}}
+													onApprove={recurrence => approveItem(item.id, recurrence)}
 													onCollapsedChange={collapsed =>
 														setItemCollapsed(item.id, collapsed)
 													}

@@ -1,5 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { type RecurrenceAssociationTarget, validateRecurrenceAssociation } from "@zaimu/finance/recurrence";
+import {
+	type RecurrenceAssociationTarget,
+	type RecurrenceUnit,
+	validateRecurrenceAssociation,
+} from "@zaimu/finance/recurrence";
 import { useId, useState } from "react";
 import { LuLink } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +23,13 @@ import { getCurrentCacheIdentity, queryKeys } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 import { RecurrencePeriodField } from "./RecurrencePeriodField";
 
+const periodUnitOptions: { label: string; value: RecurrenceUnit }[] = [
+	{ label: "Dia", value: "DAY" },
+	{ label: "Semana", value: "WEEK" },
+	{ label: "Mês", value: "MONTH" },
+	{ label: "Ano", value: "YEAR" },
+];
+
 export default function AssociateRecurrenceDialog({
 	target,
 	onAssociate,
@@ -27,7 +38,7 @@ export default function AssociateRecurrenceDialog({
 	onOpenChange,
 }: {
 	onAssociated?: () => Promise<unknown>;
-	onAssociate?: (recurrenceId: string, date: string) => Promise<unknown>;
+	onAssociate?: (selection: { recurrenceId: string; date: string; name: string }) => unknown;
 	target: RecurrenceAssociationTarget;
 	initialDate: string;
 	onOpenChange: (open: boolean) => void;
@@ -35,6 +46,7 @@ export default function AssociateRecurrenceDialog({
 	const fieldId = useId();
 	const [recurrenceId, setRecurrenceId] = useState("");
 	const [date, setDate] = useState(initialDate.slice(0, 10));
+	const [periodUnit, setPeriodUnit] = useState<RecurrenceUnit | "">("");
 	const [error, setError] = useState("");
 	const identity = getCurrentCacheIdentity();
 	const query = useQuery({
@@ -44,16 +56,12 @@ export default function AssociateRecurrenceDialog({
 	});
 	const recurrences = query.data ?? [];
 	const selected = recurrences.find(item => item.id === recurrenceId);
+	const unit = (periodUnit || selected?.unit) as RecurrenceUnit | undefined;
 	const mutation = useMutation({
-		meta: {
-			cacheOperations: [
-				"recurring",
-				...(onAssociate ? ["statement" as const, "transaction" as const] : []),
-			],
-		},
+		meta: { cacheOperations: onAssociate ? [] : ["recurring"] },
 		mutationFn: async () => {
 			if (!selected || !date) throw new Error("Selecione uma recorrência e o período da ocorrência.");
-			if (onAssociate) return onAssociate(selected.id, date);
+			if (onAssociate) return onAssociate({ date, name: selected.name, recurrenceId: selected.id });
 			return dataService.recurrences.associate(selected.id, {
 				date,
 				kind: target.kind,
@@ -72,7 +80,12 @@ export default function AssociateRecurrenceDialog({
 					showToast("Vínculo salvo. Atualize a revisão para consultar os dados atuais.", "info");
 				}
 			}
-			showToast("Lançamento associado à recorrência.", "positive");
+			showToast(
+				onAssociate
+					? "Recorrência definida. Aprove o item para salvar o vínculo."
+					: "Lançamento associado à recorrência.",
+				"positive",
+			);
 			onOpenChange(false);
 		},
 	});
@@ -107,12 +120,9 @@ export default function AssociateRecurrenceDialog({
 					}}
 				>
 					<DialogHeader>
-						<DialogTitle>
-							{onAssociate ? "Aprovar e associar a recorrência" : "Associar a recorrência"}
-						</DialogTitle>
+						<DialogTitle>Associar a recorrência</DialogTitle>
 						<DialogDescription>
-							{onAssociate &&
-								"Salvar aprova este item e associa à recorrência em uma única operação. "}
+							{onAssociate && "O vínculo será gravado quando o item for aprovado. "}
 							Escolha o período representado por este lançamento. A regeneração do histórico
 							preservará esse vínculo sem duplicá-lo.
 						</DialogDescription>
@@ -141,7 +151,10 @@ export default function AssociateRecurrenceDialog({
 										<CustomSelect
 											disabled={mutation.isPending}
 											label="Recorrência"
-											onValueChange={setRecurrenceId}
+											onValueChange={value => {
+												setRecurrenceId(value);
+												setPeriodUnit("");
+											}}
 											options={recurrences.map(item => ({
 												label: item.name,
 												value: item.id,
@@ -157,11 +170,19 @@ export default function AssociateRecurrenceDialog({
 											Nenhuma recorrência cadastrada.
 										</p>
 									)}
+									<CustomSelect
+										disabled={mutation.isPending || !selected}
+										label="Tipo de referência"
+										onValueChange={value => setPeriodUnit(value as RecurrenceUnit)}
+										options={periodUnitOptions}
+										placeholder="Selecione o tipo de referência"
+										value={unit ?? ""}
+									/>
 									<RecurrencePeriodField
 										disabled={mutation.isPending}
 										id={fieldId}
 										onChange={setDate}
-										unit={selected?.unit}
+										unit={unit}
 										value={date}
 									/>
 								</>
