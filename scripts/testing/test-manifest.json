@@ -34,6 +34,7 @@
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],
 	"backend:unit": [
+		"backend/scripts/dev-healthcheck.test.ts",
 		"backend/src/modules/currencies/application/stored-currency-factors.test.ts",
 		"backend/performance/preflight.test.ts",
 		"backend/performance/invoice-approval.test.ts",
