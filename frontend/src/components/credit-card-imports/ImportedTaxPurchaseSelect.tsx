@@ -73,6 +73,7 @@ export function ImportedTaxPurchaseSelect({
 				]}
 				placeholder="Selecione a compra da fatura"
 				searchable
+				sortOptions={false}
 				value={value}
 			/>
 			<p className="text-muted-foreground text-xs">
