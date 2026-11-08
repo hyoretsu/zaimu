@@ -502,6 +502,8 @@ Reembolsos registrados ou editados manualmente aceitam qualquer valor positivo v
 
 Compras importadas aceitam impostos discriminados, inclusive IOF sobre compras em BRL. Os valores informados no campo de impostos já integram o total revisado da compra. Um lançamento positivo à vista da mesma fatura pode ser associado à compra como imposto: seu valor integra apenas a parcela daquela fatura e o total da compra, sem gerar encargo de fatura nem duplicar o total. A compra de destino pode estar pendente na revisão ou já aprovada/cadastrada na mesma fatura. A associação é explícita; a proximidade entre datas não basta para vincular automaticamente. Preservar a identidade do lançamento incorporado para não duplicá-lo em reimportações, antes ou depois da aprovação.
 
+Importadores de fatura, atuais e futuros, nunca classificam IOF ou outros impostos de compra como encargo da fatura por padrão, nem os associam automaticamente a uma compra. O item vindo do PDF (ex.: "IOF INTERNACIONAL") permanece sem classificação até o usuário decidir na revisão: associá-lo a uma compra como imposto (valor integra a compra) ou marcá-lo explicitamente como encargo da fatura. Somente IOF de financiamento, juros e multa do banco são encargos da fatura de origem. A edição do item deve oferecer as duas opções, e o rótulo "Encargo da fatura" só aparece após escolha explícita.
+
 ## Associação de lançamentos a recorrências
 
 Transações e compras existentes podem ser associadas explicitamente a uma recorrência
