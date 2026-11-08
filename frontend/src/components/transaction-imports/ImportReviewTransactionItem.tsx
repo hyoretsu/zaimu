@@ -30,6 +30,8 @@ export function ImportReviewTransactionItem({
 	item,
 	accountNames,
 	onApprove,
+	recurrence,
+	onRecurrenceChange,
 	onCollapsedChange,
 	onEdit,
 	onIgnoreDuplicate,
@@ -44,7 +46,9 @@ export function ImportReviewTransactionItem({
 	pending?: boolean;
 	isIgnoringDuplicate: boolean;
 	item: TransactionImportItem;
-	onApprove: (recurrence?: { recurrenceId: string; date: string }) => void;
+	onApprove: () => void;
+	recurrence?: PendingImportRecurrence;
+	onRecurrenceChange: (recurrence: PendingImportRecurrence) => void;
 	onCollapsedChange: (collapsed: boolean) => void;
 	onEdit: () => void;
 	onIgnoreDuplicate: () => void;
@@ -53,7 +57,6 @@ export function ImportReviewTransactionItem({
 	transaction: Transaction;
 }) {
 	const [associating, setAssociating] = useState(false);
-	const [recurrence, setRecurrence] = useState<PendingImportRecurrence>();
 	const formatCurrency = (value: number) =>
 		new Intl.NumberFormat("pt-BR", {
 			currency: transaction.bookingCurrency ?? "BRL",
@@ -152,7 +155,7 @@ export function ImportReviewTransactionItem({
 									color: "default" as const,
 									disabled,
 									icon: <LuCheck />,
-									onClick: () => onApprove(recurrence),
+									onClick: onApprove,
 									text: "Aprovar",
 								},
 							]
@@ -205,7 +208,7 @@ export function ImportReviewTransactionItem({
 				<AssociateImportedRecurrenceDialog
 					date={transaction.date}
 					onOpenChange={setAssociating}
-					onSelect={setRecurrence}
+					onSelect={onRecurrenceChange}
 					target={{ ...transaction, id: item.id, kind: "TRANSACTION" }}
 				/>
 			)}

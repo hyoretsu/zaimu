@@ -57,6 +57,8 @@ export function CreditCardImportItemRow({
 	pending = false,
 	item,
 	onApprove,
+	recurrence,
+	onRecurrenceChange,
 	onEdit,
 	onReconcile,
 	onReviewRefund,
@@ -68,14 +70,16 @@ export function CreditCardImportItemRow({
 	importId?: string;
 	pending?: boolean;
 	item: CreditCardImportItem;
-	onApprove: (recurrence?: { recurrenceId: string; date: string }) => void;
+	onApprove: () => void;
+	recurrence?: PendingImportRecurrence;
+	onRecurrenceChange: (recurrence: PendingImportRecurrence) => void;
 	onEdit: () => void;
 	onReconcile: () => void;
 	onReviewRefund: () => void;
 }) {
 	const [associating, setAssociating] = useState(false);
-	const [recurrence, setRecurrence] = useState<PendingImportRecurrence>();
-	const transaction = toTransaction(item, creditCardId, creditCardName, currencyCode);
+	const base = toTransaction(item, creditCardId, creditCardName, currencyCode);
+	const transaction = recurrence ? { ...base, description: recurrence.name } : base;
 	const financedOperation = getFinancedOperation(item.description);
 	const cancellation = item.installmentAmount < 0 ? importedAnticipation(item.description) : null;
 	const anticipated = item.installmentAmount > 0 ? importedAnticipation(item.description) : null;
@@ -133,7 +137,7 @@ export function CreditCardImportItemRow({
 								: item.duplicates.length > 0 ||
 									Boolean(requiresOriginal && !item.reconciledCreditPurchaseId)),
 						icon: pending ? <LuLoaderCircle className="animate-spin" /> : <LuCheck />,
-						onClick: () => onApprove(recurrence),
+						onClick: onApprove,
 						text: pending ? "Processando..." : "Aprovar",
 					},
 					...(item.installmentAmount < 0
@@ -250,7 +254,7 @@ export function CreditCardImportItemRow({
 				<AssociateImportedRecurrenceDialog
 					date={item.purchaseDate}
 					onOpenChange={setAssociating}
-					onSelect={setRecurrence}
+					onSelect={onRecurrenceChange}
 					target={{ creditCardId, id: item.id, kind: "PURCHASE" }}
 				/>
 			)}

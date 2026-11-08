@@ -9,6 +9,7 @@ import { importedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
+import type { PendingImportRecurrence } from "@/components/recurrences/AssociateImportedRecurrenceDialog";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
@@ -100,6 +101,7 @@ export function CreditCardImportReviewDialog({
 		id: string;
 		item: CreditCardImportItem;
 	} | null>(null);
+	const [recurrences, setRecurrences] = useState<Record<string, PendingImportRecurrence>>({});
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const creditCardImport = useInfiniteQuery<
 		CreditCardImport,
@@ -183,8 +185,24 @@ export function CreditCardImportReviewDialog({
 
 	const approve = useMutation({
 		meta: { cacheOperations: ["statement"] },
-		mutationFn: (_variables: { itemIds: string[] }) =>
-			dataService.creditCardImports.approve(importId!, true),
+		mutationFn: async (variables: { itemIds: string[] }) => {
+			const targetImportId = importId!;
+			let created = 0;
+			// Items with a chosen recurrence go one by one so the recurrence data is applied to them.
+			for (const itemId of variables.itemIds) {
+				const recurrence = recurrences[itemId];
+				if (!recurrence) continue;
+				created += (
+					await dataService.creditCardImports.approveItem(targetImportId, itemId, {
+						recurrence: { date: recurrence.date, recurrenceId: recurrence.recurrenceId },
+					})
+				).created;
+			}
+			if (created && !(await dataService.creditCardImports.get(targetImportId)).pendingItemCount)
+				return { created };
+			const rest = await dataService.creditCardImports.approve(targetImportId, true);
+			return { ...rest, created: rest.created + created };
+		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = await refreshReview(importId!);
@@ -277,14 +295,21 @@ export function CreditCardImportReviewDialog({
 											importId={importId ?? undefined}
 											item={item}
 											key={item.id}
-											onApprove={recurrence => approveItem(item, recurrence)}
+											onApprove={() => approveItem(item, recurrences[item.id])}
 											onEdit={() => setEditingItem(item)}
 											onReconcile={() => {
 												if (!importId) return;
 												setReconcilingImport({ id: importId, item });
 											}}
+											onRecurrenceChange={recurrence =>
+												setRecurrences(current => ({
+													...current,
+													[item.id]: recurrence,
+												}))
+											}
 											onReviewRefund={() => setReviewingRefund(item)}
 											pending={rowBusy(item.id)}
+											recurrence={recurrences[item.id]}
 										/>
 									))}
 									{creditCardImport.hasNextPage && (
