@@ -167,6 +167,7 @@ export function FinancialAccountCard({
 						</p>
 						<p className="mt-1 text-2xl font-bold">
 							<PreferredMoneyAmount
+								currency={primaryCurrency(account) ?? undefined}
 								highlightNegative
 								values={account.assets.map(asset => ({
 									amount: asset.balance,
@@ -174,11 +175,12 @@ export function FinancialAccountCard({
 								}))}
 							/>
 						</p>
-						<AccountAssetBreakdown assets={account.assets} />
+						<AccountAssetBreakdown assets={account.assets} currency={primaryCurrency(account)} />
 						{account.netBalance != null && (
 							<p className="text-muted-foreground mt-1 text-sm">
 								Saldo líquido:{" "}
 								<PreferredMoneyAmount
+									currency={primaryCurrency(account) ?? undefined}
 									values={[
 										{
 											amount: account.netBalance,

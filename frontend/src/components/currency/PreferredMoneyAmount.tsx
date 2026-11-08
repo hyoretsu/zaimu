@@ -12,6 +12,7 @@ export function PreferredMoneyAmount({
 	error = false,
 	debt,
 	highlightNegative = false,
+	currency: target,
 }: {
 	values: readonly MoneyPosition[];
 	date?: string;
@@ -24,10 +25,13 @@ export function PreferredMoneyAmount({
 	debt?: "absolute" | "plural";
 	/** Renders negative totals in red. */
 	highlightNegative?: boolean;
+	/** Target currency; defaults to the user's preferred display currency. */
+	currency?: string;
 }) {
 	const identity = useCacheIdentity();
 	const client = useQueryClient();
-	const currency = useCurrencyStore(state => state.currency);
+	const preferred = useCurrencyStore(state => state.currency);
+	const currency = target ?? preferred;
 	const ready = useCurrencyStore(state => !state.loading && state.owner === identity);
 	const query = useQuery({
 		enabled: identity !== null && ready && !pending && !error,

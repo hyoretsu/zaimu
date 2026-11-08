@@ -6,12 +6,19 @@ import { useCurrencyStore } from "@/stores/currency";
 
 const COLLAPSED_ASSET_COUNT = 3;
 
-export function AccountAssetBreakdown({ assets }: { assets: FinancialAccount["assets"] }) {
-	const displayCurrency = useCurrencyStore(state => state.currency);
+export function AccountAssetBreakdown({
+	assets,
+	currency,
+}: {
+	assets: FinancialAccount["assets"];
+	/** The account's default currency; falls back to the user's preferred one. */
+	currency?: string | null;
+}) {
+	const preferredCurrency = useCurrencyStore(state => state.currency);
+	const displayCurrency = currency ?? preferredCurrency;
 	const [expanded, setExpanded] = useState(false);
 
-	if (assets.length === 0)
-		return <p className="text-muted-foreground mt-2 text-sm">Nenhum ativo cadastrado</p>;
+	if (assets.length === 0) return null;
 	if (assets.length === 1 && assets[0]?.assetCode === displayCurrency) return null;
 
 	const collapsible = assets.length > COLLAPSED_ASSET_COUNT;
@@ -31,6 +38,7 @@ export function AccountAssetBreakdown({ assets }: { assets: FinancialAccount["as
 							<span className="text-muted-foreground shrink-0 text-xs">
 								≈{" "}
 								<PreferredMoneyAmount
+									currency={displayCurrency}
 									values={[{ amount: asset.balance, currency: asset.assetCode }]}
 								/>
 							</span>

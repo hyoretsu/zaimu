@@ -578,6 +578,7 @@ export const dataService = {
 								securityDeposit: data.creditCard.securityDeposit ?? undefined,
 							}
 						: undefined,
+					currency: data.yieldCurrency ?? undefined,
 					rewardsAccount: data.rewardsAccount
 						? {
 								...data.rewardsAccount,
@@ -941,6 +942,7 @@ export const dataService = {
 								securityDeposit: data.creditCard.securityDeposit ?? undefined,
 							}
 						: undefined,
+					currency: data.yieldCurrency ?? undefined,
 				},
 				path: { id },
 			}).then(result => result.data);

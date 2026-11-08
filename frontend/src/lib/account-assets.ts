@@ -49,7 +49,7 @@ export function assetBalance(assets: AccountAsset[], assetCode: string) {
 	return assets.find(asset => asset.assetCode === assetCode)?.balance ?? "0";
 }
 
-/** Main/display currency of an account: first fiat holding, card, rewards asset, then the legacy column. */
+/** Default/display currency of an account: card currency, rewards asset, the chosen default, then the first fiat holding. */
 export function primaryCurrency(
 	account:
 		| {
@@ -63,10 +63,10 @@ export function primaryCurrency(
 ): string | null {
 	if (!account) return null;
 	return (
-		account.assets?.find(asset => !isCryptoAsset(asset.assetCode))?.assetCode ??
 		account.creditCard?.currency ??
 		account.rewardsAccount?.assetCode ??
 		account.yieldCurrency ??
+		account.assets?.find(asset => !isCryptoAsset(asset.assetCode))?.assetCode ??
 		null
 	);
 }
