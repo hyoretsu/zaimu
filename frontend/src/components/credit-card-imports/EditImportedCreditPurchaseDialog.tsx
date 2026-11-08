@@ -117,7 +117,6 @@ export function EditImportedCreditPurchaseDialog({
 							type="text"
 							value={description}
 						/>
-						<StorePicker onValueChange={setStoreName} value={storeName} />
 						{item.metadataMissing?.length ? (
 							<p className="text-destructive text-sm">
 								Complete os campos obrigatórios para resolver os dados bancários incompletos.
@@ -144,16 +143,17 @@ export function EditImportedCreditPurchaseDialog({
 							</FormFieldRow>
 						)}
 
-						<MoneyField
-							currencyCode={currencyCode}
-							id="imported-purchase-total"
-							label="Valor total"
-							onValueChange={setTotalAmount}
-							rawValueName="imported-purchase-raw-total"
-							required
-							value={totalAmount}
-						/>
 						<FormFieldRow className="grid-cols-1 sm:grid-cols-3">
+							<StorePicker onValueChange={setStoreName} value={storeName} />
+							<MoneyField
+								currencyCode={currencyCode}
+								id="imported-purchase-total"
+								label="Valor total"
+								onValueChange={setTotalAmount}
+								rawValueName="imported-purchase-raw-total"
+								required
+								value={totalAmount}
+							/>
 							<FormField
 								autoComplete="off"
 								disabled={isStatementCharge}
@@ -169,6 +169,8 @@ export function EditImportedCreditPurchaseDialog({
 								type="text"
 								value={isStatementCharge ? "1" : installments}
 							/>
+						</FormFieldRow>
+						<FormFieldRow className="grid-cols-1 sm:grid-cols-2">
 							<DateField
 								autoComplete="off"
 								id="imported-purchase-date"
