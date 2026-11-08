@@ -60,7 +60,7 @@ export async function scheduleFinancialAccountYieldRate({
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.financialAccountId, financialAccountId),
-					functions.raw`${fields.effectiveDate} > ${param(date, { codecId: "pg/date@1" })}`.returns(
+					functions.raw`${fields.effectiveDate} > ${param(format(date, "yyyy-MM-dd"), { codecId: "pg/date-string@1" })}`.returns(
 						"pg/bool@1",
 					),
 				),
