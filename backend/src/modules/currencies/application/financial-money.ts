@@ -19,7 +19,7 @@ export const FinancialFeeDTO = t.Object({
 export type FinancialFee = typeof FinancialFeeDTO.static;
 export async function financialAccountCurrency(accountId?: string | null, requestedAsset?: string) {
 	if (!accountId) return requestedAsset ?? "BRL";
-	return (await resolveAccountAsset(accountId, requestedAsset)).assetCode;
+	return (await resolveAccountAsset(accountId, requestedAsset, { create: true })).assetCode;
 }
 export async function creditCardCurrency(cardId: string) {
 	const [account] = await queryRaw<{ currency: string }>(

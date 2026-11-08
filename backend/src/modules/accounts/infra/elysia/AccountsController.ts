@@ -59,7 +59,7 @@ import {
 
 const HoldingDTO = t.Object({
 	assetCode: t.String({ pattern: "^[A-Z0-9]{2,12}$" }),
-	balance: t.String({ pattern: "^-?\\d{1,20}(\\.\\d{1,18})?$" }),
+	balance: t.Optional(t.String({ pattern: "^-?\\d{1,20}(\\.\\d{1,18})?$" })),
 });
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
@@ -595,7 +595,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				if (type !== "CREDIT_CARD" && body.rewardsAccount?.kind !== "POINTS")
 					await saveAccountHoldings(
 						account.id,
-						body.assets ?? [{ assetCode: currency, balance: "0" }],
+						body.assets ?? [],
 						account.yieldCurrency,
 					);
 				Object.assign(account, { assets: await accountHoldings(userId, account.id) });
@@ -993,7 +993,7 @@ OR EXISTS(SELECT 1 FROM "CreditCardStatement" s JOIN "CreditCard" c ON c."id"=s.
 				if (body.assets || body.yieldCurrency !== undefined)
 					await saveAccountHoldings(
 						account.id,
-						body.assets ?? [],
+						body.assets,
 						body.yieldCurrency === undefined ? existing.yieldCurrency : body.yieldCurrency,
 					);
 				Object.assign(account, { assets: await accountHoldings(userId, account.id) });

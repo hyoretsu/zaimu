@@ -265,11 +265,12 @@ export async function getFinancialAccountBalances(
 	for (const account of accounts.filter(
 		account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS",
 	)) {
+		// Accounts without a single fiat asset (e.g. crypto wallets) have no scalar fiat balance.
 		const asset = await resolveAccountAsset(account.id, undefined, {
 			fiatOnly: true,
 			userId: account.userId,
-		});
-		selectedAssets.set(account.id, asset.assetCode);
+		}).catch(() => null);
+		if (asset) selectedAssets.set(account.id, asset.assetCode);
 	}
 	const monetary = accounts.filter(account =>
 		["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),

@@ -33,11 +33,12 @@ export async function ensureAccountAssetCatalog(assetCode: string) {
 export async function resolveAccountAsset(
 	accountId: string,
 	requestedCode?: string | null,
-	options: { userId?: string; fiatOnly?: boolean } = {},
+	options: { userId?: string; fiatOnly?: boolean; create?: boolean } = {},
 ) {
 	const requested = requestedCode?.trim().toUpperCase();
 	if (requested && !/^[A-Z0-9]{2,12}$/.test(requested))
 		throw new HttpException("Selecione um ativo válido", 400);
+	if (options.create && requested) await attachAccountAsset(accountId, requested, options);
 	const rows = await queryRawDecimal<AccountAsset>(
 		`
  SELECT holding."assetCode",asset."kind",asset."decimals" FROM "FinancialAccountAsset" holding
@@ -56,6 +57,28 @@ export async function resolveAccountAsset(
 	const asset = rows[0];
 	if (asset.kind === "CRYPTO") registerAssetDecimals(asset.assetCode, asset.decimals);
 	return asset;
+}
+
+/** Assets are declared lazily: the first movement in a denomination adds it to the account. */
+async function attachAccountAsset(
+	accountId: string,
+	assetCode: string,
+	options: { userId?: string; fiatOnly?: boolean },
+) {
+	const [account] = await queryRawDecimal(
+		`SELECT 1 FROM "FinancialAccount" WHERE "id"=$1 AND ($2::text IS NULL OR "userId"=$2)`,
+		[accountId, options.userId ?? null],
+	);
+	if (!account) return;
+	await ensureAccountAssetCatalog(assetCode);
+	const [asset] = await queryRawDecimal<{ kind: string }>(`SELECT "kind" FROM "Asset" WHERE "code"=$1`, [
+		assetCode,
+	]);
+	if (!asset || (options.fiatOnly && asset.kind !== "FIAT")) return;
+	await queryRawDecimal(
+		`INSERT INTO "FinancialAccountAsset" ("financialAccountId","assetCode","balance") VALUES ($1,$2,0) ON CONFLICT ("financialAccountId","assetCode") DO NOTHING`,
+		[accountId, assetCode],
+	);
 }
 
 export async function assertFiatHolding(accountId: string, assetCode: string, userId?: string) {

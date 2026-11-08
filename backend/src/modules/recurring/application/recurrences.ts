@@ -194,8 +194,11 @@ export async function saveRecurrence(
 			next.movement === "CARD_PURCHASE" && next.creditCardId
 				? await creditCardCurrency(next.creditCardId)
 				: accountId
-					? (await resolveAccountAsset(accountId, next.currency, { fiatOnly: true, userId }))
-							.assetCode
+					? (await resolveAccountAsset(accountId, next.currency, {
+						create: true,
+						fiatOnly: true,
+						userId,
+					})).assetCode
 					: await defaultCurrency(userId);
 		next.currency = await assertSupportedCurrency(next.currency ?? linkedCurrency);
 		next.name = next.name?.trim();

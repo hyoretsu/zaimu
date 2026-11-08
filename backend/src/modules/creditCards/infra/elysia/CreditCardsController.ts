@@ -1127,6 +1127,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 			await assertCreditCardOwnership(params.id, userId);
 			await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const source = await resolveAccountAsset(body.financialAccountId, body.currency, {
+				create: true,
 				fiatOnly: true,
 				userId,
 			});

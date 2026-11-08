@@ -7,7 +7,7 @@ import { monetaryBalancesSql } from "./monetary-balances-sql";
 
 export interface AccountHoldingInput {
 	assetCode: string;
-	balance: string;
+	balance?: string;
 }
 
 export async function accountHoldings(userId: string, accountId: string) {
@@ -24,16 +24,17 @@ export async function accountHoldings(userId: string, accountId: string) {
 /** Holdings are denomination declarations, never an alternative ledger write API. */
 export async function saveAccountHoldings(
 	accountId: string,
-	assets: AccountHoldingInput[],
+	assets: AccountHoldingInput[] | undefined,
 	yieldCurrency?: string | null,
 ) {
-	if (new Set(assets.map(asset => asset.assetCode)).size !== assets.length)
+	const declared = assets ?? [];
+	if (new Set(declared.map(asset => asset.assetCode)).size !== declared.length)
 		throw new HttpException("Ativos duplicados", 400);
 	const current = await queryRawDecimal<{ assetCode: string }>(
 		`SELECT "assetCode" FROM "FinancialAccountAsset" WHERE "financialAccountId"=$1`,
 		[accountId],
 	);
-	if (assets.length) {
+	if (assets) {
 		for (const holding of current.filter(
 			holding => !assets.some(asset => asset.assetCode === holding.assetCode),
 		)) {
@@ -57,7 +58,8 @@ export async function saveAccountHoldings(
 			);
 		}
 	}
-	for (const holding of assets) {
+	for (const holding of declared) {
+		const balance = holding.balance ?? "0";
 		await ensureAccountAssetCatalog(holding.assetCode);
 		const [asset] = await queryRawDecimal<{ kind: string; decimals: number }>(
 			`SELECT "kind","decimals" FROM "Asset" WHERE "code"=$1`,
@@ -65,7 +67,7 @@ export async function saveAccountHoldings(
 		);
 		if (!asset) throw new HttpException("Ativo inválido", 400);
 		if (asset.kind === "CRYPTO") registerAssetDecimals(holding.assetCode, asset.decimals);
-		const units = decimalToUnits(holding.balance, holding.assetCode);
+		const units = decimalToUnits(balance, holding.assetCode);
 		const [existing] = await queryRawDecimal(
 			`SELECT "assetCode" FROM "FinancialAccountAsset" WHERE "financialAccountId"=$1 AND "assetCode"=$2`,
 			[accountId, holding.assetCode],
@@ -77,7 +79,7 @@ export async function saveAccountHoldings(
 		if (!existing && units !== 0n)
 			await queryRawDecimal(
 				`INSERT INTO "BalanceAdjustment" ("id","userId","financialAccountId","assetCode","balance","date","createdAt","updatedAt") SELECT $3,account."userId",account."id",$2,$4::numeric,CURRENT_DATE,now(),now() FROM "FinancialAccount" account WHERE account."id"=$1`,
-				[accountId, holding.assetCode, crypto.randomUUID(), holding.balance],
+				[accountId, holding.assetCode, crypto.randomUUID(), balance],
 			);
 	}
 	if (yieldCurrency) {

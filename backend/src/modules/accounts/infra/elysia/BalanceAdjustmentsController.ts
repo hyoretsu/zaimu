@@ -108,7 +108,10 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			await assertEligibleAccount(userId, body.financialAccountId);
-			const asset = await resolveAccountAsset(body.financialAccountId, body.assetCode, { userId });
+			const asset = await resolveAccountAsset(body.financialAccountId, body.assetCode, {
+				create: true,
+				userId,
+			});
 			decimalToUnits(body.balance, asset.assetCode);
 			const date = parseDate(body.date);
 			const existing = await queryRows(
@@ -152,7 +155,10 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 		async ({ body, params, request }) => {
 			const userId = await requireUserId(request);
 			await assertEligibleAccount(userId, body.financialAccountId);
-			const asset = await resolveAccountAsset(body.financialAccountId, body.assetCode, { userId });
+			const asset = await resolveAccountAsset(body.financialAccountId, body.assetCode, {
+				create: true,
+				userId,
+			});
 			decimalToUnits(body.balance, asset.assetCode);
 			const date = parseDate(body.date);
 			const [previous] = await queryRows(
