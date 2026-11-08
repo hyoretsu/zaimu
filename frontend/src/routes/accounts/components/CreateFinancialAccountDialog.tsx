@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { decimalToUnits } from "@zaimu/finance/asset-amount";
 import {
 	assertCalendarPeriod,
 	type CardCalendarPeriod,
@@ -298,7 +297,6 @@ export function CreateFinancialAccountDialog({
 	const requiresFiatCurrency = (rows = holdings) =>
 		!hasHoldings ||
 		yieldEnabled ||
-		rows.length === 0 ||
 		rows.some(holding => !holding.assetCode || !isCryptoAsset(holding.assetCode));
 	const fiatCurrencyRequired = requiresFiatCurrency();
 	const validate = (submittedHoldings = holdings) => {
@@ -307,16 +305,13 @@ export function CreateFinancialAccountDialog({
 		if (requiresFiatCurrency(submittedHoldings) && (!currency || isCryptoAsset(currency)))
 			error = "Selecione uma moeda fiduciária.";
 		if (hasHoldings) {
-			if (submittedHoldings.length === 0) error = "Mantenha ao menos um ativo na conta.";
 			const codes = new Set<string>();
 			for (const holding of submittedHoldings) {
 				try {
 					if (!holding.assetCode || codes.has(holding.assetCode)) throw new Error();
-					decimalToUnits(holding.balance, holding.assetCode);
 					codes.add(holding.assetCode);
 				} catch {
-					error =
-						"Informe ativos distintos e saldos válidos, respeitando a precisão de cada ativo.";
+					error = "Selecione um ativo em cada linha, sem repetir.";
 				}
 			}
 			if (yieldEnabled && !submittedHoldings.some(holding => holding.assetCode === currency))
@@ -428,18 +423,12 @@ export function CreateFinancialAccountDialog({
 	};
 	const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		const submitted = new FormData(event.currentTarget);
-		const submittedHoldings = holdings.map(holding => {
-			const balance = submitted.get(`holding-${holding.key}`);
-			return { ...holding, balance: typeof balance === "string" ? balance : holding.balance };
-		});
-		setHoldings(submittedHoldings);
-		if (!validate(submittedHoldings)) return;
+		if (!validate()) return;
 		if (yieldConfigurationChanged()) {
 			setIsRecalculateCurrentDayYieldDialogOpen(true);
 			return;
 		}
-		void save(false, submittedHoldings);
+		void save(false);
 	};
 
 	return (
@@ -572,13 +561,12 @@ export function CreateFinancialAccountDialog({
 						)}
 						{hasHoldings && (
 							<div className="grid min-w-0 gap-4 rounded-xl border p-4">
-								<p className="text-sm font-medium">Ativos e saldos iniciais</p>
-								{account && (
-									<p className="text-muted-foreground text-xs">
-										Saldos existentes são alterados por ajuste de saldo. Novos ativos
-										podem informar um saldo inicial.
-									</p>
-								)}
+								<p className="text-sm font-medium">Ativos</p>
+								<p className="text-muted-foreground text-xs">
+									Opcional. Ativos também são adicionados automaticamente ao lançar
+									movimentações na conta.
+									{account && " Saldos existentes são alterados por ajuste de saldo."}
+								</p>
 								{holdings.map(holding => (
 									<div
 										className="grid min-w-0 gap-3 rounded-lg border p-3"
@@ -599,22 +587,16 @@ export function CreateFinancialAccountDialog({
 											}
 											value={holding.assetCode}
 										/>
-										<AssetAmountField
-											assetCode={holding.assetCode || currency || "BRL"}
-											disabled={holding.existing || !holding.assetCode}
-											id={`holding-balance-${holding.key}`}
-											label={holding.existing ? "Saldo atual" : "Saldo inicial"}
-											onValueChange={balance =>
-												setHoldings(rows =>
-													rows.map(row =>
-														row.key === holding.key ? { ...row, balance } : row,
-													),
-												)
-											}
-											rawValueName={`holding-${holding.key}`}
-											required
-											value={holding.balance}
-										/>
+										{holding.existing && (
+											<AssetAmountField
+												assetCode={holding.assetCode}
+												disabled
+												id={`holding-balance-${holding.key}`}
+												label="Saldo atual"
+												onValueChange={() => undefined}
+												value={holding.balance}
+											/>
+										)}
 										<Button
 											className="justify-self-end"
 											onClick={() =>
