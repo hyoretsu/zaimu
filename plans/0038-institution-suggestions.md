@@ -6,6 +6,7 @@ Users suggest institutions and rules to admins from an action button on the acco
 - [x] Frontend: extract the yield policy editor; add `SuggestionHubDialog` with one form per type and the "Sugerir à equipe" action on accounts and credit cards; label `CARD_RULES` in the admin queue.
 - [x] Document the rules in `docs/business-rules.md`.
 - [x] Desktop/mobile screenshots of the modal (see Progress).
+- [x] Edit mode: "Editar instituição" suggestion (`INSTITUTION_UPDATE` open to any user via `/:id/update-proposal`, only changed fields) and a before/after diff in the admin queue.
 - [ ] Integrate into `main` and remove the task worktree.
 
 No migration: `kind` is a `VarChar(24)` and `payload` is Json. Local-only work.

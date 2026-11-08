@@ -88,17 +88,21 @@ export async function moveFinancialHistory(input: {
 			selected.has(String(row.cashbackAccountId)) !== cardSet.has(String(row.creditCardId)),
 	);
 	for (const purchase of rewardBoundaries) {
+		// Read native NUMERIC as text: the JSON review snapshot can lose decimal precision.
 		const credits = [
-			{ amount: purchase.cashbackAmount, date: purchase.purchaseDate },
-			...(await queryRaw<{ amount: number; date: Date }>(
-				`SELECT amount,date FROM (${cashbackReversalsSql}) reversal WHERE "purchaseId"=$1`,
+			...(await queryRaw<{ amount: string; date: Date; assetCode: string }>(
+				`SELECT purchase."cashbackAmount"::text AS amount,purchase."purchaseDate" AS date,COALESCE(purchase."cashbackCurrency",reward."assetCode") AS "assetCode" FROM "CreditPurchaseRecord" purchase JOIN "RewardsAccount" reward ON reward."financialAccountId"=purchase."cashbackAccountId" WHERE purchase."id"=$1`,
+				[purchase.id],
+			)),
+			...(await queryRaw<{ amount: string; date: Date; assetCode: string }>(
+				`SELECT amount::text,date,"assetCode" FROM (${cashbackReversalsSql}) reversal WHERE "purchaseId"=$1`,
 				[purchase.id],
 			)),
 		];
 		for (const credit of credits)
 			if (Number(credit.amount))
 				await queryRaw(
-					`INSERT INTO "DetachedRewardCredit" ("id","financialAccountId","amount","date","yieldReferenceRate","yieldReferencePercentage","yieldPeriod") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+					`INSERT INTO "DetachedRewardCredit" ("id","financialAccountId","amount","date","yieldReferenceRate","yieldReferencePercentage","yieldPeriod","assetCode") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
 					[
 						crypto.randomUUID(),
 						purchase.cashbackAccountId,
@@ -107,6 +111,7 @@ export async function moveFinancialHistory(input: {
 						purchase.cashbackYieldReferenceRate,
 						purchase.cashbackYieldReferencePercentage,
 						purchase.cashbackYieldPeriod,
+						credit.assetCode,
 					],
 				);
 		await queryRaw(

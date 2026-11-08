@@ -1,5 +1,6 @@
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { roundMoney } from "@zaimu/finance/money";
+import { primaryCurrency } from "./account-assets";
 import type { CreditCard } from "./api";
 import { guestRate } from "./currency-conversion";
 import { localAccountCardRules, localRuleRewardAccount } from "./institution-card-rules";
@@ -36,7 +37,7 @@ export async function guestCashbackSnapshot(
 	if (!card.cashbackAccountId || !card.cashbackRate) return {};
 	const account = await localAccounts.getById(card.cashbackAccountId, owner);
 	if (!account) throw new Error("Conta de recompensa indisponível");
-	const currency = account.data.currency ?? "BRL";
+	const currency = primaryCurrency(account.data) ?? "BRL";
 	const factor = currency === source ? 1 : await rate(date, source, currency);
 	return {
 		cashbackAccountId: card.cashbackAccountId,

@@ -2,6 +2,7 @@ import { RedisClient } from "bun";
 import { cacheKey } from "../service-namespace";
 
 export interface RealtimeMessage {
+	aggregateId?: string;
 	aggregateType: string;
 	eventType: string;
 }

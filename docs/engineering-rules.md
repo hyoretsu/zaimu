@@ -2,6 +2,14 @@
 
 Read this file before implementation or review in Zaimu. These rules supplement [AGENTS.md](../AGENTS.md); product/domain rules remain in [business-rules.md](business-rules.md). Paths in backticks are relative to the repository root.
 
+## Exact multiasset accounting and quotes
+
+`Asset` identifies a denomination and its accounting precision. `FinancialAccountAsset` stores one `Numeric(38,18)` cache per account/asset; ledger movements and asset-specific checkpoints remain the source of truth. Native quantities cross SQL/API/guest storage as decimal strings and use shared decimal/BigInt arithmetic. SQL builder projections preserve native NUMERIC strings, including aliases and transactions; do not cast native quantities to JavaScript numbers. Numeric projection is allowed only after explicit fiat valuation.
+
+`yieldCurrency` is nullable and derived by the server as the account's primary currency (first fiat holding; it is never client input and is kept for display/legacy reads). Yields apply to every fiat holding: the calculator runs once per (account, fiat asset) with the account-level rate/tax configuration, and `FinancialAccountYield` rows are keyed by `assetCode`. Forecast engines isolate non-yield positions before applying yields and recombine them for display. POINTS is a separate nonmonetary balance, never a priced holding.
+
+`AssetQuoteSnapshot` stores dated prices, source timestamps, and provider identity. Mappings are explicit (`brapi:<id>` or `coinbase:<id>`); ticker resemblance never chooses a provider or establishes stablecoin parity. `BRAPI_TOKEN` configures brapi authorization. Held brapi-mapped assets refresh at startup and hourly; historical requests never substitute current prices. Guest quotes use the public dated quote endpoint and identity-scoped local cache. Coinbase catalog accounting precision must not be reduced by its display exponent, including ETH's 18-place quantities. Preserve provider IDs even when an application code needs normalization.
+
 ## Scrollbars
 
 Every scrollable section must use the project's custom scrollbar through `ScrollArea`, including on mobile and touch devices, unless the user explicitly requests otherwise. Styling or hiding a native scrollbar with `scrollbar-themed` alone does not satisfy this rule. Keep layout and spacing on an inner content wrapper, constrain the scroll area with `min-h-0`, and enable `horizontalScrollbar` for horizontally scrollable sections.
@@ -150,6 +158,7 @@ The native contract explicitly preserves JavaScript `Date` timestamp codecs, low
 
 `docker compose up -d` runs migration monitoring inside the development container
 through `scripts/dev-migration-watch.sh`; no Compose Watch or host service is needed.
+The `dev` service sets no `container_name`; Compose derives the name from the project, so several checkouts can run side by side.
 The monitor polls migration and Prisma schema/config contents every five seconds,
 waits for two stable observations, then terminates PID 1. Docker's restart policy
 reruns contract emission and migration deployment before starting the application.
@@ -162,8 +171,8 @@ when that database is remote/shared.
 ## Action batching
 
 `shared/batch-policy.ts` explicitly registers independent list mutations. The shared SDK
-transport batches those routes through `POST /batch`: 300 ms debounce, maximum wait
-of one second, at most 50 operations and 1 MiB per envelope. Distinct actions retain
+transport batches those routes through `POST /batch`: 800 ms debounce (paced for consecutive human clicks), maximum wait
+of three seconds, at most 50 operations and 1 MiB per envelope. Distinct actions retain
 order; batches sharing a session and transport context execute sequentially. Other
 mutations drain overlapping pending batches before submission; unrelated actions stay available. Forms, auth and uploads stay immediate.
 
@@ -195,7 +204,7 @@ may scroll only the input's own ScrollArea, never a background page or parent mo
 ## URL view state
 
 Persist committed data-view controls through `frontend/src/hooks/use-url-view-state.ts`:
-search text, filters, date ranges, selected periods/tabs and listing disclosures.
+search text, filters, date ranges, selected periods/tabs.
 Use simple query parameters (`account`, `search`, `type`, `startDate`, `endDate`),
 never JSON objects or wrappers. Composite controls declare explicit field mappings;
 repeated selections use repeated parameters. Omit default and empty values.
@@ -203,7 +212,7 @@ Validate incoming values with schemas from `frontend/src/lib/view-state.ts` or d
 Use history replacement for every view change, preserving unrelated parameters,
 hashes, router state and the current page/modal. Filters must never add history steps.
 Modal opening retains its own history behavior. Keep draft form values, transient
-popover searches, hover state and automatic infinite-scroll pagination local.
+popover searches, hover state, collapsed/expanded sections and automatic infinite-scroll pagination local.
 Follow AGENTS.md "URL state relevance": load-more counters, previous/next expansion
 counts, cursors and loaded-window size/radius must remain local, never persisted.
 
@@ -235,6 +244,7 @@ open clients through `GET /realtime/stream` (SSE, cookie-authenticated, hidden f
 `CacheInvalidationConsumer` publishes each domain event on a per-user Redis channel once the server cache is
 fresh, and the frontend (`lib/realtime.ts`) refetches the matching cache operations. A new asynchronous side
 effect needs its aggregate mapped in `lib/realtime-operations.ts`.
+Import batches are the exception: after each file the worker publishes `importBatch` (with the `batchId` as `aggregateId`) straight to the user channel, and `waitForImportBatch` re-reads the batch on that push and after every stream reconnect, keeping only a 20 s poll as a safety net.
 
 ## Assets and quotes
 

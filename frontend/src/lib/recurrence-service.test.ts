@@ -65,13 +65,14 @@ test("guest subscriptions create one installment plan per renewal without future
 	};
 	await storage.localAccounts.put(
 		{
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			createdAt: "2026-04-01",
 			id: card.financialAccountId,
 			name: "Cartão",
 			type: "CREDIT_CARD",
 			updatedAt: "2026-04-01",
 			userId: "guest",
+			yieldCurrency: "BRL",
 		},
 		card.financialAccountId,
 		owner,
@@ -118,14 +119,14 @@ test("native three-decimal recurrence materializes frozen source and booking cur
 	const owner = "guest:kwd_recurrence";
 	await storage.localAccounts.put(
 		{
-			balance: 0,
+			assets: [{ assetCode: "KWD", balance: "0" }],
 			createdAt: "2026-10-01",
-			currency: "KWD",
 			id: "kwd",
 			name: "Cash",
 			type: "CASH",
 			updatedAt: "2026-10-01",
 			userId: "guest",
+			yieldCurrency: "KWD",
 		},
 		"kwd",
 		owner,
@@ -171,14 +172,14 @@ test("foreign recurring transfer books exact-date native sides only once", async
 	for (const currency of ["USD", "JPY"])
 		await storage.localAccounts.put(
 			{
-				balance: 0,
+				assets: [{ assetCode: currency, balance: "0" }],
 				createdAt: "2026-10-01",
-				currency,
 				id: currency,
 				name: currency,
 				type: "CASH",
 				updatedAt: "2026-10-01",
 				userId: "guest",
+				yieldCurrency: currency,
 			},
 			currency,
 			owner,

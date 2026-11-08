@@ -22,6 +22,8 @@ export const DebtEventReturn = t.Object({
 	dueDate: t.Union([t.Date(), t.Null()]),
 	effect: t.Number(),
 	id: Id,
+	installmentAmount: t.Union([t.Number(), t.Null()]),
+	installments: t.Union([t.Integer(), t.Null()]),
 	kind: EventKind,
 	time: NullableString,
 });

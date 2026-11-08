@@ -214,7 +214,7 @@ try {
 	env.REDIS_URL = env.CACHE_TEST_REDIS_URL = "redis://127.0.0.1:1";
 	env.RABBITMQ_URL = env.BROKER_TEST_URL = "amqp://runner:disposable@127.0.0.1:1";
 	await command(
-		["bun", "run", "contract:emit"],
+		["bun", "run", "export"],
 		{ ...env, DO_NOT_TRACK: "1", PRISMA_TELEMETRY_DISABLED: "1" },
 		join(root, "packages/sql"),
 	);

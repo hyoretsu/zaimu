@@ -1,5 +1,7 @@
-import { toCents } from "@zaimu/finance/credit-card";
+import { decimalToUnits } from "@zaimu/finance/asset-amount";
+import { roundMoney } from "@zaimu/finance/money";
 import type { RawQuery } from "~/modules/creditCards/application/normalized-statement-replay";
+import { resolveAccountAsset } from "./account-assets";
 import { monetaryBalancesSql } from "./monetary-balances-sql";
 
 // Use the same ledger as balances/dashboard, excluding only this checkpoint.
@@ -10,21 +12,21 @@ const withoutCheckpointSql = monetaryBalancesSql
 export async function balanceBeforeAdjustment(
 	query: RawQuery,
 	userId: string,
-	adjustment: { id: string; financialAccountId: string; date: Date | string },
+	adjustment: { id: string; financialAccountId: string; date: Date | string; assetCode: string },
 ) {
 	const date =
 		adjustment.date instanceof Date
 			? adjustment.date.toISOString().slice(0, 10)
 			: adjustment.date.slice(0, 10);
-	const rows = await query<{ accountId: string; balance: number }>(withoutCheckpointSql, [
-		userId,
-		[date],
-		adjustment.id,
-		adjustment.financialAccountId,
-	]);
-	const row = rows.find(row => row.accountId === adjustment.financialAccountId);
+	const rows = await query<{ accountId: string; assetCode: string; balance: string }>(
+		withoutCheckpointSql,
+		[userId, [date], adjustment.id, adjustment.financialAccountId],
+	);
+	const row = rows.find(
+		row => row.accountId === adjustment.financialAccountId && row.assetCode === adjustment.assetCode,
+	);
 	if (!row) throw new Error("Conta do ajuste não encontrada");
-	return Number(row.balance);
+	return String(row.balance);
 }
 
 /** Run only after actual yields settle, inside a transaction. Row locks protect edits. */
@@ -40,10 +42,10 @@ export async function reconcileBalanceAdjustments(
 		id: string;
 		financialAccountId: string;
 		date: string;
-		balance: number;
-		currency: string;
+		balance: string;
+		assetCode: string;
 	}>(
-		`SELECT "id", "financialAccountId", "date"::text, "balance", "currency"
+		`SELECT "id", "financialAccountId", "date"::text, "balance"::text AS "balance", "assetCode"
 		 FROM "BalanceAdjustment" WHERE "userId"=$1 AND "financialAccountId"=$2 AND "date"<=CURRENT_DATE AND "date">=$3::date AND ($4::date IS NULL OR "date"<$4::date)
 		 ORDER BY "date", "id" FOR UPDATE`,
 		[userId, accountId, fromDate, beforeDate],
@@ -51,8 +53,14 @@ export async function reconcileBalanceAdjustments(
 	const removed: string[] = [];
 	for (const adjustment of adjustments) {
 		const calculated = await balanceBeforeAdjustment(query, userId, adjustment);
-		if (toCents(calculated, adjustment.currency) !== toCents(adjustment.balance, adjustment.currency))
-			continue;
+		const asset = await resolveAccountAsset(accountId, adjustment.assetCode, { userId });
+		const matches =
+			asset.kind === "FIAT"
+				? roundMoney(Number(calculated), asset.assetCode) ===
+					roundMoney(Number(adjustment.balance), asset.assetCode)
+				: decimalToUnits(calculated, asset.assetCode) ===
+					decimalToUnits(String(adjustment.balance), asset.assetCode);
+		if (!matches) continue;
 		await query(`DELETE FROM "BalanceAdjustment" WHERE "id"=$1 AND "userId"=$2`, [adjustment.id, userId]);
 		removed.push(adjustment.id);
 	}

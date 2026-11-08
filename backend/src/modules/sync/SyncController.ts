@@ -3,7 +3,8 @@ import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { type LoanContractBook, sameLoanContract, validateLoanTerms } from "@zaimu/finance/loan-contract";
 import { toMinorUnits } from "@zaimu/finance/money";
 import Elysia from "elysia";
-import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
+import { accountHoldings, saveAccountHoldings } from "~/modules/accounts/application/account-holdings";
 import { getFinancialInstitutionYieldPolicies } from "~/modules/accounts/application/get-financial-institution-yield-policies";
 import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
 import { accountCardRules } from "~/modules/accounts/application/institution-card-rules";
@@ -28,9 +29,10 @@ import { recalculateStatementPayments } from "~/modules/creditCards/application/
 import { syncCreditBook } from "~/modules/creditCards/application/sync-credit-book";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import {
+	type AssetFinancialFee,
 	financialAccountCurrency,
-	type FinancialFee,
-	resolveFinancialMoney,
+	resolveAssetFinancialMoney,
+	resolveAssetTransactionMoneySides,
 } from "~/modules/currencies/application/financial-money";
 import {
 	getDebtSplitReturns,
@@ -64,11 +66,13 @@ import {
 	nullableNumeric,
 	queryFirst,
 	queryRaw,
+	queryRawDecimal,
 	queryRows,
 	withRawTransaction,
 	withTransaction,
 } from "~/shared/infra/sql";
 import { syncEvents } from "./sync-events";
+import { syncTaxSettings } from "./sync-tax-settings";
 import { serializeSyncReturn, SyncBody, SyncReturn } from "./SyncDTO";
 
 type InputEntity = Record<string, unknown>;
@@ -109,7 +113,8 @@ const entityTagIds = (entity: InputEntity) =>
 	normalizeTagIds(value<string[] | undefined>(entity, "tagIds") ?? []);
 
 const accountColumns = [
-	"currency",
+	"yieldCurrency",
+	"countryCode",
 	"id",
 	"userId",
 	"isHidden",
@@ -194,6 +199,12 @@ const purchaseColumns = [
 	"updatedAt",
 ] as const;
 const transactionColumns = [
+	"bookingCurrency",
+	"destinationCurrency",
+	"destinationAmount",
+	"paymentCurrency",
+	"paymentAmount",
+	"conversionSource",
 	"currency",
 	"originalAmount",
 	"fees",
@@ -260,18 +271,29 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								"type",
 							) ?? "CHECKING";
 						const existing = await queryFirst(
-							db.sql.public.FinancialAccount.select("id", "userId", "currency")
+							db.sql.public.FinancialAccount.select(
+								"id",
+								"userId",
+								"yieldCurrency",
+								"countryCode",
+								"yieldTaxIds",
+								"yieldTaxModes",
+							)
 								.where((f, fn) => fn.eq(f.id, id))
 								.limit(1)
 								.build(),
 						);
 						if (existing && existing.userId !== userId)
 							throw new Error(`Conta financeira ${id} pertence a outro usuário`);
-						const currency = await assertSupportedCurrency(
-							value<string | undefined>(entity, "currency") ?? existing?.currency ?? "BRL",
-						);
-						if (existing && currency !== existing.currency)
-							throw new Error("Moeda da conta existente não pode mudar pela sincronização");
+						// Server-derived from fiat holdings after saving them; an existing value is never overwritten here.
+						const requestedYieldCurrency = existing
+							? existing.yieldCurrency
+							: "yieldCurrency" in entity
+								? value<string | null>(entity, "yieldCurrency")
+								: null;
+						const currency = requestedYieldCurrency
+							? await assertSupportedCurrency(requestedYieldCurrency)
+							: null;
 						const institutionInput = value<{ id?: string; name?: string } | null | undefined>(
 							entity,
 							"institution",
@@ -289,7 +311,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						const countryCode =
 							value<string | null | undefined>(entity, "countryCode") ??
 							(existing as { countryCode?: string | null } | undefined)?.countryCode;
-						await ensureAccountCoverage(currency, countryCode);
+						if (currency) await ensureAccountCoverage(currency, countryCode);
 						const historicalYieldSettings = value<unknown>(entity, "historicalYieldSettings");
 						if (
 							historicalYieldSettings != null &&
@@ -306,13 +328,13 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									}
 								: {}),
 							countryCode,
-							currency,
 							institutionId: institution?.id,
 							isHidden: value<boolean | undefined>(entity, "isHidden") ?? false,
 							name: value<string>(entity, "name"),
 							type,
 							updatedAt: new Date(),
 							userId,
+							yieldCurrency: currency,
 							yieldFixedRate: nullableNumeric<7, 4>(
 								value<number | null | undefined>(entity, "yieldFixedRate") ?? null,
 							),
@@ -328,15 +350,28 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									entity,
 									"yieldReferenceType",
 								) ?? null,
-							yieldTaxIds: value<string[] | null | undefined>(entity, "yieldTaxIds") as never,
+							...syncTaxSettings(
+								{
+									yieldTaxIds: value<string[] | null | undefined>(entity, "yieldTaxIds"),
+									yieldTaxModes: value<Record<string, string> | null | undefined>(
+										entity,
+										"yieldTaxModes",
+									),
+								},
+								existing
+									? {
+											yieldTaxIds: existing.yieldTaxIds,
+											yieldTaxModes: existing.yieldTaxModes as Record<
+												string,
+												string
+											> | null,
+										}
+									: undefined,
+							),
 							yieldTaxMode: (value<"DAILY" | "ON_REDEMPTION" | null | undefined>(
 								entity,
 								"yieldTaxMode",
 							) ?? "DAILY") as never,
-							yieldTaxModes: (value<Record<string, string> | null | undefined>(
-								entity,
-								"yieldTaxModes",
-							) ?? null) as never,
 							yieldTaxRate: nullableNumeric<5, 2>(
 								value<number | null | undefined>(entity, "yieldTaxRate") ?? null,
 							),
@@ -354,6 +389,9 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									{ ...values, id, userId, yieldTaxIds: values.yieldTaxIds ?? [] },
 								]).build(),
 							);
+						const assets =
+							value<Array<{ assetCode: string; balance: string }>>(entity, "assets") ?? [];
+						await saveAccountHoldings(id, assets);
 						await saveAccountDefaults(
 							userId,
 							id,
@@ -394,7 +432,9 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									.limit(1)
 									.build(),
 							);
+							if (!currency) throw new Error("Regra de rendimento exige ativo fiat");
 							const historyValues = {
+								currency,
 								effectiveDate,
 								updatedAt: new Date(),
 								yieldFixedRate: nullableNumeric<7, 4>(history.yieldFixedRate ?? null),
@@ -441,6 +481,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								initialBalance: rewardsInput.initialBalance ?? 0,
 								kind: rewardsInput.kind,
 							};
+							if (!currency) throw new Error("Conta de recompensas exige moeda fiat");
 							assertRewardsAccountDetails(details, currency);
 							const existingRewards = await queryFirst(
 								db.sql.public.RewardsAccount.select("id")
@@ -449,6 +490,9 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									.build(),
 							);
 							const rewardsValues = {
+								assetCode:
+									value<string | undefined>(rewardsInput as InputEntity, "assetCode") ??
+									currency,
 								conversionAmount: nullableNumeric<12, 2>(details.conversionAmount ?? null),
 								conversionPoints: nullableNumeric<18, 4>(details.conversionPoints ?? null),
 								initialBalance: String(details.initialBalance),
@@ -497,7 +541,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						const kind = value<"AUTOMATIC" | "MANUAL">(entity, "kind");
 						if (!date || !kind) throw new Error("Informe os dados do rendimento");
 						const account = await queryFirst(
-							db.sql.public.FinancialAccount.select("id", "type", "currency")
+							db.sql.public.FinancialAccount.select("id", "type", "yieldCurrency")
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.id, financialAccountId),
@@ -508,6 +552,14 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								.build(),
 						);
 						if (!account || account.type === "CREDIT_CARD")
+							throw new Error("Conta de rendimento indisponível");
+						const fiatCodes = await fiatHoldingCodes(financialAccountId);
+						const assetCode =
+							value<string | null | undefined>(entity, "assetCode") ??
+							(fiatCodes.includes(account.yieldCurrency ?? "")
+								? account.yieldCurrency
+								: fiatCodes[0]);
+						if (!assetCode || !fiatCodes.includes(assetCode))
 							throw new Error("Conta de rendimento indisponível");
 						const existing = await queryFirst(
 							db.sql.public.FinancialAccountYield.select(
@@ -521,6 +573,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 										functions.eq(fields.id, id),
 										functions.and(
 											functions.eq(fields.financialAccountId, financialAccountId),
+											functions.eq(fields.assetCode, assetCode),
 											functions.eq(fields.date, date.toISOString().slice(0, 10)),
 										),
 									),
@@ -535,7 +588,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							amount: nullableNumeric<12, 4>(
 								value<number | null | undefined>(entity, "amount") ?? null,
 							),
-							currency: account.currency,
+							assetCode,
 							date: date.toISOString().slice(0, 10),
 							isExcluded: value<boolean | undefined>(entity, "isExcluded") ?? false,
 							kind,
@@ -1101,33 +1154,68 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 									.build(),
 							);
 						const type = value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE";
-						const money = await resolveFinancialMoney({
-							amount: Number(
-								value<number | undefined>(entity, "originalAmount") ??
-									value<number>(entity, "amount"),
-							),
+						const money = await resolveAssetFinancialMoney({
+							amount:
+								value<string | undefined>(entity, "originalAmount") ??
+								value<string>(entity, "amount"),
 							currency: value<string | undefined>(entity, "currency"),
 							date: value<string>(entity, "date"),
-							fees: value<FinancialFee[] | undefined>(entity, "fees"),
+							fees: value<AssetFinancialFee[] | undefined>(entity, "fees"),
 							targetCurrency: await financialAccountCurrency(
 								(type === "INCOME"
 									? destinationFinancialAccountId
 									: originFinancialAccountId) ?? destinationFinancialAccountId,
+								value<string | undefined>(entity, "bookingCurrency") ??
+									value<string | undefined>(entity, "currency"),
 							),
 						});
+						const paymentCard = paymentCreditCardId
+							? await queryFirst(
+									db.sql.public.CreditCard.select("currency")
+										.where((f, fn) => fn.eq(f.id, paymentCreditCardId))
+										.limit(1)
+										.build(),
+								)
+							: null;
+						const sides = await resolveAssetTransactionMoneySides({
+							amount: money.amount,
+							currency: money.bookingCurrency,
+							date: value<string>(entity, "date"),
+							destinationAmount: value<string | undefined>(entity, "destinationAmount"),
+							destinationCurrency:
+								type === "TRANSFER"
+									? await financialAccountCurrency(
+											destinationFinancialAccountId,
+											value<string | undefined>(entity, "destinationCurrency"),
+										)
+									: null,
+							explicitSides: value<string | undefined>(entity, "conversionSource") === "POINTS",
+							paymentAmount: value<string | undefined>(entity, "paymentAmount"),
+							paymentCurrency: paymentCard?.currency,
+						});
+						const bookingAsset = await queryFirst(
+							db.sql.public.Asset.select("kind")
+								.where((f, fn) => fn.eq(f.code, money.bookingCurrency))
+								.limit(1)
+								.build(),
+						);
+						if ((entity.debtSplit || entity.debtPersonId) && bookingAsset?.kind !== "FIAT")
+							throw new Error("Rateio de dívida exige moeda fiat");
 						const transactionId = existing?.id ?? id;
 						const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
 						if (!existing) {
 							await executeStatement(
 								db.sql.public.Transaction.insert([
 									{
-										amount: String(money.amount),
+										...sides,
+										amount: money.amount,
+										bookingCurrency: money.bookingCurrency,
 										currency: money.currency,
 										date: value<string>(entity, "date").slice(0, 10),
 										description: value<string | undefined>(entity, "description"),
 										destinationFinancialAccountId,
-										exchangeRate: String(money.exchangeRate),
-										fees: money.fees,
+										exchangeRate: money.exchangeRate,
+										fees: money.fees.map(fee => ({ ...fee })),
 										id,
 										originalAmount: String(money.originalAmount),
 										originFinancialAccountId,
@@ -1152,19 +1240,20 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						const debtPersonId = value<string | undefined>(entity, "debtPersonId");
 						if (debtPersonId && !debtPersonIds.has(debtPersonId))
 							throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
-						await syncTransactionDebtEvent({
-							amount: money.amount,
-							date: value<string>(entity, "date"),
-							...("debtSplit" in entity
-								? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }
-								: "debtPersonId" in entity
-									? { debtPersonId: debtPersonId ?? null }
-									: {}),
-							description: value<string | undefined>(entity, "description"),
-							transactionId,
-							type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
-							userId,
-						});
+						if (bookingAsset?.kind === "FIAT")
+							await syncTransactionDebtEvent({
+								amount: Number(money.amount),
+								date: value<string>(entity, "date"),
+								...("debtSplit" in entity
+									? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }
+									: "debtPersonId" in entity
+										? { debtPersonId: debtPersonId ?? null }
+										: {}),
+								description: value<string | undefined>(entity, "description"),
+								transactionId,
+								type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
+								userId,
+							});
 						if (recurrenceId && recurrenceOccurrenceDate)
 							await executeRaw(
 								'INSERT INTO "RecurrenceOccurrence" ("recurrenceId","date","transactionId") VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
@@ -1213,7 +1302,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					const financialAccountYields = financialAccounts.length
 						? await queryRows(
 								db.sql.public.FinancialAccountYield.select(
-									"currency",
+									"assetCode",
 									"id",
 									"financialAccountId",
 									"date",
@@ -1266,6 +1355,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					const rewardsAccounts = financialAccounts.length
 						? await queryRows(
 								db.sql.public.RewardsAccount.select(
+									"assetCode",
+									"conversionCurrency",
 									"id",
 									"financialAccountId",
 									"kind",
@@ -1287,8 +1378,13 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					const rewardsAccountsByFinancialAccountId = new Map(
 						rewardsAccounts.map(account => [account.financialAccountId, account]),
 					);
-					const balances = await getFinancialAccountBalances(
-						financialAccounts.map(account => account.id),
+					const holdings = new Map(
+						await Promise.all(
+							financialAccounts.map(
+								async account =>
+									[account.id, await accountHoldings(userId, account.id)] as const,
+							),
+						),
 					);
 					const profileContext = await getInstitutionProfileContext(
 						financialAccounts.map(account => account.id),
@@ -1299,7 +1395,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					const financialAccountsWithInstitutions = financialAccounts.map(account => ({
 						...account,
 						...profileContext.get(account.id),
-						balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
+						assets: holdings.get(account.id) ?? [],
+						balance: null,
 						institution: account.institutionId
 							? {
 									...institutionsById.get(account.institutionId),
@@ -1341,6 +1438,14 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 						...transactionColumns,
 					).where((f, fn) => fn.eq(f.userId, userId));
 					const transactions = await queryRows(transactionQueryBuilder.build());
+					const fiatTransactionIds = new Set(
+						(
+							await queryRawDecimal<{ id: string }>(
+								`SELECT transaction."id" FROM "Transaction" transaction JOIN "Asset" asset ON asset."code"=transaction."bookingCurrency" AND asset."kind"='FIAT' WHERE transaction."userId"=$1`,
+								[userId],
+							)
+						).map(row => row.id),
+					);
 					await sync("recurrenceOccurrences", body.recurrenceOccurrences, async entity => {
 						const recurrenceId =
 							recurrenceMappings.get(String(entity.recurrenceId)) ??
@@ -1427,10 +1532,12 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 
 					const transactionSplits = await getDebtSplitReturns(
 						"transactionId",
-						transactions.map(transaction => ({
-							amount: Number(transaction.amount),
-							id: transaction.id,
-						})),
+						transactions
+							.filter(transaction => fiatTransactionIds.has(transaction.id))
+							.map(transaction => ({
+								amount: Number(transaction.amount),
+								id: transaction.id,
+							})),
 					);
 
 					if (cardIds.size)

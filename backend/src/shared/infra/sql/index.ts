@@ -11,6 +11,7 @@ export {
 	param,
 	queryFirst,
 	queryRaw,
+	queryRawDecimal,
 	queryRows,
 	type SqlExecutor,
 	withRawTransaction,

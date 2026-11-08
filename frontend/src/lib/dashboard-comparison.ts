@@ -1,7 +1,9 @@
+import { decimalToUnits } from "@zaimu/finance/asset-amount";
 import { forecastCardPayments, recurringCardPaymentAmounts } from "@zaimu/finance/card-forecast";
 import { comparisonDuration, comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import { creditBookRewards, replayCreditBook } from "@zaimu/finance/credit-book";
 import { dailyForecast, forecastBreakdown, type ForecastMovement } from "@zaimu/finance/daily-forecast";
+import { isCryptoAsset } from "@zaimu/finance/money";
 import {
 	type BudgetCommitment,
 	matchesBudgetCommitment,
@@ -18,8 +20,10 @@ import {
 } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
 import { addDays, format, startOfDay } from "date-fns";
+import { fiatAssets, primaryCurrency } from "./account-assets";
 import type { DashboardPeriod, FinancialAccountYield } from "./api";
 import { activeCurrency } from "./currency-context";
+import { valueAssetPosition } from "./currency-conversion";
 import { GuestConversionUnavailable, guestDashboardCurrencyContext } from "./dashboard-currency-context";
 import { dataService } from "./dataService";
 import {
@@ -109,7 +113,42 @@ export async function getGuestDashboardFinancialContext(
 			date,
 			(yields as FinancialAccountYield[] | null) ?? [],
 		);
-	const current = historicalAccountsAt(today);
+	// Native quantities are valued before entering the numeric fiat forecasting engine.
+	const valueAccounts = async (date: Date) =>
+		(
+			await Promise.all(
+				historicalAccountsAt(date).map(async account =>
+					Promise.all(
+						account.assets.map(async asset => ({
+							...account,
+							balance: isCryptoAsset(asset.assetCode)
+								? await valueAssetPosition(
+										{ amount: asset.balance, currency: asset.assetCode },
+										activeCurrency(),
+										key(date),
+									)
+								: Number(asset.balance),
+							currency: isCryptoAsset(asset.assetCode) ? activeCurrency() : asset.assetCode,
+							id:
+								asset.assetCode === account.yieldCurrency
+									? account.id
+									: `${account.id}:${asset.assetCode}`,
+							// Yield settings apply to every fiat holding; lots are tracked for the primary one.
+							yieldFixedRate: isCryptoAsset(asset.assetCode) ? null : account.yieldFixedRate,
+							yieldLots: asset.assetCode === account.yieldCurrency ? account.yieldLots : [],
+							yieldReferenceType: isCryptoAsset(asset.assetCode)
+								? null
+								: account.yieldReferenceType,
+						})),
+					),
+				),
+			)
+		).flat();
+	const positionId = (id: string | null | undefined, code: string) => {
+		if (!id || !accounts.some(account => account.id === id)) return id;
+		return accounts.find(account => account.id === id)?.yieldCurrency === code ? id : `${id}:${code}`;
+	};
+	const current = await valueAccounts(today);
 	const currency = activeCurrency();
 	const pendingRecurrences = recurrences.filter(
 		row => row.amount && pendingRecurrenceDates(row, key(projectionStart), key(through), linked).length,
@@ -161,7 +200,10 @@ export async function getGuestDashboardFinancialContext(
 				.filter(account =>
 					[row.originFinancialAccountId, row.destinationFinancialAccountId].includes(account.id),
 				)
-				.map(account => account.currency ?? "BRL"),
+				.flatMap(account => {
+					const code = primaryCurrency(account);
+					return code ? [code] : [];
+				}),
 			...cards.filter(card => card.id === row.creditCardId).map(card => card.currency ?? "BRL"),
 		]),
 		...futureCardBooks.map(row => row.data.card.currency ?? "BRL"),
@@ -172,7 +214,10 @@ export async function getGuestDashboardFinancialContext(
 				.filter(account =>
 					[row.originFinancialAccountId, row.destinationFinancialAccountId].includes(account.id),
 				)
-				.map(account => account.currency ?? "BRL"),
+				.flatMap(account => {
+					const code = primaryCurrency(account);
+					return code ? [code] : [];
+				}),
 		]),
 	];
 	if (
@@ -183,13 +228,13 @@ export async function getGuestDashboardFinancialContext(
 		budgets.length
 	)
 		forecastCurrencies.push(
-			accounts.find(row => row.isPrimary)?.currency ??
-				accounts.find(row => row.type === "CHECKING" || row.type === "CASH")?.currency ??
+			primaryCurrency(accounts.find(row => row.isPrimary)) ??
+				primaryCurrency(accounts.find(row => row.type === "CHECKING" || row.type === "CASH")) ??
 				currency,
 		);
 	const forecastMoney = await guestDashboardCurrencyContext({
 		currency,
-		forecastCurrencies,
+		forecastCurrencies: forecastCurrencies.filter(code => !isCryptoAsset(code)),
 		forecasting: through > today,
 		nativeCurrencies: [],
 		positions: [],
@@ -325,8 +370,9 @@ export async function getGuestDashboardFinancialContext(
 	}
 
 	const recurringPayments = new Map(bookRows.flatMap(row => [...recurringCardPaymentAmounts(row.data)]));
-	const movements: Array<
-		Omit<ForecastMovement, "date"> & {
+	const nativeMovements: Array<
+		Omit<ForecastMovement, "date" | "amount"> & {
+			amount: string | number;
 			date: Date;
 			description?: string | null;
 			tagIds?: readonly string[];
@@ -341,29 +387,52 @@ export async function getGuestDashboardFinancialContext(
 			originAccountId: row.originFinancialAccountId,
 			type: row.type as "INCOME" | "EXPENSE",
 		})),
-		...transactions
-			.filter(item => item.type !== "REFUND")
-			.map(item => ({
-				...item,
-				cardPayment: Boolean(item.paymentCreditCardId),
-				currency:
-					item.bookingCurrency ??
-					accounts.find(
-						account =>
-							account.id ===
-							(item.type === "INCOME"
-								? item.destinationFinancialAccountId
-								: item.originFinancialAccountId),
-					)?.currency ??
-					"BRL",
-				date: new Date(`${item.date.slice(0, 10)}T12:00:00`),
-				destinationAccountId: item.destinationFinancialAccountId,
-				originAccountId: item.originFinancialAccountId,
-				recurring: Boolean(item.recurrenceId),
-				recurringAmount: recurringPayments.get(item.id),
-				tagIds: item.tags?.map(tag => tag.id),
-				type: item.type as "INCOME" | "EXPENSE" | "TRANSFER",
-			})),
+		...(await Promise.all(
+			transactions
+				.filter(item => item.type !== "REFUND")
+				.map(async item => ({
+					...item,
+					cardPayment: Boolean(item.paymentCreditCardId),
+					currency:
+						item.bookingCurrency ??
+						primaryCurrency(
+							accounts.find(
+								account =>
+									account.id ===
+									(item.type === "INCOME"
+										? item.destinationFinancialAccountId
+										: item.originFinancialAccountId),
+							),
+						) ??
+						"BRL",
+					date: new Date(`${item.date.slice(0, 10)}T12:00:00`),
+					destinationAccountId: positionId(
+						item.destinationFinancialAccountId,
+						item.destinationCurrency ?? item.bookingCurrency ?? "BRL",
+					),
+					destinationAmount:
+						item.destinationAmount == null
+							? null
+							: isCryptoAsset(item.destinationCurrency ?? item.bookingCurrency ?? "BRL")
+								? await valueAssetPosition(
+										{
+											amount: String(item.destinationAmount),
+											currency:
+												item.destinationCurrency ?? item.bookingCurrency ?? "BRL",
+										},
+										currency,
+										item.date.slice(0, 10) > key(today)
+											? key(today)
+											: item.date.slice(0, 10),
+									)
+								: Number(item.destinationAmount),
+					originAccountId: item.originFinancialAccountId,
+					recurring: Boolean(item.recurrenceId),
+					recurringAmount: recurringPayments.get(item.id),
+					tagIds: item.tags?.map(tag => tag.id),
+					type: item.type as "INCOME" | "EXPENSE" | "TRANSFER",
+				})),
+		)),
 		...projected,
 		...bookRows
 			.flatMap(row => creditBookRewards(row.data))
@@ -376,30 +445,102 @@ export async function getGuestDashboardFinancialContext(
 				),
 			)
 			.map(reward => ({
-				amount: reward.cashbackAmount ?? 0,
+				amount: reward.cashbackAmount ?? "0",
 				currency:
-					accounts.find(account => account.id === reward.cashbackAccountId)?.currency ?? "BRL",
+					reward.currency ??
+					primaryCurrency(accounts.find(account => account.id === reward.cashbackAccountId)) ??
+					"BRL",
 				date: new Date(`${reward.purchaseDate.slice(0, 10)}T12:00:00`),
 				destinationAccountId: reward.cashbackAccountId,
 				type: "INCOME" as const,
 			})),
 		...accounts.flatMap(account =>
-			calculateFinancialAccountYieldEntries(
-				account,
-				[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
-				holidays,
-				today,
-				(yields as FinancialAccountYield[] | null) ?? [],
-			).map(entry => ({
-				amount: entry.amount,
-				currency: account.currency ?? "BRL",
-				date: new Date(`${entry.date}T12:00:00`),
-				destinationAccountId: account.id,
-				type: "INCOME" as const,
-				yieldIncome: true,
-			})),
+			[
+				...new Set([
+					...(account.yieldCurrency ? [account.yieldCurrency] : []),
+					...fiatAssets(account.assets).map(asset => asset.assetCode),
+				]),
+			].flatMap(currency =>
+				calculateFinancialAccountYieldEntries(
+					account,
+					[...transactions, ...loanAccountMovements(paymentRows.map(row => row.data))],
+					holidays,
+					today,
+					(yields as FinancialAccountYield[] | null) ?? [],
+					currency,
+				).map(entry => ({
+					amount: Number(entry.amount),
+					currency,
+					date: new Date(`${entry.date}T12:00:00`),
+					destinationAccountId:
+						currency === account.yieldCurrency ? account.id : `${account.id}:${currency}`,
+					type: "INCOME" as const,
+					yieldIncome: true,
+				})),
+			),
 		),
 	];
+	const movements: Array<
+		Omit<ForecastMovement, "date"> & {
+			date: Date;
+			description?: string | null;
+			tagIds?: readonly string[];
+			yieldIncome?: boolean;
+		}
+	> = await Promise.all(
+		nativeMovements.map(async row => {
+			const source = row.currency ?? "BRL";
+			if (isCryptoAsset(source)) {
+				if (typeof row.amount !== "string") throw new Error("Quantidade crypto exige decimal exato");
+				const nativeId = (id: string | null | undefined) => positionId(id, source);
+				// Forecasts hold today's observed crypto price constant; historical movements always use their own date.
+				return {
+					...row,
+					amount: await valueAssetPosition(
+						{ amount: row.amount, currency: source },
+						currency,
+						key(row.date) > key(today) ? key(today) : key(row.date),
+					),
+					currency,
+					destinationAccountId: nativeId(row.destinationAccountId),
+					originAccountId: nativeId(row.originAccountId),
+				};
+			}
+			return {
+				...row,
+				amount: Number(row.amount),
+				destinationAccountId: positionId(row.destinationAccountId, source),
+				originAccountId: positionId(row.originAccountId, source),
+			};
+		}),
+	);
+	// Cross-asset fixed fees debit their own native book, independently of the principal.
+	for (const transaction of transactions) {
+		if (!transaction.originFinancialAccountId) continue;
+		const source = transaction.bookingCurrency ?? transaction.currency ?? "BRL";
+		for (const fee of transaction.fees ?? []) {
+			const assetCode = fee.assetCode ?? source;
+			if (assetCode === source || fee.type !== "FIXED") continue;
+			const text = String(fee.amount);
+			if (isCryptoAsset(assetCode) && typeof fee.amount !== "string")
+				throw new Error("Taxa crypto exige decimal exato");
+			if (decimalToUnits(text, assetCode) === 0n) continue;
+			const day = transaction.date.slice(0, 10);
+			movements.push({
+				amount: isCryptoAsset(assetCode)
+					? await valueAssetPosition(
+							{ amount: text, currency: assetCode },
+							currency,
+							day > key(today) ? key(today) : day,
+						)
+					: Number(text),
+				currency: isCryptoAsset(assetCode) ? currency : assetCode,
+				date: new Date(`${day}T12:00:00`),
+				originAccountId: positionId(transaction.originFinancialAccountId, assetCode),
+				type: "EXPENSE",
+			});
+		}
+	}
 	const budgetExtraCommitments: BudgetCommitment[] = [];
 	for (const book of projectedBooks)
 		for (const statement of replayCreditBook(book, key(today)).statements.filter(
@@ -482,16 +623,18 @@ export async function getGuestDashboardFinancialContext(
 	];
 	const money = await guestDashboardCurrencyContext({
 		currency,
-		forecastCurrencies,
+		forecastCurrencies: forecastCurrencies.filter(code => !isCryptoAsset(code)),
 		forecasting: through > today,
 		forecastSnapshot: forecastMoney.forecastSnapshot,
 		nativeCurrencies: currencies,
 		positions: [
 			...budgetPositions,
 			...positionDates.flatMap(date =>
-				historicalAccountsAt(new Date(`${date}T12:00:00`))
-					.filter(account => account.balance)
-					.map(account => ({ currency: account.currency ?? "BRL", date })),
+				historicalAccountsAt(new Date(`${date}T12:00:00`)).flatMap(account =>
+					account.assets
+						.filter(asset => !isCryptoAsset(asset.assetCode) && asset.balance !== "0")
+						.map(asset => ({ currency: asset.assetCode, date })),
+				),
 			),
 			...movements
 				.filter(row => row.amount)
@@ -592,9 +735,14 @@ export async function getGuestDashboardFinancialContext(
 			});
 	}
 	const projectedByDate = new Map(forecastDays.map(day => [day.date, day]));
+	const historicalValuations = new Map(
+		await Promise.all(
+			positionDates.map(async day => [day, await valueAccounts(new Date(`${day}T12:00:00`))] as const),
+		),
+	);
 	const balancesAt = (date: Date) =>
 		projectedByDate.get(key(date))?.balances ??
-		new Map(historicalAccountsAt(date).map(account => [account.id, account.balance ?? 0]));
+		new Map((historicalValuations.get(key(date)) ?? []).map(account => [account.id, account.balance]));
 	const balanceAt = (date: Date) => {
 		if (key(date) > key(today) && !money.consolidation.forecastAvailable)
 			throw new GuestConversionUnavailable(currency, key(date), money.consolidation);

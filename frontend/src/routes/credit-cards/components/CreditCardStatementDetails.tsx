@@ -459,6 +459,17 @@ export function CreditCardStatementDetails({
 					actions={[
 						{ icon: LuPlus, label: "Nova compra", onClick: onAddPurchase },
 						{ icon: LuFileUp, label: "Importar fatura", onClick: () => setIsImportOpen(true) },
+						{
+							disabled:
+								detail.isPending ||
+								Boolean(backgroundPending[`${identity}:credit-statement:${statement.id}`]),
+							icon: LuPencil,
+							label: "Editar fatura",
+							onClick: () => {
+								setRecoveredAction(null);
+								setEditingStatement(true);
+							},
+						},
 					]}
 				/>
 			</ActionGroup>

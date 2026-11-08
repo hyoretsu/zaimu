@@ -28,8 +28,8 @@ globalThis.fetch = async () => ${mode === "timeout" ? "new Promise(() => {})" : 
 `,
 	);
 	try {
-		const child = Bun.spawn([process.execPath, "--preload", preload, "../scripts/dev-healthcheck.ts"], {
-			cwd: new URL("../backend", import.meta.url).pathname,
+		const child = Bun.spawn([process.execPath, "--preload", preload, "scripts/dev-healthcheck.ts"], {
+			cwd: new URL("..", import.meta.url).pathname,
 			env: { ...process.env, DATABASE_URL: "postgres://unused", REDIS_URL: "redis://unused" },
 			stderr: "pipe",
 			stdout: "pipe",
@@ -80,7 +80,7 @@ test("stalled checks exit within global deadline and retain completed results", 
 test("restart policy honors grace, resets on recovery, and signals only after three failures", async () => {
 	const directory = await mkdtemp(join(tmpdir(), "zaimu-health-policy-"));
 	try {
-		const source = await Bun.file(new URL("./dev-healthcheck.sh", import.meta.url)).text();
+		const source = await Bun.file(new URL("../../scripts/dev-healthcheck.sh", import.meta.url)).text();
 		const script = join(directory, "probe.sh");
 		const started = join(directory, "started");
 		const failures = join(directory, "failures");

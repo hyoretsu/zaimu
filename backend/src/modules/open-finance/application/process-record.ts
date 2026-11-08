@@ -1,12 +1,10 @@
 import { moneyCents, synchronizeImportedStatementDates } from "@zaimu/finance/credit-book";
+import { assertFiatHolding } from "~/modules/accounts/application/account-assets";
 import { getTagsByEntity } from "~/modules/categories/application/tag-assignments";
 import { materializeImportedPurchase } from "~/modules/credit-card-imports/application/materialize-imported-purchase";
 import { mutateCreditBook } from "~/modules/creditCards/application/normalized-credit-book";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
-import {
-	creditCardCurrency,
-	financialAccountCurrency,
-} from "~/modules/currencies/application/financial-money";
+import { creditCardCurrency } from "~/modules/currencies/application/financial-money";
 import { getDebtSplitInput, replaceDebtSplit } from "~/modules/debts/application";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import {
@@ -111,7 +109,7 @@ async function createReview(
 		remote,
 		binding.creditCardId
 			? await creditCardCurrency(binding.creditCardId)
-			: await financialAccountCurrency(binding.financialAccountId),
+			: (await assertFiatHolding(binding.financialAccountId!, remote.currency, userId)).assetCode,
 	);
 	const itemId = crypto.randomUUID();
 	const reference = externalReference(userId, binding.remoteAccountId, remote.identity);
@@ -390,14 +388,15 @@ export async function processRecord(
 					remote,
 					binding.creditCardId
 						? await creditCardCurrency(binding.creditCardId)
-						: await financialAccountCurrency(binding.financialAccountId),
+						: (await assertFiatHolding(binding.financialAccountId!, remote.currency, userId))
+								.assetCode,
 				),
 			);
 		return "unchanged";
 	}
 	const nativeCurrency = binding.creditCardId
 		? await creditCardCurrency(binding.creditCardId)
-		: await financialAccountCurrency(binding.financialAccountId);
+		: (await assertFiatHolding(binding.financialAccountId!, remote.currency, userId)).assetCode;
 	if (record.state === "APPLIED" && record.localId && record.localKind) {
 		const current = await localSnapshot(record.localKind, record.localId, userId);
 		if (!current) {

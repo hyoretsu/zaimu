@@ -44,7 +44,7 @@ export function MoneyField({
 	const crypto = hasCurrency && isCryptoAsset(currencyCode);
 	const intl = new Intl.NumberFormat(
 		"pt-BR",
-		hasCurrency ? { currency: currencyCode, style: "currency" } : { style: "decimal" },
+		hasCurrency && !crypto ? { currency: currencyCode, style: "currency" } : { style: "decimal" },
 	);
 	const formatValue = (value: string) =>
 		crypto

@@ -40,6 +40,7 @@ lefthook-local.yml
 
 # Worktrees
 .worktrees/
+.claude/worktrees/
 
 # Vendor
 .codex

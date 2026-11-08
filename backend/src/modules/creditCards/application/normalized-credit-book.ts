@@ -62,7 +62,7 @@ export async function loadCreditBook(
 	);
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
 	const purchases = await query<Row>(
-		`SELECT p.*, a."currency" AS "cashbackCurrency" FROM "CreditPurchaseRecord" p LEFT JOIN "FinancialAccount" a ON a."id"=p."cashbackAccountId" WHERE p."creditCardId" = $1 AND p."userId" = $2 ORDER BY p."id"`,
+		`SELECT p.*, p."cashbackAmount"::text AS "cashbackAmount" FROM "CreditPurchaseRecord" p WHERE p."creditCardId" = $1 AND p."userId" = $2 ORDER BY p."id"`,
 		[cardId, userId],
 	);
 	const plans = await query<Row>(
@@ -219,6 +219,7 @@ const purchaseColumns = [
 	"fees",
 	"refinancingFeeAmount",
 	"cashbackAccountId",
+	"cashbackCurrency",
 	"cashbackAmount",
 	"cashbackYieldReferenceRate",
 	"cashbackYieldReferencePercentage",

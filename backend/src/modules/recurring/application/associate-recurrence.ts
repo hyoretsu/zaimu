@@ -42,12 +42,18 @@ export async function associateRecurrence(userId: string, id: string, input: Ass
 		}
 		// Match the exact date: occurrences from a previous plan (e.g. monthly before switching to yearly) must not block this period.
 		const occurrence = await getOccurrenceOnDate(id, input.date);
-		const [reserved] = occurrence
-			? []
-			: await query(
-					'INSERT INTO "RecurrenceOccurrence" ("recurrenceId","date","transactionId","purchaseId") VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING "recurrenceId"',
+		// A deleted occurrence only keeps the period reserved against automatic generation; an explicit association revives it.
+		const [reserved] = occurrence?.deletedAt
+			? await query(
+					'UPDATE "RecurrenceOccurrence" SET "deletedAt"=NULL,"transactionId"=$3,"purchaseId"=$4 WHERE "recurrenceId"=$1 AND "date"=$2::date RETURNING "recurrenceId"',
 					[id, input.date, purchase ? null : row.id, purchase ? row.id : null],
-				);
+				)
+			: occurrence
+				? []
+				: await query(
+						'INSERT INTO "RecurrenceOccurrence" ("recurrenceId","date","transactionId","purchaseId") VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING "recurrenceId"',
+						[id, input.date, purchase ? null : row.id, purchase ? row.id : null],
+					);
 		if (!reserved) {
 			const existing = occurrence ?? (await getOccurrenceOnDate(id, input.date));
 			if (

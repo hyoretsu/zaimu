@@ -1,4 +1,5 @@
 import Elysia, { t } from "elysia";
+import { fiatHoldingCodes, resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { getAccountBalancesAtDates } from "~/modules/accounts/application/get-monetary-balances-at-dates";
 import { requireUserId } from "~/modules/auth";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -20,6 +21,7 @@ type YieldCursorValue = typeof YieldCursorValue.static;
 export const YieldReturn = t.Object({
 	accountName: t.Optional(t.String()),
 	amount: t.Nullable(t.Number()),
+	assetCode: t.String(),
 	date: t.String({ format: "date-time" }),
 	endingBalance: t.Optional(t.Number()),
 	financialAccountId: Id,
@@ -55,7 +57,7 @@ function parseDate(date: string) {
 
 async function assertYieldAccount(accountId: string, userId: string) {
 	const account = await queryFirst(
-		db.sql.public.FinancialAccount.select("id", "type", "currency")
+		db.sql.public.FinancialAccount.select("id", "type", "yieldCurrency")
 			.where((fields, functions) =>
 				functions.and(functions.eq(fields.id, accountId), functions.eq(fields.userId, userId)),
 			)
@@ -70,6 +72,7 @@ async function assertYieldAccount(accountId: string, userId: string) {
 
 export function serializeYield(yieldEntry: {
 	amount: null | number | string;
+	assetCode: string;
 	date: Date;
 	financialAccountId: string;
 	id: string;
@@ -110,11 +113,12 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 			const cached = await distributedCache.remember(
 				userId,
 				"accounts:yields",
-				{ ...query, format: 3, limit },
+				{ ...query, format: 4, limit },
 				async () => {
 					if (query.financialAccountId) await assertYieldAccount(query.financialAccountId, userId);
 					const yields = await queryRaw<{
 						accountName: string;
+						assetCode: string;
 						amount: null | string;
 						date: Date;
 						financialAccountId: string;
@@ -125,7 +129,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						origin: string;
 						time: null | string;
 					}>(
-						`SELECT account."currency", entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time", (entry."externalId" IS NOT NULL) AS "isSynced", COALESCE(account."name", institution."name", 'Conta') AS "accountName"
+						`SELECT entry."assetCode", entry."id", entry."financialAccountId", entry."date", entry."amount", entry."kind", entry."isExcluded", entry."isHidden", entry."origin", entry."time", (entry."externalId" IS NOT NULL) AS "isSynced", COALESCE(account."name", institution."name", 'Conta') AS "accountName"
  FROM "FinancialAccountYield" entry JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
  LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
  WHERE account."userId" = $1 AND ($2::text IS NULL OR entry."financialAccountId" = $2)
@@ -155,12 +159,15 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						selected.map(row => row.date),
 					);
 					const balanceByAccountDate = new Map(
-						balances.map(row => [`${row.accountId}:${row.date}`, Number(row.balance)]),
+						balances.map(row => [
+							`${row.accountId}:${row.assetCode}:${row.date}`,
+							Number(row.balance),
+						]),
 					);
 					const items = selected.map(row => ({
 						...serializeYield(row),
 						endingBalance: balanceByAccountDate.get(
-							`${row.financialAccountId}:${row.date.toISOString().slice(0, 10)}`,
+							`${row.financialAccountId}:${row.assetCode}:${row.date.toISOString().slice(0, 10)}`,
 						),
 					}));
 					const last = items.at(-1);
@@ -203,6 +210,16 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			const account = await assertYieldAccount(body.financialAccountId, userId);
+			const fiatCodes = await fiatHoldingCodes(account.id);
+			const defaultCode = fiatCodes.includes(account.yieldCurrency ?? "")
+				? account.yieldCurrency
+				: fiatCodes[0];
+			if (!defaultCode)
+				throw new HttpException("Adicione ao menos um ativo fiduciário à conta para registrar rendimentos", 400);
+			const asset = await resolveAccountAsset(account.id, body.assetCode ?? defaultCode, {
+				fiatOnly: true,
+				userId,
+			});
 			const date = parseDate(body.date);
 			if (body.kind === "MANUAL" && body.amount === undefined)
 				throw new HttpException("Informe o valor do rendimento manual", 400);
@@ -216,14 +233,15 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						functions.and(
 							functions.eq(fields.financialAccountId, body.financialAccountId),
 							functions.eq(fields.date, body.date),
+							functions.eq(fields.assetCode, asset.assetCode),
 						),
 					)
 					.limit(1)
 					.build(),
 			);
 			const values = {
-				amount: body.isExcluded ? null : nullableNumeric<12, 4>(body.amount ?? null),
-				currency: account.currency,
+				amount: body.isExcluded ? null : nullableNumeric<38, 18>(body.amount ?? null),
+				assetCode: asset.assetCode,
 				date: body.date,
 				isExcluded: body.isExcluded ?? false,
 				isHidden: body.kind === "MANUAL" ? (body.isHidden ?? false) : false,
@@ -248,6 +266,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				db.sql.public.FinancialAccountYield.select(
 					"id",
 					"financialAccountId",
+					"assetCode",
 					"date",
 					"amount",
 					"kind",
@@ -260,6 +279,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 						functions.and(
 							functions.eq(fields.financialAccountId, body.financialAccountId),
 							functions.eq(fields.date, body.date),
+							functions.eq(fields.assetCode, asset.assetCode),
 						),
 					)
 					.limit(1)
@@ -276,6 +296,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				assetCode: t.Optional(t.String({ pattern: "^[A-Z0-9]{2,12}$" })),
 				date: DateKey,
 				financialAccountId: Id,
 				isExcluded: t.Optional(t.Boolean()),
@@ -302,7 +323,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				throw new HttpException("Use o ajuste automático para este rendimento", 400);
 			await executeStatement(
 				db.sql.public.FinancialAccountYield.update({
-					amount: nullableNumeric<12, 4>(body.amount),
+					amount: nullableNumeric<38, 18>(body.amount),
 					...(body.date !== undefined && { date: body.date }),
 					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
 					...(body.time !== undefined && { time: body.time }),

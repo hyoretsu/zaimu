@@ -7,13 +7,13 @@ export const TransferStatus = t.Union([
 	t.Literal("CANCELLED"),
 ]);
 export const TransferAccountReturn = t.Object({
-	balance: t.Number(),
-	currency: t.String(),
+	assets: t.Array(t.Object({ assetCode: t.String(), balance: t.String() })),
 	destinationName: t.String(),
 	id: t.String(),
 	institutionName: t.Nullable(t.String()),
 	isHidden: t.Boolean(),
 	name: t.Nullable(t.String()),
+	pointsBalance: t.Nullable(t.Number()),
 	rewardsKind: t.Nullable(t.Union([t.Literal("POINTS"), t.Literal("CASHBACK")])),
 	statements: t.Array(
 		t.Object({
@@ -25,6 +25,7 @@ export const TransferAccountReturn = t.Object({
 		}),
 	),
 	type: t.String(),
+	yieldCurrency: t.Nullable(t.String()),
 });
 export const TransferSummary = t.Object({
 	accounts: t.Array(t.Object({ name: t.Nullable(t.String()), type: t.String() })),

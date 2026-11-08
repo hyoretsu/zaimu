@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { buildComparisonPeriods } from "./dashboard-calculations";
+import type { DashboardCurrencyContext } from "./dashboard-currency-context";
 import { dashboardFinancialContext } from "./dashboard-financial-context";
 import type { loadDashboardData } from "./load-dashboard-data";
 
@@ -15,7 +16,13 @@ function loaded(): Awaited<ReturnType<typeof loadDashboardData>> {
 				type: "CHECKING",
 			},
 			{ id: "reserve", institutionId: null, institutionName: null, name: "Reserva", type: "SAVINGS" },
-			{ id: "stock", institutionId: null, institutionName: null, name: "Investimento", type: "INVESTMENT" },
+			{
+				id: "stock",
+				institutionId: null,
+				institutionName: null,
+				name: "Investimento",
+				type: "INVESTMENT",
+			},
 		],
 		activityDates: [],
 		balanceRows: [
@@ -41,6 +48,37 @@ function loaded(): Awaited<ReturnType<typeof loadDashboardData>> {
 const today = new Date("2026-10-03T00:00:00");
 const from = new Date("2026-10-04T00:00:00");
 const through = new Date("2026-10-31T23:59:59");
+test("mixed holdings retain fiat yield without yielding on converted crypto", () => {
+	const data = loaded();
+	data.accounts = [{ ...data.accounts[0]!, currency: "BRL" }];
+	data.balanceRows = [
+		{ accountId: "cash", assetCode: "BRL", balance: "100", date: "2026-10-03" },
+		{ accountId: "cash", assetCode: "BTC", balance: "0.01", date: "2026-10-03" },
+	];
+	const bases: number[] = [];
+	data.projectedYields = {
+		lots: new Map(),
+		netYield: (_account: unknown, balance: number) => {
+			bases.push(balance);
+			return 1;
+		},
+		settleYield: () => {},
+	} as unknown as NonNullable<typeof data.projectedYields>;
+	const money = {
+		assetBalances: new Map([["cash:2026-10-03", 600]]),
+		convert: (amount: number) => amount,
+		currency: "BRL",
+		factor: () => 1,
+		forecastAvailable: true,
+		nonYieldBalances: new Map([["cash:2026-10-03", 500]]),
+	} as unknown as DashboardCurrencyContext;
+	const end = new Date("2026-10-04T12:00:00");
+	const context = dashboardFinancialContext(data, { end, start: from }, today, from, end, money);
+	expect(bases).toContain(100);
+	expect(bases.some(balance => balance >= 500)).toBe(false);
+	expect(context.balanceAt(end)).toBe(601);
+	expect(context.balancesAtRangeEnd.get("cash")).toBe(601);
+});
 test("all forecast account balances and chart totals consume reserves consistently", () => {
 	const data = loaded();
 	data.flows = [
@@ -213,7 +251,9 @@ test("monthly budget counts paid amounts and adds only uncommitted invoice balan
 	});
 	expect(context.balanceAt(through)).toBe(-5);
 	expect(
-		context.comparisonTransactions.filter(row => row.date > today).reduce((sum, row) => sum + row.amount, 0),
+		context.comparisonTransactions
+			.filter(row => row.date > today)
+			.reduce((sum, row) => sum + row.amount, 0),
 	).toBe(65);
 });
 

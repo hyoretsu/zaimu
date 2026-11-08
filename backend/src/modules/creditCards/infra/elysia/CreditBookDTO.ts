@@ -1,7 +1,6 @@
 import { t } from "elysia";
 import { FinancialFeeDTO } from "~/modules/currencies/application/financial-money";
 import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
-
 import { CardCalendarPeriodDTO } from "./CardCalendarPeriodDTO";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
@@ -15,8 +14,10 @@ export const RefundPolicyDTO = t.Union([
 export const BookPurchaseDTO = t.Object({
 	bookingCurrency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
 	cashbackAccountId: NullableId,
-	cashbackAmount: t.Nullable(t.Number({ minimum: 0 })),
-	cashbackCurrency: t.Optional(t.String({ pattern: "^[A-Z]{3}$" })),
+	cashbackAmount: t.Nullable(
+		t.Union([t.String({ pattern: "^\\d+(\\.\\d{1,18})?$" }), t.Number({ minimum: 0 })]),
+	),
+	cashbackCurrency: t.Optional(t.String({ pattern: "^[A-Z0-9]{2,12}$" })),
 	cashbackYieldPeriod: t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")])),
 	cashbackYieldReferencePercentage: t.Nullable(t.Number()),
 	cashbackYieldReferenceRate: t.Nullable(t.Number()),

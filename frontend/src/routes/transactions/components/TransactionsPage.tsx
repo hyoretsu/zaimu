@@ -53,7 +53,7 @@ interface TransactionsDailyPage {
 	days: Array<{
 		date: string;
 		endingBalance: number;
-		endingBalances?: Array<{ currency: string; amount: number }>;
+		endingBalances?: Array<{ currency: string; amount: number | string }>;
 		transactions: Transaction[];
 	}>;
 	hasMore: boolean;
@@ -296,7 +296,7 @@ export function TransactionsPage() {
 			if (!purchaseId) throw new Error("Compra do reembolso não encontrada");
 			return refundId
 				? dataService.creditCards.updateRefund(transaction.creditCardId, purchaseId, refundId, {
-						amount: data.amount ?? transaction.refund?.amount ?? transaction.amount,
+						amount: Number(data.amount ?? transaction.refund?.amount ?? transaction.amount),
 						date:
 							data.date ??
 							transaction.refund?.date.slice(0, 10) ??

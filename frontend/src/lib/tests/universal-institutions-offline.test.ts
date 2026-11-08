@@ -36,10 +36,10 @@ test("offline catalog isolates owners and allows only cached approved institutio
 	);
 	const account = await dataService.accounts.create({
 		countryCode: "BR",
-		currency: "BRL",
 		institutionId: "approved",
 		name: "Conta offline",
 		type: "CHECKING",
+		yieldCurrency: "BRL",
 	});
 	expect(account.institution?.id).toBe("approved");
 	expect(account.countryCode).toBe("BR");
@@ -48,24 +48,31 @@ test("offline catalog isolates owners and allows only cached approved institutio
 		institutionId: "approved",
 		name: "Dólar",
 		type: "CHECKING",
+		yieldCurrency: "USD",
 	});
-	expect(automatic.currency).toBe("USD");
+	expect(automatic.yieldCurrency).toBe("USD");
 	const foreign = await dataService.accounts.create({
 		countryCode: "BR",
-		currency: "JPY",
 		institutionId: "approved",
 		name: "Iene",
 		type: "CHECKING",
+		yieldCurrency: "JPY",
 	});
-	expect(foreign.currency).toBe("JPY");
+	expect(foreign.yieldCurrency).toBe("JPY");
 	await expect(
-		dataService.accounts.create({ institutionId: "private", name: "Privada", type: "CHECKING" }),
+		dataService.accounts.create({
+			institutionId: "private",
+			name: "Privada",
+			type: "CHECKING",
+			yieldCurrency: "BRL",
+		}),
 	).rejects.toThrow("aprovada");
 	await expect(
 		dataService.accounts.create({
 			institutionName: "Nova instituição",
 			name: "Proposta",
 			type: "CHECKING",
+			yieldCurrency: "BRL",
 		}),
 	).rejects.toThrow("conexão");
 	useAuthStore.setState({

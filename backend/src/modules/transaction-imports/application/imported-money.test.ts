@@ -56,3 +56,33 @@ test("import transfer preserves independent destination units", async () => {
 		originalAmount: "10",
 	});
 });
+
+test("import transfer keeps the typed received amount and treats fees as part of the debit", async () => {
+	const result = await importedMoney(
+		{
+			amount: 48.4,
+			date: new Date("2026-11-05"),
+			destinationAmount: 8.5,
+			destinationFinancialAccountId: "usd",
+			fees: [{ amount: 1.6, name: "IOF", type: "FIXED" }],
+			originFinancialAccountId: "brl",
+			paymentCreditCardId: null,
+			type: "TRANSFER",
+		},
+		{
+			creditCardCurrency: async () => "BRL",
+			ensureCurrencyRates: async () => {
+				throw new Error("typed amount must not consult daily rates");
+			},
+			financialAccountCurrency: async id => (id === "brl" ? "BRL" : "USD"),
+		},
+	);
+	expect(result).toMatchObject({
+		conversionSource: "MANUAL",
+		destinationAmount: "8.5",
+		destinationCurrency: "USD",
+		exchangeRate: "1",
+		fees: [{ amount: 1.6, name: "IOF", type: "FIXED" }],
+		originalAmount: "46.8",
+	});
+});

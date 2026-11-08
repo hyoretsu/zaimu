@@ -64,6 +64,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						projectionStart,
 						today,
 					});
+					let assetConversionError: DashboardConversionUnavailable | undefined;
 					const money = await dashboardCurrencyContext(
 						loaded,
 						consolidatedCurrency,
@@ -71,7 +72,25 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						comparisonEnd > today,
 						undefined,
 						dateKey(comparisonEnd),
-					);
+					).catch(error => {
+						if (!(error instanceof DashboardConversionUnavailable)) throw error;
+						assetConversionError = error;
+						return {
+							assetBalances: new Map<string, number>(),
+							collections: [],
+							convert: () => {
+								throw error;
+							},
+							currency: consolidatedCurrency,
+							factor: () => {
+								throw error;
+							},
+							forecastAvailable: false,
+							missing: [],
+							nonYieldBalances: new Map<string, number>(),
+							publishedDates: {},
+						};
+					});
 					const consolidation = {
 						forecastAvailable: money.forecastAvailable,
 						histories: money.collections.map(row => ({
@@ -87,6 +106,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 						unavailable: false,
 					};
 					try {
+						if (assetConversionError) throw assetConversionError;
 						const { cards, recurrences, loanPayments: payments } = loaded;
 						const {
 							linkedTransactionDates,
@@ -254,7 +274,12 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 								})),
 							);
 						}
-						const nativeBooks = nativeDashboardBooks(loaded, range.end, balancesAtRangeEnd);
+						const nativeBooks = nativeDashboardBooks(
+							loaded,
+							range.end,
+							balancesAtRangeEnd,
+							consolidatedCurrency,
+						);
 						const cardsWithStatements = nativeBooks.creditCards;
 						const debtRows = loaded.debts
 							.map(person => {

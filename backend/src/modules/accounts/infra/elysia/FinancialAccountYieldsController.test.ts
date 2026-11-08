@@ -6,6 +6,7 @@ describe("financial account yield response", () => {
 	test("accepts serialized cached yields with database date and time values", () => {
 		const yieldEntry = serializeYield({
 			amount: "12.5",
+			assetCode: "BRL",
 			date: new Date("2026-09-29T00:00:00.000Z"),
 			financialAccountId: "account-id",
 			id: "yield-id",

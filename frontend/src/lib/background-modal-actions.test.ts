@@ -249,3 +249,39 @@ test("grouped approvals refresh once, retain row locks and emit one summary", as
 		refresh.mockRestore();
 	}
 });
+
+test("grouped approvals wait for slower in-flight actions before refreshing once", async () => {
+	const { spyOn } = await import("bun:test");
+	const refresh = spyOn({ refresh: async () => {} }, "refresh");
+	const success = spyOn(toast, "success");
+	try {
+		let finishSlow!: () => void;
+		runBackgroundModalAction({
+			...base,
+			completionGroup: "import:slow",
+			conflictKey: "record:fast",
+			onSuccess: refresh,
+			run: async () => ({ created: 1 }),
+		});
+		runBackgroundModalAction({
+			...base,
+			completionGroup: "import:slow",
+			conflictKey: "record:slow",
+			onSuccess: refresh,
+			run: () =>
+				new Promise<{ created: number }>(resolve => {
+					finishSlow = () => resolve({ created: 1 });
+				}),
+		});
+		await new Promise(resolve => setTimeout(resolve, 20));
+		expect(refresh).toHaveBeenCalledTimes(0);
+		finishSlow();
+		await new Promise(resolve => setTimeout(resolve, 20));
+		expect(refresh).toHaveBeenCalledTimes(1);
+		expect(success).toHaveBeenCalledTimes(1);
+		expect(success.mock.calls[0]?.[0]).toBe("2 ações concluídas.");
+	} finally {
+		success.mockRestore();
+		refresh.mockRestore();
+	}
+});

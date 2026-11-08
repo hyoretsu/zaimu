@@ -1,55 +1,48 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
-	"globalDependencies": ["scripts/test-runner.ts", "scripts/testing/**", "shared/**"],
 	"tasks": {
 		"backend#build": {
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["^export", "generate"],
 			"env": ["DATABASE_URL"],
-			"inputs": ["scripts/inject.ts", "src/**", ".env*"],
+			"inputs": ["scripts/inject.ts", "src/**", ".env*", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 			"outputs": ["dist/**"],
 		},
 		"backend#check-types": {
-			"dependsOn": ["^contract:emit", "generate"],
-			"inputs": ["src/**", "performance/**/*.ts", "tsconfig*.json"],
+			"dependsOn": ["^export", "generate"],
+			"inputs": ["src/**", "performance/**/*.ts", "tsconfig*.json", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 		},
 		"backend#dev": {
 			"cache": false,
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["^export", "generate"],
 			"env": ["COMPANY_SLUG", "DATABASE_URL"],
 			"persistent": true,
 		},
 		"backend#export": {
-			"dependsOn": ["^contract:emit"],
-			"inputs": ["$TURBO_DEFAULT$", "!out/**"],
+			"dependsOn": ["^export"],
+			"inputs": ["$TURBO_DEFAULT$", "!out/**", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 			"outputs": ["out/openapi.json"],
 		},
 		"build": {
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["^export", "generate"],
 			"inputs": ["src/**", "!src/**/generated/**"],
 			"outputLogs": "new-only",
 			"outputs": ["build/**", "dist/**", "out/**"],
 		},
 		"check-types": {
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["^export", "generate"],
 			"inputs": ["src/**", "tsconfig*.json"],
 			"outputLogs": "new-only",
 		},
-		"contract:emit": {
-			"env": ["DATABASE_URL"],
-			"inputs": ["src/prisma/contract.prisma", "prisma.config.ts"],
-			"outputLogs": "new-only",
-			"outputs": ["out/**"],
-		},
 		"dev": {
 			"cache": false,
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["^export", "generate"],
 			"persistent": true,
 		},
 		"export": {
-			"dependsOn": ["^contract:emit", "generate"],
+			"dependsOn": ["^export", "generate"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/**", "scripts/export-openapi.ts", "package.json", "!src/**/generated/**"],
 			"outputLogs": "new-only",
@@ -58,13 +51,13 @@
 		"frontend#build": {
 			"dependsOn": ["generate"],
 			"env": ["DATABASE_URL", "VITE_API_URL", "VITE_APP_URL"],
-			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
+			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 			"outputs": ["build/**", "dist/**", "out/**", ".next/**", "!.next/cache/**"],
 		},
 		"frontend#check-types": {
 			"dependsOn": ["generate"],
-			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**"],
+			"inputs": ["$TURBO_DEFAULT$", "!src/lib/api/generated/**", "$TURBO_ROOT$/shared/**"],
 			"outputLogs": "new-only",
 		},
 		"frontend#dev": {
@@ -96,7 +89,7 @@
 			"dependsOn": ["generate"],
 		},
 		"generate": {
-			"dependsOn": ["^contract:emit"],
+			"dependsOn": ["^export"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/**", "!src/generated/**"],
 			"outputLogs": "new-only",
@@ -107,21 +100,27 @@
 			"inputs": ["src/migrations/**"],
 			"outputLogs": "new-only",
 		},
+		"sql#export": {
+			"env": ["DATABASE_URL"],
+			"inputs": ["src/prisma/contract.prisma", "prisma.config.ts"],
+			"outputLogs": "new-only",
+			"outputs": ["out/**"],
+		},
 		"test": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"],
+			"dependsOn": ["^export"],
 		},
 		"test:e2e": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"],
+			"dependsOn": ["^export"],
 		},
 		"test:integration": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"],
+			"dependsOn": ["^export"],
 		},
 		"test:unit": {
 			"cache": false,
-			"dependsOn": ["^contract:emit"],
+			"dependsOn": ["^export"],
 		},
 	},
 }

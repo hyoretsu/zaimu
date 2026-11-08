@@ -21,14 +21,18 @@ test("guest storage retains calendar history and both October installments after
 		statementDay: 1,
 		workingDueDate: true,
 	} as CreditCard;
-	const account = {
+	const account: FinancialAccount = {
+		assets: [],
+		createdAt: "2024-01-01",
 		creditCard: card,
-		currency: "BRL",
 		id: "calendar-account",
 		institutionId: null,
+		name: null,
 		type: "CREDIT_CARD",
+		updatedAt: "2024-01-01",
 		userId: "calendar_test",
-	} as FinancialAccount;
+		yieldCurrency: "BRL",
+	};
 	await storage.localAccounts.put(account, account.id, owner);
 	await storage.localCreditCards.put(card, card.id, owner);
 	await storage.mutateLocalCreditBook(

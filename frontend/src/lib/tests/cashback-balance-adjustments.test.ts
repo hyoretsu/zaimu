@@ -21,27 +21,32 @@ test("cashback checkpoints support create, update and delete while points are re
 		const id = `checkpoint-${kind}`;
 		await storage.localAccounts.put(
 			{
+				assets: [{ assetCode: "BRL", balance: "10" }],
 				createdAt: "2026-01-01",
-				currency: "BRL",
 				id,
 				name: kind,
 				rewardsAccount: { initialBalance: 10, kind },
 				type: "REWARDS",
 				userId: "guest",
+				yieldCurrency: "BRL",
 			} as never,
 			id,
 			owner,
 		);
-		const input = { balance: 50, date: "2026-01-02", financialAccountId: id };
+		const input = { assetCode: "BRL", balance: "50", date: "2026-01-02", financialAccountId: id };
 		if (kind === "POINTS") {
-			await expect(storage.mutateLocalBalanceAdjustment(input)).rejects.toThrow("Selecione uma conta válida");
+			await expect(storage.mutateLocalBalanceAdjustment(input)).rejects.toThrow(
+				"Selecione uma conta válida",
+			);
 			continue;
 		}
 		await storage.mutateLocalBalanceAdjustment(input);
 		const adjustment = (await storage.localAccounts.getById(id, owner))!.data.balanceAdjustments![0];
-		expect(adjustment.balance).toBe(50);
-		await storage.mutateLocalBalanceAdjustment({ ...input, balance: 75, id: adjustment.id });
-		expect((await storage.localAccounts.getById(id, owner))!.data.balanceAdjustments![0].balance).toBe(75);
+		expect(adjustment.balance).toBe("50.00");
+		await storage.mutateLocalBalanceAdjustment({ ...input, balance: "75", id: adjustment.id });
+		expect((await storage.localAccounts.getById(id, owner))!.data.balanceAdjustments![0].balance).toBe(
+			"75.00",
+		);
 		await storage.mutateLocalBalanceAdjustment({ id: adjustment.id }, true);
 		expect((await storage.localAccounts.getById(id, owner))!.data.balanceAdjustments).toHaveLength(0);
 	}

@@ -1,3 +1,4 @@
+import { formatAsset } from "@zaimu/finance/asset-amount";
 import { LuPencil, LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -6,8 +7,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import type { BalanceAdjustment } from "@/lib/balance-adjustment";
 import { formatLocalDate } from "@/lib/date";
 
-const formatMoney = (value: number, currency: string) =>
-	new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(value);
 export function BalanceAdjustmentRow({
 	adjustment,
 	pending,
@@ -27,10 +26,13 @@ export function BalanceAdjustmentRow({
 			<div className="min-w-0">
 				<p className="text-muted-foreground text-sm">{formatLocalDate(adjustment.date)}</p>
 				<p className="text-muted-foreground text-sm">
-					Saldo sem ajuste: {formatMoney(Number(adjustment.calculatedBalance), adjustment.currency ?? "BRL")}
+					Saldo sem ajuste:{" "}
+					{adjustment.calculatedBalance == null
+						? "Indisponível"
+						: formatAsset(adjustment.calculatedBalance, adjustment.assetCode)}
 				</p>
 				<p className="text-sm">
-					Saldo corrigido: {formatMoney(Number(adjustment.balance), adjustment.currency ?? "BRL")}
+					Saldo corrigido: {formatAsset(adjustment.balance, adjustment.assetCode)}
 				</p>
 			</div>
 			<ActionGroup className="ml-auto shrink-0 gap-1">

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { PaymentSuggestion } from "@/lib/api";
 import { runBackgroundModalAction } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
@@ -56,7 +57,7 @@ export function PaymentSuggestionForm({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: queryKeys.accounts.list(identity!),
 	});
-	const payerCurrency = accounts.data?.find(account => account.id === accountId)?.currency ?? "BRL";
+	const payerCurrency = primaryCurrency(accounts.data?.find(account => account.id === accountId)) ?? "BRL";
 	const foreign = payerCurrency !== (suggestion.currency ?? "BRL");
 	const [validationError, setValidationError] = useState("");
 	const submit = () => {
@@ -122,7 +123,9 @@ export function PaymentSuggestionForm({
 				>
 					<DialogHeader>
 						<DialogTitle>Pagamento de {suggestion.cardName}</DialogTitle>
-						<DialogDescription>Revise antes de registrar. Nenhum resgate será realizado.</DialogDescription>
+						<DialogDescription>
+							Revise antes de registrar. Nenhum resgate será realizado.
+						</DialogDescription>
 					</DialogHeader>
 					<DialogBody>
 						{validationError && (
@@ -191,8 +194,9 @@ export function PaymentSuggestionForm({
 						)}
 						{(initialDraft || (!preference.isPending && !preference.isError)) &&
 							date > suggestion.dueDate && (
-								<p className="text-amber-600 text-sm dark:text-amber-400" role="status">
-									Data do pagamento após o vencimento da fatura. O pagamento será registrado no cartão.
+								<p className="text-sm text-amber-600 dark:text-amber-400" role="status">
+									Data do pagamento após o vencimento da fatura. O pagamento será registrado
+									no cartão.
 								</p>
 							)}
 						{accounts.isPending ? (
@@ -207,7 +211,10 @@ export function PaymentSuggestionForm({
 								}}
 								options={(accounts.data ?? [])
 									.filter(account => !["CREDIT_CARD", "REWARDS"].includes(account.type))
-									.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
+									.map(account => ({
+										label: getFinancialAccountOptionLabel(account),
+										value: account.id,
+									}))}
 								placeholder="Selecione a conta pagadora"
 								required
 								searchable

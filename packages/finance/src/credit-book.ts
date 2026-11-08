@@ -6,6 +6,7 @@ export {
 	synchronizeBookRefinancing,
 } from "./credit-book-refinancing";
 
+import { decimalToUnits, unitsToDecimal } from "./asset-amount";
 import {
 	assertCalendarPeriod,
 	calendarCycles,
@@ -69,7 +70,7 @@ export interface BookPurchase extends CreditPurchase {
 	feeDescription: string | null;
 	refinancingFeeAmount: number | null;
 	cashbackAccountId: string | null;
-	cashbackAmount: number | null;
+	cashbackAmount: number | string | null;
 	cashbackCurrency?: string;
 	cashbackYieldPeriod: "MONTHLY" | "YEARLY" | null;
 	cashbackYieldReferencePercentage: number | null;
@@ -172,6 +173,16 @@ export function activePurchaseRefunds(book: CreditBook, purchaseId: string) {
 /** Explicit principal edits retain the booked historical reward factor. */
 export function resizePurchaseCashback(purchase: BookPurchase, previousTotal: number) {
 	if (purchase.cashbackAmount == null || previousTotal === purchase.totalAmountCents) return;
+	if (typeof purchase.cashbackAmount === "string") {
+		if (!purchase.cashbackCurrency || previousTotal <= 0)
+			throw new RangeError("Recompensa sem denominação válida");
+		const units = decimalToUnits(purchase.cashbackAmount, purchase.cashbackCurrency);
+		purchase.cashbackAmount = unitsToDecimal(
+			(units * BigInt(purchase.totalAmountCents) + BigInt(previousTotal) / 2n) / BigInt(previousTotal),
+			purchase.cashbackCurrency,
+		);
+		return;
+	}
 	const amount = (purchase.cashbackAmount * purchase.totalAmountCents) / previousTotal;
 	purchase.cashbackAmount = purchase.cashbackCurrency
 		? roundMoney(amount, purchase.cashbackCurrency)
@@ -191,6 +202,35 @@ export function creditBookRewards(book: CreditBook) {
 			currency: purchase.cashbackCurrency ?? book.card.currency ?? "BRL",
 			purchaseDate: purchase.purchaseDate,
 		};
+		if (typeof purchase.cashbackAmount === "string") {
+			if (!purchase.cashbackCurrency || purchase.totalAmountCents <= 0)
+				throw new RangeError("Recompensa sem denominação válida");
+			const currency = purchase.cashbackCurrency;
+			const units = decimalToUnits(purchase.cashbackAmount, currency);
+			const total = BigInt(purchase.totalAmountCents);
+			let refunded = 0;
+			return [
+				award,
+				...activePurchaseRefunds(book, purchase.id)
+					.toSorted(
+						(a, b) =>
+							a.creditDate.localeCompare(b.creditDate) ||
+							a.createdAt.localeCompare(b.createdAt) ||
+							a.id.localeCompare(b.id),
+					)
+					.map(refund => {
+						const before = (units * BigInt(refunded) + total / 2n) / total;
+						refunded = Math.min(purchase.totalAmountCents, refunded + refund.amountCents);
+						const after = (units * BigInt(refunded) + total / 2n) / total;
+						return {
+							...award,
+							cashbackAmount: unitsToDecimal(before - after, currency),
+							purchaseDate: refund.creditDate,
+						};
+					}),
+			];
+		}
+		const numericAmount = purchase.cashbackAmount;
 		const rewardScale = purchase.cashbackCurrency ? currencyScale(purchase.cashbackCurrency) : 10000;
 		let refunded = 0;
 		return [
@@ -204,11 +244,11 @@ export function creditBookRewards(book: CreditBook) {
 				)
 				.map(refund => {
 					const before = Math.round(
-						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * rewardScale,
+						((numericAmount * refunded) / purchase.totalAmountCents) * rewardScale,
 					);
 					refunded = Math.min(purchase.totalAmountCents, refunded + refund.amountCents);
 					const after = Math.round(
-						((purchase.cashbackAmount! * refunded) / purchase.totalAmountCents) * rewardScale,
+						((numericAmount * refunded) / purchase.totalAmountCents) * rewardScale,
 					);
 					return {
 						...award,

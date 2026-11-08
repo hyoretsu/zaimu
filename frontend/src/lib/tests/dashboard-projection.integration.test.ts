@@ -74,15 +74,15 @@ afterAll(async () => {
 const november = { endDate: "2026-11-30", periodsAfter: 0, periodsBefore: 0, startDate: "2026-11-01" };
 async function account(balance = 1000) {
 	const row: FinancialAccount = {
-		balance,
+		assets: [{ assetCode: "BRL", balance: String(balance) }],
 		createdAt: "2026-10-01",
-		currency: "BRL",
 		id: "checking",
 		isPrimary: true,
 		name: "Conta",
 		type: "CASH",
 		updatedAt: "2026-10-01",
 		userId: "projection-regressions",
+		yieldCurrency: "BRL",
 	};
 	await storage.localAccounts.put(row, row.id, owner);
 	await movement("opening-balance", "2026-10-01", balance, "INCOME");
@@ -107,6 +107,140 @@ async function movement(
 	};
 	await storage.localTransactions.put(row, id, owner);
 }
+
+async function cacheAssetQuotes() {
+	// Historical reads retain their date; future valuations must reuse October 12's quotes.
+	for (let day = 1; day <= 31; day++) {
+		const date = `2026-10-${String(day).padStart(2, "0")}`;
+		for (const [assetCode, price] of [
+			["BTC", "500"],
+			["ETH", "100"],
+			["USDC", "1"],
+		]) {
+			await storage.localMeta.set(
+				`asset-quote:${date}:${assetCode}:USD`,
+				{
+					assetCode,
+					date,
+					price,
+					quoteCurrency: "USD",
+					sourceTime: `${date}T12:00:00Z`,
+				},
+				owner,
+			);
+		}
+		await storage.localMeta.set(
+			`financial-history:/rate?date=${date}&from=USD&to=BRL:`,
+			{
+				date,
+				from: "USD",
+				rate: 1,
+				to: "BRL",
+			},
+			owner,
+		);
+	}
+}
+
+async function multiassetAccount() {
+	await cacheAssetQuotes();
+	await account(100);
+	const stored = (await storage.localAccounts.getById("checking", owner))!.data;
+	await storage.localAccounts.put(
+		{
+			...stored,
+			assets: [
+				{ assetCode: "BRL", balance: "100" },
+				{ assetCode: "BTC", balance: "1" },
+				{ assetCode: "ETH", balance: "1" },
+				{ assetCode: "USDC", balance: "0" },
+			],
+		},
+		stored.id,
+		owner,
+	);
+	for (const [assetCode, amount] of [
+		["BTC", "1"],
+		["ETH", "1"],
+	]) {
+		await movement(`opening-${assetCode}`, "2026-10-01", 0, "INCOME", {
+			amount,
+			bookingCurrency: assetCode,
+			currency: assetCode,
+		});
+	}
+}
+
+test("multiasset comparison yields on BRL principal 100, not crypto-valued wealth 600", async () => {
+	await multiassetAccount();
+	const stored = (await storage.localAccounts.getById("checking", owner))!.data;
+	// Start the principal today so no historical yield precedes the regression day.
+	const opening = (await storage.localTransactions.getById("opening-balance", owner))!.data;
+	await storage.localTransactions.put({ ...opening, date: "2026-10-12" }, opening.id, owner);
+	await storage.localTransactions.delete("opening-ETH", owner);
+	await storage.localAccounts.put(
+		{
+			...stored,
+			assets: stored.assets.filter(asset => asset.assetCode !== "ETH"),
+			countryCode: "BR",
+			createdAt: "2026-10-12",
+			yieldFixedRate: (1.01 ** 21 - 1) * 100,
+			yieldPeriod: "MONTHLY",
+		},
+		stored.id,
+		owner,
+	);
+	values.set(
+		"zaimu-yield-calendar-v1",
+		JSON.stringify({
+			countries: [],
+			coverage: [{ countryCode: "BR", status: "COMPLETE", year: 2026 }],
+			currencyCountries: [],
+			holidays: [],
+		}),
+	);
+	try {
+		const [result] = await comparison({ ...november, endDate: "2026-10-13", startDate: "2026-10-13" });
+		// BTC contributes 500 to wealth but does not increase the BRL yield base.
+		expect(result).toMatchObject({ endingBalance: 601, expenses: 0, initialBalance: 600 });
+		expect(result.income).toBeCloseTo(1, 12);
+	} finally {
+		values.delete("zaimu-yield-calendar-v1");
+	}
+});
+
+test("multiasset future crypto flows preserve both swap sides and debit third-asset gas once", async () => {
+	await multiassetAccount();
+	await movement("future-crypto-income", "2026-10-13", 0, "INCOME", {
+		amount: "0.2",
+		bookingCurrency: "BTC",
+		currency: "BTC",
+	});
+	await movement("future-crypto-expense", "2026-10-14", 0, "EXPENSE", {
+		amount: "0.1",
+		bookingCurrency: "BTC",
+		currency: "BTC",
+	});
+	await movement("future-swap", "2026-10-15", 0, "TRANSFER", {
+		amount: "0.2",
+		bookingCurrency: "BTC",
+		currency: "BTC",
+		destinationAmount: "100",
+		destinationCurrency: "USDC",
+		destinationFinancialAccountId: "checking",
+		fees: [{ amount: "0.01", assetCode: "ETH", name: "Gas", type: "FIXED" }],
+	});
+	const before = await storage.localTransactions.getAll(owner);
+	const [result] = await comparison({ ...november, endDate: "2026-10-15", startDate: "2026-10-13" });
+	expect(result).toMatchObject({
+		endingBalance: 749,
+		expenses: 51,
+		income: 100,
+		initialBalance: 700,
+		net: 49,
+	});
+	expect(await storage.localTransactions.getAll(owner)).toEqual(before);
+});
 
 test("PREV-001: future interval carries earlier movements only into its initial balance", async () => {
 	await account();
@@ -276,13 +410,14 @@ test("PREV-007: mixed expenses preserve centavos without adding card subtotal tw
 	await account(4681.01);
 	await storage.localAccounts.put(
 		{
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			createdAt: "2026-10-01",
 			id: "fixed",
 			name: "Renda fixa",
 			type: "SAVINGS",
 			updatedAt: "2026-10-01",
 			userId: "projection-regressions",
+			yieldCurrency: "BRL",
 		},
 		"fixed",
 		owner,
@@ -323,7 +458,7 @@ test("PREV-006: cashback remains in reward account and points stay outside monet
 		const id = kind.toLowerCase();
 		await storage.localAccounts.put(
 			{
-				balance: 0,
+				assets: [{ assetCode: "BRL", balance: "0" }],
 				createdAt: "2026-10-01",
 				id,
 				name: kind,
@@ -336,6 +471,7 @@ test("PREV-006: cashback remains in reward account and points stay outside monet
 				type: "REWARDS",
 				updatedAt: "2026-10-01",
 				userId: "projection-regressions",
+				yieldCurrency: "BRL",
 			},
 			id,
 			owner,
@@ -435,9 +571,8 @@ test("only hiding excludes a card from credit totals, including legacy exclusion
 	const stored = (await storage.localCreditCards.getById("card", owner))!.data;
 	await storage.localCreditCards.put({ ...stored, excludeFromTotals: true }, stored.id, owner);
 	const cardAccount: FinancialAccount = {
-		balance: 0,
+		assets: [{ assetCode: "BRL", balance: "0" }],
 		createdAt: "2026-10-01",
-		currency: "BRL",
 		id: "card-account",
 		isHidden: false,
 		isPrimary: false,
@@ -445,6 +580,7 @@ test("only hiding excludes a card from credit totals, including legacy exclusion
 		type: "CREDIT_CARD",
 		updatedAt: "2026-10-01",
 		userId: "projection-regressions",
+		yieldCurrency: "BRL",
 	};
 	await storage.localAccounts.put(cardAccount, cardAccount.id, owner);
 	const visible = await dataService.dashboard.get();

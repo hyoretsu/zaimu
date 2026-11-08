@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { decimalToUnits } from "@zaimu/finance/asset-amount";
+import { isCryptoAsset } from "@zaimu/finance/money";
 import { useEffect, useRef, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useDialogCloseReset } from "@/hooks/use-dialog-close-reset";
+import { primaryCurrency } from "@/lib/account-assets";
 import type { DebtSplitInput, FinancialAccount, FinancialFee, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { activeCurrency } from "@/lib/currency-context";
@@ -34,11 +37,23 @@ import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
+function validAssetAmount(value: string, code: string) {
+	try {
+		return decimalToUnits(value, code) > 0n;
+	} catch {
+		return false;
+	}
+}
+
 const initialDraft = (account?: FinancialAccount) => ({
 	amount: "",
-	currency: activeCurrency(),
+	currency:
+		account?.assets?.length === 1
+			? account.assets[0].assetCode
+			: (primaryCurrency(account) ?? activeCurrency()),
 	date: getLocalDateKey(),
 	destinationAmount: "",
+	destinationCurrency: "",
 	destinationFinancialAccountId: "",
 	fees: [] as FinancialFee[],
 	isHidden: false,
@@ -88,7 +103,9 @@ export function CreateTransactionDialog({
 				...current,
 				currency:
 					!current.amount && !currencyExplicit.current
-						? (account?.currency ?? current.currency)
+						? account?.assets?.length === 1
+							? account.assets[0].assetCode
+							: (primaryCurrency(account) ?? current.currency)
 						: current.currency,
 				destinationFinancialAccountId: isSavingsDestination
 					? account.id
@@ -170,15 +187,27 @@ export function CreateTransactionDialog({
 	useEffect(() => {
 		if (!open) return;
 		const currency =
-			account?.currency ??
-			accountsQuery.data?.find(item => item.id === primaryAccountId)?.currency ??
+			(account?.assets?.length === 1 ? account.assets[0].assetCode : primaryCurrency(account)) ??
+			(() => {
+				const selected = accountsQuery.data?.find(item => item.id === primaryAccountId);
+				return selected?.assets?.length === 1
+					? selected.assets[0].assetCode
+					: primaryCurrency(selected);
+			})() ??
 			effectiveCurrency;
 		setDraft(current =>
 			current.amount || currencyExplicit.current || current.currency === currency
 				? current
 				: { ...current, currency },
 		);
-	}, [open, account?.currency, accountsQuery.data, primaryAccountId, effectiveCurrency]);
+	}, [
+		open,
+		account?.assets,
+		account?.yieldCurrency,
+		accountsQuery.data,
+		primaryAccountId,
+		effectiveCurrency,
+	]);
 	const reset = () => {
 		currencyExplicit.current = false;
 		setDraft(initialDraft(account));
@@ -193,14 +222,14 @@ export function CreateTransactionDialog({
 	const create = useMutation({
 		meta: { cacheOperations: ["yield", "transaction"] },
 		mutationFn: async ({ debtSplit, description, draft, isDebt }: CreateTransactionInput) => {
-			const amount = Number.parseFloat(draft.amount);
+			const amount = isCryptoAsset(draft.currency) ? draft.amount : Number.parseFloat(draft.amount);
 			const originFinancialAccountId =
 				account && draft.type !== "TRANSFER" ? account.id : draft.originFinancialAccountId;
 			const destinationFinancialAccountId =
 				account && draft.type !== "TRANSFER" ? account.id : draft.destinationFinancialAccountId;
 			if (draft.type === "YIELD") {
 				return dataService.accountYields.create({
-					amount,
+					amount: Number(amount),
 					date: draft.date,
 					financialAccountId: destinationFinancialAccountId,
 					isHidden: draft.isHidden,
@@ -209,14 +238,28 @@ export function CreateTransactionDialog({
 			}
 			const transaction = await dataService.transactions.create({
 				amount,
+				bookingCurrency: isCryptoAsset(draft.currency)
+					? draft.currency
+					: (primaryCurrency(
+							accountsQuery.data?.find(
+								item =>
+									item.id ===
+									(draft.type === "INCOME"
+										? destinationFinancialAccountId
+										: originFinancialAccountId),
+							),
+						) ?? draft.currency),
 				currency: draft.currency,
 				date: draft.date,
-				debtSplit: isDebt ? debtSplit : undefined,
+				debtSplit: isDebt && !isCryptoAsset(draft.currency) ? debtSplit : undefined,
 				description: description.trim() || undefined,
 				destinationAmount:
 					draft.type === "TRANSFER" && draft.destinationAmount
-						? Number(draft.destinationAmount)
+						? isCryptoAsset(draft.destinationCurrency || draft.currency)
+							? draft.destinationAmount
+							: Number(draft.destinationAmount)
 						: undefined,
+				destinationCurrency: draft.destinationCurrency || draft.currency,
 				destinationFinancialAccountId:
 					draft.type === "INCOME" || draft.type === "TRANSFER"
 						? destinationFinancialAccountId || undefined
@@ -258,9 +301,6 @@ export function CreateTransactionDialog({
 			);
 		},
 	});
-	const save = () => {
-		create.mutate({ debtSplit, description, draft, isDebt });
-	};
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
@@ -281,34 +321,23 @@ export function CreateTransactionDialog({
 							<TransactionDetailsFields
 								amount={draft.amount}
 								amountIsPoints={pointsConversion.amountIsPoints}
-								bookingCurrency={
-									account?.currency ??
-									accountsQuery.data?.find(
-										item =>
-											item.id ===
-											(draft.type === "INCOME"
-												? draft.destinationFinancialAccountId
-												: draft.originFinancialAccountId),
-									)?.currency ??
-									draft.currency
-								}
+								bookingCurrency={draft.currency}
 								counterpart={pointsConversion.counterpart}
 								counterpartCurrency={
 									pointsConversion.counterpart === "payment"
 										? selectedStatement?.currency
-										: accountsQuery.data?.find(
-												item => item.id === draft.destinationFinancialAccountId,
-											)?.currency
+										: draft.destinationCurrency || draft.currency
 								}
 								counterpartIsPoints={pointsConversion.counterpartIsPoints}
 								counterpartValue={counterpartValue}
 								currencyCode={
 									draft.type === "YIELD"
-										? (account?.currency ?? draft.currency)
+										? (primaryCurrency(account) ?? draft.currency)
 										: draft.currency
 								}
 								date={draft.date}
 								description={description}
+								destinationAmount={draft.destinationAmount}
 								fees={draft.fees}
 								includeYield
 								isHidden={draft.isHidden}
@@ -330,6 +359,22 @@ export function CreateTransactionDialog({
 								}
 								onDateChange={date => setDraft(current => ({ ...current, date }))}
 								onDescriptionChange={setDescription}
+								onDestinationAmountChange={
+									draft.type === "TRANSFER"
+										? destinationAmount =>
+												setDraft(current =>
+													current ? { ...current, destinationAmount } : current,
+												)
+										: undefined
+								}
+								onDestinationCurrencyChange={
+									draft.type === "TRANSFER"
+										? destinationCurrency =>
+												setDraft(current =>
+													current ? { ...current, destinationCurrency } : current,
+												)
+										: undefined
+								}
 								onFeesChange={
 									draft.type !== "YIELD"
 										? fees => setDraft(current => ({ ...current, fees }))
@@ -389,6 +434,7 @@ export function CreateTransactionDialog({
 									<CheckboxField
 										checkboxProps={{
 											checked: isDebt,
+											disabled: isCryptoAsset(draft.currency),
 											id: "transaction-is-debt",
 											onCheckedChange: checked => {
 												setIsDebt(checked === true);
@@ -397,7 +443,12 @@ export function CreateTransactionDialog({
 									>
 										<span>Esta movimentação é de uma dívida</span>
 									</CheckboxField>
-									{isDebt ? (
+									{isCryptoAsset(draft.currency) && (
+										<p className="text-muted-foreground text-sm">
+											Rateios de dívidas exigem moeda fiduciária.
+										</p>
+									)}
+									{isDebt && !isCryptoAsset(draft.currency) ? (
 										<DebtSplitEditor
 											amount={Number(draft.amount)}
 											currencyCode={draft.currency}
@@ -493,17 +544,58 @@ export function CreateTransactionDialog({
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={
-							!draft.amount ||
+							!validAssetAmount(draft.amount, draft.currency) ||
+							(isCryptoAsset(draft.currency) &&
+								!!draft.paymentCreditCardId &&
+								!draft.paymentAmount) ||
 							draft.fees.some(
-								fee => !fee.name.trim() || !Number.isFinite(fee.amount) || fee.amount < 0,
+								fee =>
+									!fee.name.trim() || !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(String(fee.amount)),
 							) ||
 							!primaryAccountId ||
-							(pointsConversion.counterpart !== null && !Number(counterpartValue)) ||
+							(pointsConversion.counterpart !== null &&
+								!/^[+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(counterpartValue)) ||
+							(draft.type === "TRANSFER" &&
+								draft.destinationCurrency !== "" &&
+								draft.destinationCurrency !== draft.currency &&
+								!validAssetAmount(
+									draft.destinationAmount,
+									draft.destinationCurrency || draft.currency,
+								)) ||
+							(isDebt && isCryptoAsset(draft.currency)) ||
 							(isDebt &&
+								!isCryptoAsset(draft.currency) &&
 								!calculateDebtSplit(Number(draft.amount), debtSplit, draft.currency)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId)
 						}
-						onClick={save}
+						onClick={event => {
+							const dialog = event.currentTarget.closest('[role="dialog"]');
+							const raw = (id: string) =>
+								dialog?.querySelector<HTMLInputElement>(`#${id}-raw`)?.value;
+							create.mutate({
+								debtSplit,
+								description,
+								draft: {
+									...draft,
+									amount: raw("transaction-amount") ?? draft.amount,
+									destinationAmount:
+										raw("transaction-destination-amount") ??
+										(pointsConversion.counterpart !== "payment"
+											? raw("transaction-counterpart-amount")
+											: undefined) ??
+										draft.destinationAmount,
+									fees: draft.fees.map((fee, index) => ({
+										...fee,
+										amount: raw(`fee-amount-${index}`) ?? fee.amount,
+									})),
+									paymentAmount:
+										(pointsConversion.counterpart === "payment"
+											? raw("transaction-counterpart-amount")
+											: undefined) ?? draft.paymentAmount,
+								},
+								isDebt,
+							});
+						}}
 					>
 						Salvar
 					</Button>

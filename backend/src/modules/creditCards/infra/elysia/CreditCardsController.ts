@@ -25,6 +25,7 @@ import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
 import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
 import Elysia, { t } from "elysia";
+import { resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { accountCardRules, cardRulesByAccount } from "~/modules/accounts/application/institution-card-rules";
 import { setCardPayer } from "~/modules/accounts/application/payment-preferences";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
@@ -1146,6 +1147,18 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
 			await assertBalanceAccountOwnership(body.financialAccountId, userId);
+			const source = await resolveAccountAsset(body.financialAccountId, body.currency, {
+				create: true,
+				fiatOnly: true,
+				userId,
+			});
+			const paymentCurrency = await creditCardCurrency(params.id);
+			const money = await resolveFinancialMoney({
+				amount: body.amount,
+				currency: source.assetCode,
+				date: body.date,
+				targetCurrency: paymentCurrency,
+			});
 			const transaction = await withTransaction(async executor => {
 				await queryRaw(`SELECT "id" FROM "CreditCard" WHERE "id"=$1 FOR UPDATE`, [params.id]);
 				await queryRaw(`SELECT "id" FROM "FinancialAccount" WHERE "id"=$1 FOR UPDATE`, [
@@ -1155,9 +1168,13 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 					executor.db.sql.public.Transaction.insert([
 						{
 							amount: String(body.amount),
+							bookingCurrency: source.assetCode,
+							currency: source.assetCode,
 							date: body.date,
 							originFinancialAccountId: body.financialAccountId,
+							paymentAmount: String(money.amount),
 							paymentCreditCardId: params.id,
+							paymentCurrency,
 							time: resolvePurchaseTime(body.time),
 							type: "EXPENSE",
 							userId,
@@ -1190,6 +1207,7 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
+				currency: t.Optional(CurrencyDTO),
 				date: t.String({ format: "date" }),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 				time: t.Optional(

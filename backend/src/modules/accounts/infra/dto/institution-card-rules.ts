@@ -4,6 +4,7 @@ const Positive = t.Number({ exclusiveMinimum: 0 });
 export const InstitutionCardRulesDTO = t.Object({
 	cashback: t.Nullable(
 		t.Object({
+			assetCode: t.Optional(t.String({ pattern: "^[A-Z0-9]{2,12}$" })),
 			conversionAmount: t.Nullable(Positive),
 			conversionPoints: t.Nullable(Positive),
 			kind: t.Union([t.Literal("CASHBACK"), t.Literal("POINTS")]),

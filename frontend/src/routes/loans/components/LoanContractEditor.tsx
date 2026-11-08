@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/Dialog";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { primaryCurrency } from "@/lib/account-assets";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { loanContractService } from "@/lib/loan-contract-service";
@@ -232,7 +233,7 @@ export function LoanContractEditor({
 												row =>
 													["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(
 														row.type,
-													) && (row.currency ?? "BRL") === draft.currency,
+													) && (primaryCurrency(row) ?? "BRL") === draft.currency,
 											)
 											.map(row => ({
 												label: `Criar crédito em ${row.name}`,

@@ -19,7 +19,7 @@ const generated = [
 	},
 	{ hint: "Regenerate it with the backend `generate` script.", pattern: /^backend\/(?:src\/)?generated\// },
 	{ hint: "Regenerate it with the Tauri CLI.", pattern: /^frontend\/src-tauri\/gen\// },
-	{ hint: "Regenerate it with `bun run contract:emit` in packages/sql.", pattern: /^packages\/sql\/out\// },
+	{ hint: "Regenerate it with `bun run export` in packages/sql.", pattern: /^packages\/sql\/out\// },
 	{ hint: "Regenerate it through the build (TanStack Router plugin).", pattern: /\.gen\.ts$/ },
 ];
 

@@ -21,7 +21,8 @@ const ForecastReturn = t.Object({
 export const DashboardReturn = t.Object({
 	accounts: t.Array(
 		t.Object({
-			balance: t.Number(),
+			assets: t.Optional(t.Array(t.Object({ assetCode: t.String(), balance: t.String() }))),
+			balance: t.Nullable(t.Number()),
 			currency: t.String(),
 			id: t.String(),
 			institutionName: t.Nullable(t.String()),
@@ -63,7 +64,9 @@ export const DashboardReturn = t.Object({
 			id: t.String(),
 			institutionName: t.Nullable(t.String()),
 			name: t.Nullable(t.String()),
-			statement: t.Nullable(t.Object({ balanceAmount: t.Number(), dueDate: t.String(), id: t.String() })),
+			statement: t.Nullable(
+				t.Object({ balanceAmount: t.Number(), dueDate: t.String(), id: t.String() }),
+			),
 		}),
 	),
 	currency: t.String(),
@@ -75,7 +78,8 @@ export const DashboardReturn = t.Object({
 			owedToMe: t.Number(),
 			people: t.Array(
 				t.Object({
-					balance: t.Number(),
+					assets: t.Optional(t.Array(t.Object({ assetCode: t.String(), balance: t.String() }))),
+					balance: t.Nullable(t.Number()),
 					direction: t.Union([t.Literal("OWED"), t.Literal("OWES")]),
 					id: t.String(),
 					name: t.String(),

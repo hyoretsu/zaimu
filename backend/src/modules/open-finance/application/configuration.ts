@@ -1,3 +1,4 @@
+import { assertFiatHolding } from "~/modules/accounts/application/account-assets";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { HttpException } from "~/shared/errors";
@@ -161,7 +162,8 @@ export async function discoverConnections(userId: string) {
 		} catch (error) {
 			errors.push({
 				itemId,
-				message: error instanceof HttpException ? error.message : "Não foi possível consultar conexão",
+				message:
+					error instanceof HttpException ? error.message : "Não foi possível consultar conexão",
 			});
 		}
 	}
@@ -187,26 +189,27 @@ export async function saveBinding(
 		if (!remote) throw new HttpException("Conta remota não encontrada", 404);
 		const card = remote.type === "CREDIT";
 		if (!input.financialAccountId && !input.creditCardId) {
-			await executeRaw('DELETE FROM "OpenFinanceBinding" WHERE "connectionId"=$1 AND "remoteAccountId"=$2', [
-				connectionId,
-				input.remoteAccountId,
-			]);
+			await executeRaw(
+				'DELETE FROM "OpenFinanceBinding" WHERE "connectionId"=$1 AND "remoteAccountId"=$2',
+				[connectionId, input.remoteAccountId],
+			);
 			return;
 		}
 		const currency = await assertSupportedCurrency(remote.currencyCode ?? "BRL");
 		const [destination] = await queryRaw<{ id: string; currency: string; countryCode: string | null }>(
 			card
 				? `SELECT c."id", c."currency", a."countryCode" FROM "CreditCard" c JOIN "FinancialAccount" a ON a."id"=c."financialAccountId" WHERE c."id"=$1 AND a."userId"=$2`
-				: `SELECT "id", "currency", "countryCode" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','SAVINGS','CASH')`,
+				: `SELECT "id", "countryCode" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','SAVINGS','CASH')`,
 			[card ? input.creditCardId : input.financialAccountId, userId],
 		);
 		if (
 			!destination ||
-			destination.currency !== currency ||
+			(card && destination.currency !== currency) ||
 			(card ? Boolean(input.financialAccountId) : Boolean(input.creditCardId)) ||
 			(!card && remote.type !== "BANK")
 		)
 			throw new HttpException("Selecione um destino compatível pertencente à sua conta", 422);
+		if (!card) await assertFiatHolding(destination.id, currency, userId);
 		await ensureAccountCoverage(currency, destination.countryCode);
 		await executeRaw(
 			`INSERT INTO "OpenFinanceBinding" ("id", "connectionId", "remoteAccountId", "financialAccountId", "creditCardId", "paused") VALUES ($1,$2,$3,$4,$5,$6)

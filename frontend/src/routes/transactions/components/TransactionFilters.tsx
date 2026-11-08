@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { useUrlViewState } from "@/hooks/use-url-view-state";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import {
@@ -17,7 +16,6 @@ import {
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { viewBoolean } from "@/lib/view-state";
 import {
 	countActiveTransactionFilters,
 	type TransactionFilters as TransactionFiltersValue,
@@ -32,7 +30,7 @@ interface TransactionFiltersProps {
 
 export function TransactionFilters({ filters, onChange, onClear, transactions }: TransactionFiltersProps) {
 	const isMobile = useMediaQuery("(max-width: 639px)");
-	const [expanded, setExpanded] = useUrlViewState("filtersExpanded", !isMobile, viewBoolean);
+	const [expanded, setExpanded] = useState(!isMobile);
 	const contentId = useId();
 	const identity = useCacheIdentity();
 	const [accountsRequested, setAccountsRequested] = useState(false);

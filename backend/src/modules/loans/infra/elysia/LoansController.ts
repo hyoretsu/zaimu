@@ -7,10 +7,10 @@ import {
 } from "@zaimu/finance/loan-contract";
 import { differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
+import { resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { visibleInstitution } from "~/modules/accounts/application/universal-institutions";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { assertSupportedCurrency, defaultCurrency } from "~/modules/currencies/application/currency-defaults";
-import { financialAccountCurrency } from "~/modules/currencies/application/financial-money";
 import { getCurrencyRate } from "~/modules/currencies/infra/currency-exchange";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { userFinancialDate } from "~/shared/application/financial-date";
@@ -579,7 +579,12 @@ const LegacyLoansController = new Elysia({ detail: { tags: ["Loans"] }, prefix: 
 					? new Date(body.paidDate)
 					: new Date(`${paidDateKey}T00:00:00`);
 				const accountCurrency = body.financialAccountId
-					? await financialAccountCurrency(body.financialAccountId)
+					? (
+							await resolveAccountAsset(body.financialAccountId, undefined, {
+								fiatOnly: true,
+								userId,
+							})
+						).assetCode
 					: null;
 				const [accountAmount] = await loanAccountAmounts(
 					[Number(payment.totalPaid)],
@@ -700,7 +705,12 @@ const LegacyLoansController = new Elysia({ detail: { tags: ["Loans"] }, prefix: 
 					: new Date(`${paidDateKey}T00:00:00`);
 
 				const accountCurrency = body.financialAccountId
-					? await financialAccountCurrency(body.financialAccountId)
+					? (
+							await resolveAccountAsset(body.financialAccountId, undefined, {
+								fiatOnly: true,
+								userId,
+							})
+						).assetCode
 					: null;
 				const amounts = await loanAccountAmounts(
 					unpaidPayments.map(payment => Number(payment.totalPaid)),

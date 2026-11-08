@@ -2,7 +2,8 @@ import { moneyCents } from "@zaimu/finance/credit-book";
 import { currentDateKey } from "@zaimu/finance/credit-card";
 import { toMinorUnits } from "@zaimu/finance/money";
 import { pendingStatementPayments } from "@zaimu/finance/payment-suggestions";
-import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
+import { resolveAccountAsset } from "~/modules/accounts/application/account-assets";
+import { monetaryBalancesSql } from "~/modules/accounts/application/monetary-balances-sql";
 import { resolveFinancialMoney } from "~/modules/currencies/application/financial-money";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { HttpException } from "~/shared/errors";
@@ -70,11 +71,13 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 				throw new HttpException("Tentativa de pagamento já utilizada", 409);
 			return { transaction: presentSuggestedPayment(previous) };
 		}
-		const [account] = await query<{ id: string; type: string; currency: string }>(
-			`SELECT "id","type","currency" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') AND NOT "isHidden" FOR UPDATE`,
+		const [account] = await query<{ id: string; type: string }>(
+			`SELECT "id","type" FROM "FinancialAccount" WHERE "id"=$1 AND "userId"=$2 AND "type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') AND NOT "isHidden" FOR UPDATE`,
 			[input.financialAccountId, userId],
 		);
 		if (!account) throw new HttpException("Conta pagadora indisponível", 400);
+		const accountCurrency = (await resolveAccountAsset(account.id, undefined, { fiatOnly: true, userId }))
+			.assetCode;
 		const suggestion = pendingStatementPayments(book).find(row => row.statementId === input.statementId);
 		if (!suggestion || !Number.isFinite(input.amount) || !(input.amount > 0))
 			throw new HttpException("Saldo da fatura mudou. Revise o pagamento novamente", 409);
@@ -85,16 +88,20 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 					amount: input.amount,
 					currency: book.card.currency ?? "BRL",
 					date: input.date,
-					targetCurrency: account.currency,
+					targetCurrency: accountCurrency,
 				})
 			).amount;
-		toMinorUnits(debitAmount, account.currency, 1);
+		toMinorUnits(debitAmount, accountCurrency, 1);
 		if (input.date <= currentDateKey()) {
-			const balance =
-				(await getFinancialAccountBalances([account.id], new Date(`${input.date}T12:00:00Z`))).get(
-					account.id,
-				) ?? 0;
-			if (!hasPaymentBalance(balance, debitAmount, account.currency))
+			const rows = await query<{ accountId: string; assetCode: string; balance: number }>(
+				monetaryBalancesSql,
+				[userId, [input.date]],
+			);
+			const balance = Number(
+				rows.find(row => row.accountId === account.id && row.assetCode === accountCurrency)
+					?.balance ?? 0,
+			);
+			if (!hasPaymentBalance(balance, debitAmount, accountCurrency))
 				throw new HttpException("Saldo insuficiente na conta pagadora na data informada", 400);
 		}
 		const created = await withTransaction(async executor => {
@@ -107,7 +114,7 @@ export async function confirmSuggestedPayment(userId: string, cardId: string, in
 					input.date,
 					input.financialAccountId,
 					cardId,
-					account.currency,
+					accountCurrency,
 					input.amount,
 					book.card.currency ?? "BRL",
 				],

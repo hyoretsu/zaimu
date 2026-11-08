@@ -2,6 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { assertRewardsAccountDetails } from "./assert-rewards-account-details";
 
 describe("assertRewardsAccountDetails", () => {
+	test("preserves native crypto cashback initial balance precision", () => {
+		expect(() =>
+			assertRewardsAccountDetails({ initialBalance: "0.000000000000000005", kind: "CASHBACK" }),
+		).not.toThrow();
+		expect(() =>
+			assertRewardsAccountDetails({ initialBalance: "-0.000000000000000005", kind: "CASHBACK" }),
+		).toThrow();
+	});
 	test("accepts points without conversion", () => {
 		expect(() => assertRewardsAccountDetails({ initialBalance: 1000, kind: "POINTS" })).not.toThrow();
 	});

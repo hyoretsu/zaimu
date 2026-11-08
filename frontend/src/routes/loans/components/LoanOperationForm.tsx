@@ -16,6 +16,7 @@ import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { primaryCurrency } from "@/lib/account-assets";
 import { dataService } from "@/lib/dataService";
 import { getLocalDateKey } from "@/lib/date";
 import { loanContractService } from "@/lib/loan-contract-service";
@@ -72,7 +73,7 @@ export function LoanOperationForm({
 				accountId: accountId || null,
 				id: crypto.randomUUID(),
 			};
-			if (accountId && account?.currency !== terms.currency && booking.accountAmount === null)
+			if (accountId && primaryCurrency(account) !== terms.currency && booking.accountAmount === null)
 				throw new Error("Informe débito efetivo na moeda da conta");
 			setPending(true);
 			if (mode === "PAYMENT") {
@@ -240,7 +241,10 @@ export function LoanOperationForm({
 						{ label: "Sem conta específica", special: true, value: "" },
 						...(accounts.data ?? [])
 							.filter(row => ["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(row.type))
-							.map(row => ({ label: `${row.name} (${row.currency ?? "BRL"})`, value: row.id })),
+							.map(row => ({
+								label: `${row.name} (${primaryCurrency(row) ?? "BRL"})`,
+								value: row.id,
+							})),
 					]}
 					placeholder="Ex: Conta corrente"
 					searchable
@@ -249,11 +253,11 @@ export function LoanOperationForm({
 			)}{" "}
 			{account && (
 				<MoneyField
-					currencyCode={account.currency ?? "BRL"}
+					currencyCode={primaryCurrency(account) ?? "BRL"}
 					id="operation-actual"
 					label="Débito efetivo na conta"
 					onValueChange={setActual}
-					required={(account.currency ?? "BRL") !== terms.currency}
+					required={(primaryCurrency(account) ?? "BRL") !== terms.currency}
 					value={actual}
 				/>
 			)}{" "}

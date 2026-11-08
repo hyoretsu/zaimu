@@ -1,0 +1,9 @@
+{
+  "from": "5c0c1d3b21183e779bd6966ec7d962a3588da1a7991ca905a2c1a6e05645b259",
+  "to": "43df9ed47162e03bad16081a66c7b6def250677a70a523e18d65a8a479f74c31",
+  "providedInvariants": [
+    "multiAssetWallet.explicitDenominations.v1"
+  ],
+  "createdAt": "2026-11-05T12:46:40.245Z",
+  "migrationHash": "bfaad793ab0ec1b9fc20182ce8f66e57f6c09ed2a29b157bd208ea5108248abe"
+}

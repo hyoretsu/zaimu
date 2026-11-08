@@ -1,10 +1,10 @@
 import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
-import { supportedCountryCodes } from "~/modules/yield-calendar/calendar-source";
 import { HttpException } from "~/shared/errors";
 import { queryRaw } from "~/shared/infra/sql";
 import { normalizeFinancialInstitutionName } from "../domain/normalize-financial-institution-name";
 import type { InstitutionCatalogResult } from "../infra/dto/institution-catalog";
+import { assertSupportedCountries, normalizeInstitutionAliases } from "./institution-update-payload";
 
 export async function configureInstitutionCountries(
 	institutionId: string,
@@ -17,22 +17,8 @@ export async function configureInstitutionCountries(
 	if (normalized && (!normalized.name || normalized.name.length > 100))
 		throw new HttpException("Informe um nome com até 100 caracteres", 400);
 	const normalizedAliases =
-		aliases === undefined
-			? undefined
-			: [
-					...new Map(
-						aliases
-							.map(alias => normalizeFinancialInstitutionName(alias))
-							.filter(alias => alias.name)
-							.filter(alias => alias.normalizedName !== normalized?.normalizedName)
-							.map(alias => [alias.normalizedName, alias.name] as const),
-					).values(),
-				];
-	if (normalizedAliases?.some(alias => alias.length > 100))
-		throw new HttpException("Informe aliases com até 100 caracteres", 400);
-	for (const countryCode of operatingCountryCodes) {
-		if (!supportedCountryCodes.includes(countryCode)) throw new HttpException("País não suportado", 400);
-	}
+		aliases === undefined ? undefined : normalizeInstitutionAliases(aliases, normalized?.normalizedName);
+	assertSupportedCountries(operatingCountryCodes);
 	const currencies = await supportedCurrencies();
 	const currency =
 		operatingCountryCodes.length === 1 ? countryCurrency(operatingCountryCodes[0]!, currencies) : null;

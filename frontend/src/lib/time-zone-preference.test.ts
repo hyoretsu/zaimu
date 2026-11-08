@@ -18,13 +18,14 @@ test("guest financial dates and materialization follow saved regional timezone",
 	expect(await storage.localFinancialDate(owner, now)).toBe("2026-10-25");
 	await storage.localAccounts.put(
 		{
-			balance: 0,
+			assets: [{ assetCode: "BRL", balance: "0" }],
 			createdAt: "2026-10-25T00:00:00Z",
 			id: "a",
 			name: "Account",
 			type: "CHECKING",
 			updatedAt: "2026-10-25T00:00:00Z",
 			userId: "guest",
+			yieldCurrency: "BRL",
 		},
 		"a",
 		owner,

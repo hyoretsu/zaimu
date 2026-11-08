@@ -12,7 +12,7 @@ import { getCreditCardStatementDisplayBalance } from "@/lib/credit-card-statemen
 import { getLocalDateKey } from "@/lib/date";
 
 export function getCreditCardStatementStatus(
-	statement: CreditCardStatement & { payments?: readonly { date: string; amount: number }[] },
+	statement: CreditCardStatement & { payments?: readonly { date: string; amount: number | string }[] },
 	today = getLocalDateKey(),
 ) {
 	if (statement.isForecast) {
@@ -31,10 +31,10 @@ export function getCreditCardStatementStatus(
 		toCents(statement.scheduledPaymentAmount ?? 0),
 		statement.payments?.reduce(
 			(sum, payment) =>
-				payment.amount > 0 &&
+				Number(payment.amount) > 0 &&
 				payment.date.slice(0, 10) > today &&
 				payment.date.slice(0, 10) > statement.statementDate.slice(0, 10)
-					? sum + toCents(payment.amount)
+					? sum + toCents(Number(payment.amount))
 					: sum,
 			0,
 		) ?? 0,

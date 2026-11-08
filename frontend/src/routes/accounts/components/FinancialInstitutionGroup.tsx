@@ -3,7 +3,7 @@ import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
-import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
+import { getFinancialAccountMoneyPositions } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
 import { InstitutionActions } from "./InstitutionActions";
@@ -32,14 +32,7 @@ export function FinancialInstitutionGroup({
 	pending: boolean;
 	rewardAccounts: FinancialAccount[];
 }) {
-	const balances = new Map<string, number>();
-	for (const account of accounts.filter(account => account.type !== "CREDIT_CARD")) {
-		const denomination = account.rewardsAccount?.conversionCurrency ?? account.currency ?? "BRL";
-		balances.set(
-			denomination,
-			(balances.get(denomination) ?? 0) + getFinancialAccountCurrencyValue(account),
-		);
-	}
+	const balances = accounts.flatMap(getFinancialAccountMoneyPositions);
 	const Icon = institution ? LuLandmark : LuWalletCards;
 
 	return (
@@ -61,9 +54,7 @@ export function FinancialInstitutionGroup({
 						<p className="text-muted-foreground mt-0.5 text-sm">
 							Saldos:{" "}
 							<strong className="text-foreground">
-								<PreferredMoneyAmount
-									values={[...balances].map(([currency, amount]) => ({ amount, currency }))}
-								/>
+								<PreferredMoneyAmount values={balances} />
 							</strong>
 						</p>
 					</div>
