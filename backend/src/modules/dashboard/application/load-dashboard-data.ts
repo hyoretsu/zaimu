@@ -385,6 +385,7 @@ export async function loadDashboardRows(
 		rowsByKind(overviewRows, "payment").map(row => [String(row.id), Number(row.recurringAmount ?? 0)]),
 	);
 	const projectedCardPaymentAmounts = new Map<string, number>();
+	let projectedStatements: ReturnType<typeof replayDashboardStatements> | undefined;
 	return {
 		...({ projectedCardPaymentAmounts } as { projectedCardPaymentAmounts?: Map<string, number> }),
 		...({ monthlyBudgets } as { monthlyBudgets?: MonthlyBudget[] }),
@@ -440,23 +441,30 @@ export async function loadDashboardRows(
 				convert: RecurrenceMoneyConverter,
 			) => ReturnType<typeof replayDashboardStatements>;
 		}),
-		projectedStatements: replayDashboardStatements(
-			userId,
-			cards,
-			overviewRows,
-			dateKey(range.today),
-			recurrences.filter(
-				row =>
-					(row.currency ?? "BRL") ===
-					(cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
-			),
-			dateKey(range.comparisonEnd),
-			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
-				recurrenceId: string;
-				date: string;
-			}>,
-			projectedCardPaymentAmounts,
-		),
+		// Lazy: forecasts replay every card through the horizon, and currency-aware callers replace this value.
+		get projectedStatements() {
+			projectedStatements ??= replayDashboardStatements(
+				userId,
+				cards,
+				overviewRows,
+				dateKey(range.today),
+				recurrences.filter(
+					row =>
+						(row.currency ?? "BRL") ===
+						(cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
+				),
+				dateKey(range.comparisonEnd),
+				rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
+					recurrenceId: string;
+					date: string;
+				}>,
+				projectedCardPaymentAmounts,
+			);
+			return projectedStatements;
+		},
+		set projectedStatements(value: ReturnType<typeof replayDashboardStatements>) {
+			projectedStatements = value;
+		},
 		projectedYields: null as Awaited<ReturnType<typeof projectedYieldContext>> | null,
 		recurrences,
 		recurring: [],
