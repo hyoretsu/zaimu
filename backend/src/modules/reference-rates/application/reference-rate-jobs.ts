@@ -102,23 +102,6 @@ export async function accountFirstBalanceDate(accountId: string) {
 	);
 	return row?.date ?? null;
 }
-/** Lets open clients show progress; the matching `yieldRecalculated` event ends it. Best effort. */
-async function announceYieldRecalculation(accountId: string) {
-	try {
-		const [owner] = await queryRaw<{ userId: string }>(
-			`SELECT "userId" FROM "FinancialAccount" WHERE "id"=$1`,
-			[accountId],
-		);
-		if (owner)
-			await userEventBus.publish([owner.userId], {
-				aggregateId: accountId,
-				aggregateType: "yieldRecalculation",
-				eventType: "started",
-			});
-	} catch (error) {
-		console.warn("Failed to announce yield recalculation", error);
-	}
-}
 export async function enqueueAccountYieldRecalculation(
 	accountId: string,
 	fromDate: Date,
@@ -126,7 +109,6 @@ export async function enqueueAccountYieldRecalculation(
 	throughDate?: string,
 ) {
 	const deduplicationKey = `account:${accountId}:${dateKey(fromDate)}:${cause}`;
-	await announceYieldRecalculation(accountId);
 	await appendCommand("account-yield-recalculation", deduplicationKey, accountId, {
 		deduplicationKey,
 		financialAccountId: accountId,
@@ -500,18 +482,47 @@ export async function handleReferenceRateFetchCommand(
 	return processFetchJob(job, fetchRates, options.preserveExisting);
 }
 
+/**
+ * Lets open clients show progress while a recalculation actually runs. Announced by the worker rather than
+ * at enqueue time because duplicate commands are dropped by the outbox and would never report back.
+ * Best effort; `yieldRecalculated` (or `yieldRecalculationFailed`) ends it.
+ */
+async function announceYieldRecalculation(accountId: string, eventType: "failed" | "started") {
+	try {
+		const [owner] = await queryRaw<{ userId: string }>(
+			`SELECT "userId" FROM "FinancialAccount" WHERE "id"=$1`,
+			[accountId],
+		);
+		if (owner)
+			await userEventBus.publish([owner.userId], {
+				aggregateId: accountId,
+				aggregateType: "yieldRecalculation",
+				eventType,
+			});
+	} catch (error) {
+		console.warn("Failed to announce yield recalculation", error);
+	}
+}
 export async function handleAccountYieldRecalculationCommand(event: EventEnvelope) {
 	const accountId = requiredString(event.payload, "financialAccountId");
 	const throughDate = (event.payload as { throughDate?: string }).throughDate;
-	return withRawTransaction(async query => {
-		await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`account-yields:${accountId}`]);
-		return processAccountRecalculation({
-			deduplicationKey: requiredString(event.payload, "deduplicationKey"),
-			endDate: throughDate ? new Date(`${throughDate}T12:00:00`) : null,
-			financialAccountId: accountId,
-			fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
-			referenceType: null,
-			startDate: null,
+	await announceYieldRecalculation(accountId, "started");
+	try {
+		return await withRawTransaction(async query => {
+			await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+				`account-yields:${accountId}`,
+			]);
+			return processAccountRecalculation({
+				deduplicationKey: requiredString(event.payload, "deduplicationKey"),
+				endDate: throughDate ? new Date(`${throughDate}T12:00:00`) : null,
+				financialAccountId: accountId,
+				fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
+				referenceType: null,
+				startDate: null,
+			});
 		});
-	});
+	} catch (error) {
+		await announceYieldRecalculation(accountId, "failed");
+		throw error;
+	}
 }

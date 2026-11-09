@@ -57,7 +57,8 @@ export function connectRealtimeInvalidation(
 			eventType?: string;
 		};
 		if (aggregateType === "yieldRecalculation") {
-			yieldToast.start(aggregateId);
+			if (eventType === "started") yieldToast.start(aggregateId);
+			else yieldToast.finish(aggregateId);
 			return;
 		}
 		if (aggregateType === "financialAccount" && eventType === "yieldRecalculated")
