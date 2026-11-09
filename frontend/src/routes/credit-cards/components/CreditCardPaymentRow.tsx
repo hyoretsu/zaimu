@@ -1,7 +1,6 @@
 import { formatAsset } from "@zaimu/finance/asset-amount";
-import { LuCircleDollarSign, LuTrash2 } from "react-icons/lu";
+import { LuTrash2 } from "react-icons/lu";
 import { ItemActions } from "@/components/transactions/TransactionListItem/ItemActions";
-import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 
@@ -15,51 +14,41 @@ export function CreditCardPaymentRow({
 	payment: Transaction;
 }) {
 	const currencyCode = payment.destinationCurrency ?? payment.bookingCurrency ?? "BRL";
-	const time = formatLocalTime(payment.time);
+	const description = payment.description || "Pagamento da fatura";
 	return (
-		<ListItemLayout
-			actions={
-				<ItemActions
-					actions={[
-						{
-							ariaLabel: `Excluir ${payment.description || "pagamento da fatura"}`,
-							color: "destructive",
-							confirmation: "Excluir este pagamento permanentemente?",
-							confirmIcon: <LuTrash2 />,
-							disabled: deleteDisabled,
-							icon: <LuTrash2 />,
-							onConfirm: onDelete,
-							text: "Excluir",
-						},
-					]}
-					forceCompact
-				/>
-			}
-			amount={
-				<p className="amount-positive font-bold whitespace-nowrap">
+		<div className="bg-card grid min-w-0 gap-3 rounded-xl border p-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+			<div className="min-w-0">
+				<p className="truncate font-medium">{description}</p>
+				<p className="text-muted-foreground truncate text-xs">
+					{formatLocalDate(payment.date)}
+					{formatLocalTime(payment.time) ? ` · ${formatLocalTime(payment.time)}` : ""}
+				</p>
+			</div>
+			<div className="flex min-w-0 flex-col items-end justify-between gap-2">
+				<strong className="amount-positive">
 					{formatAsset(
 						payment.destinationAmount ?? String(payment.amount).replace(/^-/, ""),
 						currencyCode,
 					)}
-				</p>
-			}
-			className="bg-card rounded-xl border"
-			icon={
-				<div className="bg-muted text-success-600 flex size-11 shrink-0 items-center justify-center rounded-2xl">
-					<LuCircleDollarSign aria-hidden="true" />
+				</strong>
+				<div className="flex flex-wrap justify-end gap-2">
+					<ItemActions
+						actions={[
+							{
+								ariaLabel: `Excluir ${description}`,
+								color: "destructive",
+								confirmation: "Excluir este pagamento permanentemente?",
+								confirmIcon: <LuTrash2 />,
+								disabled: deleteDisabled,
+								icon: <LuTrash2 />,
+								onConfirm: onDelete,
+								text: "Excluir",
+							},
+						]}
+						forceCompact
+					/>
 				</div>
-			}
-			metadata={
-				<span className="text-muted-foreground text-xs">
-					{formatLocalDate(payment.date)}
-					{time ? ` · ${time}` : ""}
-				</span>
-			}
-			title={
-				<p className="min-w-0 flex-1 truncate leading-6 font-semibold">
-					{payment.description || "Pagamento da fatura"}
-				</p>
-			}
-		/>
+			</div>
+		</div>
 	);
 }
