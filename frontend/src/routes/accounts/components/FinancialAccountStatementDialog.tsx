@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LuFileUp, LuPlus, LuRefreshCw, LuScale } from "react-icons/lu";
+import { LuDownload, LuFileUp, LuPlus, LuRefreshCw, LuScale } from "react-icons/lu";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -21,6 +21,8 @@ import type { MoneyPosition } from "@/lib/consolidated-money";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { buildStatementCsv, downloadCsv } from "@/lib/statement-csv";
+import { showToast } from "@/stores";
 import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
 import { DetachedRewardHistory } from "./DetachedRewardHistory";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
@@ -160,6 +162,25 @@ export function FinancialAccountStatementDialog({
 		});
 		return Promise.resolve();
 	};
+	const exportCsv = async () => {
+		try {
+			const transactions: Transaction[] = [];
+			let cursor: string | undefined;
+			do {
+				const page = await dataService.transactions.getDailyPage({
+					cursor,
+					financialAccountId: account.id,
+					limit: 50,
+				});
+				transactions.push(...page.days.flatMap(day => day.transactions));
+				cursor = page.nextCursor ?? undefined;
+			} while (cursor);
+			downloadCsv(`extrato-${displayName}.csv`, buildStatementCsv(transactions, account.id));
+			showToast("Extrato exportado.", "positive");
+		} catch {
+			showToast("Não foi possível exportar extrato.", "negative");
+		}
+	};
 	const editTransaction = (transaction: Transaction) => setEditingTransaction(transaction);
 
 	return (
@@ -273,6 +294,11 @@ export function FinancialAccountStatementDialog({
 										},
 									]
 								: []),
+							{
+								icon: LuDownload,
+								label: "Exportar CSV",
+								onClick: exportCsv,
+							},
 							{
 								icon: LuPlus,
 								label: "Nova transação",
