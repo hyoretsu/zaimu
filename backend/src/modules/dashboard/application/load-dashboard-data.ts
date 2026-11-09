@@ -386,6 +386,25 @@ export async function loadDashboardRows(
 	);
 	const projectedCardPaymentAmounts = new Map<string, number>();
 	let projectedStatements: ReturnType<typeof replayDashboardStatements> | undefined;
+	const nativeRecurrences = recurrences.filter(
+		row =>
+			(row.currency ?? "BRL") === (cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
+	);
+	const allNativeRecurrences = nativeRecurrences.length === recurrences.length;
+	const nativeStatements = () =>
+		(projectedStatements ??= replayDashboardStatements(
+			userId,
+			cards,
+			overviewRows,
+			dateKey(range.today),
+			nativeRecurrences,
+			dateKey(range.comparisonEnd),
+			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
+				recurrenceId: string;
+				date: string;
+			}>,
+			projectedCardPaymentAmounts,
+		));
 	return {
 		...({ projectedCardPaymentAmounts } as { projectedCardPaymentAmounts?: Map<string, number> }),
 		...({ monthlyBudgets } as { monthlyBudgets?: MonthlyBudget[] }),
@@ -422,20 +441,23 @@ export async function loadDashboardRows(
 		})) as unknown as DashboardLoanPayment[],
 		...({
 			projectStatements: (convert: RecurrenceMoneyConverter) =>
-				replayDashboardStatements(
-					userId,
-					cards,
-					overviewRows,
-					dateKey(range.today),
-					recurrences,
-					dateKey(range.comparisonEnd),
-					rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
-						recurrenceId: string;
-						date: string;
-					}>,
-					projectedCardPaymentAmounts,
-					convert,
-				),
+				// Conversion is the identity when no recurrence differs from its card's currency.
+				allNativeRecurrences
+					? nativeStatements()
+					: replayDashboardStatements(
+							userId,
+							cards,
+							overviewRows,
+							dateKey(range.today),
+							recurrences,
+							dateKey(range.comparisonEnd),
+							rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
+								recurrenceId: string;
+								date: string;
+							}>,
+							projectedCardPaymentAmounts,
+							convert,
+						),
 		} as {
 			projectStatements?: (
 				convert: RecurrenceMoneyConverter,
@@ -443,24 +465,7 @@ export async function loadDashboardRows(
 		}),
 		// Lazy: forecasts replay every card through the horizon, and currency-aware callers replace this value.
 		get projectedStatements() {
-			projectedStatements ??= replayDashboardStatements(
-				userId,
-				cards,
-				overviewRows,
-				dateKey(range.today),
-				recurrences.filter(
-					row =>
-						(row.currency ?? "BRL") ===
-						(cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
-				),
-				dateKey(range.comparisonEnd),
-				rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
-					recurrenceId: string;
-					date: string;
-				}>,
-				projectedCardPaymentAmounts,
-			);
-			return projectedStatements;
+			return nativeStatements();
 		},
 		set projectedStatements(value: ReturnType<typeof replayDashboardStatements>) {
 			projectedStatements = value;
