@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LuFileUp, LuPlus, LuScale } from "react-icons/lu";
+import { LuFileUp, LuPlus, LuRefreshCw, LuScale } from "react-icons/lu";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -24,6 +24,7 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
 import { DetachedRewardHistory } from "./DetachedRewardHistory";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
+import { useRecalculateAccountYield } from "./RecalculateAccountYieldButton";
 
 export function FinancialAccountStatementDialog({
 	account,
@@ -36,6 +37,7 @@ export function FinancialAccountStatementDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const recalculateYield = useRecalculateAccountYield(account);
 	const requestedRecovery = useModalRecoveryStore(state =>
 		state.requestedId ? state.entries[state.requestedId] : undefined,
 	);
@@ -258,6 +260,16 @@ export function FinancialAccountStatementDialog({
 											icon: LuFileUp,
 											label: "Importar extrato",
 											onClick: () => setImportOpen(true),
+										},
+									]
+								: []),
+							...(account.type !== "CREDIT_CARD"
+								? [
+										{
+											disabled: recalculateYield.isPending,
+											icon: LuRefreshCw,
+											label: "Recalcular rendimentos",
+											onClick: () => recalculateYield.mutate(),
 										},
 									]
 								: []),
