@@ -19,6 +19,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, FinancialAccount, FinancialFee, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { formatLocalTime } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
@@ -57,7 +58,7 @@ function createDraft(transaction: Transaction) {
 		paymentCreditCardId: transaction.paymentCreditCardId ?? "",
 		storeName: transaction.storeName ?? "",
 		tagIds: transaction.tagIds ?? transaction.tags?.map(tag => tag.id) ?? [],
-		time: transaction.time ?? "",
+		time: formatLocalTime(transaction.time) ?? "",
 		type: transaction.type,
 	};
 }
