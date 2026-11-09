@@ -1,11 +1,11 @@
 import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
 import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, max, startOfDay } from "date-fns";
+import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
 import {
 	balanceAdjustmentSourceVersion,
 	reconcileBalanceAdjustments,
 } from "~/modules/accounts/application/balance-adjustment-reconciliation";
-import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
 import { loadFinancialAccountBalanceInput } from "~/modules/accounts/application/get-financial-account-balances";
 import {
 	calculateFinancialAccountYieldBalances,
@@ -253,10 +253,7 @@ export async function loadYieldAccounts(
 		yieldLots: snapshots.get(account.id) ?? [],
 	}));
 }
-export async function loadYieldAccount(
-	accountId: string,
-	currency?: string,
-): Promise<YieldAccount | null> {
+export async function loadYieldAccount(accountId: string, currency?: string): Promise<YieldAccount | null> {
 	return (
 		(await loadYieldAccounts([accountId], currency ? new Map([[accountId, currency]]) : undefined))[0] ??
 		null
@@ -273,11 +270,9 @@ function requiredReferenceTypes(settings: ReturnType<typeof getYieldSettings>) {
 				: [];
 	return [...new Set(types)];
 }
-async function processAccountRecalculation(job: ClaimedJob) {
+async function replayAccountYields(job: ClaimedJob, account: YieldAccount) {
 	if (!job.financialAccountId || !job.fromDate) throw new Error("Job de recálculo incompleto");
 	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
-	const account = await loadYieldAccount(job.financialAccountId);
-	if (!account) return;
 	const fiatCodes = await fiatHoldingCodes(account.id);
 	if (!fiatCodes.length) return;
 	const firstBalance = await accountFirstBalanceDate(account.id);
@@ -327,25 +322,28 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	}
 	// A checkpoint only depends on days before it, so missing rates later on do not block it.
 	await reconcile(dateKey(fromDate), firstGap);
+}
+
+/** Always notifies the owner, even when nothing needed replaying, so open clients never wait on a silent job. */
+async function processAccountRecalculation(job: ClaimedJob) {
+	if (!job.financialAccountId || !job.fromDate) throw new Error("Job de recálculo incompleto");
+	const account = await loadYieldAccount(job.financialAccountId);
+	if (!account) return;
+	await replayAccountYields(job, account);
 	await outbox.append(
 		createEventEnvelope({
 			aggregateId: account.id,
 			aggregateType: "financialAccount",
 			correlationId: commandId(job.deduplicationKey),
 			eventType: "yieldRecalculated",
-			payload: { fromDate: dateKey(fromDate) },
+			payload: { fromDate: dateKey(job.fromDate) },
 			userIds: [(account as YieldAccount & { userId: string }).userId],
 		}),
 	);
 }
 
 /** Regenerates the automatic yields of one fiat holding and returns its first day lacking published rates. */
-async function replayAccountCurrency(
-	account: YieldAccount,
-	currency: string,
-	fromDate: Date,
-	endDate: Date,
-) {
+async function replayAccountCurrency(account: YieldAccount, currency: string, fromDate: Date, endDate: Date) {
 	await loadTaxCatalog();
 	await executeRaw(
 		`DELETE FROM "public"."FinancialAccountYield" WHERE "financialAccountId" = $1 AND "assetCode" = $4 AND "kind" = 'AUTOMATIC' AND "origin" = 'SYSTEM' AND "date" >= $2 AND "date" <= $3`,
