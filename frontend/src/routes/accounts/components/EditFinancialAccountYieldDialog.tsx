@@ -65,6 +65,26 @@ export function EditFinancialAccountYieldDialog({
 		setIsHidden(entry.isHidden ?? false);
 	}, [entry, recovered]);
 	const pending = useModalRecoveryStore(state => !!state.pending[`${identity}:yield:${entry?.id}`]);
+	const saveAutomatic = async (draft: {
+		amount: string;
+		date: string;
+		entry: FinancialAccountYieldEntry;
+		time: string;
+	}) => {
+		const { entry: original } = draft;
+		await dataService.accountYields.upsertAutomatic({
+			amount: Number(draft.amount),
+			date: draft.date,
+			financialAccountId: original.financialAccountId,
+			time: draft.time || null,
+		});
+		if (draft.date !== original.date.slice(0, 10))
+			await dataService.accountYields.upsertAutomatic({
+				date: original.date.slice(0, 10),
+				financialAccountId: original.financialAccountId,
+				isExcluded: true,
+			});
+	};
 	const submit = (deleting: boolean) => {
 		if (!entry) return;
 		const draft = { amount, date, entry, isHidden, time };
@@ -116,39 +136,37 @@ export function EditFinancialAccountYieldDialog({
 						required
 						value={amount}
 					/>
+					<DateField
+						id="financial-account-yield-date"
+						label="Data"
+						name="date"
+						onValueChange={setDate}
+						required
+						value={date}
+					/>
+					<TimeField
+						id="financial-account-yield-time"
+						label="Horário"
+						name="time"
+						onValueChange={setTime}
+						value={time}
+					/>
 					{entry?.kind === "MANUAL" ? (
-						<>
-							<DateField
-								id="financial-account-yield-date"
-								label="Data"
-								name="date"
-								onValueChange={setDate}
-								required
-								value={date}
-							/>
-							<TimeField
-								id="financial-account-yield-time"
-								label="Horário"
-								name="time"
-								onValueChange={setTime}
-								value={time}
-							/>
-							<CheckboxField
-								checkboxProps={{
-									checked: isHidden,
-									id: "financial-account-yield-hidden",
-									onCheckedChange: checked => setIsHidden(checked === true),
-								}}
-							>
-								<span>Ocultar na lista do dia</span>
-							</CheckboxField>
-						</>
+						<CheckboxField
+							checkboxProps={{
+								checked: isHidden,
+								id: "financial-account-yield-hidden",
+								onCheckedChange: checked => setIsHidden(checked === true),
+							}}
+						>
+							<span>Ocultar na lista do dia</span>
+						</CheckboxField>
 					) : null}
 				</DialogBody>
 				<DialogFooter>
 					<ConfirmActionButton
 						aria-label="Excluir rendimento"
-						className="cursor-pointer text-destructive hover:text-destructive"
+						className="text-destructive hover:text-destructive cursor-pointer"
 						confirmation="Excluir rendimento?"
 						disabled={pending}
 						onConfirm={() => submit(true)}
@@ -157,7 +175,11 @@ export function EditFinancialAccountYieldDialog({
 						<LuTrash2 /> Excluir
 					</ConfirmActionButton>
 					<ActionGroup>
-						<Button className="cursor-pointer" onClick={() => changeOpen(false)} variant="outline">
+						<Button
+							className="cursor-pointer"
+							onClick={() => changeOpen(false)}
+							variant="outline"
+						>
 							Descartar
 						</Button>
 						<Button
