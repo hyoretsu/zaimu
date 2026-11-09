@@ -203,7 +203,6 @@ export function FinancialAccountStatementDialog({
 							/>
 						)}
 						<TransactionsList
-							canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
 							currencyCode={primaryCurrency(account) ?? "BRL"}
 							dailyEndingBalances={dailyEndingBalances}
 							hasMoreTransactions={statement.hasNextPage}

@@ -177,6 +177,24 @@ export function CreditCardStatementDetails({
 			showToast("Transação excluída.", "positive");
 		},
 	});
+	const deletePayment = useMutation({
+		meta: { cacheOperations: ["statement"] },
+		mutationFn: (paymentId: string) => dataService.transactions.delete(paymentId),
+		onError: error => {
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível excluir o pagamento.",
+				"negative",
+			);
+		},
+		onMutate: id => setPendingDeleteIds(current => new Set(current).add(id)),
+		onSettled: (_data, _error, id) =>
+			setPendingDeleteIds(current => {
+				const next = new Set(current);
+				next.delete(id);
+				return next;
+			}),
+		onSuccess: () => showToast("Pagamento excluído.", "positive"),
+	});
 	const backgroundAction = (
 		payload: StatementActionRecovery,
 		close: () => void,
@@ -421,7 +439,17 @@ export function CreditCardStatementDetails({
 							<div className="grid gap-2">
 								{entries.map(entry =>
 									entry.kind === "payment" ? (
-										<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
+										<CreditCardPaymentRow
+											deleteDisabled={
+												statement.isForecast === true ||
+												pendingDeleteIds.has(entry.payment.id)
+											}
+											key={entry.id}
+											onDelete={async () => {
+												await deletePayment.mutateAsync(entry.payment.id);
+											}}
+											payment={entry.payment}
+										/>
 									) : (
 										<CreditPurchaseRow
 											anticipateDisabled={

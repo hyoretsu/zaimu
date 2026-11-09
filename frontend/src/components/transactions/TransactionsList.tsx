@@ -42,7 +42,6 @@ interface TransactionsListProps {
 	dailyEndingBalances: ReadonlyMap<string, Array<{ currency: string; amount: number | string }>>;
 	onEditTransaction: (transaction: Transaction) => void;
 	onDeleteTransaction: (transaction: Transaction) => void | Promise<void>;
-	canDeleteTransaction?: (transaction: Transaction) => boolean;
 	isDeletingTransaction?: (transaction: Transaction) => boolean;
 	transactionMetadata?: (transaction: Transaction) => ReactNode;
 	onEditYield: (entry: FinancialAccountYieldEntry) => void;
@@ -70,7 +69,6 @@ export function TransactionsList({
 	dailyEndingBalances,
 	onEditTransaction,
 	onDeleteTransaction,
-	canDeleteTransaction,
 	isDeletingTransaction,
 	transactionMetadata,
 	onEditYield,
@@ -153,11 +151,7 @@ export function TransactionsList({
 					transactionMetadata?.(transaction) ??
 					(time ? <span className="text-muted-foreground text-xs">{time}</span> : undefined)
 				}
-				onDelete={
-					canDeleteTransaction?.(transaction) === false
-						? undefined
-						: () => onDeleteTransaction(transaction)
-				}
+				onDelete={() => onDeleteTransaction(transaction)}
 				onEdit={() => onEditTransaction(transaction)}
 				perspectiveAccountId={perspectiveAccountId}
 				transaction={transaction}
