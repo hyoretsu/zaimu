@@ -40,12 +40,20 @@ export function registerAssetDecimals(code: string, decimals: number) {
 export function isCryptoAsset(value: string): boolean {
 	const currency = normalizeCurrency(value);
 	if (cryptoDecimals.has(currency)) return true;
-	if (!/^[A-Z]{3}$/.test(currency)) return true;
+	const cached = isoCurrencyChecks.get(currency);
+	if (cached !== undefined) return cached;
+	const crypto = !/^[A-Z]{3}$/.test(currency) || !isSupportedIsoCurrency(currency);
+	isoCurrencyChecks.set(currency, crypto);
+	return crypto;
+}
+/** `Intl.supportedValuesOf` builds a fresh array on every call; the answer never changes per code. */
+const isoCurrencyChecks = new Map<string, boolean>();
+function isSupportedIsoCurrency(currency: string) {
 	try {
 		new Intl.NumberFormat("en", { currency, style: "currency" });
-		return !Intl.supportedValuesOf("currency").includes(currency);
+		return Intl.supportedValuesOf("currency").includes(currency);
 	} catch {
-		return true;
+		return false;
 	}
 }
 

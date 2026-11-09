@@ -640,8 +640,8 @@ export function materializeBookInstallments(book: CreditBook, asOf = currentDate
 	}
 }
 
-export function replayCreditBook(book: CreditBook, asOf = currentDateKey()) {
-	const plan = creditBookPlan(book);
+/** `plan` may be reused when only payments differ between replays: the plan never reads them. */
+export function replayCreditBook(book: CreditBook, asOf = currentDateKey(), plan = creditBookPlan(book)) {
 	const statements = statementCycles(
 		plan.statements.map(statement => ({
 			...statement,

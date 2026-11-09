@@ -1,6 +1,11 @@
-import { type CardPayment, calculateStatementBalances, type StatementInput } from "./credit-card";
+import { calculateStatementBalances, type CardPayment, type StatementInput } from "./credit-card";
 import { assertCents, assertDateKey, assertPurchase, type CreditPurchase } from "./credit-purchase";
-import { type CreditRefund, createRefundCalculator, type RefundInstallment } from "./credit-refund";
+import {
+	createRefundCalculator,
+	type CreditRefund,
+	type RefundEffect,
+	type RefundInstallment,
+} from "./credit-refund";
 import { currencyScale } from "./money";
 
 export interface PurchaseInvoiceInstallment extends RefundInstallment {
@@ -23,10 +28,48 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 	ignoreBefore?: string | null;
 }) {
 	assertDateKey(input.asOf);
-	const purchases = new Map(input.purchases.map(purchase => [purchase.id, assertPurchase(purchase)]));
-	if (purchases.size !== input.purchases.length) throw new RangeError("Compra duplicada");
 	const statementIds = new Set(input.statements.map(statement => statement.id));
 	if (statementIds.size !== input.statements.length) throw new RangeError("Fatura duplicada");
+	const hasRefunds = input.refunds.length > 0;
+	// Without refunds the purchase side depends only on purchases and installments, which replays reuse.
+	const cached = hasRefunds ? undefined : purchaseSideCache.get(input.installments);
+	const reusable = cached?.purchases === input.purchases ? cached : undefined;
+	const side = reusable ?? purchaseSide(input, statementIds);
+	if (!hasRefunds && !reusable)
+		purchaseSideCache.set(input.installments, { ...side, purchases: input.purchases });
+	const { effects, invoiceTotals } = side;
+	return {
+		refundEffects: effects,
+		statements: calculateStatementBalances(
+			input.statements.map(statement => ({
+				...statement,
+				totalAmount: (invoiceTotals.get(statement.id) ?? 0) / currencyScale(input.currency),
+			})),
+			[...input.payments],
+			input.asOf,
+			input.ignoreBefore,
+			input.currency,
+		),
+	};
+}
+
+const purchaseSideCache = new WeakMap<
+	readonly PurchaseInvoiceInstallment[],
+	{ purchases: readonly CreditPurchase[]; effects: RefundEffect[]; invoiceTotals: Map<string, number> }
+>();
+
+function purchaseSide<T extends StatementInput>(
+	input: {
+		purchases: readonly CreditPurchase[];
+		installments: readonly PurchaseInvoiceInstallment[];
+		refunds: readonly CreditRefund[];
+		statements: readonly T[];
+		asOf: string;
+	},
+	statementIds: Set<string>,
+) {
+	const purchases = new Map(input.purchases.map(purchase => [purchase.id, assertPurchase(purchase)]));
+	if (purchases.size !== input.purchases.length) throw new RangeError("Compra duplicada");
 	const invoiceTotals = new Map(input.statements.map(statement => [statement.id, 0]));
 	const installmentsByPurchase = new Map<string, PurchaseInvoiceInstallment[]>();
 	const refundsByPurchase = new Map<string, CreditRefund[]>();
@@ -79,17 +122,5 @@ export function rebuildPurchaseStatementLedger<T extends StatementInput>(input: 
 			invoiceTotals.set(refund.creditStatementId, amount);
 		}
 	}
-	return {
-		refundEffects: effects,
-		statements: calculateStatementBalances(
-			input.statements.map(statement => ({
-				...statement,
-				totalAmount: invoiceTotals.get(statement.id)! / currencyScale(input.currency),
-			})),
-			[...input.payments],
-			input.asOf,
-			input.ignoreBefore,
-			input.currency,
-		),
-	};
+	return { effects, invoiceTotals };
 }

@@ -198,6 +198,20 @@ export function redemptionRetainedFraction(
 ) {
 	return retainedFraction(settings, contributionDate, day, definitions);
 }
+const matureAges = new WeakMap<TaxDefinition[], number>();
+/** Age beyond which no configured bracket changes: the largest finite limit across every tax version. */
+function matureAge(definitions: TaxDefinition[]) {
+	let age = matureAges.get(definitions);
+	if (age === undefined) {
+		age = 0;
+		for (const definition of definitions)
+			for (const version of definition.versions)
+				for (const bracket of version.brackets)
+					if (bracket.upToDays !== null) age = Math.max(age, bracket.upToDays);
+		matureAges.set(definitions, age);
+	}
+	return age;
+}
 /** NET daily compounding. Profits retain contribution age; withdrawals use FIFO. */
 export class YieldTaxLedger {
 	readonly lots: YieldLot[];
@@ -271,7 +285,23 @@ export class YieldTaxLedger {
 		}
 		return net;
 	}
+	/**
+	 * Lots older than every tax bracket keep an identical retained fraction and are consumed FIFO,
+	 * so merging them leaves balances and yields untouched. Redemption taxes need per-lot principal.
+	 */
+	compactMatured(settings: TaxSettings, day: string, definitions = catalog) {
+		if (hasRedemptionTax(settings) || this.lots.length < 3) return;
+		const horizon = matureAge(definitions);
+		let merged = 1;
+		while (merged < this.lots.length && contributionAge(this.lots[merged]!.date, day) > horizon) merged++;
+		if (merged < 3) return;
+		const [first, ...absorbed] = this.lots.splice(0, merged) as [YieldLot, ...YieldLot[]];
+		for (const lot of absorbed) first.balance += lot.balance;
+		first.principal = undefined;
+		this.lots.unshift(first);
+	}
 	accrueRecordedNet(amount: number, settings: TaxSettings | undefined, day: string) {
+		if (settings) this.compactMatured(settings, day);
 		if (amount < 0) {
 			this.accrueNet(amount, day);
 			return;
