@@ -3,6 +3,7 @@ import {
 	LuBanknote,
 	LuCreditCard,
 	LuEllipsis,
+	LuEye,
 	LuEyeOff,
 	LuFileUp,
 	LuLandmark,
@@ -50,6 +51,7 @@ const points = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
 
 export function FinancialAccountCard({
 	account,
+	institutionName,
 	institutions,
 	onDelete,
 	onHide,
@@ -57,6 +59,7 @@ export function FinancialAccountCard({
 	rewardAccounts,
 }: {
 	account: FinancialAccount;
+	institutionName?: string;
 	institutions: FinancialInstitution[];
 	onDelete: () => void | Promise<void>;
 	onHide: () => void;
@@ -92,6 +95,12 @@ export function FinancialAccountCard({
 					</span>
 					<div className="min-w-0">
 						<h2 className="text-base leading-snug font-bold break-words">{listName}</h2>
+						{institutionName && (
+							<p className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-sm">
+								<LuLandmark className="size-3.5 shrink-0" />
+								<span className="truncate">{institutionName}</span>
+							</p>
+						)}
 						{accountHasCustomTitle && (
 							<AppBadge className="mt-1 flex" variant="secondary">
 								{typeLabel}
@@ -168,7 +177,8 @@ export function FinancialAccountCard({
 								size="sm"
 								variant="outline"
 							>
-								<LuEyeOff /> Esconder conta
+								{account.isHidden ? <LuEye /> : <LuEyeOff />}
+								{account.isHidden ? "Mostrar conta" : "Esconder conta"}
 							</Button>
 							<ConfirmActionButton
 								className="w-full cursor-pointer justify-start"
