@@ -35,6 +35,7 @@ test("invalidates every user affected by a shared debt event", async () => {
 		"transactions:detail",
 	]);
 	expect(publish).toHaveBeenCalledWith(["user-1", "user-2"], {
+		aggregateId: "debt-event",
 		aggregateType: "debt",
 		eventType: "updated",
 	});

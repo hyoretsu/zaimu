@@ -14,7 +14,11 @@ export class CacheInvalidationConsumer {
 		await Promise.all(event.userIds.map(userId => this.cache.finishWrite(userId, namespaces)));
 		// Clients refetch once the server cache is fresh; a lost push only delays them until the next load.
 		await this.realtime
-			.publish(event.userIds, { aggregateType: event.aggregateType, eventType: event.eventType })
+			.publish(event.userIds, {
+				aggregateId: event.aggregateId,
+				aggregateType: event.aggregateType,
+				eventType: event.eventType,
+			})
 			.catch(error => console.warn("Failed to publish realtime event", error));
 	}
 }

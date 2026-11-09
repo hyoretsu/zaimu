@@ -26,6 +26,7 @@ import { getCountryHolidays } from "~/modules/yield-calendar/catalog";
 import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { PostgresOutbox } from "~/shared/infra/outbox";
+import { userEventBus } from "~/shared/infra/realtime";
 import {
 	db,
 	executeRaw,
@@ -101,6 +102,23 @@ export async function accountFirstBalanceDate(accountId: string) {
 	);
 	return row?.date ?? null;
 }
+/** Lets open clients show progress; the matching `yieldRecalculated` event ends it. Best effort. */
+async function announceYieldRecalculation(accountId: string) {
+	try {
+		const [owner] = await queryRaw<{ userId: string }>(
+			`SELECT "userId" FROM "FinancialAccount" WHERE "id"=$1`,
+			[accountId],
+		);
+		if (owner)
+			await userEventBus.publish([owner.userId], {
+				aggregateId: accountId,
+				aggregateType: "yieldRecalculation",
+				eventType: "started",
+			});
+	} catch (error) {
+		console.warn("Failed to announce yield recalculation", error);
+	}
+}
 export async function enqueueAccountYieldRecalculation(
 	accountId: string,
 	fromDate: Date,
@@ -108,6 +126,7 @@ export async function enqueueAccountYieldRecalculation(
 	throughDate?: string,
 ) {
 	const deduplicationKey = `account:${accountId}:${dateKey(fromDate)}:${cause}`;
+	await announceYieldRecalculation(accountId);
 	await appendCommand("account-yield-recalculation", deduplicationKey, accountId, {
 		deduplicationKey,
 		financialAccountId: accountId,

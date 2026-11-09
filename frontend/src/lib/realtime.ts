@@ -4,6 +4,7 @@ import { activeCurrency } from "./currency-context";
 import { invalidateMutationCache } from "./mutation-cache";
 import type { CacheIdentity } from "./query-cache";
 import { type CacheOperations, realtimeCacheOperations } from "./realtime-operations";
+import { createYieldRecalculationToast } from "./yield-recalculation-toast";
 
 const flushDelayMs = 300;
 
@@ -29,6 +30,7 @@ export function connectRealtimeInvalidation(
 	getIdentity: () => CacheIdentity | null,
 ) {
 	const source = new EventSource(`${apiUrl}/realtime/stream`, { withCredentials: true });
+	const yieldToast = createYieldRecalculationToast();
 	const pending = new Set<CacheOperations[number]>();
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const flush = () => {
@@ -47,10 +49,19 @@ export function connectRealtimeInvalidation(
 		for (const listener of allBatchListeners()) listener();
 	});
 	source.addEventListener("domain", event => {
-		const { aggregateId, aggregateType } = JSON.parse((event as MessageEvent<string>).data) as {
+		const { aggregateId, aggregateType, eventType } = JSON.parse(
+			(event as MessageEvent<string>).data,
+		) as {
 			aggregateId?: string;
 			aggregateType: string;
+			eventType?: string;
 		};
+		if (aggregateType === "yieldRecalculation") {
+			yieldToast.start(aggregateId);
+			return;
+		}
+		if (aggregateType === "financialAccount" && eventType === "yieldRecalculated")
+			yieldToast.finish(aggregateId);
 		if (aggregateType === "importBatch") {
 			for (const listener of batchListeners.get(aggregateId ?? "") ?? []) listener();
 			return;
@@ -60,6 +71,7 @@ export function connectRealtimeInvalidation(
 	});
 	return () => {
 		clearTimeout(timer);
+		yieldToast.dispose();
 		source.close();
 	};
 }
