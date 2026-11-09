@@ -12,7 +12,7 @@ bun run --filter backend build
 
 Inventário usa caminhos efetivamente montados no OpenAPI, incluindo controllers compostos, preferências e health; exportação lê declarações sem executar endpoints. Impressão SHA-256 cobre fontes backend, telas, gerador e orçamentos. Executor e matriz recusam inventário desatualizado antes de conectar serviços ou preparar fixtures. Após mudar essas fontes, regenere com `bun backend/performance/inventory.ts`. Rotas e telas novas permanecem pendentes até medição própria.
 
-Fixtures: 10, 10 mil ou 100 mil transações por usuário; 1 a 20 identidades isoladas. Seed exige host, porta, usuário e nome da instância dedicada. Runner verifica identidades e conservação do principal nas parcelas antes de medir. API/worker usam namespace `zaimu_performance`, data financeira fixa em 2026-10-04, fornecedores BCB/câmbio simulados e bloqueio de HTTP externo.
+Fixtures: 10, 10 mil ou 100 mil transações por usuário; 1 a 20 identidades isoladas. Seed exige host, porta, usuário e nome da instância dedicada. Runner verifica identidades e conservação do principal nas parcelas antes de medir. API/worker usam namespace `zaimu_performance`, relógio JavaScript iniciado em 2026-10-04T12:00:00Z e avançando pelo relógio monotônico, fornecedores BCB/câmbio simulados e bloqueio de HTTP externo.
 
 Iniciar API release a partir de `backend`:
 
@@ -92,4 +92,4 @@ Journal contém resultados antes da associação final de telemetria. Recuperaç
 
 Seed executa ANALYZE uma vez após preparar todas as identidades, incluindo tabelas pequenas de contas/perfis. Isso evita estimativas de cardinalidade desconhecidas entre rodadas. Estatísticas não substituem testes da consulta em banco recém-criado.
 
-Preflight compara CURRENT_DATE do PostgreSQL com referência JavaScript antes de medir. Captura oficial recusa divergência; diagnóstico registra clock.consistent=false na fixture e permanece sem aceite. Proxy Date não congela relógio do banco. Até existir mecanismo determinístico entre camadas, matriz oficial fica bloqueada por esse requisito.
+Preflight compara CURRENT_DATE do PostgreSQL com referência JavaScript antes de medir. Captura oficial recusa divergência; diagnóstico registra clock.consistent=false na fixture e permanece sem aceite. O relógio JavaScript é deslocado para o instante da fixture e continua avançando com `performance.now()`: cache, TTL de sessão e deadlines não ficam congelados. Isso não desloca nem congela o relógio PostgreSQL. Sessões e timestamps JavaScript permanecem no epoch da fixture; diagnósticos continuam sem comprovar equivalência temporal com defaults SQL. Até existir mecanismo determinístico entre camadas, matriz oficial fica bloqueada por esse requisito.

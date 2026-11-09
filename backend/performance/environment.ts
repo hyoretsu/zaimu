@@ -1,8 +1,8 @@
-import { freezePerformanceDate } from "./clock";
+import { installPerformanceClock } from "./clock";
 import { createPerformanceFetch } from "./local-fetch";
 
 export function configurePerformanceEnvironment() {
-	freezePerformanceDate();
+	installPerformanceClock();
 	// Never inherit shared endpoints from .env or the caller.
 	Object.assign(process.env, {
 		BETTER_AUTH_SECRET: "zaimu-local-performance-secret-at-least-32-characters",
