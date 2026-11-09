@@ -619,7 +619,6 @@ export function CreateFinancialAccountDialog({
 									id="credit-limit"
 									label="Limite"
 									onValueChange={setCreditLimit}
-									placeholder="R$ 5.000,00"
 									required
 									value={creditLimit}
 								/>
@@ -629,7 +628,6 @@ export function CreateFinancialAccountDialog({
 										id="security-deposit"
 										label="Valor em garantia"
 										onValueChange={setSecurityDeposit}
-										placeholder="R$ 500,00"
 										value={securityDeposit}
 									/>
 									<p className="text-muted-foreground text-xs">
