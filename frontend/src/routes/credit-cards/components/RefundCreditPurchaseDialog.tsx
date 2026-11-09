@@ -187,7 +187,6 @@ export function RefundCreditPurchaseDialog({
 									id="credit-purchase-refund-amount"
 									label="Valor do reembolso"
 									onValueChange={setAmount}
-									placeholder="R$ 120,00"
 									value={displayedAmount}
 								/>
 								<CustomSelect

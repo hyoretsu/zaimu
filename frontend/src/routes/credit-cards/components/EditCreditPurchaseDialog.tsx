@@ -218,7 +218,6 @@ export function EditCreditPurchaseDialog({
 							id={installmentAmountId}
 							label={`Valor da parcela ${purchase.currentInstallment}/${purchase.installments}`}
 							onValueChange={setAmount}
-							placeholder="R$ 13,00"
 							required
 							value={amount}
 						/>
@@ -363,7 +362,6 @@ export function EditCreditPurchaseDialog({
 										amountEdited.current = true;
 										setAmount(value);
 									}}
-									placeholder="R$ 120,00"
 									rawValueName="purchaseAmount"
 									required
 									value={amount}

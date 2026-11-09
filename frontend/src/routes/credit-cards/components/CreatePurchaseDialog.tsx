@@ -159,7 +159,6 @@ export function CreatePurchaseDialog({
 										setAmount(value);
 										if (value && selectedCurrency === null) setCurrencyCode(currencyCode);
 									}}
-									placeholder="R$ 480,00"
 									required
 									value={amount}
 								/>

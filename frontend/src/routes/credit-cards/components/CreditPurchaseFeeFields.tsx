@@ -73,7 +73,6 @@ export function CreditPurchaseFeeFields({
 						id="purchase-fee-amount"
 						label="Valor da taxa"
 						onValueChange={onFeeAmountChange}
-						placeholder="R$ 6,38"
 						required
 						value={feeAmount}
 					/>

@@ -110,7 +110,6 @@ export function AnticipateCreditPurchaseDialog({
 							id="anticipate-credit-purchase-discount"
 							label="Desconto obtido (opcional)"
 							onValueChange={setDiscount}
-							placeholder="R$ 5,71"
 							value={discount}
 						/>
 						{selected.length ? (

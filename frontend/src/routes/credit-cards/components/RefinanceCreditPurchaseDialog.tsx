@@ -108,7 +108,6 @@ export function RefinanceCreditPurchaseDialog({
 							id="refinance-credit-purchase-total"
 							label="Novo valor total"
 							onValueChange={setTotalAmount}
-							placeholder="R$ 199,92"
 							required
 							value={totalAmount}
 						/>
