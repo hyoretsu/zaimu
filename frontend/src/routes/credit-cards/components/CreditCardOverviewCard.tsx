@@ -58,7 +58,7 @@ export function CreditCardOverviewCard({
 					</div>
 					<Progress value={percent} />
 				</div>
-				<div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+				<div className="grid grid-cols-2 gap-3">
 					<div className="bg-muted rounded-xl p-3">
 						<p className="text-muted-foreground text-xs">Fatura prevista</p>
 						<p className="mt-1 font-bold">
