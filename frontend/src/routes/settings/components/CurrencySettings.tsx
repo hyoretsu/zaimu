@@ -3,6 +3,16 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
+
+function currencyName(names: Intl.DisplayNames, code: string) {
+	try {
+		return names.of(code) ?? code;
+	} catch {
+		// DisplayNames rejects codes that are not well-formed ISO 4217 identifiers.
+		return code;
+	}
+}
+
 export function CurrencySettings() {
 	const { currencies, currency, loading, error, setPreference } = useCurrencyStore();
 	const [saving, setSaving] = useState(false);
@@ -20,11 +30,17 @@ export function CurrencySettings() {
 						void setPreference(value)
 							.then(() => showToast("Moeda padrão atualizada", "positive"))
 							.catch(error =>
-								showToast(error instanceof Error ? error.message : "Não foi possível salvar", "negative"),
+								showToast(
+									error instanceof Error ? error.message : "Não foi possível salvar",
+									"negative",
+								),
 							)
 							.finally(() => setSaving(false));
 					}}
-					options={currencies.map(value => ({ label: `${value} - ${names.of(value) ?? value}`, value }))}
+					options={currencies.map(value => ({
+						label: `${value} - ${currencyName(names, value)}`,
+						value,
+					}))}
 					placeholder="Ex: BRL - Real brasileiro"
 					searchable
 					value={currency}
