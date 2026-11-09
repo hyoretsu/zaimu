@@ -1,5 +1,5 @@
 import { type ComponentProps, useState } from "react";
-import { LuClock, LuX } from "react-icons/lu";
+import { LuX } from "react-icons/lu";
 import { caretAfterSlots, useMaskCaret } from "@/hooks/use-mask-caret";
 import { useTwelveHourClock } from "@/hooks/use-twelve-hour-clock";
 import { fixedMaskBeforeInput, fixedMaskKeyDown, fixedMaskPaste } from "@/lib/fixed-mask";
@@ -64,12 +64,7 @@ export function TimeField({ onValueChange, value, disabled, className, ...props 
 				</TooltipTrigger>
 				<TooltipContent>Limpar horário</TooltipContent>
 			</Tooltip>
-		) : (
-			<LuClock
-				aria-hidden
-				className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
-			/>
-		);
+		) : null;
 
 	return (
 		<FormField
@@ -81,7 +76,7 @@ export function TimeField({ onValueChange, value, disabled, className, ...props 
 			placeholder={twelveHour ? "hh:mm AM" : "HH:MM"}
 			ref={ref}
 			{...props}
-			className={`pr-11 ${className ?? ""}`}
+			className={`${clearButton ? "pr-11" : ""} ${className ?? ""}`}
 			disabled={disabled}
 			onChange={event => {
 				const { value: raw, selectionStart } = event.currentTarget;
