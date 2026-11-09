@@ -207,6 +207,7 @@ export function FinancialAccountStatementDialog({
 							onLoadMoreTransactions={statement.fetchNextPage}
 							onLoadMoreYields={yields.fetchNextPage}
 							onRetry={() => Promise.all([statement.refetch(), yields.refetch()])}
+							perspectiveAccountId={account.id}
 							refreshError={
 								(statement.isError && !!statement.data) || (yields.isError && !!yields.data)
 							}

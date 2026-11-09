@@ -34,6 +34,7 @@ type TransactionDisplayEntry =
 	  };
 
 interface TransactionsListProps {
+	perspectiveAccountId?: string;
 	viewKey?: string;
 	transactions: Transaction[];
 	yieldEntries?: FinancialAccountYieldEntry[];
@@ -62,6 +63,7 @@ interface TransactionsListProps {
 	onLoadMoreYields?: () => unknown;
 }
 export function TransactionsList({
+	perspectiveAccountId,
 	transactions,
 	yieldEntries = [],
 	dailyEndingBalances,
@@ -149,6 +151,7 @@ export function TransactionsList({
 						: () => onDeleteTransaction(transaction)
 				}
 				onEdit={() => onEditTransaction(transaction)}
+				perspectiveAccountId={perspectiveAccountId}
 				transaction={transaction}
 			/>
 		);
