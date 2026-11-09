@@ -179,14 +179,20 @@ export function dailyForecast(input: {
 			}
 			expenses += consolidatedAmount;
 			recurringExpenses += consolidatedRecurring;
+			const rates = new Map<string, number>();
+			const rateOf = (account: ForecastAccount) => {
+				const cached = rates.get(account.id);
+				if (cached !== undefined) return cached;
+				const rate = yieldRate(account, date);
+				rates.set(account.id, rate);
+				return rate;
+			};
 			const order = (input.strictAccounts ? (origin ? [origin] : []) : accounts).toSorted((a, b) => {
 				if (a.id === origin?.id) return -1;
 				if (b.id === origin?.id) return 1;
 				const group = (account: ForecastAccount) =>
 					account.type === "SAVINGS" ? 1 : account.type === "INVESTMENT" ? 2 : 0;
-				return (
-					group(a) - group(b) || yieldRate(a, date) - yieldRate(b, date) || a.id.localeCompare(b.id)
-				);
+				return group(a) - group(b) || rateOf(a) - rateOf(b) || a.id.localeCompare(b.id);
 			});
 			let remaining = consolidatedAmount;
 			for (const account of order) {
