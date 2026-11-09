@@ -324,7 +324,6 @@ export function RefundImportReviewDialog({
 										id="refund-original-total"
 										label="Valor total da compra original"
 										onValueChange={setTotalAmount}
-										placeholder="R$ 300,00"
 										required
 										value={totalAmount}
 									/>
