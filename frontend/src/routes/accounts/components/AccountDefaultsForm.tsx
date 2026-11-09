@@ -63,7 +63,6 @@ export function AccountDefaultsForm({
 						]}
 						placeholder="Selecione a conta padrão"
 						searchable
-						sortOptions={false}
 						value={primaryId}
 					/>
 					<p className="text-muted-foreground text-sm">
@@ -81,7 +80,6 @@ export function AccountDefaultsForm({
 						]}
 						placeholder="Selecione a conta pagadora"
 						searchable
-						sortOptions={false}
 						value={statementId}
 					/>
 					<p className="text-muted-foreground text-sm">

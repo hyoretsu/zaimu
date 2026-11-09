@@ -3,10 +3,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { primaryCurrency } from "@/lib/account-assets";
 import type { FinancialAccount } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import {
-	compareFinancialAccountsByDisplayName,
-	getFinancialAccountOptionLabel,
-} from "@/lib/financial-account";
+import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import type { UnifiedRecurringDraft } from "./unified-types";
 export function RecurrenceAccountFields({
@@ -22,7 +19,6 @@ export function RecurrenceAccountFields({
 }) {
 	const balanceOptions = accounts
 		.filter(account => ["CHECKING", "SAVINGS", "CASH"].includes(account.type))
-		.toSorted(compareFinancialAccountsByDisplayName)
 		.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }));
 	const identity = useCacheIdentity();
 	const needsCard = ["CARD_PURCHASE", "CARD_PAYMENT"].includes(draft.movement);
