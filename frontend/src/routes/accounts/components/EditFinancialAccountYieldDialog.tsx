@@ -128,6 +128,23 @@ export function EditFinancialAccountYieldDialog({
 					<DialogDescription>Atualize os dados do rendimento.</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
+					<div className="grid grid-cols-2 gap-3">
+						<DateField
+							id="financial-account-yield-date"
+							label="Data"
+							name="date"
+							onValueChange={setDate}
+							required
+							value={date}
+						/>
+						<TimeField
+							id="financial-account-yield-time"
+							label="Horário"
+							name="time"
+							onValueChange={setTime}
+							value={time}
+						/>
+					</div>
 					<MoneyField
 						currencyCode={entry?.currency ?? "BRL"}
 						id="financial-account-yield-amount"
@@ -135,21 +152,6 @@ export function EditFinancialAccountYieldDialog({
 						onValueChange={setAmount}
 						required
 						value={amount}
-					/>
-					<DateField
-						id="financial-account-yield-date"
-						label="Data"
-						name="date"
-						onValueChange={setDate}
-						required
-						value={date}
-					/>
-					<TimeField
-						id="financial-account-yield-time"
-						label="Horário"
-						name="time"
-						onValueChange={setTime}
-						value={time}
 					/>
 					{entry?.kind === "MANUAL" ? (
 						<CheckboxField
