@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import type { CreditCard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
-import { getCreditCardStatementPdfPasswordConfiguration } from "@/lib/credit-card-imports";
+import { creditCardStatementPdfPasswordPlaceholder } from "@/lib/credit-card-imports";
 import { dataService } from "@/lib/dataService";
 import { institutionOption } from "@/lib/financial-institution";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -75,7 +75,6 @@ export function ImportCreditCardStatementDialog({
 		const card = cards.find(card => card.id === id);
 		if (card) setInstitutionId(getCreditCardImportInstitution(card, accountList)?.id ?? "");
 	};
-	const passwordConfiguration = getCreditCardStatementPdfPasswordConfiguration(provider);
 	useEffect(() => {
 		if (!open) return;
 		setCreditCardId("");
@@ -232,21 +231,19 @@ export function ImportCreditCardStatementDialog({
 								{error}
 							</p>
 						))}
-						{passwordConfiguration ? (
-							<div className="grid gap-2">
-								<Label htmlFor="credit-card-import-password">Senha do PDF</Label>
-								<Input
-									autoComplete="off"
-									id="credit-card-import-password"
-									inputMode="numeric"
-									name="credit-card-import-password"
-									onChange={event => setPassword(event.currentTarget.value)}
-									placeholder={passwordConfiguration.placeholder}
-									type="password"
-									value={password}
-								/>
-							</div>
-						) : null}
+						<div className="grid gap-2">
+							<Label htmlFor="credit-card-import-password">Senha do PDF</Label>
+							<Input
+								autoComplete="off"
+								id="credit-card-import-password"
+								inputMode="numeric"
+								name="credit-card-import-password"
+								onChange={event => setPassword(event.currentTarget.value)}
+								placeholder={creditCardStatementPdfPasswordPlaceholder}
+								type="password"
+								value={password}
+							/>
+						</div>
 					</div>
 				</DialogBody>
 				<DialogFooter>
