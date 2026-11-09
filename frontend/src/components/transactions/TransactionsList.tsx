@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
+import { statementPagination } from "@/lib/statement-pagination";
 import { groupTransactionsForDisplay, sumYieldsByCurrency } from "@/lib/transaction-display-groups";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { FinancialAccountYieldStatementItem } from "./FinancialAccountYieldStatementItem";
@@ -92,16 +93,23 @@ export function TransactionsList({
 }: TransactionsListProps) {
 	const [expandedTransactionGroups, setExpandedTransactionGroups] = useState<Set<string>>(() => new Set());
 	const loadMoreRef = useRef<HTMLDivElement>(null);
+	const pagination = statementPagination([
+		{
+			dates: transactions.map(transaction => transaction.date.slice(0, 10)),
+			hasMore: hasMoreTransactions,
+		},
+		{ dates: yieldEntries.map(entry => entry.date), hasMore: hasMoreYields },
+	]);
 	const canLoadMoreTransactions =
-		hasMoreTransactions && !isFetchingMoreTransactions && !!onLoadMoreTransactions;
-	const canLoadMoreYields = hasMoreYields && !isFetchingMoreYields && !!onLoadMoreYields;
+		pagination.blocking.includes(0) && !isFetchingMoreTransactions && !!onLoadMoreTransactions;
+	const canLoadMoreYields = pagination.blocking.includes(1) && !isFetchingMoreYields && !!onLoadMoreYields;
 	const hasMore = hasMoreTransactions || hasMoreYields;
 	const isFetchingMore = isFetchingMoreTransactions || isFetchingMoreYields;
 	useEffect(() => {
 		if (isPending || refreshError || (!canLoadMoreTransactions && !canLoadMoreYields)) return;
 		const loadMoreWhenNearEnd = () => {
 			const element = loadMoreRef.current;
-			if (!element || element.getBoundingClientRect().top > window.innerHeight + 1200) return;
+			if (element && element.getBoundingClientRect().top > window.innerHeight + 1200) return;
 			if (canLoadMoreTransactions) void onLoadMoreTransactions?.();
 			if (canLoadMoreYields) void onLoadMoreYields?.();
 		};
@@ -157,19 +165,22 @@ export function TransactionsList({
 		);
 	};
 
-	const groupedTransactions = sortTransactionsByMostRecent(transactions).reduce<
-		Record<string, Transaction[]>
-	>((groups, transaction) => {
-		const date = transaction.date.slice(0, 10);
-		if (!groups[date]) groups[date] = [];
-		groups[date].push(transaction);
-		return groups;
-	}, {});
+	const groupedTransactions = sortTransactionsByMostRecent(transactions)
+		.filter(transaction => pagination.isVisible(transaction.date.slice(0, 10)))
+		.reduce<Record<string, Transaction[]>>((groups, transaction) => {
+			const date = transaction.date.slice(0, 10);
+			if (!groups[date]) groups[date] = [];
+			groups[date].push(transaction);
+			return groups;
+		}, {});
 	const today = getLocalDateKey(new Date());
-	const yieldsByDate = Map.groupBy(yieldEntries, entry => entry.date);
+	const yieldsByDate = Map.groupBy(
+		yieldEntries.filter(entry => pagination.isVisible(entry.date)),
+		entry => entry.date,
+	);
 	const displayDates = [
 		...new Set([
-			...dailyEndingBalances.keys(),
+			...[...dailyEndingBalances.keys()].filter(pagination.isVisible),
 			...Object.keys(groupedTransactions ?? {}),
 			...yieldsByDate.keys(),
 		]),
@@ -186,7 +197,7 @@ export function TransactionsList({
 	return (
 		<>
 			<QueryRefreshStatus error={refreshError} onRetry={() => onRetry?.()} pending={refreshPending} />
-			{isPending ? (
+			{isPending || (displayDates.length === 0 && hasMore && !isError) ? (
 				<div className="space-y-5">
 					{[1, 2, 3].map(item => (
 						<div className="space-y-2" key={item}>
