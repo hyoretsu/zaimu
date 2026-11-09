@@ -105,11 +105,7 @@ export function EditFinancialAccountYieldDialog({
 							})
 						: dataService.accountYields.delete(draft.entry.id)
 					: draft.entry.kind === "AUTOMATIC"
-						? dataService.accountYields.upsertAutomatic({
-								amount: Number(draft.amount),
-								date: draft.entry.date,
-								financialAccountId: draft.entry.financialAccountId,
-							})
+						? saveAutomatic(draft)
 						: dataService.accountYields.update(draft.entry.id, {
 								amount: Number(draft.amount),
 								date: draft.date,
