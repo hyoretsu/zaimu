@@ -4,6 +4,7 @@ import {
 	convertFixedSplit,
 	convertFixedSplitAtDate,
 	currencyDigits,
+	currencyLocale,
 	fromMinorUnits,
 	roundMoney,
 	toMinorUnits,
@@ -70,4 +71,13 @@ test("fixed split uses its own explicit denomination when moving between books",
 			throw new Error("Native conversion");
 		}),
 	).toBe(result);
+});
+
+test("each currency formats with its own locale", () => {
+	expect(currencyLocale("BRL")).toBe("pt-BR");
+	expect(currencyLocale("usd")).toBe("en-US");
+	expect(currencyLocale("BTC")).toBe("pt-BR");
+	expect(
+		new Intl.NumberFormat(currencyLocale("BRL"), { currency: "BRL", style: "currency" }).format(2946.12),
+	).toBe("R$ 2.946,12");
 });

@@ -17,6 +17,7 @@ import type { PaymentSuggestion } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { dataService } from "@/lib/dataService";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { type PaymentSuggestionDraft, PaymentSuggestionForm } from "./PaymentSuggestionForm";
 
@@ -74,7 +75,9 @@ export function PendingPaymentSuggestions() {
 						{accounts.isPending ? (
 							<Skeleton className="h-36" />
 						) : accounts.isError ? (
-							<p className="text-destructive text-sm">Não foi possível carregar contas pagadoras.</p>
+							<p className="text-destructive text-sm">
+								Não foi possível carregar contas pagadoras.
+							</p>
 						) : (
 							(suggestions.data ?? []).map(suggestion => (
 								<div
@@ -84,26 +87,33 @@ export function PendingPaymentSuggestions() {
 									<div>
 										<p className="font-semibold">{suggestion.cardName}</p>
 										<p className="text-muted-foreground text-sm">
-											Vencimento {dateFormat.format(new Date(`${suggestion.dueDate}T12:00:00`))}
+											Vencimento{" "}
+											{dateFormat.format(new Date(`${suggestion.dueDate}T12:00:00`))}
 										</p>
 										<p>
-											{new Intl.NumberFormat("pt-BR", {
-												currency: suggestion.currency ?? "BRL",
-												style: "currency",
-											}).format(suggestion.amount)}
+											{createCurrencyFormatter(suggestion.currency ?? "BRL").format(
+												suggestion.amount,
+											)}
 										</p>
 										<p className="text-muted-foreground text-sm">
 											Conta pagadora:{" "}
-											{accounts.data?.find(account => account.id === suggestion.financialAccountId)
+											{accounts.data?.find(
+												account => account.id === suggestion.financialAccountId,
+											)
 												? getFinancialAccountOptionLabel(
-														accounts.data.find(account => account.id === suggestion.financialAccountId)!,
+														accounts.data.find(
+															account =>
+																account.id === suggestion.financialAccountId,
+														)!,
 													)
 												: "Conta indisponível"}
 										</p>
 									</div>
 									<Button
 										className="ml-auto"
-										disabled={!!pending[`${identity}:card-payment:${suggestion.statementId}`]}
+										disabled={
+											!!pending[`${identity}:card-payment:${suggestion.statementId}`]
+										}
 										onClick={() => {
 											setDraft(undefined);
 											setSelected(suggestion);

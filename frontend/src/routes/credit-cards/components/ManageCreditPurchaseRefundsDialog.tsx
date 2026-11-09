@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import type { CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 
 export function ManageCreditPurchaseRefundsDialog({
@@ -49,7 +50,7 @@ export function ManageCreditPurchaseRefundsDialog({
 	const purchaseId = purchase.purchaseId ?? purchase.refundOfPurchaseId ?? purchase.id;
 	const book = bookQuery.data;
 	const currencyCode = book?.card.currency ?? purchase.bookingCurrency ?? "BRL";
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	const scale = currencyScale(currencyCode);
 	const effects = new Map(
 		(book ? creditBookEffects(book, "9999-12-31") : []).map(effect => [effect.refundId, effect]),
@@ -74,8 +75,8 @@ export function ManageCreditPurchaseRefundsDialog({
 				<DialogHeader>
 					<DialogTitle>Gerenciar reembolsos</DialogTitle>
 					<DialogDescription>
-						{purchaseName ? `Reembolsos de ${purchaseName}.` : "Reembolsos desta compra."} Edite, exclua ou
-						registre um novo reembolso.
+						{purchaseName ? `Reembolsos de ${purchaseName}.` : "Reembolsos desta compra."} Edite,
+						exclua ou registre um novo reembolso.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
@@ -85,7 +86,9 @@ export function ManageCreditPurchaseRefundsDialog({
 								[0, 1, 2].map(key => <Skeleton className="h-24 rounded-xl" key={key} />)
 							) : bookQuery.isError ? (
 								<div className="space-y-3">
-									<p className="text-destructive text-sm">Não foi possível carregar os reembolsos.</p>
+									<p className="text-destructive text-sm">
+										Não foi possível carregar os reembolsos.
+									</p>
 									<ActionGroup>
 										<Button onClick={() => void bookQuery.refetch()} variant="outline">
 											Tentar novamente
@@ -93,7 +96,9 @@ export function ManageCreditPurchaseRefundsDialog({
 									</ActionGroup>
 								</div>
 							) : refunds.length === 0 ? (
-								<p className="text-muted-foreground text-sm">Nenhum reembolso registrado para esta compra.</p>
+								<p className="text-muted-foreground text-sm">
+									Nenhum reembolso registrado para esta compra.
+								</p>
 							) : (
 								refunds.map(refund => (
 									<div
@@ -102,7 +107,9 @@ export function ManageCreditPurchaseRefundsDialog({
 									>
 										<div className="space-y-1 text-sm">
 											<p className="font-medium">{currency.format(refund.amount)}</p>
-											<p className="text-muted-foreground">{formatLocalDate(refund.date)}</p>
+											<p className="text-muted-foreground">
+												{formatLocalDate(refund.date)}
+											</p>
 											<p className="text-muted-foreground text-xs">
 												Crédito {currency.format(refund.creditAmount)}
 												{refund.canceledAmount > 0
@@ -153,7 +160,10 @@ export function ManageCreditPurchaseRefundsDialog({
 					</Button>
 					<Button
 						disabled={
-							bookQuery.isPending || bookQuery.isError || remainingAmount <= 0 || pendingRefundIds.size > 0
+							bookQuery.isPending ||
+							bookQuery.isError ||
+							remainingAmount <= 0 ||
+							pendingRefundIds.size > 0
 						}
 						onClick={onAdd}
 					>

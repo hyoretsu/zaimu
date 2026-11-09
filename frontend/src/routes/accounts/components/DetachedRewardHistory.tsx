@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import client from "@/lib/api/client-api";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { useAuthStore } from "@/stores/auth";
 
@@ -67,10 +68,9 @@ export function DetachedRewardHistory({
 						{item.amount < 0 ? "Estorno" : "Crédito"}
 					</span>
 					<span>
-						{new Intl.NumberFormat(
-							"pt-BR",
-							points ? { maximumFractionDigits: 4 } : { currency, style: "currency" },
-						).format(item.amount)}
+						{points
+							? new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(item.amount)
+							: createCurrencyFormatter(currency).format(item.amount)}
 						{points ? " pontos" : ""}
 					</span>
 				</article>

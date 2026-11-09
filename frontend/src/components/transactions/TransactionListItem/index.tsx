@@ -43,7 +43,7 @@ export function TransactionListItem({
 	transaction: Transaction;
 }) {
 	const currencyCode = transaction.bookingCurrency ?? "BRL";
-	const formatCurrency = (value: number) => createCurrencyFormatter(currencyCode, "pt-BR").format(value);
+	const formatCurrency = (value: number) => createCurrencyFormatter(currencyCode).format(value);
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
 	const amountPrefix =
 		Number(transaction.amount) === 0

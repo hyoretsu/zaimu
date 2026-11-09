@@ -16,16 +16,14 @@ import {
 import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import type { Dashboard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function DashboardCreditCards({
 	creditCards,
 	totalAvailableCredit,
 	currencyCode = "BRL",
 }: Pick<Dashboard, "creditCards" | "totalAvailableCredit"> & { currencyCode?: string }) {
-	const currency = new Intl.NumberFormat(navigator.languages, {
-		currency: currencyCode,
-		style: "currency",
-	});
+	const currency = createCurrencyFormatter(currencyCode);
 	const [panel, setPanel] = useUrlModalSelection("panel");
 	const open = panel === "cards";
 	const setOpen = (open: boolean) => setPanel(open ? "cards" : null);

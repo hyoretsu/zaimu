@@ -1,3 +1,4 @@
+import { currencyLocale } from "@zaimu/finance/money";
 import { useEffect, useRef, useState } from "react";
 import {
 	Bar,
@@ -12,6 +13,7 @@ import {
 } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { DashboardReferenceRateNotice } from "../../DashboardReferenceRateNotice";
 import { chartConfig } from "./chart-config";
 import { chartScale } from "./chart-scale";
@@ -48,8 +50,8 @@ export function DashboardPeriodChart({
 	data,
 	kind,
 }: DashboardPeriodChartProps) {
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
-	const compactCurrency = new Intl.NumberFormat("pt-BR", {
+	const currency = createCurrencyFormatter(currencyCode);
+	const compactCurrency = new Intl.NumberFormat(currencyLocale(currencyCode), {
 		currency: currencyCode,
 		notation: "compact",
 		style: "currency",
@@ -95,7 +97,7 @@ export function DashboardPeriodChart({
 	const scale = chartScale(scaleValues);
 	return (
 		<section aria-label={title}>
-			<h3 className="mb-3 font-medium text-sm">{title}</h3>
+			<h3 className="mb-3 text-sm font-medium">{title}</h3>
 			<div
 				onFocus={() => setInteracting(true)}
 				onPointerDown={() => setInteracting(true)}
@@ -139,7 +141,9 @@ export function DashboardPeriodChart({
 									coordinate={coordinate}
 									currencyCode={currencyCode}
 									kind={kind}
-									period={data.find(period => period.label === payload?.[0]?.payload?.label)}
+									period={data.find(
+										period => period.label === payload?.[0]?.payload?.label,
+									)}
 								/>
 							)}
 						/>
@@ -158,12 +162,22 @@ export function DashboardPeriodChart({
 							<>
 								<BarStack radius={[4, 4, 0, 0]} stackId="income">
 									{incomeKeys.map(key => (
-										<Bar dataKey={key} fill={`var(--color-${key})`} key={key} stackId="income" />
+										<Bar
+											dataKey={key}
+											fill={`var(--color-${key})`}
+											key={key}
+											stackId="income"
+										/>
 									))}
 								</BarStack>
 								<BarStack radius={[4, 4, 0, 0]} stackId="expenses">
 									{expenseKeys.map(key => (
-										<Bar dataKey={key} fill={`var(--color-${key})`} key={key} stackId="expenses" />
+										<Bar
+											dataKey={key}
+											fill={`var(--color-${key})`}
+											key={key}
+											stackId="expenses"
+										/>
 									))}
 								</BarStack>
 							</>
@@ -173,7 +187,7 @@ export function DashboardPeriodChart({
 			</div>
 			<ul
 				aria-label={`Legenda de ${title.toLowerCase()}`}
-				className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-muted-foreground text-xs"
+				className="text-muted-foreground mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs"
 			>
 				{keys.map(key => (
 					<li className="flex items-center gap-2 whitespace-nowrap" key={key}>

@@ -12,6 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 interface TransferSuggestion {
 	counterpart: Transaction;
@@ -69,21 +70,23 @@ export function TransferSuggestionsDialog({
 							) : (
 								suggestions.map(({ counterpart, transaction }) => (
 									<div
-										className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between"
+										className="bg-card flex min-w-0 flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
 										key={`${transaction.id}-${counterpart.id}`}
 									>
 										<div className="min-w-0 space-y-1">
-											<p className="break-words font-medium">
-												{transaction.description || "Saída"} ↔ {counterpart.description || "Entrada"}
+											<p className="font-medium break-words">
+												{transaction.description || "Saída"} ↔{" "}
+												{counterpart.description || "Entrada"}
 											</p>
 											<p className="text-muted-foreground text-xs">
 												{formatLocalDate(transaction.date)} ·{" "}
-												{new Intl.NumberFormat("pt-BR", {
-													currency: transaction.bookingCurrency ?? "BRL",
-													style: "currency",
-												}).format(Number(transaction.amount))}{" "}
+												{createCurrencyFormatter(
+													transaction.bookingCurrency ?? "BRL",
+												).format(Number(transaction.amount))}{" "}
 												· {formatLocalTime(transaction.time) ?? "Sem horário"}
-												{counterpart.time ? ` ↔ ${formatLocalTime(counterpart.time)}` : ""}
+												{counterpart.time
+													? ` ↔ ${formatLocalTime(counterpart.time)}`
+													: ""}
 											</p>
 										</div>
 										<Button

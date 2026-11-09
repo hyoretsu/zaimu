@@ -27,6 +27,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCurrencyStore } from "@/stores/currency";
 
 interface PurchaseDraft {
@@ -92,7 +93,7 @@ export function CreatePurchaseDialog({
 	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const currencyCode =
 		selectedCurrency ?? cards.find(card => card.id === cardId)?.currency ?? effectiveCurrency;
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	useEffect(() => {
 		if (open && initialCardId) setCardId(initialCardId);
 	}, [open, initialCardId]);

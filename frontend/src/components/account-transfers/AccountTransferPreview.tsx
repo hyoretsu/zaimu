@@ -15,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ownershipTransfers } from "@/lib/api/account-transfers";
 import { getFinancialAccountTypeLabel } from "@/lib/financial-account";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/auth";
@@ -107,15 +108,13 @@ export function AccountTransferPreview({ id, onClose }: { id: string; onClose: (
 													"pt-BR",
 												)}
 												:{" "}
-												{new Intl.NumberFormat("pt-BR", {
-													currency: statement.currency,
-													style: "currency",
-												}).format(statement.totalAmount)}{" "}
+												{createCurrencyFormatter(statement.currency).format(
+													statement.totalAmount,
+												)}{" "}
 												- Em aberto:{" "}
-												{new Intl.NumberFormat("pt-BR", {
-													currency: statement.currency,
-													style: "currency",
-												}).format(statement.amountDue)}
+												{createCurrencyFormatter(statement.currency).format(
+													statement.amountDue,
+												)}
 											</p>
 										))}
 										{account.name !== account.destinationName && (

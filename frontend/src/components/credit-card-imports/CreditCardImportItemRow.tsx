@@ -87,7 +87,7 @@ export function CreditCardImportItemRow({
 	const requiresOriginal = Boolean(anticipated);
 	const anticipatedAmount =
 		anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
-	const currency = createCurrencyFormatter(currencyCode, "pt-BR");
+	const currency = createCurrencyFormatter(currencyCode);
 
 	return (
 		<>

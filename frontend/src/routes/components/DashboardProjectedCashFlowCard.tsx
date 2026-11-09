@@ -16,7 +16,7 @@ export function DashboardProjectedCashFlowCard({
 	currencyCode = "BRL",
 	net,
 }: DashboardProjectedCashFlowCardProps) {
-	const currency = createCurrencyFormatter(currencyCode, navigator.languages);
+	const currency = createCurrencyFormatter(currencyCode);
 	const projectionKind = net > 0 ? "gain" : net < 0 ? "expense" : "neutral";
 	const copy = {
 		expense: {
@@ -46,29 +46,31 @@ export function DashboardProjectedCashFlowCard({
 			role="group"
 		>
 			<div className="px-4 py-3 sm:px-6 sm:py-4">
-				<p className="flex items-center gap-1.5 font-medium text-xs sm:gap-2 sm:text-sm">
+				<p className="flex items-center gap-1.5 text-xs font-medium sm:gap-2 sm:text-sm">
 					<LuCalendarClock aria-hidden="true" className="size-4 shrink-0" />
 					Projeção até fim do mês
 				</p>
-				<p className="mt-1 text-muted-foreground text-xs">{copy.description}</p>
+				<p className="text-muted-foreground mt-1 text-xs">{copy.description}</p>
 			</div>
 
 			<div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] border-t">
 				<div className="min-w-0 border-l px-4 py-3 sm:px-6 sm:py-4">
-					<p className="flex items-center gap-1.5 text-muted-foreground text-xs">
+					<p className="text-muted-foreground flex items-center gap-1.5 text-xs">
 						<LuArrowDownLeft aria-hidden="true" className="size-4 shrink-0" /> Entradas previstas
 					</p>
 					<MoneyValue className="mt-2 text-emerald-600">{currency.format(income)}</MoneyValue>
 				</div>
 				<div className="min-w-0 border-l px-4 py-3 sm:px-6 sm:py-4">
-					<p className="flex items-center gap-1.5 text-muted-foreground text-xs">
+					<p className="text-muted-foreground flex items-center gap-1.5 text-xs">
 						<LuArrowUpRight aria-hidden="true" className="size-4 shrink-0" /> Saídas previstas
 					</p>
 					<MoneyValue className="mt-2 text-rose-600">{currency.format(expenses)}</MoneyValue>
 				</div>
 				<div className="min-w-0 border-l px-4 py-3 sm:px-6 sm:py-4">
-					<p className="min-h-4 text-muted-foreground text-xs">{copy.resultLabel}</p>
-					<MoneyValue className={`mt-2 ${copy.valueClassName}`}>{currency.format(Math.abs(net))}</MoneyValue>
+					<p className="text-muted-foreground min-h-4 text-xs">{copy.resultLabel}</p>
+					<MoneyValue className={`mt-2 ${copy.valueClassName}`}>
+						{currency.format(Math.abs(net))}
+					</MoneyValue>
 				</div>
 			</div>
 		</Card>

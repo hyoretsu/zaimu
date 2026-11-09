@@ -163,7 +163,7 @@ export function RefundImportReviewDialog({
 					count >= (cancellation?.length ?? 1) &&
 					count <= 48,
 				);
-	const currency = createCurrencyFormatter(currencyCode, "pt-BR");
+	const currency = createCurrencyFormatter(currencyCode);
 	const original = mode === "link" ? book.data?.purchases.find(p => p.id === sourceId) : undefined;
 	const firstRefund =
 		mode === "reconstruct" ||

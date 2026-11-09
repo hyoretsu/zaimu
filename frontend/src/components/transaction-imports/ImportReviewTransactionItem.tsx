@@ -18,6 +18,7 @@ import { ImportItemDateTime, TransactionListItem } from "@/components/transactio
 import { Button } from "@/components/ui/Button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { Transaction, TransactionImportItem } from "@/lib/api";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { TransferSuggestionActions } from "./TransferSuggestionActions";
 
@@ -58,10 +59,7 @@ export function ImportReviewTransactionItem({
 }) {
 	const [associating, setAssociating] = useState(false);
 	const formatCurrency = (value: number) =>
-		new Intl.NumberFormat("pt-BR", {
-			currency: transaction.bookingCurrency ?? "BRL",
-			style: "currency",
-		}).format(value);
+		createCurrencyFormatter(transaction.bookingCurrency ?? "BRL").format(value);
 	const amountPrefix =
 		Number(transaction.amount) === 0
 			? ""

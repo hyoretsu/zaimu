@@ -30,6 +30,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 
@@ -145,7 +146,7 @@ export function EditCreditPurchaseDialog({
 		),
 	);
 	const [currencyCode, setCurrencyCode] = useState(purchase.currency ?? "BRL");
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	const [fees, setFees] = useState<FinancialFee[]>(
 		purchase.fees?.length
 			? purchase.fees

@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import type { CreditPurchase } from "@/lib/api";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { formatDebtSplitBadge } from "@/lib/debt-split";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function CreditPurchaseRow({
 	deleteDisabled,
@@ -35,7 +36,7 @@ export function CreditPurchaseRow({
 	purchase: CreditPurchase;
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	const tags = purchase.tags;
 	const debtPersonName = formatDebtSplitBadge(purchase.debtSplit);
 	const hasRefinancing = Boolean(purchase.refinancingPurchaseIds?.length);

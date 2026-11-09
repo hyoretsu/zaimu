@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { RefundInstallmentOptions } from "./RefundInstallmentOptions";
 
@@ -51,7 +52,7 @@ export function RefundCreditPurchaseDialog({
 	initialValues?: { amount?: number; date?: string; canceledInstallmentNumbers?: number[] };
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	const [amount, setAmount] = useState<string | null>(
 		initialValues?.amount !== undefined
 			? String(initialValues.amount)

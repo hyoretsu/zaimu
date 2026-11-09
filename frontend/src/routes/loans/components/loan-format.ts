@@ -1,2 +1,3 @@
+import { createCurrencyFormatter } from "@/lib/format-currency";
 export const formatCurrency = (value: number, currency = "BRL") =>
-	new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(value);
+	createCurrencyFormatter(currency).format(value);

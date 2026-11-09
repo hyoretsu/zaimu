@@ -64,7 +64,7 @@ export function ImportedTaxPurchaseSelect({
 						label: [
 							item.description.trim() || item.storeName?.trim(),
 							formatLocalDate(item.purchaseDate),
-							createCurrencyFormatter(currencyCode, "pt-BR").format(item.installmentAmount),
+							createCurrencyFormatter(currencyCode).format(item.installmentAmount),
 						]
 							.filter(Boolean)
 							.join(" - "),

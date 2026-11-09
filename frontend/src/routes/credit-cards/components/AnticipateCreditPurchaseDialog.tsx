@@ -14,6 +14,7 @@ import {
 import { MoneyField } from "@/components/ui/MoneyField";
 import type { CreditPurchase } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function AnticipateCreditPurchaseDialog({
 	initialValues,
@@ -35,7 +36,7 @@ export function AnticipateCreditPurchaseDialog({
 	purchase: CreditPurchase;
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	const remaining = Array.from(
 		{ length: Math.max(0, purchase.installments - purchase.currentInstallment) },
 		(_, index) => purchase.currentInstallment + index + 1,

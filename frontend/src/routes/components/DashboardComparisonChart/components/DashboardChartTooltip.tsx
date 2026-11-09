@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import type { DashboardPeriod } from "@/lib/api";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import type { DashboardChartKind } from "./types";
 
 interface DashboardChartTooltipProps {
@@ -15,7 +16,7 @@ export function DashboardChartTooltip({
 	kind,
 	period,
 }: DashboardChartTooltipProps) {
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	if (!active || !period) return null;
 	const start = new Date(`${period.startDate}T12:00:00`);
 	const end = new Date(`${period.endDate}T12:00:00`);
@@ -41,7 +42,12 @@ export function DashboardChartTooltip({
 					value: period.fixedIncomeBalance + period.variableIncomeBalance,
 				},
 				{ color: "#f59e0b", label: "Renda fixa", nested: true, value: period.fixedIncomeBalance },
-				{ color: "#8b5cf6", label: "Renda variável", nested: true, value: period.variableIncomeBalance },
+				{
+					color: "#8b5cf6",
+					label: "Renda variável",
+					nested: true,
+					value: period.variableIncomeBalance,
+				},
 			],
 			value: period.endingBalance,
 		},
@@ -69,7 +75,12 @@ export function DashboardChartTooltip({
 					subtotal: true,
 					value: period.cardExpenses ?? 0,
 				},
-				{ color: "#d946ef", label: "Assinaturas", nested: true, value: period.recurringCardExpenses ?? 0 },
+				{
+					color: "#d946ef",
+					label: "Assinaturas",
+					nested: true,
+					value: period.recurringCardExpenses ?? 0,
+				},
 				{
 					color: "#f97316",
 					label: "Outras compras",
@@ -90,14 +101,14 @@ export function DashboardChartTooltip({
 		},
 	];
 	return (
-		<div className="grid w-72 max-w-[calc(100vw-4rem)] gap-1.5 rounded-lg border border-border/50 bg-background px-3 py-2 text-xs shadow-xl">
+		<div className="border-border/50 bg-background grid w-72 max-w-[calc(100vw-4rem)] gap-1.5 rounded-lg border px-3 py-2 text-xs shadow-xl">
 			<p className="font-medium">{label}</p>
 			{groups
 				.filter((_, index) => !kind || (kind === "balances" ? index === 0 : index > 0))
 				.map(group => (
 					<section
 						aria-label={group.label}
-						className="grid gap-1.5 border-border/60 border-t pt-2"
+						className="border-border/60 grid gap-1.5 border-t pt-2"
 						key={group.label}
 					>
 						<div className="flex items-center justify-between gap-3 font-semibold">

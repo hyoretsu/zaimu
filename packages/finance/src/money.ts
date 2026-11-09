@@ -27,6 +27,27 @@ export function normalizeCurrency(value: string): string {
 	return currency;
 }
 
+const currencyLocales: Record<string, string> = {
+	ARS: "es-AR",
+	AUD: "en-AU",
+	BRL: "pt-BR",
+	CAD: "en-CA",
+	CHF: "de-CH",
+	CLP: "es-CL",
+	CNY: "zh-CN",
+	COP: "es-CO",
+	EUR: "de-DE",
+	GBP: "en-GB",
+	JPY: "ja-JP",
+	MXN: "es-MX",
+	USD: "en-US",
+};
+
+/** Locale whose number conventions belong to a currency; unknown currencies and crypto assets use pt-BR. */
+export function currencyLocale(currency: string): string {
+	return currencyLocales[currency.trim().toUpperCase()] ?? "pt-BR";
+}
+
 /** Register the catalog precision of a non-ISO asset (e.g. from `Asset.decimals`). */
 export function registerAssetDecimals(code: string, decimals: number) {
 	if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18)

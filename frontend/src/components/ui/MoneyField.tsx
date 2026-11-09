@@ -1,5 +1,5 @@
 import { formatAsset, unitsToDecimal } from "@zaimu/finance/asset-amount";
-import { currencyDigits, currencyScale, isCryptoAsset } from "@zaimu/finance/money";
+import { currencyDigits, currencyLocale, currencyScale, isCryptoAsset } from "@zaimu/finance/money";
 import type { ChangeEvent, ComponentProps } from "react";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { Input } from "./Input";
@@ -42,13 +42,14 @@ export function MoneyField({
 	const [localValue, setLocalValue] = useDebouncedInput(value, onValueChange);
 	const hasCurrency = currencyCode.trim() !== "";
 	const crypto = hasCurrency && isCryptoAsset(currencyCode);
+	const locale = hasCurrency ? currencyLocale(currencyCode) : "pt-BR";
 	const intl = new Intl.NumberFormat(
-		"pt-BR",
+		locale,
 		hasCurrency && !crypto ? { currency: currencyCode, style: "currency" } : { style: "decimal" },
 	);
 	const formatValue = (value: string) =>
 		crypto
-			? formatAsset(value, currencyCode, { locale: "pt-BR", trim: false })
+			? formatAsset(value, currencyCode, { locale, trim: false })
 			: intl.format(Number(value) < 0 ? Number(value) : Math.abs(Number(value)));
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
 		if (hasCurrency) setLocalValue(centsToDecimal(event.currentTarget.value, currencyCode));

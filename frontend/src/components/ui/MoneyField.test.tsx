@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { currencyLocale } from "@zaimu/finance/money";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MoneyField } from "./MoneyField";
 
@@ -27,7 +28,10 @@ test("unconfigured institution currency keeps the money field mounted and disabl
 test("configured currencies retain their monetary format and editable input", () => {
 	for (const currency of ["BRL", "USD", "JPY", "KWD"]) {
 		const html = renderField(currency, "1500");
-		const formatted = new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(1500);
+		const formatted = new Intl.NumberFormat(currencyLocale(currency), {
+			currency,
+			style: "currency",
+		}).format(1500);
 		expect(html).toContain(`value="${formatted}"`);
 		expect(html).not.toContain('disabled=""');
 	}

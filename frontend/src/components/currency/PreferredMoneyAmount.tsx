@@ -67,7 +67,7 @@ export function PreferredMoneyAmount({
 			/>
 		);
 	if (query.isError) return <span>Conversão indisponível</span>;
-	const formatter = createCurrencyFormatter(currency, "pt-BR");
+	const formatter = createCurrencyFormatter(currency);
 	if (debt === "absolute") return <span>{formatter.format(Math.abs(query.data))}</span>;
 	if (debt === "plural" && query.data !== 0) {
 		return (

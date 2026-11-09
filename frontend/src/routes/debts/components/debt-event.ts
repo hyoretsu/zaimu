@@ -1,4 +1,5 @@
 import type { DebtEvent } from "@/lib/api";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 const eventLabelCollator = new Intl.Collator("pt-BR", { sensitivity: "base" });
 
@@ -13,10 +14,7 @@ export function getDebtEventLabel(event: DebtEvent) {
 export function getDebtEventInstallmentLabel(event: DebtEvent) {
 	if (!event.installments || event.installments < 2 || event.installmentAmount == null) return null;
 
-	const amount = new Intl.NumberFormat("pt-BR", {
-		currency: event.currency ?? "BRL",
-		style: "currency",
-	}).format(event.installmentAmount);
+	const amount = createCurrencyFormatter(event.currency ?? "BRL").format(event.installmentAmount);
 	return `${event.installments}x de ${amount}`;
 }
 
