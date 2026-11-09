@@ -49,6 +49,7 @@ export function FinancialAccountYieldStatementItem({
 							text: "Excluir",
 						},
 					]}
+					forceCompact
 				/>
 			}
 			amount={
