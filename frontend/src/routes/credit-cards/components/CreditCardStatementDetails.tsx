@@ -267,6 +267,7 @@ export function CreditCardStatementDetails({
 							<strong className="block text-2xl tabular-nums">
 								{
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[{ amount: invoiceAmount, currency: currencyCode }]}
 									/>
 								}
@@ -276,6 +277,7 @@ export function CreditCardStatementDetails({
 									<p className="text-muted-foreground text-xs">Saldo transposto</p>
 									<strong className="block text-2xl tabular-nums">
 										<PreferredMoneyAmount
+											currency={currencyCode}
 											values={[{ amount: carriedOutAmount, currency: currencyCode }]}
 										/>
 									</strong>
@@ -285,6 +287,7 @@ export function CreditCardStatementDetails({
 								<p className="text-muted-foreground mt-1 text-xs">
 									Crédito da fatura anterior:{" "}
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[
 											{ amount: statement.creditInAmount ?? 0, currency: currencyCode },
 										]}
@@ -295,6 +298,7 @@ export function CreditCardStatementDetails({
 								<p className="text-muted-foreground mt-1 text-xs">
 									Previsão:{" "}
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[{ amount: projectedAmount, currency: currencyCode }]}
 									/>
 								</p>
@@ -303,6 +307,7 @@ export function CreditCardStatementDetails({
 								<p className="text-muted-foreground mt-1 text-sm">
 									Valor original:{" "}
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[
 											{
 												amount: displayedStatement.calculatedTotalAmount ?? 0,
@@ -320,6 +325,7 @@ export function CreditCardStatementDetails({
 										{remainingAmount < 0 ? "Crédito" : "Restante a pagar"}:{" "}
 										{
 											<PreferredMoneyAmount
+												currency={currencyCode}
 												values={[
 													{
 														amount: Math.abs(remainingAmount),
