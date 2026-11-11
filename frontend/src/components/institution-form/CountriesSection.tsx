@@ -16,6 +16,7 @@ export function CountriesSection({
 	onChange: (patch: Partial<InstitutionFormState>) => void;
 	state: InstitutionFormState;
 }) {
+	const currencySummary = state.currency ? ` - moeda ${state.currency}` : "";
 	return (
 		<CollapsibleFormSection
 			summary={

@@ -8,7 +8,6 @@ import type {
 	PolicyDraft,
 } from "./types";
 
-export const DEFAULT_CURRENCY = "BRL";
 export const DEFAULT_PROFILE_NAME = "Padrão";
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(item => b.includes(item));
@@ -26,7 +25,7 @@ export function initialFormState(institution?: InstitutionFormSource): Instituti
 		aliases: (institution?.aliases ?? []).join(", "),
 		closingInclusive: institution?.creditStatementClosingInclusive ?? false,
 		countries: institution?.operatingCountryCodes ?? [],
-		currency: institution?.currency ?? DEFAULT_CURRENCY,
+		currency: institution?.currency ?? "",
 		name: institution?.name ?? "",
 		newProfiles: [],
 		policies: [],
@@ -76,7 +75,7 @@ export function buildProposalBody(
 			: state.countries.length
 	)
 		body.operatingCountryCodes = state.countries;
-	if (state.currency !== (institution?.currency ?? DEFAULT_CURRENCY)) body.currency = state.currency;
+	if (state.currency !== (institution?.currency ?? "")) body.currency = state.currency || null;
 	if (state.closingInclusive !== (institution?.creditStatementClosingInclusive ?? false))
 		body.creditStatementClosingInclusive = state.closingInclusive;
 	if (state.remainderOnFirst !== (institution?.creditInstallmentRemainderOnFirst ?? false))
