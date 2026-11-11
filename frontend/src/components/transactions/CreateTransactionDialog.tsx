@@ -254,7 +254,10 @@ export function CreateTransactionDialog({
 				debtSplit: isDebt && !isCryptoAsset(draft.currency) ? debtSplit : undefined,
 				description: description.trim() || undefined,
 				destinationAmount:
-					draft.type === "TRANSFER" && draft.destinationAmount
+					draft.type === "TRANSFER" &&
+					draft.destinationAmount &&
+					(pointsConversion.counterpart !== null ||
+						(draft.destinationCurrency || draft.currency) !== draft.currency)
 						? isCryptoAsset(draft.destinationCurrency || draft.currency)
 							? draft.destinationAmount
 							: Number(draft.destinationAmount)

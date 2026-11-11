@@ -140,7 +140,10 @@ export function EditTransactionForm({
 				debtSplit: isDebt && !isCryptoAsset(draft.currency) ? debtSplit : null,
 				description: description.trim(),
 				destinationAmount:
-					draft.type === "TRANSFER" && draft.destinationAmount
+					draft.type === "TRANSFER" &&
+					draft.destinationAmount &&
+					(pointsConversion.counterpart !== null ||
+						(draft.destinationCurrency || draft.currency) !== draft.currency)
 						? isCryptoAsset(draft.destinationCurrency || draft.currency)
 							? draft.destinationAmount
 							: Number(draft.destinationAmount)
