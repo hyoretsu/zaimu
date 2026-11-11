@@ -80,17 +80,6 @@ export function CreditCardOverviewCard({
 								/>
 							}
 						</p>
-						{limit.temporaryCredit > 0 && (
-							<p className="text-brand-ink/60 mt-1 text-xs">
-								Crédito temporário por pagamento excedente: +{" "}
-								{
-									<PreferredMoneyAmount
-										currency={currencyCode}
-										values={[{ amount: limit.temporaryCredit, currency: currencyCode }]}
-									/>
-								}
-							</p>
-						)}
 					</div>
 				</div>
 				{card.securityDeposit != null && (
