@@ -21,8 +21,8 @@ export function CountriesSection({
 		<CollapsibleFormSection
 			summary={
 				state.countries.length
-					? `${state.countries.map(code => countryName(code)).join("; ")} - moeda ${state.currency}`
-					: `Nenhum país configurado - moeda ${state.currency}`
+					? `${state.countries.map(code => countryName(code)).join("; ")}${currencySummary}`
+					: `Nenhum país configurado${currencySummary}`
 			}
 			title="Países de operação"
 		>
