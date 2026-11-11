@@ -9,7 +9,7 @@ import type { Transaction } from "@/lib/api";
 import { formatLocalDate, formatLocalTime, getLocalDateKey } from "@/lib/date";
 import type { FinancialAccountYieldEntry } from "@/lib/financial-account";
 import { statementPagination } from "@/lib/statement-pagination";
-import { groupTransactionsForDisplay, sumYieldsByCurrency } from "@/lib/transaction-display-groups";
+import { groupTransactionsForDisplay } from "@/lib/transaction-display-groups";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { FinancialAccountYieldStatementItem } from "./FinancialAccountYieldStatementItem";
 import { TransactionDateHeader } from "./TransactionDateHeader";
@@ -299,17 +299,6 @@ export function TransactionsList({
 													expanded={isExpanded}
 													kind={group.kind}
 													onClick={() => toggleTransactionGroup(group.id)}
-													totals={
-														group.kind === "yield"
-															? sumYieldsByCurrency(
-																	group.transactions.flatMap(entry =>
-																		entry.kind === "yield"
-																			? [entry.value]
-																			: [],
-																	),
-																)
-															: undefined
-													}
 												/>
 												{isExpanded ? (
 													<div className="bg-card divide-y overflow-hidden rounded-2xl border shadow-sm">
