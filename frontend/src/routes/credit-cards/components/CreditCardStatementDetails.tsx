@@ -473,7 +473,10 @@ export function CreditCardStatementDetails({
 												entry.purchase.isRefund
 													? (setRecoveredAction(null),
 														setRefundingPurchase(entry.purchase))
-													: entry.purchase.parentId && !entry.purchase.isSynced
+													: (entry.purchase.parentId ||
+																(entry.purchase.currentInstallment === 1 &&
+																	entry.purchase.installments > 1)) &&
+														  !entry.purchase.isSynced
 														? setChoosingEditScope(entry.purchase)
 														: setEditingPurchase(
 																entry.purchase.isSynced &&
@@ -573,10 +576,19 @@ export function CreditCardStatementDetails({
 					onSelect={scope => {
 						setEditingPurchase(
 							scope === "installment"
-								? choosingEditScope
+								? {
+										...choosingEditScope,
+										parentId:
+											choosingEditScope.parentId ??
+											choosingEditScope.purchaseId ??
+											choosingEditScope.id,
+									}
 								: {
 										...choosingEditScope,
-										id: choosingEditScope.purchaseId ?? choosingEditScope.parentId!,
+										id:
+											choosingEditScope.purchaseId ??
+											choosingEditScope.parentId ??
+											choosingEditScope.id,
 										parentId: undefined,
 									},
 						);
