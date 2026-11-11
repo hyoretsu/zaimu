@@ -1,7 +1,9 @@
-import { LuLandmark, LuWalletCards } from "react-icons/lu";
+import { useId, useState } from "react";
+import { LuChevronDown, LuChevronUp, LuLandmark, LuWalletCards } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
+import { Button } from "@/components/ui/Button";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { getFinancialAccountMoneyPositions } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
@@ -34,10 +36,14 @@ export function FinancialInstitutionGroup({
 }) {
 	const balances = accounts.flatMap(getFinancialAccountMoneyPositions);
 	const Icon = institution ? LuLandmark : LuWalletCards;
+	const [expanded, setExpanded] = useState(false);
+	const contentId = useId();
 
 	return (
 		<section className="bg-card/35 shadow-card grid max-w-full min-w-0 gap-4 overflow-x-clip rounded-3xl border p-4 sm:p-5">
-			<header className="border-border/70 grid min-w-0 gap-4 border-b pb-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+			<header
+				className={`border-border/70 grid min-w-0 gap-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between ${expanded ? "border-b pb-4" : ""}`}
+			>
 				<div className="flex min-w-0 items-center gap-3">
 					<span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
 						<Icon className="size-5" />
@@ -48,7 +54,7 @@ export function FinancialInstitutionGroup({
 								{institution?.name ?? "Sem instituição"}
 							</h2>
 							<AppBadge variant="secondary">
-								{accounts.length} {accounts.length === 1 ? "produto" : "produtos"}
+								{accounts.length} {accounts.length === 1 ? "conta" : "contas"}
 							</AppBadge>
 						</div>
 						<p className="text-muted-foreground mt-0.5 text-sm">
@@ -60,6 +66,18 @@ export function FinancialInstitutionGroup({
 					</div>
 				</div>
 				<ActionGroup className="justify-start sm:ml-auto sm:justify-end">
+					<Button
+						aria-controls={contentId}
+						aria-expanded={expanded}
+						aria-label={expanded ? "Minimizar" : "Expandir"}
+						className="cursor-pointer"
+						onClick={() => setExpanded(value => !value)}
+						size="icon"
+						type="button"
+						variant="outline"
+					>
+						{expanded ? <LuChevronUp /> : <LuChevronDown />}
+					</Button>
 					{institution && (
 						<InstitutionActions institution={institution} onDelete={onDeleteInstitution} />
 					)}
@@ -74,7 +92,7 @@ export function FinancialInstitutionGroup({
 					/>
 				</ActionGroup>
 			</header>
-			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" hidden={!expanded} id={contentId}>
 				{accounts.map(account => (
 					<FinancialAccountCard
 						account={account}
