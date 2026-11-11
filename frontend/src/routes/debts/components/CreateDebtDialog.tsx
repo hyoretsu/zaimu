@@ -179,7 +179,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								type="button"
 								variant={isOwedToMe ? "default" : "outline"}
 							>
-								Te devem
+								Te devem/Paguei
 							</Button>
 							<Button
 								className="cursor-pointer"
@@ -187,7 +187,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								type="button"
 								variant={!isOwedToMe ? "destructive" : "outline"}
 							>
-								Eu devo
+								Eu devo/Pagaram
 							</Button>
 						</div>
 						{mode === "edit" ? (
