@@ -1,9 +1,17 @@
-import { useId, useState } from "react";
-import { LuChevronDown, LuChevronUp, LuLandmark, LuWalletCards } from "react-icons/lu";
+import { LuLandmark, LuList, LuWalletCards } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { AppBadge } from "@/components/ui/AppBadge";
 import { Button } from "@/components/ui/Button";
+import {
+	Dialog,
+	DialogBody,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
+import { useUrlModalSelection } from "@/hooks/use-url-modal-selection";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { getFinancialAccountMoneyPositions } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
@@ -34,50 +42,28 @@ export function FinancialInstitutionGroup({
 	pending: boolean;
 	rewardAccounts: FinancialAccount[];
 }) {
+	const [openInstitutionId, setOpenInstitutionId] = useUrlModalSelection("institutionId");
+	const groupId = institution?.id ?? "unassigned";
+	const listOpen = openInstitutionId === groupId;
 	const balances = accounts.flatMap(getFinancialAccountMoneyPositions);
 	const Icon = institution ? LuLandmark : LuWalletCards;
-	const [expanded, setExpanded] = useState(false);
-	const contentId = useId();
+	const title = institution?.name ?? "Sem instituição";
 
 	return (
-		<section className="bg-card/35 shadow-card grid max-w-full min-w-0 gap-4 overflow-x-clip rounded-3xl border p-4 sm:p-5">
-			<header
-				className={`border-border/70 grid min-w-0 gap-4 sm:flex sm:flex-wrap sm:items-center sm:justify-between ${expanded ? "border-b pb-4" : ""}`}
-			>
+		<article className="bg-card shadow-card hover:border-primary/30 flex min-w-0 flex-col gap-4 rounded-2xl border p-5 transition hover:-translate-y-0.5">
+			<div className="flex min-w-0 items-start justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-3">
 					<span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
 						<Icon className="size-5" />
 					</span>
 					<div className="min-w-0">
-						<div className="flex flex-wrap items-center gap-2">
-							<h2 className="truncate text-lg font-bold">
-								{institution?.name ?? "Sem instituição"}
-							</h2>
-							<AppBadge variant="secondary">
-								{accounts.length} {accounts.length === 1 ? "conta" : "contas"}
-							</AppBadge>
-						</div>
-						<p className="text-muted-foreground mt-0.5 text-sm">
-							Saldos:{" "}
-							<strong className="text-foreground">
-								<PreferredMoneyAmount values={balances} />
-							</strong>
-						</p>
+						<h2 className="truncate text-lg font-bold">{title}</h2>
+						<AppBadge className="mt-1" variant="secondary">
+							{accounts.length} {accounts.length === 1 ? "conta" : "contas"}
+						</AppBadge>
 					</div>
 				</div>
-				<ActionGroup className="justify-start sm:ml-auto sm:justify-end">
-					<Button
-						aria-controls={contentId}
-						aria-expanded={expanded}
-						aria-label={expanded ? "Minimizar" : "Expandir"}
-						className="cursor-pointer"
-						onClick={() => setExpanded(value => !value)}
-						size="icon"
-						type="button"
-						variant="outline"
-					>
-						{expanded ? <LuChevronUp /> : <LuChevronDown />}
-					</Button>
+				<ActionGroup className="shrink-0 justify-end">
 					{institution && (
 						<InstitutionActions institution={institution} onDelete={onDeleteInstitution} />
 					)}
@@ -91,20 +77,52 @@ export function FinancialInstitutionGroup({
 						rewardAccounts={rewardAccounts}
 					/>
 				</ActionGroup>
-			</header>
-			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" hidden={!expanded} id={contentId}>
-				{accounts.map(account => (
-					<FinancialAccountCard
-						account={account}
-						institutions={institutions}
-						key={account.id}
-						onDelete={() => onDelete(account)}
-						onHide={() => onHide(account)}
-						onUpdate={onUpdate}
-						rewardAccounts={rewardAccounts}
-					/>
-				))}
 			</div>
-		</section>
+			<div className="border-border/70 border-t pt-4">
+				<p className="text-muted-foreground text-xs">Saldos</p>
+				<p className="mt-1 text-2xl font-bold">
+					<PreferredMoneyAmount values={balances} />
+				</p>
+			</div>
+			<Button
+				className="w-full cursor-pointer"
+				onClick={() => setOpenInstitutionId(groupId)}
+				size="sm"
+				variant="outline"
+			>
+				<LuList /> Ver contas
+			</Button>
+			<Dialog
+				onOpenChange={open => setOpenInstitutionId(open ? groupId : null)}
+				open={listOpen}
+				url={{ clear: [], parameter: "institutionId", value: groupId }}
+			>
+				<DialogContent className="gap-4 sm:max-w-3xl">
+					<DialogHeader>
+						<DialogTitle>{title}</DialogTitle>
+						<DialogDescription>
+							{accounts.length} {accounts.length === 1 ? "conta" : "contas"}. Abra uma conta
+							para ver o extrato.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogBody>
+						<div className="grid gap-4 pb-2 md:grid-cols-2">
+							{accounts.map(account => (
+								<FinancialAccountCard
+									account={account}
+									compact
+									institutions={institutions}
+									key={account.id}
+									onDelete={() => onDelete(account)}
+									onHide={() => onHide(account)}
+									onUpdate={onUpdate}
+									rewardAccounts={rewardAccounts}
+								/>
+							))}
+						</div>
+					</DialogBody>
+				</DialogContent>
+			</Dialog>
+		</article>
 	);
 }
