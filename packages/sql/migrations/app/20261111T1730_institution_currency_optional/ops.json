@@ -1,0 +1,95 @@
+[
+  {
+    "id": "dropDefault.FinancialInstitution.currency",
+    "label": "Drop default on \"FinancialInstitution\".\"currency\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "currency",
+        "table": "FinancialInstitution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"currency\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "FinancialInstitution",
+          "currency"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"currency\" on \"FinancialInstitution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop default on \"currency\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ALTER COLUMN \"currency\" DROP DEFAULT"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"currency\" has no default",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"column_default\" IS NULL)) AS \"result\"",
+        "params": [
+          "public",
+          "FinancialInstitution",
+          "currency"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "alterNullability.dropNotNull.FinancialInstitution.currency",
+    "label": "Drop NOT NULL on \"FinancialInstitution\".\"currency\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "currency",
+        "table": "FinancialInstitution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"currency\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "FinancialInstitution",
+          "currency"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"currency\" on \"FinancialInstitution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop NOT NULL on \"currency\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitution\" ALTER COLUMN \"currency\" DROP NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"currency\" is nullable",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "FinancialInstitution",
+          "currency",
+          "YES"
+        ]
+      }
+    ]
+  }
+]
