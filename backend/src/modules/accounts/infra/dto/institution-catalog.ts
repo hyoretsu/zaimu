@@ -17,7 +17,7 @@ export const InstitutionCatalogResult = t.Object(
 		creditCardRules: t.Nullable(InstitutionCardRulesDTO),
 		creditInstallmentRemainderOnFirst: t.Boolean(),
 		creditStatementClosingInclusive: t.Boolean(),
-		currency: t.String(),
+		currency: t.Nullable(t.String()),
 		id: t.String(),
 		name: t.String(),
 		operatingCountryCodes: t.Array(t.String()),

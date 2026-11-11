@@ -3,7 +3,7 @@ import { HttpException } from "~/shared/errors";
 import { db, queryRows } from "~/shared/infra/sql";
 import { proposeInstitution, visibleInstitution } from "./universal-institutions";
 
-export async function resolveFinancialInstitution(userId: string, input?: string | null, currency = "USD") {
+export async function resolveFinancialInstitution(userId: string, input?: string | null) {
 	if (!input) return null;
 	const { name, normalizedName } = normalizeFinancialInstitutionName(input);
 	if (!name) return null;
@@ -31,6 +31,6 @@ export async function resolveFinancialInstitution(userId: string, input?: string
 			409,
 		);
 	if (matching[0]) return matching[0];
-	const proposal = await proposeInstitution(userId, null, "NEW_INSTITUTION", { currency, name });
+	const proposal = await proposeInstitution(userId, null, "NEW_INSTITUTION", { name });
 	return visibleInstitution(userId, proposal.institutionId!);
 }
