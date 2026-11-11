@@ -67,15 +67,6 @@ export function FinancialInstitutionGroup({
 					{institution && (
 						<InstitutionActions institution={institution} onDelete={onDeleteInstitution} />
 					)}
-					<CreateFinancialAccountDialog
-						contextual
-						defaultInstitutionId={institution?.id ?? null}
-						iconOnly
-						institutions={institutions}
-						onCreate={onCreate}
-						pending={pending}
-						rewardAccounts={rewardAccounts}
-					/>
 				</ActionGroup>
 			</div>
 			<div className="border-border/70 border-t pt-4">
@@ -84,14 +75,24 @@ export function FinancialInstitutionGroup({
 					<PreferredMoneyAmount values={balances} />
 				</p>
 			</div>
-			<Button
-				className="w-full cursor-pointer"
-				onClick={() => setOpenInstitutionId(groupId)}
-				size="sm"
-				variant="outline"
-			>
-				<LuList /> Ver contas
-			</Button>
+			<div className="grid gap-2 [&>button]:w-full">
+				<CreateFinancialAccountDialog
+					contextual
+					defaultInstitutionId={institution?.id ?? null}
+					institutions={institutions}
+					onCreate={onCreate}
+					pending={pending}
+					rewardAccounts={rewardAccounts}
+				/>
+				<Button
+					className="w-full cursor-pointer"
+					onClick={() => setOpenInstitutionId(groupId)}
+					size="sm"
+					variant="outline"
+				>
+					<LuList /> Ver contas
+				</Button>
+			</div>
 			<Dialog
 				onOpenChange={open => setOpenInstitutionId(open ? groupId : null)}
 				open={listOpen}
