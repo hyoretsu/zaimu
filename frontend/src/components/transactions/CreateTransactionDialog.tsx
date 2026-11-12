@@ -33,7 +33,6 @@ import {
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { toast } from "@/lib/toast";
 import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
-import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -283,9 +282,11 @@ export function CreateTransactionDialog({
 			});
 			return { statement: null, transaction };
 		},
-		onError: (error, _, context) => {
+		onError: (error, variables, context) => {
 			toast.dismiss(context?.toastId);
-			showToast(error.message, "negative");
+			toast.error(error.message, {
+				action: { label: "Tentar novamente", onClick: () => create.mutate(variables) },
+			});
 		},
 		onMutate: () => {
 			handleOpenChange(false);

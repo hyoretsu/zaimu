@@ -31,7 +31,6 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { toast } from "@/lib/toast";
 import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
-import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "../../TransactionDetailsFields";
 
 function validAssetAmount(value: string, code: string) {
@@ -164,9 +163,11 @@ export function EditTransactionForm({
 				type: draft.type,
 			});
 		},
-		onError: (error, _, context) => {
+		onError: (error, variables, context) => {
 			toast.dismiss(context?.toastId);
-			showToast(error.message, "negative");
+			toast.error(error.message, {
+				action: { label: "Tentar novamente", onClick: () => update.mutate(variables) },
+			});
 		},
 		onMutate: () => {
 			onOpenChange(false);
