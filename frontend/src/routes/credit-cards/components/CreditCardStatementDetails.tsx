@@ -338,6 +338,7 @@ export function CreditCardStatementDetails({
 
 							{!isIgnored &&
 								displayedStatement.status !== "CARRIED" &&
+								Math.abs(remainingAmount) > 0.001 &&
 								Math.abs(invoiceAmount - remainingAmount) > 0.001 && (
 									<p className="text-muted-foreground mt-1 text-sm">
 										{remainingAmount < 0 ? "Crédito" : "Restante a pagar"}:{" "}
