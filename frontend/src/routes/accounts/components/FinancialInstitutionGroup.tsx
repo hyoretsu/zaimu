@@ -98,7 +98,7 @@ export function FinancialInstitutionGroup({
 				open={listOpen}
 				url={{ clear: [], parameter: "institutionId", value: groupId }}
 			>
-				<DialogContent className="gap-4 sm:max-w-3xl">
+				<DialogContent className="gap-4 sm:max-w-5xl">
 					<DialogHeader>
 						<DialogTitle>{title}</DialogTitle>
 						<DialogDescription>
@@ -107,7 +107,7 @@ export function FinancialInstitutionGroup({
 						</DialogDescription>
 					</DialogHeader>
 					<DialogBody>
-						<div className="grid gap-4 pb-2 md:grid-cols-2">
+						<div className="grid gap-4 pb-2 md:grid-cols-2 lg:grid-cols-3">
 							{accounts.map(account => (
 								<FinancialAccountCard
 									account={account}
