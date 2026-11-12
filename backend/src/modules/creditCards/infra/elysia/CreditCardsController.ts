@@ -61,6 +61,7 @@ import {
 	encodeStatementCursor,
 	statementFilterKey,
 } from "~/modules/creditCards/application/statement-cursor";
+import { cardPaymentAmount } from "@zaimu/finance/transaction-money";
 import { recalculateStatementPayments } from "~/modules/creditCards/application/statement-payments";
 import {
 	creditCardCurrency,
@@ -710,8 +711,11 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 								date: Date;
 								time: string | null;
 								description: string | null;
+								bookingCurrency: string | null;
+								conversionSource: string | null;
+								paymentAmount: number | null;
 							}>(
-								`SELECT "id","amount","date","time","description" FROM "Transaction" WHERE "paymentCreditCardId"=$1 AND "userId"=$2 AND "id"=ANY($3::varchar[])`,
+								`SELECT "id","amount","date","time","description","bookingCurrency","conversionSource","paymentAmount" FROM "Transaction" WHERE "paymentCreditCardId"=$1 AND "userId"=$2 AND "id"=ANY($3::varchar[])`,
 								[params.id, book.card.userId, paymentIds],
 							)
 						: [];
@@ -722,6 +726,9 @@ p."id", p."bookingCurrency", p."totalAmount", p."purchaseDate", p."time", p."ext
 							.map(p => ({
 								...p,
 								amount: Number(p.amount),
+								// Show the payment in the card's currency, as the statement counts it.
+								destinationAmount: String(cardPaymentAmount(p, book.card.currency)),
+								destinationCurrency: book.card.currency ?? "BRL",
 								paymentCreditCardId: params.id,
 								type: "EXPENSE",
 							})),
