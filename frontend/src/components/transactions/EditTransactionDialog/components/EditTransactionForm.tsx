@@ -397,13 +397,23 @@ export function EditTransactionForm({
 								<CustomSelect
 									disabled={accountsQuery.isPending || accountsQuery.isError}
 									label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
-									onValueChange={accountId =>
+									onValueChange={accountId => {
+										const assets = accountsQuery.data?.find(
+											item => item.id === accountId,
+										)?.assets;
+										const currency =
+											assets?.length === 1 ? assets[0].assetCode : undefined;
 										setDraft(current =>
 											current
 												? current.type === "INCOME"
-													? { ...current, destinationFinancialAccountId: accountId }
+													? {
+															...current,
+															...(currency && { currency }),
+															destinationFinancialAccountId: accountId,
+														}
 													: {
 															...current,
+															...(currency && { currency }),
 															destinationFinancialAccountId:
 																current.type === "TRANSFER"
 																	? account && accountId !== account.id
@@ -416,8 +426,8 @@ export function EditTransactionForm({
 															originFinancialAccountId: accountId,
 														}
 												: current,
-										)
-									}
+										);
+									}}
 									options={primaryAccountOptions}
 									placeholder="Selecione a conta"
 									required
