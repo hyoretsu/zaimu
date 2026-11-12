@@ -7,6 +7,7 @@ export interface RecurringSaveRecovery<TDraft = unknown, TSplit = unknown> {
 	debtSplit: TSplit;
 	draft: TDraft;
 	input: RecurrenceInput;
+	recurrenceId?: string;
 	savedId?: string;
 }
 
@@ -23,8 +24,9 @@ export async function saveRecurrenceWithReplay(
 	today: string,
 ): Promise<void> {
 	if (!recovery.completedWrite) {
-		const saved = recurrenceId
-			? await service.update(recurrenceId, recovery.input)
+		const targetId = recurrenceId ?? recovery.recurrenceId;
+		const saved = targetId
+			? await service.update(targetId, recovery.input)
 			: await service.create(recovery.input);
 		recovery.savedId = saved.id;
 		recovery.completedWrite = true;
