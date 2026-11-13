@@ -19,6 +19,7 @@ Local sessions only. Cloud/remote sessions already run in an isolated, ephemeral
    ```
 
    Use a unique `<task>` directory. Existing worktrees may be in use: do not move or remove them.
+4. Prepare the worktree with `bun scripts/setup-worktree.ts` (run from inside it). It installs dependencies from the Bun cache through a `flock` queue (`WORKTREE_INSTALL_SLOTS`, default 2) so many worktrees created at once do not saturate disk and CPU, shares the main checkout's Turbo cache and copies the untracked git hooks. Never reflink/copy `node_modules` between worktrees: it exhausts btrfs metadata. Never run a bare `bun install` in several worktrees simultaneously.
 
 ## Work
 

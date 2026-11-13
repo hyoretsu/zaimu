@@ -32,14 +32,18 @@ function parseStatementDate(text: string) {
 }
 
 function isPurchase(description: string) {
-	return !/^pagamento\b/iu.test(description);
+	// Points redemptions only settle the invoice, like payments; they are not refunds.
+	return !/^(?:pagamento|resgate\s+pontos)\b/iu.test(description);
 }
 
 export function parseInterCreditCardStatementText(text: string): CreditCardStatement {
 	// Older Inter PDFs map parentheses (and other glyphs) to NUL in their font.
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: Inter PDF fonts emit actual NUL glyphs around installment labels.
 	text = text
-		.replace(/\u0000(Parcela\s+\d{1,2}\s+de\s+\d{1,2})\u0000/giu, "($1)")
+		.replace(
+			// biome-ignore lint/suspicious/noControlCharactersInRegex: Inter PDF fonts emit actual NUL glyphs around installment labels.
+			/\u0000(Parcela\s+\d{1,2}\s+de\s+\d{1,2})\u0000/giu,
+			"($1)",
+		)
 		.replaceAll("\u0000", " ");
 	// PDF.js may place the Pix breakdown between its description and amount.
 	text = text.replace(/\nPrincipal[^\n]*\n[\t ]*(?=-[\t ]+R\$)/giu, "\t");

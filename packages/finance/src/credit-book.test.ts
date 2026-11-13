@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	addBookRefund,
+	anticipateBookInstallments,
 	bookRefinancingLinks,
 	type CreditBook,
 	creditBookConsumption,
@@ -120,6 +121,52 @@ describe("normalized credit book", () => {
 			"2100-01-20",
 		);
 		expect(creditBookEntries(book).filter(item => item.entryKind === "INSTALLMENT")).toHaveLength(6);
+	});
+	test("anticipation moves chosen installments to the anticipation statement with an optional same-day discount", () => {
+		const book = emptyBook();
+		const purchase = newBookPurchase(book, {
+			description: "Compra",
+			installments: 6,
+			purchaseDate: "2099-01-01",
+			totalAmount: 600,
+		});
+		const statementOf = (number: number) => {
+			const plan = creditBookPlan(book);
+			const row = plan.installments.find(
+				item => item.purchaseId === purchase.id && item.number === number,
+			)!;
+			return plan.statements.find(item => item.id === row.statementId)!.statementDate;
+		};
+		const before = [1, 2, 3, 4, 5, 6].map(statementOf);
+		const result = anticipateBookInstallments(book, purchase.id, {
+			anticipationDate: "2099-01-10",
+			discount: 7.5,
+			installmentNumbers: [5, 6],
+		});
+		expect(result.anticipatedCents).toBe(20000);
+		expect([1, 2, 3, 4].map(statementOf)).toEqual(before.slice(0, 4));
+		expect(statementOf(5)).toBe(statementOf(1));
+		expect(statementOf(6)).toBe(statementOf(1));
+		expect(book.purchases[0]!.totalAmountCents).toBe(60000);
+		expect(result.refund).toMatchObject({
+			amountCents: 750,
+			creditDate: "2099-01-10",
+			policy: "KEEP_INSTALLMENTS",
+		});
+		expect(result.refund!.canceledInstallmentNumbers ?? []).toEqual([]);
+		expect(() =>
+			anticipateBookInstallments(book, purchase.id, {
+				anticipationDate: "2099-01-10",
+				installmentNumbers: [1],
+			}),
+		).toThrow("já pertence");
+		expect(() =>
+			anticipateBookInstallments(book, purchase.id, {
+				anticipationDate: "2099-01-10",
+				discount: 100,
+				installmentNumbers: [3],
+			}),
+		).toThrow("desconto deve ser menor");
 	});
 	test("uses institution policy for new purchases without rewriting existing plans", () => {
 		const book = emptyBook();

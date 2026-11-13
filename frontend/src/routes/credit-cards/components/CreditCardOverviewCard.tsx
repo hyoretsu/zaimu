@@ -58,7 +58,7 @@ export function CreditCardOverviewCard({
 					</div>
 					<Progress value={percent} />
 				</div>
-				<div className="grid gap-3 min-[420px]:grid-cols-2">
+				<div className="grid grid-cols-2 gap-3">
 					<div className="bg-muted rounded-xl p-3">
 						<p className="text-muted-foreground text-xs">Fatura prevista</p>
 						<p className="mt-1 font-bold">
@@ -78,23 +78,18 @@ export function CreditCardOverviewCard({
 								/>
 							}
 						</p>
+						{limit.temporaryCredit > 0 && (
+							<p className="text-brand-ink/60 mt-1 text-xs">
+								Crédito temporário por pagamento excedente: +{" "}
+								{
+									<PreferredMoneyAmount
+										values={[{ amount: limit.temporaryCredit, currency: currencyCode }]}
+									/>
+								}
+							</p>
+						)}
 					</div>
 				</div>
-				{limit.temporaryCredit > 0 && (
-					<div className="border-brand-yellow/60 bg-brand-yellow/10 rounded-xl border p-3">
-						<p className="text-muted-foreground text-xs">
-							Crédito temporário por pagamento excedente
-						</p>
-						<p className="mt-1 font-bold">
-							+{" "}
-							{
-								<PreferredMoneyAmount
-									values={[{ amount: limit.temporaryCredit, currency: currencyCode }]}
-								/>
-							}
-						</p>
-					</div>
-				)}
 				{card.securityDeposit != null && (
 					<div className="rounded-xl border border-dashed p-3">
 						<p className="text-muted-foreground text-xs">Valor em garantia do limite</p>
@@ -113,7 +108,7 @@ export function CreditCardOverviewCard({
 							<LuCalendarClock /> Vence em {formatLocalDate(statement.dueDate)}
 						</p>
 					)}
-					<div className="grid gap-3 min-[420px]:grid-cols-2">
+					<div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
 						<Button
 							className="w-full cursor-pointer"
 							onClick={onViewStatements}

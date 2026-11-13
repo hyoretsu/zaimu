@@ -52,6 +52,8 @@ for (const viewport of [
 			timeout: 60000,
 		});
 		const initialPaths = [...paths];
+		expect(initialPaths.filter(path => /\/credit-cards\/[^/]+\/statements$/.test(path))).toEqual([]);
+		expect(initialPaths.filter(path => path.includes("/statement-owner/"))).toEqual([]);
 		expect(initialPaths).not.toContain("/financial-accounts");
 		expect(initialPaths).not.toContain("/financial-institutions");
 		expect(

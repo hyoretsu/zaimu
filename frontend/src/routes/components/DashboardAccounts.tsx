@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { isCryptoAsset } from "@zaimu/finance/money";
 import { LuArrowRight, LuLandmark } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +20,11 @@ import { getFinancialAccountSummaryName } from "@/lib/financial-account";
 
 const mobilePreviewLimit = 4;
 const desktopPreviewLimit = 9;
+
+// A single account balance is not a multi-currency total, so it stays in the account's own
+// currency; crypto assets cannot be a consolidation target and fall back to the preferred one.
+const getDisplayCurrency = (account: Dashboard["accounts"][number]) =>
+	account.currency && !isCryptoAsset(account.currency) ? account.currency : undefined;
 
 interface DashboardAccountsProps extends Pick<Dashboard, "accounts"> {
 	endDate: string;
@@ -77,6 +83,7 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 							<span>{getName(account)}</span>
 							<strong>
 								<PreferredMoneyAmount
+									currency={getDisplayCurrency(account)}
 									error={account.balance === null}
 									values={[
 										{ amount: account.balance ?? 0, currency: account.currency ?? "BRL" },
@@ -127,6 +134,7 @@ export function DashboardAccounts({ accounts, endDate }: DashboardAccountsProps)
 										<div className="flex shrink-0 flex-col items-end gap-2 text-right">
 											<strong className="tabular-nums">
 												<PreferredMoneyAmount
+													currency={getDisplayCurrency(account)}
 													error={account.balance === null}
 													values={[
 														{

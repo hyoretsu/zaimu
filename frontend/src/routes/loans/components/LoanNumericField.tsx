@@ -4,6 +4,7 @@ import { NumericFormat } from "react-number-format";
 import { Input } from "@/components/ui/Input";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 export function LoanNumericField({
 	name,
 	label,
@@ -36,11 +37,7 @@ export function LoanNumericField({
 				name={name}
 				onValueChange={values => setLocal(values.value)}
 				placeholder={
-					money
-						? new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" }).format(10000)
-						: percentage
-							? "1,50%"
-							: "24"
+					money ? createCurrencyFormatter(currencyCode).format(10000) : percentage ? "1,50%" : "24"
 				}
 				prefix={money ? `${currencyCode} ` : undefined}
 				required

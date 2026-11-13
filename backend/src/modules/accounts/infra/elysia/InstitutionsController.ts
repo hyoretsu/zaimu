@@ -1,5 +1,4 @@
 import Elysia, { t } from "elysia";
-import { configureInstitutionCountries } from "~/modules/accounts/application/configure-institution-countries";
 import {
 	consolidateLegacyInstitution,
 	listInstitutionCatalog,
@@ -15,17 +14,13 @@ import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/appl
 import { requireAdmin } from "~/modules/taxes/admin-access";
 import { createEventEnvelope } from "~/shared/application/events";
 import { HttpException } from "~/shared/errors";
-import {
-	FinancialInstitutionYieldPolicyReturn,
-	YieldAccountTypeDTO,
-} from "~/shared/infra/elysia/transport-contracts";
+import { FinancialInstitutionYieldPolicyReturn } from "~/shared/infra/elysia/transport-contracts";
 import { PostgresOutbox } from "~/shared/infra/outbox";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
-import { configureInstitutionCardRules } from "../../application/institution-card-rules";
 import { InstitutionCardRulesDTO } from "../dto/institution-card-rules";
 import { InstitutionCatalogResult } from "../dto/institution-catalog";
-import { InstitutionCountriesBody } from "../dto/institution-countries";
 import { InstitutionNameBody } from "../dto/institution-name";
+import { InstitutionPolicyBody } from "../dto/institution-policy";
 import { InstitutionUpdateProposalBody } from "../dto/institution-update-proposal";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
@@ -55,7 +50,10 @@ const ProposalReturn = t.Object(
 			...InstitutionBody.properties,
 			...t.Partial(FinancialInstitutionYieldPolicyReturn).properties,
 			aliases: t.Optional(t.Array(t.String())),
+			creditCardRules: InstitutionUpdateProposalBody.properties.creditCardRules,
+			policies: InstitutionUpdateProposalBody.properties.policies,
 			profileId: t.Optional(Id),
+			profiles: InstitutionUpdateProposalBody.properties.profiles,
 			targetId: t.Optional(Id),
 		}),
 		reason: t.Nullable(t.String()),
@@ -114,39 +112,37 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 			response: t.Array(InstitutionReturn),
 		},
 	)
-	.patch(
-		"/review/catalog/:id",
-		async ({ request, params, body }) => {
-			await requireAdmin(request);
-			return configureInstitutionCountries(
-				params.id,
-				body.operatingCountryCodes,
-				body.creditStatementClosingInclusive,
-				body.name,
-				body.aliases,
-			);
-		},
-		{
-			body: InstitutionCountriesBody,
-			detail: { operationId: "patchFinancialInstitutionsReviewCatalogById" },
-			params: t.Object({ id: Id }),
-			response: InstitutionReturn,
-		},
-	)
-	.patch(
-		"/review/catalog/:id/card-rules",
-		async ({ request, params, body }) => {
-			await requireAdmin(request);
-			return configureInstitutionCardRules(params.id, body.rules, body.profileId);
-		},
-		{
-			body: t.Object({ profileId: t.Optional(Id), rules: t.Nullable(InstitutionCardRulesDTO) }),
-			detail: { operationId: "patchFinancialInstitutionsReviewCatalogByIdCardRules" },
-			params: t.Object({ id: Id }),
-			response: t.Object({ id: t.String() }),
-		},
-	)
 
+	.post(
+		"/review/catalog",
+		async ({ request, body }) =>
+			proposeInstitution(await requireAdmin(request), null, "NEW_INSTITUTION", body, undefined, {
+				autoApprove: true,
+			}),
+		{
+			body: InstitutionUpdateProposalBody,
+			detail: { operationId: "postFinancialInstitutionsReviewCatalog" },
+			response: MutationReturn,
+		},
+	)
+	.post(
+		"/review/catalog/:id/proposal",
+		async ({ request, params, body }) =>
+			proposeInstitution(
+				await requireAdmin(request),
+				params.id,
+				"INSTITUTION_UPDATE",
+				body,
+				undefined,
+				{ autoApprove: true },
+			),
+		{
+			body: InstitutionUpdateProposalBody,
+			detail: { operationId: "postFinancialInstitutionsReviewCatalogByIdProposal" },
+			params: t.Object({ id: Id }),
+			response: MutationReturn,
+		},
+	)
 	.post(
 		"/review/legacy/:id",
 		async ({ request, params, body }) =>
@@ -162,15 +158,11 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.post(
 		"/",
 		async ({ body, request }) =>
-			proposeInstitution(
-				await requireUserId(request),
-				null,
-				"NEW_INSTITUTION",
-				body,
-				body.effectiveDate,
-			),
+			proposeInstitution(await requireUserId(request), null, "NEW_INSTITUTION", body, undefined, {
+				autoApprove: false,
+			}),
 		{
-			body: InstitutionBody,
+			body: InstitutionUpdateProposalBody,
 			detail: { operationId: "postFinancialInstitutions" },
 			response: MutationReturn,
 		},
@@ -191,7 +183,16 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 	.post(
 		"/:id/update-proposal",
 		async ({ params, body, request }) =>
-			proposeInstitution(await requireUserId(request), params.id, "INSTITUTION_UPDATE", body),
+			proposeInstitution(
+				await requireUserId(request),
+				params.id,
+				"INSTITUTION_UPDATE",
+				body,
+				undefined,
+				{
+					autoApprove: false,
+				},
+			),
 		{
 			body: InstitutionUpdateProposalBody,
 			detail: { operationId: "postFinancialInstitutionsByIdUpdateProposal" },
@@ -279,46 +280,7 @@ export const InstitutionsController = new Elysia({ prefix: "/financial-instituti
 		async ({ params, body, request }) =>
 			proposeInstitution(await requireUserId(request), params.id, "POLICY", body, body.effectiveDate),
 		{
-			body: t.Object({
-				accountType: t.Optional(YieldAccountTypeDTO),
-				countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),
-				effectiveDate: DateDTO,
-				effectiveUntil: t.Optional(DateDTO),
-				profileId: Id,
-				replacesEffectiveDate: t.Optional(DateDTO),
-				rules: t.Array(
-					t.Object({
-						upToBalance: t.Nullable(t.Number({ exclusiveMinimum: 0 })),
-						yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-						yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
-						yieldReferenceType: t.Optional(
-							t.Nullable(
-								t.Union([
-									t.Literal("CDI"),
-									t.Literal("SELIC"),
-									t.Literal("IPCA"),
-									t.Literal("TR"),
-								]),
-							),
-						),
-					}),
-					{ maxItems: 20 },
-				),
-				yieldPeriod: t.Optional(t.Nullable(t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]))),
-				yieldTaxIds: t.Optional(t.Array(Id)),
-				yieldTaxMode: t.Optional(
-					t.Nullable(t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")])),
-				),
-				yieldTaxModes: t.Optional(
-					t.Nullable(
-						t.Record(
-							t.String({ maxLength: 36 }),
-							t.Union([t.Literal("DAILY"), t.Literal("ON_REDEMPTION")]),
-						),
-					),
-				),
-				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
-			}),
+			body: InstitutionPolicyBody,
 			detail: { operationId: "postFinancialInstitutionsByIdPolicies" },
 			params: t.Object({ id: Id }),
 			response: MutationReturn,

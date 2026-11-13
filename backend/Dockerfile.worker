@@ -43,7 +43,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --from=build /app/backend/dist/worker.js ./backend/dist/worker.js
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/backend/node_modules ./backend/node_modules
+COPY --from=build /app/packages/sql/node_modules ./packages/sql/node_modules
+COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/packages/sql/out ./packages/sql/out
 
 WORKDIR /app/backend

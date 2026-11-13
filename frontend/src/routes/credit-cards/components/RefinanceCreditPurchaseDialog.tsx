@@ -17,6 +17,7 @@ import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditPurchase } from "@/lib/api";
 import { getLocalDateKey } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function RefinanceCreditPurchaseDialog({
 	onOpenChange,
@@ -46,7 +47,7 @@ export function RefinanceCreditPurchaseDialog({
 	};
 }) {
 	const currencyCode = purchase.bookingCurrency ?? "BRL";
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	const [totalAmount, setTotalAmount] = useState(
 		String(
 			initialValues?.totalAmount ??
@@ -92,12 +93,13 @@ export function RefinanceCreditPurchaseDialog({
 				<DialogHeader>
 					<DialogTitle>Reparcelar compra</DialogTitle>
 					<DialogDescription>
-						Substitui as parcelas ainda não quitadas. Informe o novo total, incluindo juros e taxas.
+						Substitui as parcelas ainda não quitadas. Informe o novo total, incluindo juros e
+						taxas.
 					</DialogDescription>
 				</DialogHeader>
 				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
 					<DialogBody>
-						<div className="rounded-xl border bg-muted/30 p-3 text-sm">
+						<div className="bg-muted/30 rounded-xl border p-3 text-sm">
 							<p className="text-muted-foreground">Saldo restante estimado</p>
 							<strong className="text-lg">{currency.format(balance)}</strong>
 						</div>
@@ -106,7 +108,6 @@ export function RefinanceCreditPurchaseDialog({
 							id="refinance-credit-purchase-total"
 							label="Novo valor total"
 							onValueChange={setTotalAmount}
-							placeholder="R$ 199,92"
 							required
 							value={totalAmount}
 						/>
@@ -117,7 +118,9 @@ export function RefinanceCreditPurchaseDialog({
 								inputMode="numeric"
 								label="Novas parcelas"
 								name="refinance-credit-purchase-installments"
-								onChange={event => setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
+								onChange={event =>
+									setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
+								}
 								placeholder="Ex: 12"
 								required
 								type="text"
@@ -159,11 +162,13 @@ export function RefinanceCreditPurchaseDialog({
 							/>
 						</FormFieldRow>
 						{valid ? (
-							<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
+							<div className="border-primary/15 bg-primary/5 rounded-xl border p-3 text-sm">
 								<strong>
 									{count}x de aproximadamente {currency.format(total / count)}
 								</strong>
-								<p className="mt-1 text-muted-foreground">Total refinanciado: {currency.format(total)}</p>
+								<p className="text-muted-foreground mt-1">
+									Total refinanciado: {currency.format(total)}
+								</p>
 							</div>
 						) : null}
 					</DialogBody>

@@ -44,7 +44,7 @@ Queues are bounded to 2048 records, export requests have a 3-second timeout and 
 
 ## Optional outbox column
 
-`packages/sql/migrations/app/20261108T0626_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
+`packages/sql/migrations/app/20261109T0344_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
 
 ## Production sampling and cost
 
@@ -69,3 +69,5 @@ The disabled/enabled comparison measures the instrumentation switch in the same 
 ## Metric exemplars
 
 The pinned Collector spanmetrics connector derives bounded HTTP diagnostic histograms before tail sampling, with exemplars linking measurements to Tempo. These `otel_request_*` diagnostics remain separate from canonical unsampled `http_server_*` application metrics. A retained error, slow or development trace resolves its exemplar; ordinary traces can be discarded by tail sampling. The connector is experimental in this pinned Collector release. Its cardinality limit is 2,000, resource cache 128, and metric expiration five minutes; include its CPU and memory in capacity planning.
+
+The dashboard comparison compute worker initializes its SDK before application imports and carries only traceparent through its internal transport. Results return before export finishes. Each disposable worker retains its concurrency slot for at most one second during telemetry shutdown; exporter outages can temporarily exhaust the configured compute slots. The bounded grace can drop unsent telemetry.

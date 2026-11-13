@@ -64,19 +64,20 @@ export function summarize(value: unknown): string {
 		if (depth >= 4 || seen.has(item)) return "[truncated]";
 		seen.add(item);
 		// Never invoke getters, iterators, toJSON or stream readers.
-		if (Array.isArray(item))
+		if (ArrayBuffer.isView(item) || item instanceof ArrayBuffer) return "[binary]";
+		if (Array.isArray(item)) {
+			const length = Object.getOwnPropertyDescriptor(item, "length")?.value;
+			const count = typeof length === "number" ? length : 0;
 			return {
-				count: item.length,
-				items: Object.getOwnPropertyNames(item)
-					.filter(k => /^\d+$/.test(k))
-					.slice(0, 20)
-					.map(k => {
-						const descriptor = Object.getOwnPropertyDescriptor(item, k);
-						return descriptor && "value" in descriptor
-							? walk(descriptor.value, depth + 1)
-							: "[accessor]";
-					}),
+				count,
+				items: Array.from({ length: Math.min(count, 20) }, (_, index) => {
+					const descriptor = Object.getOwnPropertyDescriptor(item, String(index));
+					return descriptor && "value" in descriptor
+						? walk(descriptor.value, depth + 1)
+						: "[accessor or missing]";
+				}),
 			};
+		}
 		const output: Record<string, unknown> = {};
 		for (const key of Object.getOwnPropertyNames(item).slice(0, 20)) {
 			const descriptor = Object.getOwnPropertyDescriptor(item, key);

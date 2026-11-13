@@ -1,6 +1,7 @@
 import { comparisonIntervals } from "@zaimu/finance/comparison-periods";
 import {
 	addBookRefund,
+	anticipateBookInstallments,
 	bookPurchase,
 	bookRefinancingLinks,
 	changeBookCalendar,
@@ -72,6 +73,7 @@ import {
 	getCreditCardsByIdRefundReviews,
 	getCreditCardsByIdStatementsByStatementId,
 	getCreditCardsPaymentSuggestions,
+	getCreditCardsStatementOwnerByStatementId,
 	getDebts,
 	getDebtsInvitations,
 	getFinancialAccounts,
@@ -109,6 +111,7 @@ import {
 	postCreditCardsByIdPayments,
 	postCreditCardsByIdPaymentSuggestionsConfirm,
 	postCreditCardsByIdPurchases,
+	postCreditCardsByIdPurchasesByPurchaseIdAnticipate,
 	postCreditCardsByIdPurchasesByPurchaseIdRefinance,
 	postCreditCardsByIdPurchasesByPurchaseIdRefunds,
 	postCreditCardsByIdRefundReviewsByReviewIdApprove,
@@ -577,6 +580,7 @@ export const dataService = {
 								securityDeposit: data.creditCard.securityDeposit ?? undefined,
 							}
 						: undefined,
+					currency: data.yieldCurrency ?? undefined,
 					rewardsAccount: data.rewardsAccount
 						? {
 								...data.rewardsAccount,
@@ -940,6 +944,7 @@ export const dataService = {
 								securityDeposit: data.creditCard.securityDeposit ?? undefined,
 							}
 						: undefined,
+					currency: data.yieldCurrency ?? undefined,
 				},
 				path: { id },
 			}).then(result => result.data);
@@ -1674,6 +1679,26 @@ export const dataService = {
 				.filter(row => row.purchaseId === purchaseId || row.id === purchaseId)
 				.map(toPurchasePresentation);
 		},
+		async anticipatePurchase(
+			cardId: string,
+			purchaseId: string,
+			data: { anticipationDate: string; discount?: number; installmentNumbers: number[] },
+		): Promise<void> {
+			if (isGuestMode()) {
+				await mutateLocalCreditBook(cardId, book => {
+					anticipateBookInstallments(
+						book,
+						resolveBookInstallment(book, purchaseId)?.purchaseId ?? purchaseId,
+						data,
+					);
+				});
+				return;
+			}
+			await postCreditCardsByIdPurchasesByPurchaseIdAnticipate({
+				body: data,
+				path: { id: cardId, purchaseId },
+			});
+		},
 		async approveRefundReview(
 			cardId: string,
 			reviewId: string,
@@ -1997,6 +2022,14 @@ export const dataService = {
 				purchases,
 				totalAmount: Number(statement.totalAmount) + statement.chargesAmount,
 			} as CreditCardStatementDetail;
+		},
+
+		async getStatementOwner(statementId: string): Promise<string | null> {
+			if (!isGuestMode())
+				return (await getCreditCardsStatementOwnerByStatementId({ path: { statementId } })).data
+					.creditCardId;
+			const statement = await localCreditCardStatements.getById(statementId);
+			return statement?.data.creditCardId ?? null;
 		},
 		async getStatementPage(
 			cardId: string,

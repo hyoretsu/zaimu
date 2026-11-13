@@ -1,6 +1,7 @@
 import type { Transaction } from "./api";
+import { createCurrencyFormatter } from "./format-currency";
 
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+const currency = createCurrencyFormatter("BRL");
 const typeLabel: Record<Transaction["type"], string> = {
 	EXPENSE: "Saída",
 	INCOME: "Entrada",

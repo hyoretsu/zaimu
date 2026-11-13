@@ -31,8 +31,10 @@ function render(overrides: Partial<CreditPurchase> = {}) {
 	return renderToStaticMarkup(
 		<TooltipProvider>
 			<CreditPurchaseRow
+				anticipateDisabled={false}
 				deleteDisabled={false}
 				editDisabled={false}
+				onAnticipate={() => {}}
 				onDelete={() => {}}
 				onEdit={() => {}}
 				onRefinance={() => {}}
@@ -115,4 +117,9 @@ test("only existing, unlinked purchase rows offer recurrence association", () =>
 		{ refinancedFromPurchaseId: "previous" },
 	])
 		expect(render(overrides)).not.toContain('aria-label="Associar a recorrência"');
+});
+
+test("only purchases with remaining installments offer anticipation", () => {
+	expect(render({ currentInstallment: 2 })).toContain('aria-label="Antecipar parcelas de Amazon"');
+	expect(render({ currentInstallment: 11 })).not.toContain("Antecipar parcelas de");
 });

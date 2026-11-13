@@ -5,6 +5,7 @@ import type { ItemAction } from "@/components/transactions/TransactionListItem/I
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { isRecurrenceEnded } from "./recurrence-dates";
 import { formatRecurrenceStartDate, getRecurrenceScheduleSummary } from "./recurrence-schedule";
 import type { RecurringListItemData } from "./types";
@@ -109,13 +110,10 @@ export function RecurringListItem({
 			actionItems={actionItems}
 			amount={
 				<p
-					className={`whitespace-nowrap font-bold ${isIncome ? "text-emerald-600" : item.direction === "TRANSFER" ? "text-primary" : "text-rose-600"}`}
+					className={`font-bold whitespace-nowrap ${isIncome ? "text-emerald-600" : item.direction === "TRANSFER" ? "text-primary" : "text-rose-600"}`}
 				>
 					{isIncome ? "+" : item.direction === "TRANSFER" ? "" : "-"}
-					{new Intl.NumberFormat("pt-BR", {
-						currency: item.recurrence?.currency ?? "BRL",
-						style: "currency",
-					}).format(item.amount)}
+					{createCurrencyFormatter(item.recurrence?.currency ?? "BRL").format(item.amount)}
 				</p>
 			}
 			className={item.active ? undefined : "opacity-60"}
@@ -149,7 +147,7 @@ export function RecurringListItem({
 			showAccountBadge={Boolean(item.accountName)}
 			title={
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
-					<p className="w-fit max-w-full shrink-0 truncate font-semibold leading-6">{item.title}</p>
+					<p className="w-fit max-w-full shrink-0 truncate leading-6 font-semibold">{item.title}</p>
 					<AppBadge variant="outline">{movementLabels[item.movement ?? item.direction]}</AppBadge>
 					{item.recurrence?.needsConfiguration && (
 						<AppBadge variant="destructive">Configuração pendente</AppBadge>

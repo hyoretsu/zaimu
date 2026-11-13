@@ -76,9 +76,9 @@ export function DebtSplitParticipantRow({
 							? `${numericValue}%`
 							: undefined,
 				amount !== undefined
-					? createCurrencyFormatter(currencyCode, "pt-BR").format(amount)
+					? createCurrencyFormatter(currencyCode).format(amount)
 					: mode === "FIXED"
-						? createCurrencyFormatter(currencyCode, "pt-BR").format(Number(numericValue))
+						? createCurrencyFormatter(currencyCode).format(Number(numericValue))
 						: undefined,
 			]
 				.filter(Boolean)
@@ -147,7 +147,7 @@ export function DebtSplitParticipantRow({
 			<div className="flex min-w-0 items-center justify-between gap-2">
 				{amount !== undefined ? (
 					<p className="text-muted-foreground min-w-0 text-xs">
-						Parcela: {createCurrencyFormatter(currencyCode, "pt-BR").format(amount)}
+						Parcela: {createCurrencyFormatter(currencyCode).format(amount)}
 					</p>
 				) : null}
 				<ActionGroup className="ml-auto shrink-0">

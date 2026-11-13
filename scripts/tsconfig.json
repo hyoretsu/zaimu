@@ -1,5 +1,5 @@
 {
 	"compilerOptions": { "types": ["bun", "node"] },
 	"extends": "@hyoretsu/configs/ts-lib",
-	"include": ["agent-hooks/**/*.ts", "test-runner.ts", "testing/**/*.ts"]
+	"include": ["agent-hooks/**/*.ts", "setup-worktree.ts", "test-runner.ts", "testing/**/*.ts"]
 }

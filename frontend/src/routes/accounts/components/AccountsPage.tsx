@@ -10,7 +10,6 @@ import {
 	LuWalletCards,
 } from "react-icons/lu";
 import { NativeMoneyTotals } from "@/components/currency/NativeMoneyTotals";
-import { HiddenAccountsList } from "@/components/hidden-accounts";
 import { SuggestionHubDialog, type SuggestionType } from "@/components/institution-suggestions";
 import { PendingNotices } from "@/components/pending-notices";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
@@ -34,6 +33,7 @@ import {
 } from "@/routes/accounts/components";
 import { showToast, useAuthStore } from "@/stores";
 import type { AccountDefaultsDraft } from "./AccountDefaultsForm";
+import { HiddenFinancialAccounts } from "./HiddenFinancialAccounts";
 
 export function AccountsPage() {
 	const [isImportOpen, setIsImportOpen] = useState(false);
@@ -177,16 +177,7 @@ export function AccountsPage() {
 			<SuggestionHubDialog
 				onOpenChange={setIsSuggestionOpen}
 				open={isSuggestionOpen}
-				types={
-					[
-						"NEW_INSTITUTION",
-						"EDIT_INSTITUTION",
-						"PROFILE",
-						"POLICY",
-						"CARD_RULES",
-						"MERGE",
-					] satisfies SuggestionType[]
-				}
+				types={["INSTITUTION", "MERGE"] satisfies SuggestionType[]}
 			/>
 			<PendingNotices onReviewTransactionImport={setReviewingImportId} />
 			<ImportTransactionsDialog
@@ -276,7 +267,14 @@ export function AccountsPage() {
 					title={hiddenAccounts.length ? "Nenhuma conta visível" : "Nenhuma conta cadastrada"}
 				/>
 			)}
-			<HiddenAccountsList accounts={hiddenAccounts} title="Contas escondidas" />
+			<HiddenFinancialAccounts
+				accounts={hiddenAccounts}
+				institutions={selectableInstitutions}
+				onDelete={account => deleteAccount.mutateAsync(account.id)}
+				onToggleHidden={account => setAccountHidden.mutate({ id: account.id, isHidden: false })}
+				onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
+				rewardAccounts={rewardAccounts}
+			/>
 			{isDefaultsOpen && (
 				<AccountDefaultsDialog
 					initialDraft={recoveredDefaults ?? undefined}

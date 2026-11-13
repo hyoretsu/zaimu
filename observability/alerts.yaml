@@ -35,7 +35,7 @@
             },
             {
               "alert": "TelemetryLoss",
-              "expr": "sum(rate(otelcol_receiver_refused_spans_total[5m])) + sum(rate(otelcol_exporter_send_failed_spans_total[5m])) > 0",
+              "expr": '(sum(rate(otelcol_receiver_refused_spans_total[5m])) or vector(0)) + (sum(rate(otelcol_receiver_refused_log_records_total[5m])) or vector(0)) + (sum(rate(otelcol_receiver_refused_metric_points_total[5m])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_spans_total[5m])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_log_records_total[5m])) or vector(0)) + (sum(rate(otelcol_exporter_send_failed_metric_points_total[5m])) or vector(0)) > 0 or up{job=~"collector|application"} == 0 or absent(up{job="collector"}) or absent(up{job="application"})',
               "for": "5m",
               "labels": { "severity": "warning" },
               "annotations": { "summary": "TelemetryLoss" },

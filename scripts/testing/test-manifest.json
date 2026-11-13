@@ -5,6 +5,7 @@
 	],
 	"backend:integration": [
 		"backend/src/modules/transaction-imports/tests/import-file-leases.integration.test.ts",
+		"backend/src/modules/creditCards/tests/statement-owner.integration.test.ts",
 		"backend/src/modules/currencies/tests/currency-default-cache.integration.test.ts",
 		"backend/src/modules/accounts/tests/account-options.integration.test.ts",
 		"backend/src/modules/accounts/tests/balance-adjustments.integration.test.ts",
@@ -37,6 +38,7 @@
 		"backend/src/modules/reference-rates/tests/daily-account-yields.integration.test.ts"
 	],
 	"backend:unit": [
+		"backend/src/shared/infra/compute/offload.test.ts",
 		"backend/scripts/dev-healthcheck.test.ts",
 		"backend/src/modules/currencies/application/stored-currency-factors.test.ts",
 		"backend/performance/preflight.test.ts",

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "column.public.user.timeFormat",
+    "label": "Add column \"timeFormat\" to \"user\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "timeFormat",
+        "table": "user"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"timeFormat\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "user",
+          "timeFormat"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"timeFormat\" on \"user\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"timeFormat\"",
+        "sql": "ALTER TABLE \"public\".\"user\" ADD COLUMN \"timeFormat\" character varying(3) DEFAULT '12h' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"timeFormat\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "user",
+          "timeFormat"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"timeFormat\" on \"user\""
+        }
+      },
+      {
+        "description": "verify column \"timeFormat\" has type \"character varying(3)\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "user",
+          "timeFormat",
+          "character varying(3)"
+        ]
+      },
+      {
+        "description": "verify column \"timeFormat\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "user",
+          "timeFormat",
+          "NO"
+        ]
+      }
+    ]
+  }
+]

@@ -1,3 +1,4 @@
+import { createCurrencyFormatter } from "@/lib/format-currency";
 export function InstallmentPurchaseDetails({
 	currencyCode,
 	installmentAmount,
@@ -9,9 +10,9 @@ export function InstallmentPurchaseDetails({
 	installments: number;
 	totalAmount: number;
 }) {
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	return (
-		<span className="whitespace-nowrap font-semibold text-foreground text-sm">
+		<span className="text-foreground text-sm font-semibold whitespace-nowrap">
 			{installments > 1
 				? `${installments}x de ${currency.format(installmentAmount)}`
 				: currency.format(totalAmount)}

@@ -116,8 +116,20 @@ export function validateTaxBrackets(brackets: TaxBracket[]) {
 	}
 	if (brackets.at(-1)?.upToDays !== null) throw new Error("A última faixa deve ser ilimitada.");
 }
+const dayCache = new Map<string, number>();
+/** Epoch milliseconds of a `YYYY-MM-DD` day; memoized because ledgers re-read the same dates thousands of times. */
+function dayMs(date: string) {
+	const key = date.slice(0, 10);
+	let value = dayCache.get(key);
+	if (value === undefined) {
+		value = Date.parse(key);
+		if (dayCache.size > 50_000) dayCache.clear();
+		dayCache.set(key, value);
+	}
+	return value;
+}
 export function contributionAge(date: string, day: string) {
-	return Math.max(0, Math.round((Date.parse(day.slice(0, 10)) - Date.parse(date.slice(0, 10))) / 86400000));
+	return Math.max(0, Math.round((dayMs(day) - dayMs(date)) / 86400000));
 }
 /** Fraction kept after the daily taxes; ON_REDEMPTION taxes are deferred to the withdrawal. */
 export function retainedYieldFraction(
@@ -128,10 +140,9 @@ export function retainedYieldFraction(
 ) {
 	return retainedFraction(settings, contributionDate, day, definitions, "DAILY");
 }
-/** Fraction of a lot's gain kept once the taxes of `mode` (or every tax when omitted) are applied. */
-export function retainedFraction(
+/** Resolves the taxes in force on `day` once, so each lot only needs a bracket lookup by age. */
+export function retainedFractionByAge(
 	settings: TaxSettings | undefined,
-	contributionDate: string,
 	day: string,
 	definitions = catalog,
 	mode?: YieldTaxMode,
@@ -151,17 +162,33 @@ export function retainedFraction(
 		.toSorted(
 			(a, b) => a.version.applicationOrder - b.version.applicationOrder || a.id.localeCompare(b.id),
 		);
-	const age = contributionAge(contributionDate, day);
-	let retained = 1;
-	for (const tax of taxes)
-		retained *=
-			1 -
-			(tax.version.brackets.find(bracket => bracket.upToDays === null || age <= bracket.upToDays)
-				?.rate ?? 0) /
-				100;
-	return !mode || taxModeOf(settings, fixedTaxKey) === mode
-		? retained * (1 - (settings?.yieldTaxRate ?? 0) / 100)
-		: retained;
+	const flat =
+		!mode || taxModeOf(settings, fixedTaxKey) === mode ? 1 - (settings?.yieldTaxRate ?? 0) / 100 : 1;
+	const cache: number[] = [];
+	return (age: number) => {
+		const cached = cache[age];
+		if (cached !== undefined) return cached;
+		let retained = 1;
+		for (const tax of taxes)
+			retained *=
+				1 -
+				(tax.version.brackets.find(bracket => bracket.upToDays === null || age <= bracket.upToDays)
+					?.rate ?? 0) /
+					100;
+		retained *= flat;
+		cache[age] = retained;
+		return retained;
+	};
+}
+/** Fraction of a lot's gain kept once the taxes of `mode` (or every tax when omitted) are applied. */
+export function retainedFraction(
+	settings: TaxSettings | undefined,
+	contributionDate: string,
+	day: string,
+	definitions = catalog,
+	mode?: YieldTaxMode,
+) {
+	return retainedFractionByAge(settings, day, definitions, mode)(contributionAge(contributionDate, day));
 }
 export function redemptionRetainedFraction(
 	settings: TaxSettings | undefined,
@@ -170,6 +197,20 @@ export function redemptionRetainedFraction(
 	definitions = catalog,
 ) {
 	return retainedFraction(settings, contributionDate, day, definitions);
+}
+const matureAges = new WeakMap<TaxDefinition[], number>();
+/** Age beyond which no configured bracket changes: the largest finite limit across every tax version. */
+function matureAge(definitions: TaxDefinition[]) {
+	let age = matureAges.get(definitions);
+	if (age === undefined) {
+		age = 0;
+		for (const definition of definitions)
+			for (const version of definition.versions)
+				for (const bracket of version.brackets)
+					if (bracket.upToDays !== null) age = Math.max(age, bracket.upToDays);
+		matureAges.set(definitions, age);
+	}
+	return age;
 }
 /** NET daily compounding. Profits retain contribution age; withdrawals use FIFO. */
 export class YieldTaxLedger {
@@ -199,8 +240,10 @@ export class YieldTaxLedger {
 			const paid = Math.min(amount, -this.debt);
 			this.debt += paid;
 			if (amount > paid) {
+				const last = this.lots.at(-1);
 				this.lots.push({ balance: amount - paid, date: day, principal: amount - paid });
-				this.lots.sort((a, b) => a.date.localeCompare(b.date));
+				if (last && last.date.localeCompare(day) > 0)
+					this.lots.sort((a, b) => a.date.localeCompare(b.date));
 			}
 		} else {
 			let remaining = -amount;
@@ -217,32 +260,48 @@ export class YieldTaxLedger {
 	}
 	netYield(gross: number, settings: TaxSettings | undefined, day: string, definitions = catalog) {
 		if (gross < 0) return gross;
-		const lots = this.lots.filter(lot => lot.date.slice(0, 10) < day.slice(0, 10));
-		const total = lots.reduce((sum, lot) => sum + lot.balance, 0);
-		return total <= 0
-			? 0
-			: lots.reduce(
-					(sum, lot) =>
-						sum +
-						((gross * lot.balance) / total) *
-							retainedYieldFraction(settings, lot.date, day, definitions),
-					0,
-				);
+		const key = day.slice(0, 10);
+		const retained = retainedFractionByAge(settings, day, definitions, "DAILY");
+		let total = 0,
+			weighted = 0;
+		for (const lot of this.lots) {
+			if (lot.date.slice(0, 10) >= key) continue;
+			total += lot.balance;
+			weighted += lot.balance * retained(contributionAge(lot.date, day));
+		}
+		return total <= 0 ? 0 : (gross * weighted) / total;
 	}
 	accrueGross(gross: number, settings: TaxSettings | undefined, day: string, definitions = catalog) {
-		const lots = this.lots.filter(lot => lot.date.slice(0, 10) < day.slice(0, 10));
+		const key = day.slice(0, 10);
+		const lots = this.lots.filter(lot => lot.date.slice(0, 10) < key);
 		const total = lots.reduce((sum, lot) => sum + lot.balance, 0);
 		if (total <= 0) return 0;
+		const retained = retainedFractionByAge(settings, day, definitions, "DAILY");
 		let net = 0;
 		for (const lot of lots) {
-			const amount =
-				((gross * lot.balance) / total) * retainedYieldFraction(settings, lot.date, day, definitions);
+			const amount = ((gross * lot.balance) / total) * retained(contributionAge(lot.date, day));
 			lot.balance += amount;
 			net += amount;
 		}
 		return net;
 	}
+	/**
+	 * Lots older than every tax bracket keep an identical retained fraction and are consumed FIFO,
+	 * so merging them leaves balances and yields untouched. Redemption taxes need per-lot principal.
+	 */
+	compactMatured(settings: TaxSettings, day: string, definitions = catalog) {
+		if (hasRedemptionTax(settings) || this.lots.length < 3) return;
+		const horizon = matureAge(definitions);
+		let merged = 1;
+		while (merged < this.lots.length && contributionAge(this.lots[merged]!.date, day) > horizon) merged++;
+		if (merged < 3) return;
+		const [first, ...absorbed] = this.lots.splice(0, merged) as [YieldLot, ...YieldLot[]];
+		for (const lot of absorbed) first.balance += lot.balance;
+		first.principal = undefined;
+		this.lots.unshift(first);
+	}
 	accrueRecordedNet(amount: number, settings: TaxSettings | undefined, day: string) {
+		if (settings) this.compactMatured(settings, day);
 		if (amount < 0) {
 			this.accrueNet(amount, day);
 			return;

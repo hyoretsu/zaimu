@@ -1,14 +1,11 @@
 export const statementViewParameters = ["statement", "next", "previous", "radius"];
 
-/** Older shared links identify only the statement. Resolve it within the user's cards. */
+/** Statement-only links resolve directly; never enumerate card statement histories. */
 export async function findStatementCard(
 	cardIds: string[],
 	statementId: string,
-	loadStatements: (cardId: string) => Promise<Array<{ id: string }>>,
+	loadOwner: (statementId: string) => Promise<string | null>,
 ) {
-	for (const cardId of cardIds) {
-		const statements = await loadStatements(cardId);
-		if (statements.some(statement => statement.id === statementId)) return cardId;
-	}
-	return null;
+	const owner = await loadOwner(statementId);
+	return owner && cardIds.includes(owner) ? owner : null;
 }

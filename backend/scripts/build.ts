@@ -1,7 +1,7 @@
 import { composeBuildMaps, instrumentationPlugin } from "@zaimu/observability/plugin";
 
 const result = await Bun.build({
-	entrypoints: ["src/main.ts", "src/worker.ts"],
+	entrypoints: ["src/main.ts", "src/worker.ts", "src/modules/dashboard/infra/workers/comparison.worker.ts"],
 	external: ["pdf-parse"],
 	outdir: "dist",
 	plugins: [instrumentationPlugin(process.cwd())],

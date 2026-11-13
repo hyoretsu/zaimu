@@ -5,16 +5,24 @@ import { HttpException } from "~/shared/errors";
 import { withRawTransaction } from "~/shared/infra/sql";
 import { associateImportTax, readImportTaxes } from "../domain/import-purchase-taxes";
 import { rememberImportIdentity } from "./import-identities";
-import { cleanupItemTags } from "./import-service";
+import { cleanupItemTags, markStatementAsFullySynced } from "./import-service";
+
+type RawQuery = Parameters<Parameters<typeof withRawTransaction>[0]>[0];
+
+// Raw queries return the stored JSON as is, and legacy rows hold the double-encoded default string "[]".
+function readMetadataMissing(value: unknown): string[] {
+	const parsed = typeof value === "string" ? (JSON.parse(value) as unknown) : value;
+	return Array.isArray(parsed) ? (parsed as string[]) : [];
+}
 
 export async function associateImportedTax(
 	userId: string,
 	importId: string,
 	taxId: string,
 	purchaseId: string,
-	reviewed?: { name?: string; amount?: number },
+	reviewed?: { name?: string; amount?: number; resolvedMetadata?: string[] },
 ) {
-	return withRawTransaction(async query => {
+	const finished = await withRawTransaction(async query => {
 		const [batch] = await query<{
 			status: string;
 			creditCardId: string;
@@ -38,13 +46,16 @@ export async function associateImportedTax(
 			[taxId, purchaseId],
 		]);
 		const tax = items.find(item => item.id === taxId);
+		const unresolvedTaxMetadata = readMetadataMissing(tax?.metadataMissing).filter(
+			field => !reviewed?.resolvedMetadata?.includes(field),
+		);
 		const purchase = items.find(item => item.id === purchaseId);
 		if (tax && !purchase) {
 			if (
 				tax.installments !== 1 ||
 				Number(tax.installmentAmount) <= 0 ||
 				readImportTaxes(tax.taxes).length ||
-				(tax.metadataMissing as string[]).length
+				unresolvedTaxMetadata.length
 			)
 				throw new HttpException("Selecione um lançamento positivo à vista sem impostos", 400);
 			await mutateCreditBook(userId, batch.creditCardId, book => {
@@ -86,7 +97,7 @@ export async function associateImportedTax(
 			await rememberImportIdentity(query, tax.externalId, purchaseId);
 			await cleanupItemTags([tax.id]);
 			await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [tax.id]);
-			return;
+			return finishWhenEmpty(query, importId, batch);
 		}
 		if (
 			!tax ||
@@ -98,8 +109,8 @@ export async function associateImportedTax(
 			Number(tax.installmentAmount) <= 0 ||
 			readImportTaxes(tax.taxes).length ||
 			readImportTaxes(purchase.taxes).length >= 20 ||
-			(tax.metadataMissing as string[]).length ||
-			(purchase.metadataMissing as string[]).length
+			unresolvedTaxMetadata.length ||
+			readMetadataMissing(purchase.metadataMissing).length
 		)
 			throw new HttpException("Selecione um imposto e uma compra da mesma fatura", 400);
 		const result = associateImportTax(
@@ -125,5 +136,25 @@ export async function associateImportedTax(
 		);
 		await cleanupItemTags([tax.id]);
 		await query(`DELETE FROM "CreditCardImportItem" WHERE "id"=$1`, [tax.id]);
+		return finishWhenEmpty(query, importId, batch);
 	});
+	if (finished) await markStatementAsFullySynced(finished);
+}
+
+// The associated tax item is consumed, so it may have been the last pending one: approve the import like the other review flows.
+async function finishWhenEmpty(
+	query: RawQuery,
+	importId: string,
+	batch: { creditCardId: string; dueDate: Date; statementDate: Date },
+) {
+	const [remaining] = await query(
+		`SELECT 1 FROM "CreditCardImportItem" WHERE "creditCardImportId"=$1 LIMIT 1`,
+		[importId],
+	);
+	if (remaining) return null;
+	await query(
+		`UPDATE "CreditCardImport" SET "status"='APPROVED', "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$1`,
+		[importId],
+	);
+	return batch;
 }

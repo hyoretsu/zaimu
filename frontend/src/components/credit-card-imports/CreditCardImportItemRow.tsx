@@ -1,7 +1,11 @@
 import { importedAnticipation, withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
 import { useState } from "react";
 import { LuCheck, LuCircleAlert, LuLink, LuLoaderCircle, LuPencil, LuUndo2 } from "react-icons/lu";
-import { AssociateImportedRecurrenceDialog } from "@/components/recurrences/AssociateImportedRecurrenceDialog";
+import {
+	AssociateImportedRecurrenceDialog,
+	type PendingImportRecurrence,
+	withRecurrencePreview,
+} from "@/components/recurrences/AssociateImportedRecurrenceDialog";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { AppBadge } from "@/components/ui/AppBadge";
 import type { CreditCardImportItem, Transaction } from "@/lib/api";
@@ -51,10 +55,11 @@ export function CreditCardImportItemRow({
 	creditCardName,
 	disabled,
 	importId,
-	onAssociated,
 	pending = false,
 	item,
 	onApprove,
+	recurrence,
+	onRecurrenceChange,
 	onEdit,
 	onReconcile,
 	onReviewRefund,
@@ -64,23 +69,25 @@ export function CreditCardImportItemRow({
 	creditCardName: string;
 	disabled: boolean;
 	importId?: string;
-	onAssociated?: () => Promise<unknown>;
 	pending?: boolean;
 	item: CreditCardImportItem;
 	onApprove: () => void;
+	recurrence?: PendingImportRecurrence;
+	onRecurrenceChange: (recurrence: PendingImportRecurrence) => void;
 	onEdit: () => void;
 	onReconcile: () => void;
 	onReviewRefund: () => void;
 }) {
 	const [associating, setAssociating] = useState(false);
-	const transaction = toTransaction(item, creditCardId, creditCardName, currencyCode);
+	const base = toTransaction(item, creditCardId, creditCardName, currencyCode);
+	const transaction = withRecurrencePreview(base, recurrence);
 	const financedOperation = getFinancedOperation(item.description);
 	const cancellation = item.installmentAmount < 0 ? importedAnticipation(item.description) : null;
 	const anticipated = item.installmentAmount > 0 ? importedAnticipation(item.description) : null;
 	const requiresOriginal = Boolean(anticipated);
 	const anticipatedAmount =
 		anticipated?.reduce((sum, installment) => sum + installment.amountCents, 0) ?? 0;
-	const currency = createCurrencyFormatter(currencyCode, "pt-BR");
+	const currency = createCurrencyFormatter(currencyCode);
 
 	return (
 		<>
@@ -99,7 +106,7 @@ export function CreditCardImportItemRow({
 									disabled,
 									icon: <LuLink />,
 									onClick: () => setAssociating(true),
-									text: "Aprovar e associar a recorrência",
+									text: recurrence ? "Alterar recorrência" : "Associar a recorrência",
 								},
 							]
 						: []),
@@ -160,16 +167,8 @@ export function CreditCardImportItemRow({
 						</span>
 					) : undefined
 				}
-				forceCompactActions
-				icon={
-					item.installmentAmount < 0 ? (
-						<div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-2xl text-emerald-600">
-							<LuUndo2 aria-hidden="true" />
-						</div>
-					) : undefined
-				}
-				metadataPrefix={
-					<div className="flex flex-wrap items-center gap-1.5">
+				badgesLeading={
+					<>
 						<ImportItemDateTime
 							date={
 								requiresOriginal && !item.reconciledCreditPurchaseId
@@ -209,6 +208,9 @@ export function CreditCardImportItemRow({
 								Crédito parcelado · IOF R$ {financedOperation.iof} incluído
 							</AppBadge>
 						) : null}
+						{recurrence ? (
+							<AppBadge variant="outline">Recorrência: {recurrence.name}</AppBadge>
+						) : null}
 						{hasFinancingSource(item.description) ? (
 							<AppBadge variant="outline">Vinculada à compra original</AppBadge>
 						) : null}
@@ -225,7 +227,15 @@ export function CreditCardImportItemRow({
 								<LuCheck /> Conciliada
 							</span>
 						) : null}
-					</div>
+					</>
+				}
+				forceCompactActions
+				icon={
+					item.installmentAmount < 0 ? (
+						<div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-2xl text-emerald-600">
+							<LuUndo2 aria-hidden="true" />
+						</div>
+					) : undefined
 				}
 				title={
 					anticipated ? (
@@ -244,9 +254,8 @@ export function CreditCardImportItemRow({
 			{associating && importId && (
 				<AssociateImportedRecurrenceDialog
 					date={item.purchaseDate}
-					importId={importId}
-					onAssociated={onAssociated}
 					onOpenChange={setAssociating}
+					onSelect={onRecurrenceChange}
 					target={{ creditCardId, id: item.id, kind: "PURCHASE" }}
 				/>
 			)}

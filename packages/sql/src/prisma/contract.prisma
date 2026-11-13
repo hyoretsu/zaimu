@@ -379,6 +379,7 @@ namespace public {
     preferredCountry VarChar(2)?
     preferredTimeZone VarChar(100)?
     invoicePaymentTiming VarChar(12) @default("DUE_DATE")
+    timeFormat VarChar(3) @default("12h")
 
     openFinanceConfig OpenFinanceConfig?
     openFinanceConnections OpenFinanceConnection[]

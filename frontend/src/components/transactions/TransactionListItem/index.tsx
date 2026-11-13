@@ -19,9 +19,11 @@ export function TransactionListItem({
 	forceCompactActions = false,
 	deleting = false,
 	icon,
+	badgesLeading,
 	metadataPrefix,
 	onDelete,
 	onEdit,
+	perspectiveAccountId,
 	showAccountBadge = true,
 	title,
 	transaction,
@@ -33,29 +35,40 @@ export function TransactionListItem({
 	deleting?: boolean;
 	forceCompactActions?: boolean;
 	icon?: ReactNode;
+	badgesLeading?: ReactNode;
 	metadataPrefix?: ReactNode;
 	onDelete?: () => void;
 	onEdit?: () => void;
+	perspectiveAccountId?: string;
 	showAccountBadge?: boolean;
 	title?: ReactNode;
 	transaction: Transaction;
 }) {
 	const currencyCode = transaction.bookingCurrency ?? "BRL";
-	const formatCurrency = (value: number) => createCurrencyFormatter(currencyCode, "pt-BR").format(value);
+	const formatCurrency = (value: number) => createCurrencyFormatter(currencyCode).format(value);
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
+	const transferDirection =
+		transaction.type !== "TRANSFER" || !perspectiveAccountId
+			? undefined
+			: transaction.destinationFinancialAccountId === perspectiveAccountId
+				? "INCOME"
+				: transaction.originFinancialAccountId === perspectiveAccountId
+					? "EXPENSE"
+					: undefined;
+	const displayType = transferDirection ?? transaction.type;
 	const amountPrefix =
 		Number(transaction.amount) === 0
 			? ""
-			: transaction.type === "INCOME"
+			: displayType === "INCOME"
 				? "+"
-				: transaction.type === "EXPENSE"
+				: displayType === "EXPENSE"
 					? "−"
 					: "";
 	const amountColor = isCreditCardPurchase
 		? "text-primary"
-		: transaction.type === "INCOME"
+		: displayType === "INCOME"
 			? "text-emerald-600"
-			: transaction.type === "EXPENSE"
+			: displayType === "EXPENSE"
 				? "text-rose-600"
 				: "text-primary";
 	const isCreditCard = transaction.source === "CREDIT_CARD";

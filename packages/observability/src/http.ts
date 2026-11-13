@@ -29,7 +29,7 @@ export function instrumentRequest(handle: (request: Request) => Response | Promi
 			return withoutObservability(() => handle(request));
 		if (!enabled()) return handle(request);
 		const carrier: Record<string, string> = {};
-		for (const key of ["traceparent", "tracestate"]) {
+		for (const key of ["traceparent"]) {
 			const value = request.headers.get(key);
 			if (value) carrier[key] = value;
 		}

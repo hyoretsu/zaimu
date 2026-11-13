@@ -265,6 +265,18 @@ export function isGenericImportedRefund(description: string) {
 	);
 }
 
+/** Interest discount a bank credits when installments are prepaid; not a purchase refund. */
+export function isImportedAnticipationDiscount(description: string) {
+	return (
+		description
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/gu, "")
+			.trim()
+			.replace(/\s+/gu, " ")
+			.toLowerCase() === "amortizacao de juros"
+	);
+}
+
 /** Generic credits can suggest only a unique exact full purchase made by the credit date. */
 export function matchingGenericRefundSource<
 	T extends {

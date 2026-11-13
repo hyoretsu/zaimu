@@ -1,11 +1,5 @@
 export type DayPeriod = "AM" | "PM";
 
-/** Whether the browser locale displays times on a 12-hour clock (AM/PM). */
-export function usesTwelveHourClock(locale: string = navigator.language): boolean {
-	const cycle = new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hourCycle;
-	return cycle === "h11" || cycle === "h12";
-}
-
 export const DIGIT_SLOT = /\d/;
 export const TWELVE_HOUR_SLOT = /[\dAPMapm]/;
 

@@ -8,6 +8,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
+import {
+	type PendingImportRecurrence,
+	withRecurrencePreview,
+} from "@/components/recurrences/AssociateImportedRecurrenceDialog";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import {
@@ -164,6 +168,7 @@ export function TransactionImportReviewDialog({
 	const identity = useCacheIdentity();
 	const reviewedImportId = useRef<string | null>(importId);
 	const [collapsedDateKeys, setCollapsedDateKeys] = useState<Set<string>>(new Set());
+	const [recurrences, setRecurrences] = useState<Record<string, PendingImportRecurrence>>({});
 	const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(new Set());
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const [recoveredEdit, setRecoveredEdit] = useState<
@@ -262,7 +267,22 @@ export function TransactionImportReviewDialog({
 
 	const approve = useMutation({
 		meta: { cacheOperations: ["transaction"] },
-		mutationFn: () => dataService.transactionImports.approve(getReviewedImportId()),
+		mutationFn: async () => {
+			const targetImportId = getReviewedImportId();
+			let created = 0;
+			// Items with a chosen recurrence go one by one so the recurrence data is applied to them.
+			for (const item of items) {
+				const recurrence = recurrences[item.id];
+				if (!recurrence || item.duplicateReason || item.duplicates.length) continue;
+				const result = await dataService.transactionImports.approveItem(targetImportId, item.id, {
+					recurrence: { date: recurrence.date, recurrenceId: recurrence.recurrenceId },
+				});
+				created += result.created;
+				if (result.finished) return { created, finished: true };
+			}
+			const rest = await dataService.transactionImports.approve(targetImportId);
+			return { ...rest, created: rest.created + created };
+		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			const reviewFinished = result.finished;
@@ -277,7 +297,7 @@ export function TransactionImportReviewDialog({
 			);
 		},
 	});
-	const approveItem = (itemId: string) => {
+	const approveItem = (itemId: string, recurrence?: { recurrenceId: string; date: string }) => {
 		const targetImportId = getReviewedImportId();
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["transaction"] },
@@ -300,7 +320,12 @@ export function TransactionImportReviewDialog({
 				kind: "transaction-import-action",
 				payload: { importId: targetImportId },
 			},
-			run: () => dataService.transactionImports.approveItem(targetImportId, itemId),
+			run: () =>
+				dataService.transactionImports.approveItem(
+					targetImportId,
+					itemId,
+					recurrence && { recurrence },
+				),
 			successMessage: "Transação aprovada.",
 		});
 	};
@@ -594,21 +619,20 @@ export function TransactionImportReviewDialog({
 													isIgnoringDuplicate={false}
 													item={item}
 													key={item.id}
-													onApprove={() => approveItem(item.id)}
-													onAssociated={async () => {
-														const batch =
-															await dataService.transactionImports.get(
-																importId!,
-															);
-														if (batch.pendingItemCount === 0)
-															await closeFinishedReview();
-														else await invalidate(importId!);
-													}}
+													onApprove={() =>
+														approveItem(item.id, recurrences[item.id])
+													}
 													onCollapsedChange={collapsed =>
 														setItemCollapsed(item.id, collapsed)
 													}
 													onEdit={() => setEditingItem(item)}
 													onIgnoreDuplicate={() => ignoreDuplicate(item)}
+													onRecurrenceChange={recurrence =>
+														setRecurrences(current => ({
+															...current,
+															[item.id]: recurrence,
+														}))
+													}
 													onResolveDuplicate={() => setResolvingItem(item)}
 													onViewTransferSuggestion={suggestion =>
 														setTransferSuggestionDecision({ item, suggestion })
@@ -621,7 +645,11 @@ export function TransactionImportReviewDialog({
 															`${identity}:transaction-import-row:${item.id}`
 														],
 													)}
-													transaction={toTransaction(item, accountDetails)}
+													recurrence={recurrences[item.id]}
+													transaction={withRecurrencePreview(
+														toTransaction(item, accountDetails),
+														recurrences[item.id],
+													)}
 												/>
 											))}
 										</ImportReviewDateSection>

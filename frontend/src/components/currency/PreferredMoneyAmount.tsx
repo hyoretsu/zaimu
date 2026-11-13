@@ -11,6 +11,8 @@ export function PreferredMoneyAmount({
 	pending = false,
 	error = false,
 	debt,
+	highlightNegative = false,
+	currency: target,
 }: {
 	values: readonly MoneyPosition[];
 	date?: string;
@@ -21,10 +23,15 @@ export function PreferredMoneyAmount({
 	 * "absolute" renders the magnitude only, for callers that label the direction themselves.
 	 */
 	debt?: "absolute" | "plural";
+	/** Renders negative totals in red. */
+	highlightNegative?: boolean;
+	/** Target currency; defaults to the user's preferred display currency. */
+	currency?: string;
 }) {
 	const identity = useCacheIdentity();
 	const client = useQueryClient();
-	const currency = useCurrencyStore(state => state.currency);
+	const preferred = useCurrencyStore(state => state.currency);
+	const currency = target ?? preferred;
 	const ready = useCurrencyStore(state => !state.loading && state.owner === identity);
 	const query = useQuery({
 		enabled: identity !== null && ready && !pending && !error,
@@ -60,7 +67,7 @@ export function PreferredMoneyAmount({
 			/>
 		);
 	if (query.isError) return <span>Conversão indisponível</span>;
-	const formatter = createCurrencyFormatter(currency, navigator.languages);
+	const formatter = createCurrencyFormatter(currency);
 	if (debt === "absolute") return <span>{formatter.format(Math.abs(query.data))}</span>;
 	if (debt === "plural" && query.data !== 0) {
 		return (
@@ -74,5 +81,9 @@ export function PreferredMoneyAmount({
 			</>
 		);
 	}
-	return <span>{formatter.format(query.data)}</span>;
+	return (
+		<span className={highlightNegative && query.data < 0 ? "text-red-500" : undefined}>
+			{formatter.format(query.data)}
+		</span>
+	);
 }

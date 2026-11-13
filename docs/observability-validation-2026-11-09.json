@@ -1,0 +1,414 @@
+{
+	"alert_firing_scenarios_passed": 9,
+	"alert_scenarios": [
+		"refused spans",
+		"refused logs",
+		"refused metrics",
+		"failed spans",
+		"failed logs",
+		"failed metrics",
+		"Collector down",
+		"Collector absent",
+		"six simultaneous counters with identical labels"
+	],
+	"alerts": [
+		{
+			"health": "ok",
+			"name": "HighErrorRate",
+			"state": "inactive"
+		},
+		{
+			"health": "ok",
+			"name": "HighLatency",
+			"state": "inactive"
+		},
+		{
+			"health": "ok",
+			"name": "PoolSaturation",
+			"state": "inactive"
+		},
+		{
+			"health": "ok",
+			"name": "OutboxBacklog",
+			"state": "inactive"
+		},
+		{
+			"health": "ok",
+			"name": "TelemetryLoss",
+			"state": "inactive"
+		}
+	],
+	"correlated_trace": "c716a4f614aefe7a3a3e862d3555cd82",
+	"credentials_included": false,
+	"external_mutations": false,
+	"healthy_availability_without_5xx_series": 1,
+	"historical_evidence": "November 5 evidence was not reused. Initial November 9 configuration failures were corrected and checks repeated.",
+	"http_scope_filter_verified": true,
+	"images": {
+		"collector": "otel/opentelemetry-collector-contrib:0.128.0",
+		"grafana": "grafana/grafana:12.0.1",
+		"loki": "grafana/loki:3.5.1",
+		"prometheus": "prom/prometheus:v3.4.1",
+		"tempo": "grafana/tempo:2.8.0"
+	},
+	"limitations": [
+		"Synthetic pipeline checks do not replace application integration tests.",
+		"No overhead acceptance result is claimed on the overloaded host.",
+		"Random retention count is not an exact fixed quota."
+	],
+	"matching_loki_record_verified": true,
+	"queries": [
+		{
+			"dashboard": "clients.json",
+			"evaluation": "success",
+			"expression": "sum by(client_signal)(rate(client_signal_count_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+			"panel": "Signals"
+		},
+		{
+			"dashboard": "clients.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.95,sum by(le,client_signal)(rate(client_signal_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "Client latency"
+		},
+		{
+			"dashboard": "clients.json",
+			"evaluation": "success",
+			"expression": "sum by(client_vital_name)(rate(client_vital_value_sum{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])) / clamp_min(sum by(client_vital_name)(rate(client_vital_value_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])),0.001)",
+			"panel": "Web Vitals"
+		},
+		{
+			"dashboard": "dependencies.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.95,sum by(le,operation)(rate(application_operation_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\",operation=~\"db.*|redis.*\"}[5m])))",
+			"panel": "Dependency latency"
+		},
+		{
+			"dashboard": "dependencies.json",
+			"evaluation": "success",
+			"expression": "sum by(state)(db_client_connections{deployment_environment_name=~\"$environment\",service_version=~\"$version\"})",
+			"panel": "Pool"
+		},
+		{
+			"dashboard": "dependencies.json",
+			"evaluation": "success",
+			"expression": "sum by(result)(rate(cache_operations_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+			"panel": "Cache"
+		},
+		{
+			"dashboard": "functions.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.95,sum by(le,http_route)(rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "Route latency"
+		},
+		{
+			"dashboard": "functions.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.95,sum by(le,operation)(rate(application_operation_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "Function latency"
+		},
+		{
+			"dashboard": "functions.json",
+			"evaluation": "success",
+			"expression": "sum by(operation)(rate(application_operation_errors_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+			"panel": "Function failures"
+		},
+		{
+			"dashboard": "functions.json",
+			"evaluation": "success",
+			"expression": "sum(http_server_active_requests{deployment_environment_name=~\"$environment\",service_version=~\"$version\"})",
+			"panel": "Active requests"
+		},
+		{
+			"dashboard": "functions.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.95,sum by(le,http_route)(rate(otel_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "Request trace exemplars"
+		},
+		{
+			"dashboard": "overview.json",
+			"evaluation": "success",
+			"expression": "sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+			"panel": "Traffic"
+		},
+		{
+			"dashboard": "overview.json",
+			"evaluation": "success",
+			"expression": "sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\",http_response_status_code=~\"5..\"}[5m]))",
+			"panel": "Errors"
+		},
+		{
+			"dashboard": "overview.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.5,sum by(le)(rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "p50"
+		},
+		{
+			"dashboard": "overview.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.95,sum by(le)(rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "p95"
+		},
+		{
+			"dashboard": "overview.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.99,sum by(le)(rate(http_server_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "p99"
+		},
+		{
+			"dashboard": "overview.json",
+			"evaluation": "success",
+			"expression": "1 - (sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\",http_response_status_code=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])),0.001)",
+			"panel": "Observed availability"
+		},
+		{
+			"dashboard": "runtime.json",
+			"evaluation": "success",
+			"expression": "process_memory_usage_bytes{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}",
+			"panel": "Memory"
+		},
+		{
+			"dashboard": "runtime.json",
+			"evaluation": "success",
+			"expression": "rate(process_cpu_time_seconds_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])",
+			"panel": "CPU"
+		},
+		{
+			"dashboard": "runtime.json",
+			"evaluation": "success",
+			"expression": "runtime_event_loop_delay_seconds{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}",
+			"panel": "Event loop"
+		},
+		{
+			"dashboard": "runtime.json",
+			"evaluation": "success",
+			"expression": "sum by(exporter)(rate(otelcol_exporter_send_failed_spans_total[5m]))",
+			"panel": "Exporter failures"
+		},
+		{
+			"dashboard": "runtime.json",
+			"evaluation": "success",
+			"expression": "otelcol_exporter_queue_size",
+			"panel": "Collector queue"
+		},
+		{
+			"dashboard": "runtime.json",
+			"evaluation": "success",
+			"expression": "sum(rate(otelcol_receiver_refused_spans_total[5m]))",
+			"panel": "Collector refusal"
+		},
+		{
+			"dashboard": "workers.json",
+			"evaluation": "success",
+			"expression": "sum by(queue,outcome)(rate(worker_jobs_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+			"panel": "Jobs"
+		},
+		{
+			"dashboard": "workers.json",
+			"evaluation": "success",
+			"expression": "sum by(result)(rate(worker_deliveries_total{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m]))",
+			"panel": "Delivery"
+		},
+		{
+			"dashboard": "workers.json",
+			"evaluation": "success",
+			"expression": "sum(worker_outbox_backlog{deployment_environment_name=~\"$environment\",service_version=~\"$version\"})",
+			"panel": "Outbox"
+		},
+		{
+			"dashboard": "workers.json",
+			"evaluation": "success",
+			"expression": "histogram_quantile(0.95,sum by(le,queue)(rate(worker_queue_delay_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+			"panel": "Queue delay"
+		}
+	],
+	"resume_check": {
+		"date": "2026-11-13",
+		"isolated_project": "zaimu-otel-validation",
+		"live_checks_repeated": false,
+		"note": "The retained results above describe the November 9 validation snapshot. Screenshots were completed on November 9 and remaining visual inspection finished on November 13. No current running stack is asserted.",
+		"running_containers": 0
+	},
+	"retained_exemplars": [
+		"5356181088903ff34b113975f2353db6",
+		"c56edcd73f5ec2b256be0990f65b781c",
+		"c716a4f614aefe7a3a3e862d3555cd82"
+	],
+	"sampling": {
+		"configured_ordinary_sampling_percent": 10,
+		"development_retained": true,
+		"error_retained": true,
+		"ordinary_production_retained": 14,
+		"ordinary_production_sent": 100,
+		"slow_retained": true
+	},
+	"schema_version": 1,
+	"scope": "Fresh isolated local stack with synthetic technical signals; does not certify full application E2E or overhead.",
+	"screenshots": {
+		"additional_panels": [
+			"Request trace exemplars at both widths",
+			"Observed availability at mobile width"
+		],
+		"artifacts": [
+			{
+				"captured_at_utc": "2026-11-09T04:02:06.913768+00:00",
+				"file": "availability-390.png",
+				"sha256": "f5079b3290d647f49cd7397c360f6195a46e77ebb64b8c14437f3c624a0eca04"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:54:47.204739+00:00",
+				"file": "clients-1440.png",
+				"sha256": "20a6e0131f814632e0c89df3df1f9a37eb042d0ef77eb1ad500373eb9136edd4"
+			},
+			{
+				"captured_at_utc": "2026-11-09T04:02:01.212768+00:00",
+				"file": "clients-390.png",
+				"sha256": "da45d49555646bff17bcc926b4ad7646b24a175f66ad4d1476762b1cda0285ca"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:52:51.575788+00:00",
+				"file": "dependencies-1440.png",
+				"sha256": "aade5d9af12412a6d4659895d4a8df27fd71e14bf8866170abac651946beb52e"
+			},
+			{
+				"captured_at_utc": "2026-11-09T04:00:16.220760+00:00",
+				"file": "dependencies-390.png",
+				"sha256": "dd9a776c63dbeb4a4d6a5cfdd51299e51507504ecf7a590277a7da73107000ea"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:52:10.657805+00:00",
+				"file": "exemplars-1440.png",
+				"sha256": "5d399bf3d2aefb30d38a57150bf223096ffd62f33118b0dd3f664d9496b1d5a0"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:59:28.616752+00:00",
+				"file": "exemplars-390.png",
+				"sha256": "94c65da89134aaab1713752631c83de7e901c4953eea1c3eee17da345a126f1d"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:51:59.829809+00:00",
+				"file": "functions-1440.png",
+				"sha256": "ce3938207b5ab1a3dec02d91b9ef12bfb60b02fe0055aa8cb5a25f3727c79b20"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:59:17.647750+00:00",
+				"file": "functions-390.png",
+				"sha256": "b73c633dc8f12548acfdcb05873a35f0f97f12d6d51a79a2be1b799ea8f20575"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:51:06.703830+00:00",
+				"file": "overview-1440.png",
+				"sha256": "697b3e7eac700dc37c82cf40d263d00a77225eb7502cc13727027a47e3b616d8"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:58:15.216735+00:00",
+				"file": "overview-390.png",
+				"sha256": "96370323f11d16bb91e16a34373c8143ac8ea879e4e142a32721b6414ce684ef"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:57:07.737713+00:00",
+				"file": "runtime-1440.png",
+				"sha256": "0e62fc02ef613ceaf1751119a8195a368ef7603cd9da02579f22a69777347f9c"
+			},
+			{
+				"captured_at_utc": "2026-11-09T04:02:26.726768+00:00",
+				"file": "runtime-390.png",
+				"sha256": "aa9d30cf6749cdc3610785c22df8ab681117adff9bf9f8084602c8da5b2aab1a"
+			},
+			{
+				"captured_at_utc": "2026-11-09T03:53:40.007768+00:00",
+				"file": "workers-1440.png",
+				"sha256": "dd46a77e806a979ca15dfbf5eacf6e740154396d05801c65b61c3dd40fc3b8d8"
+			},
+			{
+				"captured_at_utc": "2026-11-09T04:00:59.064764+00:00",
+				"file": "workers-390.png",
+				"sha256": "3fca0d03eba4610c434624f7f61655e0cce0a1ca146ca17defe78ddf18bdf0c7"
+			}
+		],
+		"dashboards": ["overview", "functions", "dependencies", "workers", "clients", "runtime"],
+		"desktop_width": 1440,
+		"inspection_date": "2026-11-13",
+		"mobile_width": 390,
+		"result": "Responsive layouts render without overlap. HTTP curves, retained exemplars, availability=1 and Collector pipeline metrics are visible. Panels without corresponding synthetic application fixtures show No data.",
+		"status": "captured and visually inspected"
+	},
+	"services_healthy": 5,
+	"source": {
+		"configuration_snapshot_includes_uncommitted_changes": true,
+		"hashes": {
+			"observability/alerts.yaml": {
+				"bytes_sha256": "4051a57b76b97498c60db53e0e8812001f29ad849c202b841919acc3e20806b1",
+				"semantic_sha256": "dd0427f3fb71ff1054e553235e9deba70c5b1dffcafcf1ab85b853fef54e9eea"
+			},
+			"observability/collector.yaml": {
+				"bytes_sha256": "d6f57ce7990f8a159809fa97943827400ab479af6ee4feb04658d0939e0ea967",
+				"semantic_sha256": "3063b484d90fe969dd962a68a618b5fb225115ebb860c89af4f4d0e45804c735"
+			},
+			"observability/compose.yaml": {
+				"bytes_sha256": "d6414dbdbca030cc12cb27cb34a026e39ef868381a057bef75fd1542710269b0",
+				"semantic_sha256": "62461c67f6642c787698dd8b3b86b7913a49eefeb15c315ca93e7c55b88103ea"
+			},
+			"observability/grafana/dashboards/clients.json": {
+				"bytes_sha256": "8180a5d818d65ebbd19c44bc276d80269ee1907e1c2816574f6ea9a7fc6afc3c",
+				"semantic_sha256": "f69767e03d2edf2a38560cce6a1197eca6c04238ca0ba1b518b228f1531f8ff6"
+			},
+			"observability/grafana/dashboards/dependencies.json": {
+				"bytes_sha256": "3a96a15fd8bc948d2165e13923d559ada880b876223955597bc83d00adb49091",
+				"semantic_sha256": "5b392320ce2ebaa1e8ac1c5e5dbb12e30aeb1ca2a1bf9002e948d033750c71f2"
+			},
+			"observability/grafana/dashboards/functions.json": {
+				"bytes_sha256": "e3ab0f23fe48b92a9895ae826f14489c56d5639cc81a5e473a481096ea7e8fea",
+				"semantic_sha256": "7222858da48325c502d686d0842081c59324e7c461c464af3afb10c06635d0e4"
+			},
+			"observability/grafana/dashboards/overview.json": {
+				"bytes_sha256": "5ad2f54e20ac659e73bfbefe5ee6023060fb56ddafb80071cb959333902d98b1",
+				"semantic_sha256": "58d9daf9d02d8dd211cd27dadac7596f9aaabd28dd8605928732a8ccfd72dbab"
+			},
+			"observability/grafana/dashboards/runtime.json": {
+				"bytes_sha256": "e40a868a96981955952b0c64fb141d55807aca405b624fee013400530659f73e",
+				"semantic_sha256": "8dc96810dace1b38936f159f926068324a500445a4b0d4f9ba6138ce15fa988f"
+			},
+			"observability/grafana/dashboards/workers.json": {
+				"bytes_sha256": "bf3dba5c951824a0a3192269e135795c2aac5b041e3278991d7a6a0972c3b61e",
+				"semantic_sha256": "afaeb57b6356475d7952292e6f36c398347c3f7229c5dbda44c1fbf29284f346"
+			},
+			"observability/grafana/provisioning/dashboards/local.yaml": {
+				"bytes_sha256": "0256471aa9a9da727107aebe6dbf96dc5e704e58c9b58435b506a1c9c5bbd23d",
+				"semantic_sha256": "978a99d097bd2dfe1bbf233840195dbea7e1980c043d723900bf855ad5ddcc0a"
+			},
+			"observability/grafana/provisioning/datasources/local.yaml": {
+				"bytes_sha256": "81ee1e4ae1d9dfe1f4fda770ed01d144664c959bcfc40555313cac228ae5ad61",
+				"semantic_sha256": "f0f6c9ca4734d3e9d8680016fcd55bbae2589a09f7714b0fcf0d70a48059a581"
+			},
+			"observability/loki.yaml": {
+				"bytes_sha256": "7a757028b24ba44b66893de97658500ce83b33cf1c30570b87027580bc45972b",
+				"semantic_sha256": "9965a68afb05bba6c5d0addb42e69a4c7c84b1460e61ed16690a5f5f9807b4ac"
+			},
+			"observability/prometheus.yaml": {
+				"bytes_sha256": "0d6f50f034922a476d56f1b732d705a8cad3b89a096aab4dd9620a0af14eaf4f",
+				"semantic_sha256": "05de2fa3813d118f525e66d3414572df8a7557911d3ed7286d16efcf06b9dbdb"
+			},
+			"observability/tempo.yaml": {
+				"bytes_sha256": "bee7ad462ec33a275a15a785bc6ed6b04b6247421cd3345c39309c61ea392f08",
+				"semantic_sha256": "35465b34ef7f6e08b46519d67d81ebeeff9f3c8c47ea2816de9460bac4c075a7"
+			}
+		},
+		"template_head": "3c9d195ee9e614aa3a47b86b25371c4f40afd39c",
+		"zaimu_head": "a855fee90e3e49256a1af8c35b6008485819aa70"
+	},
+	"targets": [
+		{
+			"health": "up",
+			"job": "application"
+		},
+		{
+			"health": "up",
+			"job": "collector"
+		},
+		{
+			"health": "up",
+			"job": "prometheus"
+		}
+	],
+	"validated_at_utc": "2026-11-09T03:51:28.697558+00:00"
+}

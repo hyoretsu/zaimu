@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { primaryCurrency } from "@/lib/account-assets";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { formatLocalTime } from "@/lib/date";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
@@ -31,7 +32,7 @@ function createDraft(transaction: Transaction) {
 		date: transaction.date.slice(0, 10),
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
 		paymentAmount: String(transaction.paymentAmount ?? transaction.amount),
-		time: transaction.time ?? "",
+		time: formatLocalTime(transaction.time) ?? "",
 	};
 }
 

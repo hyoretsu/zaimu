@@ -5,24 +5,28 @@ import { recalculateAccountYield } from "@/lib/account-yield-recalculation";
 import type { FinancialAccount } from "@/lib/api";
 import { showToast } from "@/stores";
 
-export function RecalculateAccountYieldButton({ account }: { account: FinancialAccount }) {
-	const mutation = useMutation({
+export function useRecalculateAccountYield(account: FinancialAccount) {
+	return useMutation({
 		meta: { cacheOperations: ["account"] },
 		mutationFn: () => recalculateAccountYield(account.id),
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: () => showToast("Rendimento histórico recalculado.", "positive"),
+		onSuccess: () => showToast("Rendimentos históricos recalculados.", "positive"),
 	});
+}
+
+export function RecalculateAccountYieldButton({ account }: { account: FinancialAccount }) {
+	const mutation = useRecalculateAccountYield(account);
 
 	return (
 		<Button
-			className="mt-2 w-full cursor-pointer"
+			className="w-full cursor-pointer justify-start"
 			disabled={mutation.isPending}
 			onClick={() => mutation.mutate()}
 			size="sm"
 			variant="outline"
 		>
 			<LuRefreshCw className={mutation.isPending ? "animate-spin" : undefined} />
-			{mutation.isPending ? "Recalculando..." : "Recalcular rendimento"}
+			{mutation.isPending ? "Recalculando..." : "Recalcular rendimentos"}
 		</Button>
 	);
 }

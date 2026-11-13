@@ -189,7 +189,7 @@ test("daily totals retain all native assets across wallets without quote convers
 	]);
 });
 
-test("primary currency is the first fiat holding, then card, rewards asset and legacy column", () => {
+test("primary currency is the card currency, rewards asset, chosen default, then the first fiat holding", () => {
 	expect(
 		primaryCurrency({
 			assets: [
@@ -198,6 +198,15 @@ test("primary currency is the first fiat holding, then card, rewards asset and l
 				{ assetCode: "BRL", balance: "1" },
 			],
 			yieldCurrency: "JPY",
+		}),
+	).toBe("JPY");
+	expect(
+		primaryCurrency({
+			assets: [
+				{ assetCode: "BTC", balance: "1" },
+				{ assetCode: "USD", balance: "1" },
+			],
+			yieldCurrency: null,
 		}),
 	).toBe("USD");
 	expect(primaryCurrency({ assets: [], creditCard: { currency: "EUR" }, yieldCurrency: "JPY" })).toBe(

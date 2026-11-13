@@ -127,6 +127,23 @@ export function TransactionDetailsFields({
 					value={type}
 				/>
 			) : null}
+			{showDescription || showStore ? (
+				<FormFieldRow>
+					{showDescription ? (
+						<FormField
+							autoComplete="off"
+							id="transaction-description"
+							label="Descrição"
+							name="description"
+							onChange={event => onDescriptionChange(event.currentTarget.value)}
+							placeholder="Ex: Mercado do mês"
+							type="text"
+							value={description}
+						/>
+					) : null}
+					{showStore ? <StorePicker onValueChange={onStoreNameChange} value={storeName} /> : null}
+				</FormFieldRow>
+			) : null}
 			<FormFieldRow className="max-sm:grid-cols-1">
 				{onCurrencyChange ? (
 					<CurrencySelect
@@ -241,27 +258,6 @@ export function TransactionDetailsFields({
 						)}
 					</div>
 				)}
-			{onFeesChange ? (
-				<FinancialFeeFields
-					baseAmount={amount || "0"}
-					currencyCode={currencyCode}
-					fees={fees}
-					onChange={onFeesChange}
-				/>
-			) : null}
-			{showDescription ? (
-				<FormField
-					autoComplete="off"
-					id="transaction-description"
-					label="Descrição"
-					name="description"
-					onChange={event => onDescriptionChange(event.currentTarget.value)}
-					placeholder="Ex: Mercado do mês"
-					type="text"
-					value={description}
-				/>
-			) : null}
-			{showStore ? <StorePicker onValueChange={onStoreNameChange} value={storeName} /> : null}
 			<FormFieldRow>
 				<DateField
 					id="transaction-date"
@@ -280,6 +276,7 @@ export function TransactionDetailsFields({
 					value={time}
 				/>
 			</FormFieldRow>
+			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}
 			{onIsHiddenChange ? (
 				<CheckboxField
 					align="start"
@@ -292,7 +289,15 @@ export function TransactionDetailsFields({
 					<span className="text-foreground-muted font-medium">Ocultar na lista do dia</span>
 				</CheckboxField>
 			) : null}
-			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}
+			{onFeesChange ? (
+				<FinancialFeeFields
+					baseAmount={amount || "0"}
+					currencyCode={currencyCode}
+					fees={fees}
+					onChange={onFeesChange}
+					selectableAsset
+				/>
+			) : null}
 		</>
 	);
 }

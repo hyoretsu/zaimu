@@ -26,6 +26,7 @@ import { getCountryHolidays } from "~/modules/yield-calendar/catalog";
 import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { createEventEnvelope, type EventEnvelope } from "~/shared/application/events";
 import { PostgresOutbox } from "~/shared/infra/outbox";
+import { userEventBus } from "~/shared/infra/realtime";
 import {
 	db,
 	executeRaw,
@@ -270,11 +271,9 @@ function requiredReferenceTypes(settings: ReturnType<typeof getYieldSettings>) {
 				: [];
 	return [...new Set(types)];
 }
-async function processAccountRecalculation(job: ClaimedJob) {
+async function replayAccountYields(job: ClaimedJob, account: YieldAccount) {
 	if (!job.financialAccountId || !job.fromDate) throw new Error("Job de recálculo incompleto");
 	const sourceVersion = await balanceAdjustmentSourceVersion(queryRaw, job.financialAccountId);
-	const account = await loadYieldAccount(job.financialAccountId);
-	if (!account) return;
 	const fiatCodes = await fiatHoldingCodes(account.id);
 	if (!fiatCodes.length) return;
 	const firstBalance = await accountFirstBalanceDate(account.id);
@@ -324,13 +323,21 @@ async function processAccountRecalculation(job: ClaimedJob) {
 	}
 	// A checkpoint only depends on days before it, so missing rates later on do not block it.
 	await reconcile(dateKey(fromDate), firstGap);
+}
+
+/** Always notifies the owner, even when nothing needed replaying, so open clients never wait on a silent job. */
+async function processAccountRecalculation(job: ClaimedJob) {
+	if (!job.financialAccountId || !job.fromDate) throw new Error("Job de recálculo incompleto");
+	const account = await loadYieldAccount(job.financialAccountId);
+	if (!account) return;
+	await replayAccountYields(job, account);
 	await outbox.append(
 		createEventEnvelope({
 			aggregateId: account.id,
 			aggregateType: "financialAccount",
 			correlationId: commandId(job.deduplicationKey),
 			eventType: "yieldRecalculated",
-			payload: { fromDate: dateKey(fromDate) },
+			payload: { fromDate: dateKey(job.fromDate) },
 			userIds: [(account as YieldAccount & { userId: string }).userId],
 		}),
 	);
@@ -475,18 +482,47 @@ export async function handleReferenceRateFetchCommand(
 	return processFetchJob(job, fetchRates, options.preserveExisting);
 }
 
+/**
+ * Lets open clients show progress while a recalculation actually runs. Announced by the worker rather than
+ * at enqueue time because duplicate commands are dropped by the outbox and would never report back.
+ * Best effort; `yieldRecalculated` (or `yieldRecalculationFailed`) ends it.
+ */
+async function announceYieldRecalculation(accountId: string, eventType: "failed" | "started") {
+	try {
+		const [owner] = await queryRaw<{ userId: string }>(
+			`SELECT "userId" FROM "FinancialAccount" WHERE "id"=$1`,
+			[accountId],
+		);
+		if (owner)
+			await userEventBus.publish([owner.userId], {
+				aggregateId: accountId,
+				aggregateType: "yieldRecalculation",
+				eventType,
+			});
+	} catch (error) {
+		console.warn("Failed to announce yield recalculation", error);
+	}
+}
 export async function handleAccountYieldRecalculationCommand(event: EventEnvelope) {
 	const accountId = requiredString(event.payload, "financialAccountId");
 	const throughDate = (event.payload as { throughDate?: string }).throughDate;
-	return withRawTransaction(async query => {
-		await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`account-yields:${accountId}`]);
-		return processAccountRecalculation({
-			deduplicationKey: requiredString(event.payload, "deduplicationKey"),
-			endDate: throughDate ? new Date(`${throughDate}T12:00:00`) : null,
-			financialAccountId: accountId,
-			fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
-			referenceType: null,
-			startDate: null,
+	await announceYieldRecalculation(accountId, "started");
+	try {
+		return await withRawTransaction(async query => {
+			await query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+				`account-yields:${accountId}`,
+			]);
+			return processAccountRecalculation({
+				deduplicationKey: requiredString(event.payload, "deduplicationKey"),
+				endDate: throughDate ? new Date(`${throughDate}T12:00:00`) : null,
+				financialAccountId: accountId,
+				fromDate: new Date(`${requiredString(event.payload, "fromDate")}T12:00:00`),
+				referenceType: null,
+				startDate: null,
+			});
 		});
-	});
+	} catch (error) {
+		await announceYieldRecalculation(accountId, "failed");
+		throw error;
+	}
 }

@@ -132,7 +132,7 @@
 			"targets": [
 				{
 					"exemplar": true,
-					"expr": "1 - sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\",http_response_status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])),0.001)",
+					"expr": "1 - (sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\",http_response_status_code=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_server_request_duration_seconds_count{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])),0.001)",
 					"refId": "A"
 				}
 			],

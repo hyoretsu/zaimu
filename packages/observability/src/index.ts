@@ -77,14 +77,17 @@ export function captureContext(): Record<string, string> {
 	return carrier.traceparent ? { traceparent: carrier.traceparent } : {};
 }
 export function linkedContext(carrier: Record<string, string> | undefined) {
-	const extracted = propagation.extract(ROOT_CONTEXT, carrier ?? {});
+	// Vendor tracestate can carry private data outside sanitized span attributes.
+	const descriptor = carrier && Object.getOwnPropertyDescriptor(carrier, "traceparent");
+	const safe = typeof descriptor?.value === "string" ? { traceparent: descriptor.value } : {};
+	const extracted = propagation.extract(ROOT_CONTEXT, safe);
 	const linked = trace.getSpanContext(extracted);
 	return linked ? [{ context: linked }] : [];
 }
 export function operation<T>(
 	name: string,
 	work: () => T,
-	attributes: Attributes = {},
+	attributes: Attributes | (() => Attributes) = {},
 	parent: Context = context.active(),
 	links: Link[] = [],
 	observeSettlement = true,
@@ -102,48 +105,52 @@ export function operation<T>(
 	}
 	budget.count++;
 	const started = performance.now();
-	return tracer.startActiveSpan(name, { attributes, links }, parent, span =>
-		state.run({ budget, depth: depth + 1, root: current?.root ?? span }, () => {
-			let ended = false;
-			const finish = (error = false) => {
-				if (ended) return;
-				error ||= failedOperations.has(span);
-				ended = true;
-				span.setAttribute("code.outcome", error ? "error" : "ok");
-				if (error) {
-					span.setStatus({ code: SpanStatusCode.ERROR });
-					span.addEvent("exception", { "exception.type": "Error" });
-					getInstruments().errors.add(1, { operation: name });
+	return tracer.startActiveSpan(
+		name,
+		{ attributes: typeof attributes === "function" ? attributes() : attributes, links },
+		parent,
+		span =>
+			state.run({ budget, depth: depth + 1, root: current?.root ?? span }, () => {
+				let ended = false;
+				const finish = (error = false) => {
+					if (ended) return;
+					error ||= failedOperations.has(span);
+					ended = true;
+					span.setAttribute("code.outcome", error ? "error" : "ok");
+					if (error) {
+						span.setStatus({ code: SpanStatusCode.ERROR });
+						span.addEvent("exception", { "exception.type": "Error" });
+						getInstruments().errors.add(1, { operation: name });
+					}
+					getInstruments().duration.record((performance.now() - started) / 1000, {
+						operation: name,
+						outcome: error ? "error" : "ok",
+					});
+					span.end();
+				};
+				try {
+					const result = work();
+					if (result instanceof Promise && observeSettlement) {
+						// Observe settlement without replacing the original promise or its identity.
+						result.then(
+							value => {
+								if (process.env.OTEL_CAPTURE_SUMMARIES === "true")
+									span.setAttribute("code.return", summarize(value));
+								finish();
+							},
+							() => finish(true),
+						);
+					} else {
+						if (process.env.OTEL_CAPTURE_SUMMARIES === "true")
+							span.setAttribute("code.return", summarize(result));
+						finish();
+					}
+					return result;
+				} catch (error) {
+					finish(true);
+					throw error;
 				}
-				getInstruments().duration.record((performance.now() - started) / 1000, {
-					operation: name,
-					outcome: error ? "error" : "ok",
-				});
-				span.end();
-			};
-			try {
-				const result = work();
-				if (result instanceof Promise && observeSettlement) {
-					// Observe settlement without replacing the original promise or its identity.
-					result.then(
-						value => {
-							if (process.env.OTEL_CAPTURE_SUMMARIES === "true")
-								span.setAttribute("code.return", summarize(value));
-							finish();
-						},
-						() => finish(true),
-					);
-				} else {
-					if (process.env.OTEL_CAPTURE_SUMMARIES === "true")
-						span.setAttribute("code.return", summarize(result));
-					finish();
-				}
-				return result;
-			} catch (error) {
-				finish(true);
-				throw error;
-			}
-		}),
+			}),
 	);
 }
 export function functionCall<T>(
@@ -153,13 +160,14 @@ export function functionCall<T>(
 	work: () => T,
 	asynchronous = false,
 ): T {
+	if (!enabled()) return work();
 	return operation(
 		name,
 		work,
-		{
+		() => ({
 			"code.file.path": location,
 			...(process.env.OTEL_CAPTURE_SUMMARIES === "true" ? { "code.arguments": summarize(args) } : {}),
-		},
+		}),
 		context.active(),
 		[],
 		asynchronous,

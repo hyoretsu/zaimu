@@ -74,7 +74,7 @@ export function DashboardPage() {
 		);
 	const dashboard = dashboardQuery.data;
 	const currencyCode = dashboard.currency ?? effectiveCurrency;
-	const currency = createCurrencyFormatter(currencyCode, navigator.languages);
+	const currency = createCurrencyFormatter(currencyCode);
 	const { accountBalance, fixedIncomeBalance, variableIncomeBalance } = dashboard.balanceBreakdown ?? {};
 	const endingBalance = dashboard.period?.endingBalance;
 	const isCurrentDay = isToday;

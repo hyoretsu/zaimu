@@ -1,4 +1,5 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
+import { PurchaseFormLayout } from "@/components/credit-card-purchases";
 import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
@@ -17,7 +18,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
-import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { TimeField } from "@/components/ui/TimeField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -27,6 +27,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCurrencyStore } from "@/stores/currency";
 
 interface PurchaseDraft {
@@ -92,7 +93,7 @@ export function CreatePurchaseDialog({
 	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const currencyCode =
 		selectedCurrency ?? cards.find(card => card.id === cardId)?.currency ?? effectiveCurrency;
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	useEffect(() => {
 		if (open && initialCardId) setCardId(initialCardId);
 	}, [open, initialCardId]);
@@ -148,78 +149,53 @@ export function CreatePurchaseDialog({
 				</DialogHeader>
 				<form className="flex min-h-0 min-w-0 flex-1 flex-col gap-5" onSubmit={submit}>
 					<DialogBody>
-						<FormFieldRow>
-							<CustomSelect
-								disabled={cardsLoading || cardsError || cards.length === 0}
-								label="Cartão"
-								onValueChange={setCardId}
-								options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
-								placeholder={cardsLoading ? "Carregando cartões..." : "Selecione o cartão"}
-								required
-								searchable
-								value={cardId}
-							/>
-							<StorePicker onValueChange={setStoreName} value={storeName} />
-						</FormFieldRow>
-						{cardsError ? (
-							<div className="flex items-center justify-between gap-3 text-muted-foreground text-sm">
-								<span>Não foi possível carregar cartões.</span>
-								{onRetryCards ? (
-									<Button onClick={onRetryCards} type="button" variant="outline">
-										Tentar novamente
-									</Button>
-								) : null}
-							</div>
-						) : !cardsLoading && cards.length === 0 ? (
-							<p className="text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>
-						) : null}
-						<FormField
-							autoComplete="off"
-							id="purchase-description"
-							label="Descrição"
-							name="purchase-description"
-							onChange={event => setDescription(event.currentTarget.value)}
-							placeholder="Ex: Supermercado do mês"
-							type="text"
-							value={description}
-						/>
-						<FormFieldRow>
-							<CurrencySelect onValueChange={setCurrencyCode} value={currencyCode} />
-							<MoneyField
-								currencyCode={currencyCode}
-								id="purchase-amount"
-								label="Valor da compra"
-								onValueChange={value => {
-									setAmount(value);
-									if (value && selectedCurrency === null) setCurrencyCode(currencyCode);
-								}}
-								placeholder="R$ 480,00"
-								required
-								value={amount}
-							/>
-						</FormFieldRow>
-						<FinancialFeeFields
-							baseAmount={Number(amount) || 0}
-							currencyCode={currencyCode}
-							fees={fees}
-							onChange={setFees}
-						/>
-						<div className="grid gap-4">
-							<FormField
-								autoComplete="off"
-								description="Informe 1 para compra à vista."
-								disabled={isStatementCharge}
-								id="purchase-installments"
-								inputMode="numeric"
-								label="Parcelas"
-								name="purchase-installments"
-								onChange={event => setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
-								placeholder="Ex: 12"
-								required
-								type="text"
-								value={isStatementCharge ? "1" : count}
-							/>
-							<FormFieldRow>
+						<PurchaseFormLayout
+							amount={
+								<MoneyField
+									currencyCode={currencyCode}
+									id="purchase-amount"
+									label="Valor total"
+									onValueChange={value => {
+										setAmount(value);
+										if (value && selectedCurrency === null) setCurrencyCode(currencyCode);
+									}}
+									required
+									value={amount}
+								/>
+							}
+							card={
+								<CustomSelect
+									disabled={cardsLoading || cardsError || cards.length === 0}
+									label="Cartão"
+									onValueChange={setCardId}
+									options={cards.map(card => ({
+										label: getCreditCardDisplayName(card),
+										value: card.id,
+									}))}
+									placeholder={
+										cardsLoading ? "Carregando cartões..." : "Selecione o cartão"
+									}
+									required
+									searchable
+									value={cardId}
+								/>
+							}
+							charge={
+								<CheckboxField
+									checkboxProps={{
+										checked: isStatementCharge,
+										id: "purchase-is-charge",
+										onCheckedChange: checked => {
+											setIsStatementCharge(checked === true);
+											if (checked) setIsDebt(false);
+										},
+									}}
+								>
+									<span>Encargos da fatura (juros, multa ou IOF)</span>
+								</CheckboxField>
+							}
+							currency={<CurrencySelect onValueChange={setCurrencyCode} value={currencyCode} />}
+							date={
 								<DateField
 									autoComplete="off"
 									id="purchase-date"
@@ -229,6 +205,100 @@ export function CreatePurchaseDialog({
 									required
 									value={date}
 								/>
+							}
+							debt={
+								<div className="grid gap-3 rounded-2xl border p-3">
+									<CheckboxField
+										checkboxProps={{
+											checked: isDebt,
+											disabled: isStatementCharge,
+											id: "purchase-is-debt",
+											onCheckedChange: checked => {
+												setIsDebt(checked === true);
+											},
+										}}
+									>
+										<span>Esta compra é de uma dívida</span>
+									</CheckboxField>
+									{isDebt ? (
+										<DebtSplitEditor
+											amount={total}
+											currencyCode={currencyCode}
+											onChange={setDebtSplit}
+											value={debtSplit}
+										/>
+									) : null}
+								</div>
+							}
+							description={
+								<FormField
+									autoComplete="off"
+									id="purchase-description"
+									label="Descrição"
+									name="purchase-description"
+									onChange={event => setDescription(event.currentTarget.value)}
+									placeholder="Ex: Supermercado do mês"
+									type="text"
+									value={description}
+								/>
+							}
+							fees={
+								<FinancialFeeFields
+									baseAmount={Number(amount) || 0}
+									currencyCode={currencyCode}
+									fees={fees}
+									onChange={setFees}
+								/>
+							}
+							installments={
+								<FormField
+									autoComplete="off"
+									description="Informe 1 para compra à vista."
+									disabled={isStatementCharge}
+									id="purchase-installments"
+									inputMode="numeric"
+									label="Total de parcelas"
+									name="purchase-installments"
+									onChange={event =>
+										setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
+									}
+									placeholder="Ex: 12"
+									required
+									type="text"
+									value={isStatementCharge ? "1" : count}
+								/>
+							}
+							notices={
+								cardsError ? (
+									<div className="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+										<span>Não foi possível carregar cartões.</span>
+										{onRetryCards ? (
+											<Button onClick={onRetryCards} type="button" variant="outline">
+												Tentar novamente
+											</Button>
+										) : null}
+									</div>
+								) : !cardsLoading && cards.length === 0 ? (
+									<p className="text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>
+								) : null
+							}
+							store={<StorePicker onValueChange={setStoreName} value={storeName} />}
+							summary={
+								total > 0 ? (
+									<div className="border-primary/15 bg-primary/5 rounded-xl border p-3 text-sm">
+										<strong>Valor original: {currency.format(total)}</strong>
+
+										{installmentCount > 1 ? (
+											<p className="text-muted-foreground mt-1">
+												{count}x de {currency.format(installmentValue)}. Cada parcela
+												entra na fatura correspondente.
+											</p>
+										) : null}
+									</div>
+								) : null
+							}
+							tags={<TagPicker onValueChange={setTagIds} value={tagIds} />}
+							time={
 								<TimeField
 									id="purchase-time"
 									label="Horário"
@@ -237,55 +307,8 @@ export function CreatePurchaseDialog({
 									placeholder="Ex: 14:30"
 									value={time}
 								/>
-							</FormFieldRow>
-						</div>
-						<TagPicker onValueChange={setTagIds} value={tagIds} />
-						<CheckboxField
-							checkboxProps={{
-								checked: isStatementCharge,
-								id: "purchase-is-charge",
-								onCheckedChange: checked => {
-									setIsStatementCharge(checked === true);
-									if (checked) setIsDebt(false);
-								},
-							}}
-						>
-							<span>Encargo da fatura (juros, multa ou IOF)</span>
-						</CheckboxField>
-						<div className="grid gap-3 rounded-2xl border p-3">
-							<CheckboxField
-								checkboxProps={{
-									checked: isDebt,
-									disabled: isStatementCharge,
-									id: "purchase-is-debt",
-									onCheckedChange: checked => {
-										setIsDebt(checked === true);
-									},
-								}}
-							>
-								<span>Esta compra é de uma dívida</span>
-							</CheckboxField>
-							{isDebt ? (
-								<DebtSplitEditor
-									amount={total}
-									currencyCode={currencyCode}
-									onChange={setDebtSplit}
-									value={debtSplit}
-								/>
-							) : null}
-						</div>
-						{total > 0 && (
-							<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
-								<strong>Valor original: {currency.format(total)}</strong>
-
-								{installmentCount > 1 ? (
-									<p className="mt-1 text-muted-foreground">
-										{count}x de {currency.format(installmentValue)}. Cada parcela entra na fatura
-										correspondente.
-									</p>
-								) : null}
-							</div>
-						)}
+							}
+						/>
 					</DialogBody>
 					<DialogFooter>
 						<Button onClick={() => handleOpenChange(false)} type="button" variant="outline">

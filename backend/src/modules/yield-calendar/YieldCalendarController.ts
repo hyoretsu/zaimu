@@ -8,6 +8,7 @@ import { loadYieldCalendar } from "./catalog";
 import { CountryPreferencesController } from "./country-preference";
 import { ensureCalendarCoverage } from "./ensure-coverage";
 import { InvoicePaymentPreferencesController } from "./invoice-payment-preference";
+import { TimeFormatPreferencesController } from "./time-format-preference";
 
 const Code = t.String({ pattern: "^[A-Z]{2}$" });
 const Currency = t.String({ pattern: "^[A-Z]{3}$" });
@@ -58,6 +59,7 @@ function checkedDate(date: string) {
 export const YieldCalendarController = new Elysia()
 	.use(CountryPreferencesController)
 	.use(InvoicePaymentPreferencesController)
+	.use(TimeFormatPreferencesController)
 	.post(
 		"/admin/yield-calendar/countries/:code/coverage/:year",
 		async ({ request, params }) => {

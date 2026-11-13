@@ -30,7 +30,7 @@ export function DebtSplitEditor({
 	showParticipantDescriptions = true,
 	value,
 }: DebtSplitEditorProps) {
-	const currency = createCurrencyFormatter(currencyCode, "pt-BR");
+	const currency = createCurrencyFormatter(currencyCode);
 	const customized = useRef(false);
 	const identity = useCacheIdentity();
 	const ledger = useQuery({

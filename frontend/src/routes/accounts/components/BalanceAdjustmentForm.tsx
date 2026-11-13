@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { assetSymbol, decimalToUnits } from "@zaimu/finance/asset-amount";
+import { decimalToUnits } from "@zaimu/finance/asset-amount";
 import { useState } from "react";
 import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { Button } from "@/components/ui/Button";
@@ -66,16 +66,8 @@ export function BalanceAdjustmentForm({
 				(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK"),
 		)
 		.toSorted(compareFinancialAccountsByOptionLabel);
-	const [selectedAsset, setSelectedAsset] = useState(
-		initialDraft?.assetCode ?? adjustment?.assetCode ?? "",
-	);
 	const selectedAccount = accounts.find(account => account.id === financialAccountId);
-	const holdings = selectedAccount?.assets ?? [];
-	const assetCode = holdings.some(asset => asset.assetCode === selectedAsset)
-		? selectedAsset
-		: holdings.length === 1
-			? holdings[0].assetCode
-			: "";
+	const assetCode = selectedAccount?.yieldCurrency ?? selectedAccount?.assets[0]?.assetCode ?? "";
 	const [error, setError] = useState<string | null>(null);
 	const save = (form: HTMLFormElement) => {
 		const values = new FormData(form);
@@ -178,18 +170,6 @@ export function BalanceAdjustmentForm({
 								onValueChange={setDate}
 								required
 								value={date}
-							/>
-							<CustomSelect
-								label="Ativo"
-								onValueChange={setSelectedAsset}
-								options={holdings.map(asset => ({
-									label: assetSymbol(asset.assetCode),
-									value: asset.assetCode,
-								}))}
-								placeholder="Selecione o ativo"
-								required
-								searchable
-								value={assetCode}
 							/>
 							{assetCode && (
 								<AssetAmountField

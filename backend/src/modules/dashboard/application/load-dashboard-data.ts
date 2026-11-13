@@ -287,10 +287,16 @@ WHERE transaction."userId" = $1 AND transaction."date" BETWEEN $4::date AND $3::
 const movementsSql = `${comparisonMovementsSql}
 UNION ALL
 SELECT 'forecastTransaction', jsonb_build_object(
-  'currency', transaction."bookingCurrency", 'amount', transaction."amount"::text, 'date', transaction."date", 'description', transaction."description",
+  'currency', transaction."bookingCurrency", 'amount', transaction."amount"::text, 'date', transaction."date", 'description', COALESCE(
+    NULLIF(NULLIF(BTRIM(transaction."description"), ''), 'Compra'), NULLIF(BTRIM(transaction."storeName"), ''), NULLIF(BTRIM(transaction."description"), ''),
+    CASE WHEN transaction."paymentCreditCardId" IS NOT NULL THEN 'Pagamento do cartão - ' || COALESCE(payment_account."name", payment_institution."name", 'Cartão de crédito') END
+  ),
   'id', transaction."id", 'type', transaction."type"::text
 )
 FROM "Transaction" transaction
+LEFT JOIN "CreditCard" payment_card ON payment_card."id" = transaction."paymentCreditCardId"
+LEFT JOIN "FinancialAccount" payment_account ON payment_account."id" = payment_card."financialAccountId"
+LEFT JOIN "FinancialInstitution" payment_institution ON payment_institution."id" = payment_account."institutionId"
 WHERE transaction."userId" = $1 AND transaction."date" > $4::date AND transaction."date" <= $3::date
   AND transaction."type" <> 'TRANSFER'
   AND transaction."recurrenceId" IS NULL
@@ -379,6 +385,26 @@ export async function loadDashboardRows(
 		rowsByKind(overviewRows, "payment").map(row => [String(row.id), Number(row.recurringAmount ?? 0)]),
 	);
 	const projectedCardPaymentAmounts = new Map<string, number>();
+	let projectedStatements: ReturnType<typeof replayDashboardStatements> | undefined;
+	const nativeRecurrences = recurrences.filter(
+		row =>
+			(row.currency ?? "BRL") === (cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
+	);
+	const allNativeRecurrences = nativeRecurrences.length === recurrences.length;
+	const nativeStatements = () =>
+		(projectedStatements ??= replayDashboardStatements(
+			userId,
+			cards,
+			overviewRows,
+			dateKey(range.today),
+			nativeRecurrences,
+			dateKey(range.comparisonEnd),
+			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
+				recurrenceId: string;
+				date: string;
+			}>,
+			projectedCardPaymentAmounts,
+		));
 	return {
 		...({ projectedCardPaymentAmounts } as { projectedCardPaymentAmounts?: Map<string, number> }),
 		...({ monthlyBudgets } as { monthlyBudgets?: MonthlyBudget[] }),
@@ -415,42 +441,35 @@ export async function loadDashboardRows(
 		})) as unknown as DashboardLoanPayment[],
 		...({
 			projectStatements: (convert: RecurrenceMoneyConverter) =>
-				replayDashboardStatements(
-					userId,
-					cards,
-					overviewRows,
-					dateKey(range.today),
-					recurrences,
-					dateKey(range.comparisonEnd),
-					rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
-						recurrenceId: string;
-						date: string;
-					}>,
-					projectedCardPaymentAmounts,
-					convert,
-				),
+				// Conversion is the identity when no recurrence differs from its card's currency.
+				allNativeRecurrences
+					? nativeStatements()
+					: replayDashboardStatements(
+							userId,
+							cards,
+							overviewRows,
+							dateKey(range.today),
+							recurrences,
+							dateKey(range.comparisonEnd),
+							rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
+								recurrenceId: string;
+								date: string;
+							}>,
+							projectedCardPaymentAmounts,
+							convert,
+						),
 		} as {
 			projectStatements?: (
 				convert: RecurrenceMoneyConverter,
 			) => ReturnType<typeof replayDashboardStatements>;
 		}),
-		projectedStatements: replayDashboardStatements(
-			userId,
-			cards,
-			overviewRows,
-			dateKey(range.today),
-			recurrences.filter(
-				row =>
-					(row.currency ?? "BRL") ===
-					(cards.find(card => card.id === row.creditCardId)?.currency ?? "BRL"),
-			),
-			dateKey(range.comparisonEnd),
-			rowsByKind(scheduleRows, "occurrence") as unknown as Array<{
-				recurrenceId: string;
-				date: string;
-			}>,
-			projectedCardPaymentAmounts,
-		),
+		// Lazy: forecasts replay every card through the horizon, and currency-aware callers replace this value.
+		get projectedStatements() {
+			return nativeStatements();
+		},
+		set projectedStatements(value: ReturnType<typeof replayDashboardStatements>) {
+			projectedStatements = value;
+		},
 		projectedYields: null as Awaited<ReturnType<typeof projectedYieldContext>> | null,
 		recurrences,
 		recurring: [],

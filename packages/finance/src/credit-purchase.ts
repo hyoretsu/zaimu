@@ -1,4 +1,4 @@
-import { type CardCalendar, calendarCycles, statementDueDate } from "./credit-card";
+import { calendarCycles, type CardCalendar, statementDueDate } from "./credit-card";
 
 /** Money in normalized purchase records is an integer number of cents. */
 export function assertCents(value: number, minimum = 0) {
@@ -10,11 +10,15 @@ export function sumCents(values: readonly number[]) {
 	return values.reduce((sum, value) => assertCents(sum + assertCents(value)), 0);
 }
 
+const validDateKeys = new Set<string>();
 export function assertDateKey(value: string) {
+	if (validDateKeys.has(value)) return value;
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new RangeError("Data inválida");
 	const date = new Date(`${value}T12:00:00Z`);
 	if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value)
 		throw new RangeError("Data inválida");
+	if (validDateKeys.size > 100_000) validDateKeys.clear();
+	validDateKeys.add(value);
 	return value;
 }
 

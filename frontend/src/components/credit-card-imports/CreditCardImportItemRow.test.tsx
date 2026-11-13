@@ -39,6 +39,7 @@ for (const reviewed of [false, true]) {
 					onApprove={() => {}}
 					onEdit={() => {}}
 					onReconcile={() => {}}
+					onRecurrenceChange={() => {}}
 					onReviewRefund={() => {}}
 				/>
 			</TooltipProvider>,
@@ -68,6 +69,7 @@ test("BRL purchase shows imported IOF as purchase tax", () => {
 				onApprove={() => undefined}
 				onEdit={() => undefined}
 				onReconcile={() => undefined}
+				onRecurrenceChange={() => {}}
 				onReviewRefund={() => undefined}
 				pending={false}
 			/>
@@ -97,6 +99,7 @@ for (const [label, changes, allowed] of [
 					onApprove={() => {}}
 					onEdit={() => {}}
 					onReconcile={() => {}}
+					onRecurrenceChange={() => {}}
 					onReviewRefund={() => {}}
 				/>
 			</TooltipProvider>,

@@ -1,4 +1,4 @@
-import { type CreditBook, replayCreditBook } from "./credit-book";
+import { type CreditBook, creditBookPlan, replayCreditBook } from "./credit-book";
 import { paymentStatement } from "./credit-card";
 /** Settle each projected due date in a temporary ledger before inspecting the next cycle. */
 export function forecastCardPayments(book: CreditBook, from: string, through: string) {
@@ -8,19 +8,27 @@ export function forecastCardPayments(book: CreditBook, from: string, through: st
 		book,
 		book.payments.map(payment => ({ ...payment, amount: attributed.get(payment.id) ?? 0 })),
 	);
+	// Payments never alter the invoice plan, so each book is planned once instead of once per replay.
+	const plan = creditBookPlan(book);
+	const recurringPlan = creditBookPlan(recurringBook);
 	const dates = [
 		...new Set(
-			replayCreditBook(temporary, from).statements.map(statement => statement.dueDate.slice(0, 10)),
+			replayCreditBook(temporary, from, plan).statements.map(statement =>
+				statement.dueDate.slice(0, 10),
+			),
 		),
 	]
 		.filter(date => date >= from && date <= through)
 		.sort();
 	return dates.flatMap(date => {
-		const statements = replayCreditBook(temporary, date).statements.filter(
+		const statements = replayCreditBook(temporary, date, plan).statements.filter(
 			statement => statement.dueDate.slice(0, 10) === date,
 		);
 		const recurringStatements = new Map(
-			replayCreditBook(recurringBook, date).statements.map(statement => [statement.id, statement]),
+			replayCreditBook(recurringBook, date, recurringPlan).statements.map(statement => [
+				statement.id,
+				statement,
+			]),
 		);
 		return statements.flatMap(statement => {
 			const amount = Math.max(0, statement.balanceAmount);
@@ -42,16 +50,21 @@ export function recurringCardPaymentAmounts(book: CreditBook) {
 		return new Map(book.payments.map(payment => [payment.id, 0]));
 	const replay = { ...book, payments: [] as CreditBook["payments"] };
 	const recurringBook = recurringOnlyBook(book, []);
+	const plan = creditBookPlan(replay);
+	const recurringPlan = creditBookPlan(recurringBook);
 	const result = new Map<string, number>();
 	for (const payment of book.payments.toSorted(
 		(a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
 	)) {
 		let remaining = payment.amount;
 		let recurringAmount = 0;
-		const target = paymentStatement(replayCreditBook(replay, payment.date).statements, payment.date);
+		const target = paymentStatement(
+			replayCreditBook(replay, payment.date, plan).statements,
+			payment.date,
+		);
 		const statements = target ? [target] : [];
 		const recurringStatements = new Map(
-			replayCreditBook(recurringBook, payment.date).statements.map(statement => [
+			replayCreditBook(recurringBook, payment.date, recurringPlan).statements.map(statement => [
 				statement.id,
 				statement,
 			]),

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialFee } from "@/lib/api";
 import { convertLocalMoney, guestRate } from "@/lib/currency-conversion";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
 
@@ -31,7 +32,13 @@ export function TransactionConversionPreview({
 	const query = useQuery({
 		enabled: hasConversion && !!owner && Number(amount) > 0 && !!date,
 		queryFn: async () => {
-			const debit = await convertLocalMoney(Number(amount), date, sourceCurrency, bookingCurrency, fees);
+			const debit = await convertLocalMoney(
+				Number(amount),
+				date,
+				sourceCurrency,
+				bookingCurrency,
+				fees,
+			);
 			return roundMoney(
 				debit.amount * (await guestRate(date, bookingCurrency, targetCurrency)),
 				targetCurrency,
@@ -62,10 +69,7 @@ export function TransactionConversionPreview({
 	return (
 		<div className="space-y-2">
 			<p className="text-muted-foreground text-xs">
-				Conversão de {date}:{" "}
-				{new Intl.NumberFormat(navigator.languages, { currency: targetCurrency, style: "currency" }).format(
-					suggested,
-				)}
+				Conversão de {date}: {createCurrencyFormatter(targetCurrency).format(suggested)}
 			</p>
 			<ActionGroup>
 				<Button

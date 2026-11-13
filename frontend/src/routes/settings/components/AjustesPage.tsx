@@ -23,6 +23,7 @@ import { CurrencySettings } from "./CurrencySettings";
 import { FinancialCoverageDialog } from "./FinancialCoverageDialog";
 import { InstitutionNotifications } from "./InstitutionNotifications";
 import { InvoicePaymentSettings } from "./InvoicePaymentSettings";
+import { TimeFormatSettings } from "./TimeFormatSettings";
 import { TimeZoneSettings } from "./TimeZoneSettings";
 
 const themeOptions: { id: ThemeMode; label: string; icon: typeof HiSun; description: string }[] = [
@@ -191,6 +192,7 @@ export function AjustesPage() {
 				<CurrencySettings />
 				<CountrySettings />
 				<TimeZoneSettings />
+				<TimeFormatSettings />
 				<InvoicePaymentSettings />
 				<InstitutionNotifications />
 				{!isGuestMode && (

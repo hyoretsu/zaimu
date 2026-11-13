@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
 	LuArrowRight,
 	LuCloudDownload,
@@ -25,6 +26,7 @@ export function TransactionBadges({
 	creditCardPayment,
 	debtPersonName,
 	isSynced = false,
+	leading,
 	isRecurring = false,
 	storeName,
 	tags,
@@ -32,6 +34,7 @@ export function TransactionBadges({
 	accounts: TransactionBadgeAccount[];
 	creditCardPayment?: { cardName: string; cardId: string; statementDate?: string };
 	debtPersonName?: string;
+	leading?: ReactNode;
 	isSynced?: boolean;
 	isRecurring?: boolean;
 	storeName?: string | null;
@@ -42,6 +45,7 @@ export function TransactionBadges({
 			aria-label="Detalhes da transação"
 			className="flex min-w-0 list-none flex-wrap items-center gap-1.5"
 		>
+			{leading ? <li className="contents">{leading}</li> : null}
 			{accounts.map((account, index) => (
 				<li className="flex min-w-0 items-center gap-1" key={account.id}>
 					{index > 0 ? (

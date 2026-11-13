@@ -1,5 +1,6 @@
 import { LuCalendarClock, LuChevronDown, LuChevronUp, LuEyeOff, LuTrendingUp } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function TransactionsGroupToggle({
 	expanded,
@@ -44,9 +45,7 @@ export function TransactionsGroupToggle({
 						{totals.map(({ currency, amount }) => (
 							<span className="tabular-nums" key={currency}>
 								{amount > 0 ? "+" : ""}
-								{new Intl.NumberFormat("pt-BR", { currency, style: "currency" }).format(
-									amount,
-								)}
+								{createCurrencyFormatter(currency).format(amount)}
 							</span>
 						))}
 					</span>

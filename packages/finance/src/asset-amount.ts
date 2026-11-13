@@ -1,4 +1,4 @@
-import { currencyDigits, isCryptoAsset, normalizeCurrency } from "./money";
+import { currencyDigits, currencyLocale, isCryptoAsset, normalizeCurrency } from "./money";
 
 /** Exact decimal amounts as strings; crypto never goes through `number`. */
 const decimalPattern = /^-?\d+(\.\d+)?$/;
@@ -53,9 +53,10 @@ export function assetSymbol(asset: string, locale: string | readonly string[] = 
 export function formatAsset(
 	amount: string | number,
 	asset: string,
-	{ locale = "pt-BR", trim = true }: FormatAssetOptions = {},
+	{ locale, trim = true }: FormatAssetOptions = {},
 ): string {
 	const code = normalizeCurrency(asset);
+	locale ??= currencyLocale(code);
 	if (!isCryptoAsset(code)) {
 		return new Intl.NumberFormat(locale, { currency: code, style: "currency" })
 			.formatToParts(Number(amount))

@@ -95,3 +95,62 @@ test("handled worker failures mark the root without changing business results", 
 	expect(root.status.code).toBe(2);
 	expect(root.attributes["code.outcome"]).toBe("error");
 });
+
+test("untrusted vendor state cannot escape through HTTP spans or durable links", async () => {
+	const { linkedOperation } = await import("./index");
+	const traceId = "11111111111111111111111111111111";
+	const carrier = {
+		traceparent: `00-${traceId}-2222222222222222-01`,
+		tracestate: "vendor=private-secret-fixture",
+	};
+	const start = exporter.getFinishedSpans().length;
+	const response = await instrumentRequest(() => {
+		linkedOperation("private.link", carrier, () => 42);
+		return new Response(null);
+	})(new Request("http://localhost/privacy", { headers: carrier }));
+	expect(response.status).toBe(200);
+	const spans = exporter.getFinishedSpans().slice(start);
+	const root = spans.find(span => span.name !== "private.link")!;
+	const linked = spans.find(span => span.name === "private.link")!;
+	expect(root.spanContext().traceId).toBe(traceId);
+	expect(root.spanContext().traceState?.serialize()).toBeUndefined();
+	expect(linked.links[0]!.context.traceId).toBe(traceId);
+	expect(linked.links[0]!.context.traceState?.serialize()).toBeUndefined();
+});
+
+test("argument inspection is skipped when disabled or span budget is exhausted", async () => {
+	const { functionCall } = await import("./index");
+	const previous = {
+		capture: process.env.OTEL_CAPTURE_SUMMARIES,
+		enabled: process.env.OTEL_ENABLED,
+		limit: process.env.OTEL_FUNCTION_MAX_SPANS,
+	};
+	let inspected = 0;
+	const args = new Proxy(
+		{},
+		{
+			ownKeys() {
+				inspected++;
+				return [];
+			},
+		},
+	);
+	try {
+		process.env.OTEL_CAPTURE_SUMMARIES = "true";
+		process.env.OTEL_ENABLED = "false";
+		expect(functionCall("off", "fixture.ts", args, () => 42)).toBe(42);
+		process.env.OTEL_ENABLED = "true";
+		process.env.OTEL_FUNCTION_MAX_SPANS = "1";
+		expect(operation("bounded", () => functionCall("limited", "fixture.ts", args, () => 7))).toBe(7);
+		expect(inspected).toBe(0);
+	} finally {
+		for (const [key, value] of Object.entries({
+			OTEL_CAPTURE_SUMMARIES: previous.capture,
+			OTEL_ENABLED: previous.enabled,
+			OTEL_FUNCTION_MAX_SPANS: previous.limit,
+		})) {
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
+	}
+});

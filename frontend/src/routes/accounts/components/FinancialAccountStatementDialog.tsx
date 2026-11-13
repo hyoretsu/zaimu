@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LuFileUp, LuPlus, LuScale } from "react-icons/lu";
+import { LuDownload, LuFileUp, LuPlus, LuRefreshCw, LuScale } from "react-icons/lu";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -21,9 +21,12 @@ import type { MoneyPosition } from "@/lib/consolidated-money";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
+import { buildStatementCsv, downloadCsv } from "@/lib/statement-csv";
+import { showToast } from "@/stores";
 import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
 import { DetachedRewardHistory } from "./DetachedRewardHistory";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
+import { useRecalculateAccountYield } from "./RecalculateAccountYieldButton";
 
 export function FinancialAccountStatementDialog({
 	account,
@@ -36,6 +39,7 @@ export function FinancialAccountStatementDialog({
 }) {
 	const queryClient = useQueryClient();
 	const identity = useCacheIdentity();
+	const recalculateYield = useRecalculateAccountYield(account);
 	const requestedRecovery = useModalRecoveryStore(state =>
 		state.requestedId ? state.entries[state.requestedId] : undefined,
 	);
@@ -158,6 +162,25 @@ export function FinancialAccountStatementDialog({
 		});
 		return Promise.resolve();
 	};
+	const exportCsv = async () => {
+		try {
+			const transactions: Transaction[] = [];
+			let cursor: string | undefined;
+			do {
+				const page = await dataService.transactions.getDailyPage({
+					cursor,
+					financialAccountId: account.id,
+					limit: 50,
+				});
+				transactions.push(...page.days.flatMap(day => day.transactions));
+				cursor = page.nextCursor ?? undefined;
+			} while (cursor);
+			downloadCsv(`extrato-${displayName}.csv`, buildStatementCsv(transactions, account.id));
+			showToast("Extrato exportado.", "positive");
+		} catch {
+			showToast("Não foi possível exportar extrato.", "negative");
+		}
+	};
 	const editTransaction = (transaction: Transaction) => setEditingTransaction(transaction);
 
 	return (
@@ -207,6 +230,7 @@ export function FinancialAccountStatementDialog({
 							onLoadMoreTransactions={statement.fetchNextPage}
 							onLoadMoreYields={yields.fetchNextPage}
 							onRetry={() => Promise.all([statement.refetch(), yields.refetch()])}
+							perspectiveAccountId={account.id}
 							refreshError={
 								(statement.isError && !!statement.data) || (yields.isError && !!yields.data)
 							}
@@ -260,6 +284,21 @@ export function FinancialAccountStatementDialog({
 										},
 									]
 								: []),
+							...(account.type !== "CREDIT_CARD"
+								? [
+										{
+											disabled: recalculateYield.isPending,
+											icon: LuRefreshCw,
+											label: "Recalcular rendimentos",
+											onClick: () => recalculateYield.mutate(),
+										},
+									]
+								: []),
+							{
+								icon: LuDownload,
+								label: "Exportar CSV",
+								onClick: exportCsv,
+							},
 							{
 								icon: LuPlus,
 								label: "Nova transação",

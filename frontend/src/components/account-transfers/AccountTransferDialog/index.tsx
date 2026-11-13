@@ -31,12 +31,23 @@ export function AccountTransferDialog({
 	accountId,
 	institutionId,
 	iconOnly = false,
+	hideTrigger = false,
+	onOpenChange,
+	open: controlledOpen,
 }: {
 	accountId?: string;
 	institutionId?: string;
 	iconOnly?: boolean;
+	hideTrigger?: boolean;
+	onOpenChange?: (open: boolean) => void;
+	open?: boolean;
 }) {
-	const [open, setOpen] = useState(false);
+	const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+	const open = controlledOpen ?? uncontrolledOpen;
+	const setOpen = (value: boolean) => {
+		setUncontrolledOpen(value);
+		onOpenChange?.(value);
+	};
 	const [email, setEmail] = useState("");
 	const [localEmail, setLocalEmail] = useDebouncedInput(email, setEmail);
 	const [selection, setSelection] = useState<string[]>([]);
@@ -98,21 +109,23 @@ export function AccountTransferDialog({
 			}}
 			open={open}
 		>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<DialogTrigger asChild>
-						<Button
-							aria-label="Transferir contas"
-							size={iconOnly ? "icon-sm" : "default"}
-							variant="outline"
-						>
-							<LuSend />
-							{!iconOnly && "Transferir"}
-						</Button>
-					</DialogTrigger>
-				</TooltipTrigger>
-				{iconOnly && <TooltipContent>Transferir contas</TooltipContent>}
-			</Tooltip>
+			{!hideTrigger && (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<DialogTrigger asChild>
+							<Button
+								aria-label="Transferir contas"
+								size={iconOnly ? "icon-sm" : "default"}
+								variant="outline"
+							>
+								<LuSend />
+								{!iconOnly && "Transferir"}
+							</Button>
+						</DialogTrigger>
+					</TooltipTrigger>
+					{iconOnly && <TooltipContent>Transferir contas</TooltipContent>}
+				</Tooltip>
+			)}
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Transferir contas Zaimu</DialogTitle>

@@ -23,6 +23,11 @@
               { "name": "baseline", "type": "probabilistic", "probabilistic": { "sampling_percentage": 10 } },
             ],
         },
+      "filter/http-diagnostics":
+        {
+          "error_mode": "ignore",
+          "traces": { "span": ['instrumentation_scope.name != "http"', "kind != SPAN_KIND_SERVER"] },
+        },
     },
   "exporters":
     {
@@ -63,7 +68,17 @@
               "exporters": ["otlphttp/loki"],
             },
           "metrics":
-            { "receivers": ["otlp"], "processors": ["memory_limiter", "batch"], "exporters": ["prometheus"] },
+            {
+              "receivers": ["otlp", "spanmetrics"],
+              "processors": ["memory_limiter", "batch"],
+              "exporters": ["prometheus"],
+            },
+          "traces/exemplars":
+            {
+              "receivers": ["otlp"],
+              "processors": ["memory_limiter", "filter/http-diagnostics"],
+              "exporters": ["spanmetrics"],
+            },
         },
       "telemetry":
         {
@@ -71,6 +86,44 @@
             {
               "readers": [{ "pull": { "exporter": { "prometheus": { "host": "0.0.0.0", "port": 8888 } } } }],
             },
+        },
+    },
+  "connectors":
+    {
+      "spanmetrics":
+        {
+          "namespace": "otel.request",
+          "histogram":
+            {
+              "unit": "s",
+              "explicit":
+                {
+                  "buckets":
+                    [
+                      "1ms",
+                      "5ms",
+                      "10ms",
+                      "25ms",
+                      "50ms",
+                      "100ms",
+                      "250ms",
+                      "500ms",
+                      "1s",
+                      "2s",
+                      "5s",
+                      "10s",
+                    ],
+                },
+            },
+          "dimensions": [{ "name": "http.route", "default": "unmatched" }],
+          "include_instrumentation_scope": ["http"],
+          "resource_metrics_cache_size": 128,
+          "aggregation_cardinality_limit": 2000,
+          "metrics_flush_interval": "15s",
+          "metrics_expiration": "5m",
+          "exemplars": { "enabled": true },
+          "resource_metrics_key_attributes":
+            ["service.name", "service.instance.id", "deployment.environment.name", "service.version"],
         },
     },
 }

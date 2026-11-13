@@ -11,9 +11,8 @@ import { resolveInstitutionCardRules } from "@zaimu/finance/institution-card-rul
 import { isCryptoAsset } from "@zaimu/finance/money";
 import { pickTaxModes, resolveTaxModes } from "@zaimu/finance/yield-tax";
 import { type SyntheticEvent, useState } from "react";
-import { LuPencil, LuPlus, LuTrash2 } from "react-icons/lu";
+import { LuPencil, LuPlus } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency";
-import { AssetAmountField } from "@/components/ui/AssetAmountField";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -103,16 +102,8 @@ export function CreateFinancialAccountDialog({
 		).values(),
 	];
 	const initialInstitution = () => account?.institutionId ?? defaultInstitutionId ?? undefined;
-	const initialCurrency = () => account?.creditCard?.currency ?? "";
+	const initialCurrency = () => account?.creditCard?.currency ?? account?.yieldCurrency ?? "";
 	const [selectedCurrency, setCurrency] = useState(initialCurrency);
-	const initialHoldings = () =>
-		(account?.assets ?? []).map(asset => ({
-			assetCode: asset.assetCode,
-			balance: asset.balance,
-			existing: true,
-			key: crypto.randomUUID(),
-		}));
-	const [holdings, setHoldings] = useState(initialHoldings);
 	const [validationError, setValidationError] = useState<string | null>(null);
 	const [selectedCountry, setCountry] = useState(account?.countryCode ?? undefined);
 	const [internalOpen, setInternalOpen] = useState(false);
@@ -224,7 +215,6 @@ export function CreateFinancialAccountDialog({
 
 	const reset = () => {
 		setCurrency(initialCurrency());
-		setHoldings(initialHoldings());
 		setValidationError(null);
 		setCountry(account?.countryCode ?? undefined);
 		setInstitutionId(initialInstitution());
@@ -292,50 +282,19 @@ export function CreateFinancialAccountDialog({
 				)
 		);
 	};
-	const hasHoldings = type !== "CREDIT_CARD" && !(type === "REWARDS" && rewardsKind === "POINTS");
-	const currency =
-		(type === "CREDIT_CARD"
-			? selectedCurrency
-			: holdings.find(holding => holding.assetCode && !isCryptoAsset(holding.assetCode))?.assetCode) ||
-		countryFiatCurrency ||
-		"";
-	const requiresFiatCurrency = (rows = holdings) =>
-		!hasHoldings ||
-		yieldEnabled ||
-		rows.some(holding => !holding.assetCode || !isCryptoAsset(holding.assetCode));
-	const fiatCurrencyRequired = requiresFiatCurrency();
-	const validate = (submittedHoldings = holdings) => {
+	const currency = selectedCurrency || countryFiatCurrency || "";
+	const validate = () => {
 		let error: string | null = null;
 		if (!institution || !countryCode) error = "Selecione instituição e país.";
-		if (requiresFiatCurrency(submittedHoldings) && (!currency || isCryptoAsset(currency)))
-			error = "Selecione uma moeda fiduciária.";
-		if (hasHoldings) {
-			const codes = new Set<string>();
-			for (const holding of submittedHoldings) {
-				try {
-					if (!holding.assetCode || codes.has(holding.assetCode)) throw new Error();
-					codes.add(holding.assetCode);
-				} catch {
-					error = "Selecione um ativo em cada linha, sem repetir.";
-				}
-			}
-			if (
-				yieldEnabled &&
-				!submittedHoldings.some(holding => holding.assetCode && !isCryptoAsset(holding.assetCode))
-			)
-				error = "Rendimento exige ao menos um ativo fiduciário na conta.";
-		}
+		if (!currency || isCryptoAsset(currency)) error = "Selecione uma moeda fiduciária.";
 		setValidationError(error);
 		return !error;
 	};
-	const save = async (recalculateCurrentDay: boolean, submittedHoldings = holdings) => {
-		if (!validate(submittedHoldings)) return;
+	const save = async (recalculateCurrentDay: boolean) => {
+		if (!validate()) return;
 		try {
 			if (calendarTransition) assertCalendarPeriod(calendarTransition);
 			const data = {
-				assets: hasHoldings
-					? submittedHoldings.map(({ assetCode, balance }) => ({ assetCode, balance }))
-					: [],
 				countryCode,
 				creditCard:
 					type === "CREDIT_CARD"
@@ -373,7 +332,7 @@ export function CreateFinancialAccountDialog({
 							}
 						: undefined,
 				type,
-				yieldCurrency: requiresFiatCurrency(submittedHoldings) ? currency : null,
+				yieldCurrency: currency,
 				...(account && { recalculateCurrentDay }),
 				yieldFixedRate:
 					type !== "CREDIT_CARD" && yieldEnabled && yieldFixedRate
@@ -522,15 +481,13 @@ export function CreateFinancialAccountDialog({
 							searchable
 							value={countryCode}
 						/>
-						{type === "CREDIT_CARD" && (
-							<CurrencySelect
-								currencies={supportedCurrencies.filter(code => !isCryptoAsset(code))}
-								disabled={!institution || !countryCode}
-								label="Moeda do cartão"
-								onValueChange={setCurrency}
-								value={currency}
-							/>
-						)}
+						<CurrencySelect
+							currencies={supportedCurrencies.filter(code => !isCryptoAsset(code))}
+							disabled={!institution || !countryCode}
+							label={type === "CREDIT_CARD" ? "Moeda do cartão" : "Moeda padrão"}
+							onValueChange={setCurrency}
+							value={currency}
+						/>
 
 						<FormField
 							autoComplete="off"
@@ -562,78 +519,6 @@ export function CreateFinancialAccountDialog({
 								required
 								value={type}
 							/>
-						)}
-						{hasHoldings && (
-							<div className="grid min-w-0 gap-4 rounded-xl border p-4">
-								<p className="text-sm font-medium">Ativos</p>
-								<p className="text-muted-foreground text-xs">
-									Opcional. Ativos também são adicionados automaticamente ao lançar
-									movimentações na conta.
-									{account && " Saldos existentes são alterados por ajuste de saldo."}
-								</p>
-								{holdings.map(holding => (
-									<div
-										className="grid min-w-0 gap-3 rounded-lg border p-3"
-										key={holding.key}
-									>
-										<CurrencySelect
-											allowCrypto
-											disabled={holding.existing}
-											label="Ativo"
-											onValueChange={assetCode =>
-												setHoldings(rows =>
-													rows.map(row =>
-														row.key === holding.key
-															? { ...row, assetCode, balance: "0" }
-															: row,
-													),
-												)
-											}
-											value={holding.assetCode}
-										/>
-										{holding.existing && (
-											<AssetAmountField
-												assetCode={holding.assetCode}
-												disabled
-												id={`holding-balance-${holding.key}`}
-												label="Saldo atual"
-												onValueChange={() => undefined}
-												value={holding.balance}
-											/>
-										)}
-										<Button
-											className="justify-self-end"
-											onClick={() =>
-												setHoldings(rows =>
-													rows.filter(row => row.key !== holding.key),
-												)
-											}
-											type="button"
-											variant="outline"
-										>
-											<LuTrash2 /> Remover ativo
-										</Button>
-									</div>
-								))}
-								<Button
-									className="justify-self-end"
-									onClick={() =>
-										setHoldings(rows => [
-											...rows,
-											{
-												assetCode: "",
-												balance: "0",
-												existing: false,
-												key: crypto.randomUUID(),
-											},
-										])
-									}
-									type="button"
-									variant="outline"
-								>
-									<LuPlus /> Adicionar ativo
-								</Button>
-							</div>
 						)}
 						{type !== "CREDIT_CARD" && (
 							<AccountYieldFields
@@ -734,7 +619,6 @@ export function CreateFinancialAccountDialog({
 									id="credit-limit"
 									label="Limite"
 									onValueChange={setCreditLimit}
-									placeholder="R$ 5.000,00"
 									required
 									value={creditLimit}
 								/>
@@ -744,7 +628,6 @@ export function CreateFinancialAccountDialog({
 										id="security-deposit"
 										label="Valor em garantia"
 										onValueChange={setSecurityDeposit}
-										placeholder="R$ 500,00"
 										value={securityDeposit}
 									/>
 									<p className="text-muted-foreground text-xs">
@@ -823,7 +706,7 @@ export function CreateFinancialAccountDialog({
 							disabled={
 								pending ||
 								!countryCode ||
-								(fiatCurrencyRequired && !currency) ||
+								!currency ||
 								!institution ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
 								(type !== "CREDIT_CARD" &&

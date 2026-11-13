@@ -1,7 +1,6 @@
 import { type ComponentProps, useState } from "react";
 import { LuClock, LuX } from "react-icons/lu";
 import { caretAfterSlots, useMaskCaret } from "@/hooks/use-mask-caret";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTwelveHourClock } from "@/hooks/use-twelve-hour-clock";
 import { fixedMaskBeforeInput, fixedMaskKeyDown, fixedMaskPaste } from "@/lib/fixed-mask";
 import {
@@ -26,12 +25,10 @@ type TimeFieldProps = Omit<ComponentProps<typeof FormField>, "onChange" | "type"
 };
 
 /**
- * Touch devices open the native time picker (which follows the device's 12h/24h setting); the picker
- * indicator is hidden and stretched over the field. Pointer devices type into a mask that follows the
- * browser locale: `HH:MM` or `hh:mm AM/PM`, with the guide characters always visible. The stored value is always 24-hour `HH:MM`.
+ * Types into a mask that follows the time format setting (`hh:mm AM/PM` by default, or `HH:MM`), with the
+ * guide characters always visible. The stored value is always 24-hour `HH:MM`.
  */
 export function TimeField({ onValueChange, value, disabled, className, ...props }: TimeFieldProps) {
-	const isTouch = useMediaQuery("(hover: none), (pointer: coarse)");
 	const twelveHour = useTwelveHourClock();
 	const [draft, setDraft] = useState<Draft12Hour | null>(null);
 	const { ref, placeCaret } = useMaskCaret();
@@ -73,20 +70,6 @@ export function TimeField({ onValueChange, value, disabled, className, ...props 
 				className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
 			/>
 		);
-
-	if (isTouch) {
-		return (
-			<FormField
-				{...props}
-				className={`w-full min-w-0 appearance-none pr-11 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:bg-none [&::-webkit-calendar-picker-indicator]:opacity-0 ${className ?? ""}`}
-				disabled={disabled}
-				onChange={event => onValueChange(event.currentTarget.value)}
-				trailing={disabled ? null : clearButton}
-				type="time"
-				value={value}
-			/>
-		);
-	}
 
 	return (
 		<FormField

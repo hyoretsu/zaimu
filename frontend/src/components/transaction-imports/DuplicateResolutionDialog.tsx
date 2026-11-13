@@ -60,7 +60,7 @@ function formatDate(value: unknown) {
 function formatDuplicateCandidate(candidate: TransactionImportDuplicate, currencyCode: string) {
 	const source = candidate.source === "TRANSACTION" ? "Existente" : "Importada";
 	const description = candidate.description ?? transactionTypeLabels[candidate.type];
-	const amount = createCurrencyFormatter(currencyCode, "pt-BR").format(Number(candidate.amount));
+	const amount = createCurrencyFormatter(currencyCode).format(Number(candidate.amount));
 	return `${source}: ${description} · ${amount} · ${formatDate(candidate.date)}`;
 }
 
@@ -115,10 +115,7 @@ export function DuplicateResolutionDialog({
 	const value = (source: Source, field: Field) => {
 		const record = source === "imported" ? item : duplicate;
 		const selected = record[field];
-		if (field === "amount")
-			return new Intl.NumberFormat("pt-BR", { currency: currencyOf(record), style: "currency" }).format(
-				Number(selected),
-			);
+		if (field === "amount") return createCurrencyFormatter(currencyOf(record)).format(Number(selected));
 		if (field === "date") return formatDate(selected);
 		if (field === "debtSplit") {
 			const debtSplit = selected as TransactionImportItem["debtSplit"];

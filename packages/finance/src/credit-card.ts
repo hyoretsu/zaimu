@@ -124,24 +124,39 @@ export function recalculateStatementDueDate(
 }
 
 /** Payments remain in their invoice through the first weekday strictly after its due date. */
+const paymentDeadlines = new Map<string, string>();
 export function statementPaymentDeadline(dueDate: FinancialDate) {
-	const date = new Date(`${dateKey(dueDate)}T12:00:00Z`);
+	const key = dateKey(dueDate);
+	const cached = paymentDeadlines.get(key);
+	if (cached) return cached;
+	const date = new Date(`${key}T12:00:00Z`);
 	do {
 		date.setUTCDate(date.getUTCDate() + 1);
 	} while (date.getUTCDay() === 0 || date.getUTCDay() === 6);
-	return dateKey(date);
+	const deadline = dateKey(date);
+	if (paymentDeadlines.size > 100_000) paymentDeadlines.clear();
+	paymentDeadlines.set(key, deadline);
+	return deadline;
 }
 
+const paymentDateCache = new Map<string, { dueDate: string; statementDate: string }>();
 export function paymentStatementDates(card: CardCalendar, paymentDate: FinancialDate) {
-	const date = new Date(`${dateKey(paymentDate)}T12:00:00Z`);
+	const day = dateKey(paymentDate);
+	const key = `${card.dueDay}|${card.statementDay}|${card.workingDueDate ? 1 : 0}|${day}`;
+	const cached = paymentDateCache.get(key);
+	if (cached) return { ...cached };
+	const date = new Date(`${day}T12:00:00Z`);
 	const year = date.getUTCFullYear();
 	let dueMonth = date.getUTCMonth() - 1;
-	while (statementPaymentDeadline(dueDateForMonth(card, year, dueMonth)) < dateKey(date)) dueMonth++;
+	while (statementPaymentDeadline(dueDateForMonth(card, year, dueMonth)) < day) dueMonth++;
 	const closingMonth = dueMonth - (card.dueDay <= card.statementDay ? 1 : 0);
-	return {
+	const result = {
 		dueDate: dueDateForMonth(card, year, dueMonth),
 		statementDate: dateKey(monthDate(year, closingMonth, card.statementDay)),
 	};
+	if (paymentDateCache.size > 100_000) paymentDateCache.clear();
+	paymentDateCache.set(key, result);
+	return { ...result };
 }
 
 /** Index actual bank due dates once. Equal dates retain the existing ID tie-break. */
@@ -285,8 +300,8 @@ export function calculateStatementBalances<T extends StatementInput>(
 		const status: StatementStatus = transferred
 			? "CARRIED"
 			: dateKey(statement.statementDate) <= dateKey(asOf) &&
-					remaining <= 0 &&
-					(amountDue !== 0 || incomingCredit > 0 || periodPayment > 0)
+				  remaining <= 0 &&
+				  (amountDue !== 0 || incomingCredit > 0 || periodPayment > 0)
 				? "PAID"
 				: "OPEN";
 		balances.set(statement.id, {

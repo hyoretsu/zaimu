@@ -1,5 +1,8 @@
 import { withoutImportedAnticipation } from "@zaimu/finance/imported-anticipation";
+import { roundMoney } from "@zaimu/finance/money";
 import { useEffect, useRef, useState } from "react";
+import { PurchaseFormLayout } from "@/components/credit-card-purchases";
+import { FinancialFeeFields } from "@/components/currency";
 import { DebtSplitEditor } from "@/components/debts";
 import { ImportDialog, ImportDialogContent } from "@/components/imports";
 import { StorePicker } from "@/components/stores";
@@ -24,7 +27,6 @@ import type { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { cleanFinancedDescription, getFinancedOperation } from "@/lib/financing-source-reference";
 import { showToast } from "@/stores";
-import { ImportedPurchaseTaxFields } from "./ImportedPurchaseTaxFields";
 import { ImportedTaxPurchaseSelect } from "./ImportedTaxPurchaseSelect";
 
 export function EditImportedCreditPurchaseDialog({
@@ -74,29 +76,40 @@ export function EditImportedCreditPurchaseDialog({
 			!(initialData?.isStatementCharge ?? item.isStatementCharge) &&
 				Boolean(initialData ? initialData.debtSplit : item.debtSplit),
 		);
-		setTaxes(initialData?.taxes ?? item.taxes ?? []);
+		const initialTaxes = initialData?.taxes ?? item.taxes ?? [];
+		setTaxes(initialTaxes);
 		setTaxPurchaseItemId(initialData?.taxPurchaseItemId ?? "");
 		setIsStatementCharge(initialData?.isStatementCharge ?? item.isStatementCharge ?? false);
 		setPurchaseDate(initialData?.purchaseDate ?? item.purchaseDate);
 		setStoreName(initialData?.storeName ?? item.storeName ?? "");
 		setTagIds(initialData?.tagIds ?? item.tagIds);
-		setTotalAmount(String(initialData?.totalAmount ?? item.totalAmount));
+		// The reviewed total already contains the taxes; the form edits the amount without them.
+		setTotalAmount(
+			String(
+				roundMoney(
+					(initialData?.totalAmount ?? item.totalAmount) -
+						initialTaxes.reduce((sum, tax) => sum + tax.amount, 0),
+					currencyCode,
+				),
+			),
+		);
 		setTime(initialData?.time ?? item.time ?? "");
 		setStatementDate(initialData?.statementDate ?? "");
 		setDueDate(initialData?.dueDate ?? "");
-	}, [initialData, item, open, setDescription, setInstallments]);
+	}, [currencyCode, initialData, item, open, setDescription, setInstallments]);
 	if (!item) return null;
 	const installmentCount = isStatementCharge ? 1 : Number.parseInt(installments, 10);
+	const taxesTotal = isStatementCharge ? 0 : taxes.reduce((sum, tax) => sum + tax.amount, 0);
+	const grossAmount = roundMoney(Number(totalAmount) + taxesTotal, currencyCode);
 	const isValid =
 		(!item.metadataMissing?.includes("calendar") || Boolean(statementDate && dueDate)) &&
 		Number.isFinite(Number(totalAmount)) &&
 		Number(totalAmount) > 0 &&
 		taxes.every(tax => tax.name.trim() && Number.isFinite(tax.amount) && tax.amount > 0) &&
-		taxes.reduce((sum, tax) => sum + tax.amount, 0) <= Number(totalAmount) &&
 		Number.isInteger(installmentCount) &&
 		installmentCount >= 1 &&
 		installmentCount <= 48 &&
-		(!isDebt || Boolean(calculateDebtSplit(Number(totalAmount), debtSplit, currencyCode)));
+		(!isDebt || Boolean(calculateDebtSplit(grossAmount, debtSplit, currencyCode)));
 
 	return (
 		<ImportDialog onOpenChange={onOpenChange} open={open}>
@@ -107,136 +120,181 @@ export function EditImportedCreditPurchaseDialog({
 				</DialogHeader>
 				<DialogBody>
 					<div className="grid gap-5" ref={fieldsRef}>
-						<FormField
-							autoComplete="off"
-							id="imported-purchase-description"
-							label={getFinancedOperation(item.description) ? "Estabelecimento" : "Descrição"}
-							name="imported-purchase-description"
-							onChange={event => setDescription(event.currentTarget.value)}
-							placeholder="Ex: Mercado Livre"
-							type="text"
-							value={description}
-						/>
-						<StorePicker onValueChange={setStoreName} value={storeName} />
-						{item.metadataMissing?.length ? (
-							<p className="text-destructive text-sm">
-								Complete os campos obrigatórios para resolver os dados bancários incompletos.
-							</p>
-						) : null}
-						{item.metadataMissing?.includes("calendar") && (
-							<FormFieldRow className="grid-cols-1 sm:grid-cols-2">
-								<DateField
-									id="imported-statement-date"
-									label="Fechamento da fatura"
-									name="imported-statement-date"
-									onValueChange={setStatementDate}
-									required
-									value={statementDate}
-								/>
-								<DateField
-									id="imported-due-date"
-									label="Vencimento da fatura"
-									name="imported-due-date"
-									onValueChange={setDueDate}
-									required
-									value={dueDate}
-								/>
-							</FormFieldRow>
-						)}
-
-						<MoneyField
-							currencyCode={currencyCode}
-							id="imported-purchase-total"
-							label="Valor total"
-							onValueChange={setTotalAmount}
-							rawValueName="imported-purchase-raw-total"
-							required
-							value={totalAmount}
-						/>
-						<FormFieldRow className="grid-cols-1 sm:grid-cols-3">
-							<FormField
-								autoComplete="off"
-								disabled={isStatementCharge}
-								id="imported-purchase-installments"
-								inputMode="numeric"
-								label="Total de parcelas"
-								name="imported-purchase-installments"
-								onChange={event =>
-									setInstallments(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
-								}
-								placeholder="Ex: 12"
-								required
-								type="text"
-								value={isStatementCharge ? "1" : installments}
-							/>
-							<DateField
-								autoComplete="off"
-								id="imported-purchase-date"
-								label="Data da primeira parcela"
-								name="imported-purchase-date"
-								onValueChange={setPurchaseDate}
-								required
-								value={purchaseDate}
-							/>
-							<TimeField
-								id="imported-purchase-time"
-								label="Horário"
-								name="imported-purchase-time"
-								onValueChange={setTime}
-								placeholder="Ex: 14:30"
-								value={time}
-							/>
-						</FormFieldRow>
-						<TagPicker onValueChange={setTagIds} value={tagIds} />
-						{!isStatementCharge && (
-							<ImportedPurchaseTaxFields
-								currencyCode={currencyCode}
-								onChange={setTaxes}
-								taxes={taxes}
-							/>
-						)}
-						{item.installments === 1 && item.installmentAmount > 0 && !item.taxes?.length && (
-							<ImportedTaxPurchaseSelect
-								currencyCode={currencyCode}
-								importId={importId}
-								itemId={item.id}
-								onChange={setTaxPurchaseItemId}
-								value={taxPurchaseItemId}
-							/>
-						)}
-						<CheckboxField
-							checkboxProps={{
-								checked: isStatementCharge,
-								id: "imported-purchase-is-charge",
-								onCheckedChange: checked => {
-									setIsStatementCharge(checked === true);
-									if (checked) setTaxes([]);
-									if (checked) setIsDebt(false);
-								},
-							}}
-						>
-							Encargo da fatura (juros, multa ou tarifas)
-						</CheckboxField>
-						<div className="grid gap-3 rounded-2xl border p-3">
-							<CheckboxField
-								checkboxProps={{
-									checked: isDebt,
-									disabled: isStatementCharge,
-									id: "imported-purchase-is-debt",
-									onCheckedChange: checked => setIsDebt(checked === true),
-								}}
-							>
-								<span>Esta compra é de uma dívida</span>
-							</CheckboxField>
-							{isDebt ? (
-								<DebtSplitEditor
-									amount={Number(totalAmount)}
+						<PurchaseFormLayout
+							amount={
+								<MoneyField
 									currencyCode={currencyCode}
-									onChange={setDebtSplit}
-									value={debtSplit}
+									id="imported-purchase-total"
+									label="Valor total"
+									onValueChange={setTotalAmount}
+									rawValueName="imported-purchase-raw-total"
+									required
+									value={totalAmount}
 								/>
-							) : null}
-						</div>
+							}
+							charge={
+								<CheckboxField
+									checkboxProps={{
+										checked: isStatementCharge,
+										id: "imported-purchase-is-charge",
+										onCheckedChange: checked => {
+											setIsStatementCharge(checked === true);
+											if (checked) {
+												setTaxes([]);
+												setTaxPurchaseItemId("");
+											}
+											if (checked) setIsDebt(false);
+										},
+									}}
+								>
+									Encargos da fatura (juros, multa ou tarifas)
+								</CheckboxField>
+							}
+							date={
+								<DateField
+									autoComplete="off"
+									id="imported-purchase-date"
+									label="Data da primeira parcela"
+									name="imported-purchase-date"
+									onValueChange={setPurchaseDate}
+									required
+									value={purchaseDate}
+								/>
+							}
+							debt={
+								<div className="grid gap-3 rounded-2xl border p-3">
+									<CheckboxField
+										checkboxProps={{
+											checked: isDebt,
+											disabled: isStatementCharge,
+											id: "imported-purchase-is-debt",
+											onCheckedChange: checked => setIsDebt(checked === true),
+										}}
+									>
+										<span>Esta compra é de uma dívida</span>
+									</CheckboxField>
+									{isDebt ? (
+										<DebtSplitEditor
+											amount={grossAmount}
+											currencyCode={currencyCode}
+											onChange={setDebtSplit}
+											value={debtSplit}
+										/>
+									) : null}
+								</div>
+							}
+							description={
+								<FormField
+									autoComplete="off"
+									id="imported-purchase-description"
+									label={
+										getFinancedOperation(item.description)
+											? "Estabelecimento"
+											: "Descrição"
+									}
+									name="imported-purchase-description"
+									onChange={event => setDescription(event.currentTarget.value)}
+									placeholder="Ex: Mercado Livre"
+									type="text"
+									value={description}
+								/>
+							}
+							fees={
+								isStatementCharge ? null : (
+									<FinancialFeeFields
+										baseAmount={totalAmount}
+										currencyCode={currencyCode}
+										fees={taxes.map(tax => ({ ...tax, type: "FIXED" as const }))}
+										maxItems={20}
+										onChange={fees =>
+											setTaxes(
+												fees.map(fee => ({
+													amount: Number(fee.amount),
+													name: fee.name,
+												})),
+											)
+										}
+									/>
+								)
+							}
+							installments={
+								<FormField
+									autoComplete="off"
+									disabled={isStatementCharge}
+									id="imported-purchase-installments"
+									inputMode="numeric"
+									label="Total de parcelas"
+									name="imported-purchase-installments"
+									onChange={event =>
+										setInstallments(
+											event.currentTarget.value.replace(/\D/g, "").slice(0, 2),
+										)
+									}
+									placeholder="Ex: 12"
+									required
+									type="text"
+									value={isStatementCharge ? "1" : installments}
+								/>
+							}
+							notices={
+								<>
+									{item.metadataMissing?.length ? (
+										<p className="text-destructive text-sm">
+											Complete os campos obrigatórios para resolver os dados bancários
+											incompletos.
+										</p>
+									) : null}
+									{item.metadataMissing?.includes("calendar") && (
+										<FormFieldRow className="grid-cols-1 sm:grid-cols-2">
+											<DateField
+												id="imported-statement-date"
+												label="Fechamento da fatura"
+												name="imported-statement-date"
+												onValueChange={setStatementDate}
+												required
+												value={statementDate}
+											/>
+											<DateField
+												id="imported-due-date"
+												label="Vencimento da fatura"
+												name="imported-due-date"
+												onValueChange={setDueDate}
+												required
+												value={dueDate}
+											/>
+										</FormFieldRow>
+									)}
+								</>
+							}
+							store={<StorePicker onValueChange={setStoreName} value={storeName} />}
+							tags={<TagPicker onValueChange={setTagIds} value={tagIds} />}
+							taxes={
+								item.installments === 1 &&
+								item.installmentAmount > 0 &&
+								!item.taxes?.length && (
+									<ImportedTaxPurchaseSelect
+										currencyCode={currencyCode}
+										importId={importId}
+										itemId={item.id}
+										onChange={value => {
+											setTaxPurchaseItemId(value);
+											if (value) setIsStatementCharge(false);
+										}}
+										value={taxPurchaseItemId}
+									/>
+								)
+							}
+							time={
+								<TimeField
+									id="imported-purchase-time"
+									label="Horário"
+									name="imported-purchase-time"
+									onValueChange={setTime}
+									placeholder="Ex: 14:30"
+									value={time}
+								/>
+							}
+						/>
 					</div>
 				</DialogBody>
 				<DialogFooter>
@@ -250,39 +308,40 @@ export function EditImportedCreditPurchaseDialog({
 							const submittedTaxes = taxes.map((tax, index) => ({
 								amount: Number(
 									fieldsRef.current?.querySelector<HTMLInputElement>(
-										`input[name="import-tax-raw-${index}"]`,
+										`input[name="fee-raw-${index}"]`,
 									)?.value ?? tax.amount,
 								),
 								name:
 									fieldsRef.current
-										?.querySelector<HTMLInputElement>(
-											`input[name="import-tax-name-${index}"]`,
-										)
+										?.querySelector<HTMLInputElement>(`input[name="fee-name-${index}"]`)
 										?.value.trim() ?? tax.name,
 							}));
-							const submittedTotal = Number(
+							const submittedBase = Number(
 								fieldsRef.current?.querySelector<HTMLInputElement>(
 									'input[name="imported-purchase-raw-total"]',
 								)?.value ?? totalAmount,
 							);
 							if (
 								!taxPurchaseItemId &&
-								(!Number.isFinite(submittedTotal) ||
-									submittedTotal <= 0 ||
+								(!Number.isFinite(submittedBase) ||
+									submittedBase <= 0 ||
 									submittedTaxes.some(
 										tax => !tax.name || !Number.isFinite(tax.amount) || tax.amount <= 0,
-									) ||
-									submittedTaxes.reduce((sum, tax) => sum + tax.amount, 0) > submittedTotal)
+									))
 							) {
-								showToast(
-									"Informe impostos válidos já incluídos no total da compra.",
-									"negative",
-								);
+								showToast("Informe taxas válidas com nome e valor positivo.", "negative");
 								return;
 							}
+							const submittedTotal = roundMoney(
+								submittedBase +
+									(isStatementCharge
+										? 0
+										: submittedTaxes.reduce((sum, tax) => sum + tax.amount, 0)),
+								currencyCode,
+							);
 							onSubmit({
 								taxes: isStatementCharge ? [] : submittedTaxes,
-								...(taxPurchaseItemId ? { taxPurchaseItemId } : {}),
+								...(taxPurchaseItemId && !isStatementCharge ? { taxPurchaseItemId } : {}),
 								debtSplit: isDebt && !isStatementCharge ? debtSplit : null,
 								description: description.trim(),
 								installments: installmentCount,

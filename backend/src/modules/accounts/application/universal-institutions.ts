@@ -1,5 +1,6 @@
 import { countryCurrencies } from "@zaimu/finance/country-currencies";
 import { countryCurrency } from "@zaimu/finance/currency-preference";
+import type { InstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
@@ -53,6 +54,7 @@ export async function proposeInstitution(
 	kind: string,
 	payload: Record<string, unknown>,
 	effectiveDate?: string,
+	options: { autoApprove?: boolean } = {},
 ): Promise<{ id: string; institutionId: string; status: string }> {
 	if (kind === "PROFILE") {
 		const name = String(payload.name ?? "").trim();
@@ -62,6 +64,13 @@ export async function proposeInstitution(
 	}
 	if (kind === "CARD_RULES") assertInstitutionCardRules(payload.rules as never);
 	if (kind === "INSTITUTION_UPDATE") payload = normalizeInstitutionUpdatePayload(payload);
+	if (kind === "NEW_INSTITUTION")
+		payload = normalizeInstitutionUpdatePayload(payload, { allowEmpty: true });
+	if (!effectiveDate && ["INSTITUTION_UPDATE", "NEW_INSTITUTION"].includes(kind))
+		// Composite proposals recalculate yields from their earliest policy.
+		effectiveDate = (payload.policies as { effectiveDate: string }[] | undefined)
+			?.map(policy => policy.effectiveDate)
+			.toSorted()[0];
 	return withRawTransaction(async query => {
 		await assertPendingProposalLimit(query, userId);
 		let version: number | null = null;
@@ -77,7 +86,7 @@ export async function proposeInstitution(
 					name: original.name,
 					...payload,
 				};
-				return proposeInstitution(userId, null, "NEW_INSTITUTION", payload, effectiveDate);
+				return proposeInstitution(userId, null, "NEW_INSTITUTION", payload, effectiveDate, options);
 			}
 		} else {
 			const normalized = normalizeFinancialInstitutionName(String(payload.name ?? ""));
@@ -106,9 +115,12 @@ export async function proposeInstitution(
 			`INSERT INTO "FinancialInstitutionProposal" ("id","institutionId","authorId","kind","baseVersion","payload","effectiveDate","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
 			[id, institutionId, userId, kind, version, JSON.stringify(payload), effectiveDate ?? null],
 		);
-		// Anything an admin creates is applied directly, never left pending.
-		const [author] = await query<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]);
-		if (author?.role === "ADMIN") {
+		// Without an explicit choice, anything an admin creates is applied directly.
+		const autoApprove =
+			options.autoApprove ??
+			(await query<{ role: string }>(`SELECT "role" FROM "user" WHERE "id"=$1`, [userId]))[0]?.role ===
+				"ADMIN";
+		if (autoApprove) {
 			const result = await reviewInstitutionProposal(userId, id, "APPROVE");
 			return { ...result, institutionId };
 		}
@@ -118,6 +130,199 @@ export async function proposeInstitution(
 		);
 		return { id, institutionId, status: "PENDING" };
 	});
+}
+
+export type YieldPolicyPayload = Parameters<typeof assertFinancialInstitutionYieldPolicy>[0] & {
+	profileId: string;
+	accountType?: string;
+	countryCode?: string;
+	effectiveUntil?: string;
+	replacesEffectiveDate?: string;
+};
+
+/** Validates and writes one yield policy period in the caller's transaction; returns the first date whose yield must be recalculated. */
+export async function applyYieldPolicy(
+	query: RawQuery,
+	institutionId: string,
+	effectiveDate: string | Date,
+	payload: YieldPolicyPayload,
+): Promise<Date> {
+	const policy = payload;
+	if (policy.effectiveUntil && policy.effectiveUntil <= new Date(effectiveDate).toISOString().slice(0, 10))
+		throw new HttpException("Fim da vigência deve ser posterior ao início", 400);
+	// Older pending proposals retain their explicit currency scope.
+	policy.currency = policy.currency ? await assertSupportedCurrency(policy.currency) : null;
+	assertFinancialInstitutionYieldPolicy(policy);
+	await assertTaxSelection(policy.yieldTaxIds, [], new Date(effectiveDate));
+	const [profile] = await query(
+		`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "id"=$1 AND "institutionId"=$2`,
+		[policy.profileId, institutionId],
+	);
+	if (!profile) throw new HttpException("Perfil não encontrado", 400);
+	const replaced = payload.replacesEffectiveDate;
+	// Moving a period to another start replaces the one it was edited from.
+	if (replaced)
+		await query(
+			`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5`,
+			[
+				institutionId,
+				policy.profileId,
+				policy.currency,
+				policy.countryCode ?? null,
+				replaced,
+				policy.accountType ?? null,
+			],
+		);
+	const [existing] = await query(
+		`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5 FOR UPDATE`,
+		[
+			institutionId,
+			policy.profileId,
+			policy.currency,
+			policy.countryCode ?? null,
+			effectiveDate,
+			policy.accountType ?? null,
+		],
+	);
+	const policyId = existing?.id ?? crypto.randomUUID();
+	if (existing) {
+		await query(`DELETE FROM "FinancialInstitutionYieldRule" WHERE "financialYieldPolicyId"=$1`, [
+			policyId,
+		]);
+		await query(
+			`UPDATE "FinancialInstitutionYieldPolicy" SET "yieldPeriod"=$2,"yieldTaxIds"=$3,"yieldTaxRate"=$4,"effectiveUntil"=$5,"yieldTaxMode"=$6,"yieldTaxModes"=$7,"updatedAt"=NOW() WHERE "id"=$1`,
+			[
+				policyId,
+				policy.yieldPeriod ?? null,
+				policy.yieldTaxIds ?? [],
+				policy.yieldTaxRate ?? null,
+				policy.effectiveUntil ?? null,
+				policy.yieldTaxMode ?? "DAILY",
+				policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
+			],
+		);
+	} else
+		await query(
+			`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","yieldTaxMode","yieldTaxModes","updatedAt") VALUES ($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,$12,$13,NOW())`,
+			[
+				policyId,
+				institutionId,
+				policy.profileId,
+				policy.countryCode ?? null,
+				policy.currency,
+				effectiveDate,
+				policy.effectiveUntil ?? null,
+				policy.yieldPeriod ?? null,
+				policy.yieldTaxIds ?? [],
+				policy.yieldTaxRate ?? null,
+				policy.accountType ?? null,
+				policy.yieldTaxMode ?? "DAILY",
+				policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
+			],
+		);
+	for (const [position, rule] of policy.rules.entries())
+		await query(
+			`INSERT INTO "FinancialInstitutionYieldRule" ("id","financialYieldPolicyId","position","upToBalance","yieldFixedRate","yieldReferencePercentage","yieldReferenceType") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+			[
+				crypto.randomUUID(),
+				policyId,
+				position,
+				rule.upToBalance ?? null,
+				rule.yieldFixedRate ?? null,
+				rule.yieldReferencePercentage ?? null,
+				rule.yieldReferenceType ?? null,
+			],
+		);
+	await consolidateYieldPolicyTimeline(query, {
+		accountType: policy.accountType ?? null,
+		countryCode: policy.countryCode ?? null,
+		currency: policy.currency ?? null,
+		financialInstitutionId: institutionId,
+		focusId: policyId,
+		profileId: policy.profileId,
+	});
+	const replacedDate = payload.replacesEffectiveDate;
+	const start = new Date(effectiveDate);
+	return replacedDate && replacedDate < start.toISOString().slice(0, 10) ? new Date(replacedDate) : start;
+}
+
+interface ProposalProfile {
+	creditCardRules?: InstitutionCardRules | null;
+	id?: string;
+	name: string;
+}
+
+/** Applies the card rules, profiles and policies of a composite proposal in the caller's transaction, without bumping the version. */
+async function applyInstitutionSections(
+	query: RawQuery,
+	institutionId: string,
+	payload: Record<string, unknown>,
+): Promise<Date | null> {
+	if (payload.creditCardRules !== undefined) {
+		const rules = payload.creditCardRules as InstitutionCardRules;
+		assertInstitutionCardRules(rules);
+		await writeInstitutionCardRules(query, institutionId, rules, undefined, false);
+	}
+	const created = new Map<string, string>();
+	for (const profile of (payload.profiles as ProposalProfile[] | undefined) ?? []) {
+		if (profile.id) {
+			if (profile.creditCardRules !== undefined)
+				await writeInstitutionCardRules(
+					query,
+					institutionId,
+					profile.creditCardRules,
+					profile.id,
+					false,
+				);
+			continue;
+		}
+		const name = profile.name.trim();
+		const duplicates = await query(
+			`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND lower(trim("name"))=lower($2)`,
+			[institutionId, name],
+		);
+		if (duplicates.length) throw new HttpException("Já existe um perfil com esse nome", 409);
+		if (profile.creditCardRules) assertInstitutionCardRules(profile.creditCardRules);
+		const profileId = crypto.randomUUID();
+		await query(
+			`INSERT INTO "FinancialInstitutionProfile" ("id","institutionId","name","isDefault","creditCardRules","updatedAt") VALUES ($1,$2,$3,false,$4::json,NOW())`,
+			[
+				profileId,
+				institutionId,
+				name,
+				profile.creditCardRules ? JSON.stringify(profile.creditCardRules) : null,
+			],
+		);
+		created.set(name.toLowerCase(), profileId);
+	}
+	let earliest: Date | null = null;
+	for (const policy of (payload.policies as
+		| (Omit<YieldPolicyPayload, "profileId"> & {
+				effectiveDate: string;
+				profileId?: string;
+				profileName?: string;
+		  })[]
+		| undefined) ?? []) {
+		let profileId = policy.profileId;
+		if (!profileId && policy.profileName) {
+			const key = policy.profileName.trim().toLowerCase();
+			profileId =
+				created.get(key) ??
+				(
+					await query<{ id: string }>(
+						`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "institutionId"=$1 AND lower(trim("name"))=$2`,
+						[institutionId, key],
+					)
+				)[0]?.id;
+		}
+		if (!profileId) throw new HttpException("Perfil da política não encontrado", 400);
+		const from = await applyYieldPolicy(query, institutionId, policy.effectiveDate, {
+			...policy,
+			profileId,
+		} as YieldPolicyPayload);
+		if (!earliest || from < earliest) earliest = from;
+	}
+	return earliest;
 }
 
 export async function reviewInstitutionProposal(
@@ -148,6 +353,7 @@ export async function reviewInstitutionProposal(
 			status: proposal.status,
 		});
 		const payload = proposal.payload as Record<string, unknown>;
+		let recalculateFrom: Date | null = proposal.effectiveDate ? new Date(proposal.effectiveDate) : null;
 		if (action === "ASSOCIATE") {
 			if (institution.status === "APPROVED" || institution.userId !== proposal.authorId)
 				throw new HttpException("Associação exige instituição privada do proponente", 400);
@@ -234,6 +440,10 @@ export async function reviewInstitutionProposal(
 						payload.aliases ?? institution.aliases ?? [],
 					],
 				);
+				// The UPDATE above is the single version bump; the sections below must not bump again.
+				const policyStart = await applyInstitutionSections(query, institution.id, payload);
+				if (policyStart && (!recalculateFrom || policyStart < recalculateFrom))
+					recalculateFrom = policyStart;
 			} else if (proposal.kind === "PROFILE") {
 				const name = String(payload.name ?? "").trim();
 				if (!name || name.length > 100)
@@ -252,111 +462,12 @@ export async function reviewInstitutionProposal(
 				]);
 			} else if (proposal.kind === "POLICY") {
 				if (!proposal.effectiveDate) throw new HttpException("Informe a vigência", 400);
-				const policy = payload as unknown as Parameters<
-					typeof assertFinancialInstitutionYieldPolicy
-				>[0] & {
-					profileId: string;
-					accountType?: string;
-					countryCode?: string;
-					effectiveUntil?: string;
-				};
-				if (
-					policy.effectiveUntil &&
-					policy.effectiveUntil <= new Date(proposal.effectiveDate).toISOString().slice(0, 10)
-				)
-					throw new HttpException("Fim da vigência deve ser posterior ao início", 400);
-				// Older pending proposals retain their explicit currency scope.
-				policy.currency = policy.currency ? await assertSupportedCurrency(policy.currency) : null;
-				assertFinancialInstitutionYieldPolicy(policy);
-				await assertTaxSelection(policy.yieldTaxIds, [], new Date(proposal.effectiveDate));
-				const [profile] = await query(
-					`SELECT "id" FROM "FinancialInstitutionProfile" WHERE "id"=$1 AND "institutionId"=$2`,
-					[policy.profileId, institution.id],
+				recalculateFrom = await applyYieldPolicy(
+					query,
+					institution.id,
+					proposal.effectiveDate,
+					payload as unknown as YieldPolicyPayload,
 				);
-				if (!profile) throw new HttpException("Perfil não encontrado", 400);
-				const replaced = (payload as { replacesEffectiveDate?: string }).replacesEffectiveDate;
-				// Moving a period to another start replaces the one it was edited from.
-				if (replaced)
-					await query(
-						`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5`,
-						[
-							institution.id,
-							policy.profileId,
-							policy.currency,
-							policy.countryCode ?? null,
-							replaced,
-							policy.accountType ?? null,
-						],
-					);
-				const [existing] = await query(
-					`SELECT "id" FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "currency" IS NOT DISTINCT FROM $3 AND "countryCode" IS NOT DISTINCT FROM $4 AND "accountType" IS NOT DISTINCT FROM $6 AND "effectiveDate"=$5 FOR UPDATE`,
-					[
-						institution.id,
-						policy.profileId,
-						policy.currency,
-						policy.countryCode ?? null,
-						proposal.effectiveDate,
-						policy.accountType ?? null,
-					],
-				);
-				const policyId = existing?.id ?? crypto.randomUUID();
-				if (existing) {
-					await query(
-						`DELETE FROM "FinancialInstitutionYieldRule" WHERE "financialYieldPolicyId"=$1`,
-						[policyId],
-					);
-					await query(
-						`UPDATE "FinancialInstitutionYieldPolicy" SET "yieldPeriod"=$2,"yieldTaxIds"=$3,"yieldTaxRate"=$4,"effectiveUntil"=$5,"yieldTaxMode"=$6,"yieldTaxModes"=$7,"updatedAt"=NOW() WHERE "id"=$1`,
-						[
-							policyId,
-							policy.yieldPeriod ?? null,
-							policy.yieldTaxIds ?? [],
-							policy.yieldTaxRate ?? null,
-							policy.effectiveUntil ?? null,
-							policy.yieldTaxMode ?? "DAILY",
-							policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
-						],
-					);
-				} else
-					await query(
-						`INSERT INTO "FinancialInstitutionYieldPolicy" ("id","financialInstitutionId","profileId","countryCode","currency","accountType","effectiveDate","effectiveUntil","yieldPeriod","yieldTaxIds","yieldTaxRate","yieldTaxMode","yieldTaxModes","updatedAt") VALUES ($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,$12,$13,NOW())`,
-						[
-							policyId,
-							institution.id,
-							policy.profileId,
-							policy.countryCode ?? null,
-							policy.currency,
-							proposal.effectiveDate,
-							policy.effectiveUntil ?? null,
-							policy.yieldPeriod ?? null,
-							policy.yieldTaxIds ?? [],
-							policy.yieldTaxRate ?? null,
-							policy.accountType ?? null,
-							policy.yieldTaxMode ?? "DAILY",
-							policy.yieldTaxModes ? JSON.stringify(policy.yieldTaxModes) : null,
-						],
-					);
-				for (const [position, rule] of policy.rules.entries())
-					await query(
-						`INSERT INTO "FinancialInstitutionYieldRule" ("id","financialYieldPolicyId","position","upToBalance","yieldFixedRate","yieldReferencePercentage","yieldReferenceType") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-						[
-							crypto.randomUUID(),
-							policyId,
-							position,
-							rule.upToBalance ?? null,
-							rule.yieldFixedRate ?? null,
-							rule.yieldReferencePercentage ?? null,
-							rule.yieldReferenceType ?? null,
-						],
-					);
-				await consolidateYieldPolicyTimeline(query, {
-					accountType: policy.accountType ?? null,
-					countryCode: policy.countryCode ?? null,
-					currency: policy.currency ?? null,
-					financialInstitutionId: institution.id,
-					focusId: policyId,
-					profileId: policy.profileId,
-				});
 				await query(`UPDATE "FinancialInstitution" SET "version"="version"+1 WHERE "id"=$1`, [
 					institution.id,
 				]);
@@ -404,18 +515,17 @@ export async function reviewInstitutionProposal(
 				JSON.stringify({ proposalId: id, reason, status, targetId }),
 			],
 		);
-		if (action !== "REJECT" && proposal.effectiveDate) {
+		if (action !== "REJECT" && recalculateFrom) {
 			const accounts = await query<{ id: string }>(
 				`SELECT "id" FROM "FinancialAccount" WHERE "institutionId"=$1`,
 				[institution.id],
 			);
-			const replaced = (payload as { replacesEffectiveDate?: string }).replacesEffectiveDate;
-			const firstAffected =
-				replaced && replaced < new Date(proposal.effectiveDate).toISOString().slice(0, 10)
-					? new Date(replaced)
-					: new Date(proposal.effectiveDate);
 			for (const account of accounts)
-				await enqueueAccountYieldRecalculation(account.id, firstAffected, `institution-review:${id}`);
+				await enqueueAccountYieldRecalculation(
+					account.id,
+					recalculateFrom,
+					`institution-review:${id}`,
+				);
 		}
 		const users = await query<{ userId: string }>(
 			`SELECT DISTINCT "userId" FROM "FinancialAccount" WHERE "institutionId"=$1`,

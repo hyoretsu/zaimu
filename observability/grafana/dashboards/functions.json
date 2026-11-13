@@ -94,6 +94,29 @@
 			],
 			"title": "Active requests",
 			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			},
+			"description": "HTTP spans received before tail sampling. Canonical request metrics remain separate. Ordinary exemplar traces may be discarded; errors and requests above two seconds are retained.",
+			"gridPos": {
+				"h": 8,
+				"w": 24,
+				"x": 0,
+				"y": 16
+			},
+			"id": 5,
+			"targets": [
+				{
+					"exemplar": true,
+					"expr": "histogram_quantile(0.95,sum by(le,http_route)(rate(otel_request_duration_seconds_bucket{deployment_environment_name=~\"$environment\",service_version=~\"$version\"}[5m])))",
+					"refId": "A"
+				}
+			],
+			"title": "Request trace exemplars",
+			"type": "timeseries"
 		}
 	],
 	"refresh": "15s",

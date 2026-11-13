@@ -52,9 +52,11 @@ export function AccountYieldFields({
 				}}
 			>
 				<span>
-					<strong className="block">Esta conta rende</strong>
+					<strong className="block">Customizar rendimento</strong>
 					<span className="text-muted-foreground">
-						Calculado diariamente de segunda a sexta. Feriados pausam todas as contas.
+						O rendimento é automático com base nas regras da instituição, mas pode ser
+						customizado. Calculado diariamente de segunda a sexta. Feriados pausam todas as
+						contas.
 					</span>
 				</span>
 			</CheckboxField>

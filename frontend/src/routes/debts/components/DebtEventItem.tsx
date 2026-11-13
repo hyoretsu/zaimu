@@ -6,6 +6,7 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { DebtEvent } from "@/lib/api";
 import { useModalRecoveryStore } from "@/lib/background-modal-actions";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { useCacheIdentity } from "@/lib/query-cache";
 import {
 	getDebtEventCreatorLabel,
@@ -65,10 +66,7 @@ export function DebtEventItem({
 			</div>
 			<div className="text-right">
 				<strong className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-					{new Intl.NumberFormat("pt-BR", {
-						currency: event.currency ?? "BRL",
-						style: "currency",
-					}).format(Math.abs(event.effect))}
+					{createCurrencyFormatter(event.currency ?? "BRL").format(Math.abs(event.effect))}
 				</strong>
 				{event.effect !== 0 ? (
 					<p className="text-muted-foreground text-sm">

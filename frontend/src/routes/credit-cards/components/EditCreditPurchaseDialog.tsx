@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { currencyScale } from "@zaimu/finance/money";
 import { type SyntheticEvent, useEffect, useId, useRef, useState } from "react";
 import { LuUndo2 } from "react-icons/lu";
+import { PurchaseFormLayout } from "@/components/credit-card-purchases";
 import { CurrencySelect, FinancialFeeFields } from "@/components/currency";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
@@ -20,7 +21,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
-import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TimeField } from "@/components/ui/TimeField";
@@ -30,6 +30,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { runDialogSave } from "@/lib/dialog-save";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 
@@ -145,7 +146,7 @@ export function EditCreditPurchaseDialog({
 		),
 	);
 	const [currencyCode, setCurrencyCode] = useState(purchase.currency ?? "BRL");
-	const currency = new Intl.NumberFormat("pt-BR", { currency: currencyCode, style: "currency" });
+	const currency = createCurrencyFormatter(currencyCode);
 	const [fees, setFees] = useState<FinancialFee[]>(
 		purchase.fees?.length
 			? purchase.fees
@@ -217,7 +218,6 @@ export function EditCreditPurchaseDialog({
 							id={installmentAmountId}
 							label={`Valor da parcela ${purchase.currentInstallment}/${purchase.installments}`}
 							onValueChange={setAmount}
-							placeholder="R$ 13,00"
 							required
 							value={amount}
 						/>
@@ -350,97 +350,49 @@ export function EditCreditPurchaseDialog({
 								Não foi possível verificar a troca de cartão.
 							</p>
 						) : null}
-						<FormFieldRow>
-							{!purchase.isStatementCharge && sourceCardId ? (
-								<CustomSelect
-									disabled={
-										cardLocked ||
-										(!cards && (cardsQuery.isPending || cardsQuery.isError)) ||
-										cardOptionsUnavailable
-									}
-									label="Cartão"
-									onValueChange={setSelectedCardId}
-									options={cardOptions}
-									placeholder="Selecione o cartão"
+						<PurchaseFormLayout
+							amount={
+								<MoneyField
+									aria-describedby={isFullySynced ? "purchase-amount-confirmed" : undefined}
+									currencyCode={currencyCode}
+									disabled={isFullySynced}
+									id="credit-purchase-amount"
+									label="Valor total"
+									onValueChange={value => {
+										amountEdited.current = true;
+										setAmount(value);
+									}}
+									rawValueName="purchaseAmount"
 									required
-									searchable
-									value={selectedCardId}
+									value={amount}
 								/>
-							) : null}
-							<StorePicker onValueChange={setStoreName} value={storeName} />
-						</FormFieldRow>
-						<FormField
-							autoComplete="off"
-							description={
-								hasRefinancing && !isRefinancing
-									? "Nome e tags são compartilhados com a compra original e seus reparcelamentos. Datas e horários são independentes."
-									: undefined
 							}
-							id="credit-purchase-description"
-							label="Descrição"
-							name="credit-purchase-description"
-							onChange={event => setDescription(event.currentTarget.value)}
-							placeholder="Ex: Supermercado do mês"
-							type="text"
-							value={description}
-						/>
-						<FormFieldRow>
-							<CurrencySelect
-								disabled={isSynced}
-								onValueChange={setCurrencyCode}
-								value={currencyCode}
-							/>
-							<MoneyField
-								aria-describedby={isFullySynced ? "purchase-amount-confirmed" : undefined}
-								currencyCode={currencyCode}
-								disabled={isFullySynced}
-								id="credit-purchase-amount"
-								label="Valor da compra"
-								onValueChange={value => {
-									amountEdited.current = true;
-									setAmount(value);
-								}}
-								placeholder="R$ 120,00"
-								rawValueName="purchaseAmount"
-								required
-								value={amount}
-							/>
-						</FormFieldRow>
-						{isFullySynced ? (
-							<p className="text-muted-foreground text-sm" id="purchase-amount-confirmed">
-								Todas as parcelas estão sincronizadas. O valor total já está confirmado.
-							</p>
-						) : null}
-						<fieldset className="min-w-0" disabled={isFullySynced}>
-							<FinancialFeeFields
-								baseAmount={Number(amount) || 0}
-								currencyCode={currencyCode}
-								fees={fees}
-								onChange={setFees}
-							/>
-						</fieldset>
-						<div className="grid gap-4">
-							<FormField
-								autoComplete="off"
-								description={
-									installmentsLocked
-										? "Compras sincronizadas não permitem alterar a quantidade de parcelas."
-										: undefined
-								}
-								disabled={installmentsLocked || purchase.isStatementCharge}
-								id="credit-purchase-installments"
-								inputMode="numeric"
-								label="Parcelas"
-								name="credit-purchase-installments"
-								onChange={event =>
-									setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
-								}
-								placeholder="Ex: 12"
-								required
-								type="text"
-								value={count}
-							/>
-							<FormFieldRow>
+							card={
+								!purchase.isStatementCharge && sourceCardId ? (
+									<CustomSelect
+										disabled={
+											cardLocked ||
+											(!cards && (cardsQuery.isPending || cardsQuery.isError)) ||
+											cardOptionsUnavailable
+										}
+										label="Cartão"
+										onValueChange={setSelectedCardId}
+										options={cardOptions}
+										placeholder="Selecione o cartão"
+										required
+										searchable
+										value={selectedCardId}
+									/>
+								) : null
+							}
+							currency={
+								<CurrencySelect
+									disabled={isSynced}
+									onValueChange={setCurrencyCode}
+									value={currencyCode}
+								/>
+							}
+							date={
 								<DateField
 									autoComplete="off"
 									description={
@@ -459,6 +411,111 @@ export function EditCreditPurchaseDialog({
 									required
 									value={date}
 								/>
+							}
+							debt={
+								<div className="grid gap-3 rounded-2xl border p-3">
+									<CheckboxField
+										checkboxProps={{
+											checked: isDebt,
+											disabled: purchase.isStatementCharge,
+											id: "edit-purchase-is-debt",
+											onCheckedChange: checked => {
+												setIsDebt(checked === true);
+											},
+										}}
+									>
+										<span>Esta compra é de uma dívida</span>
+									</CheckboxField>
+									{isDebt ? (
+										<DebtSplitEditor
+											amount={totalAmount * (purchase.exchangeRate ?? 1)}
+											currencyCode={purchase.bookingCurrency ?? "BRL"}
+											onChange={value =>
+												setDebtSplit({
+													...value,
+													currency: purchase.bookingCurrency ?? "BRL",
+												})
+											}
+											value={debtSplit}
+										/>
+									) : null}
+								</div>
+							}
+							description={
+								<FormField
+									autoComplete="off"
+									description={
+										hasRefinancing && !isRefinancing
+											? "Nome e tags são compartilhados com a compra original e seus reparcelamentos. Datas e horários são independentes."
+											: undefined
+									}
+									id="credit-purchase-description"
+									label="Descrição"
+									name="credit-purchase-description"
+									onChange={event => setDescription(event.currentTarget.value)}
+									placeholder="Ex: Supermercado do mês"
+									type="text"
+									value={description}
+								/>
+							}
+							fees={
+								<>
+									{isFullySynced ? (
+										<p
+											className="text-muted-foreground text-sm"
+											id="purchase-amount-confirmed"
+										>
+											Todas as parcelas estão sincronizadas. O valor total já está
+											confirmado.
+										</p>
+									) : null}
+									<FinancialFeeFields
+										baseAmount={Number(amount) || 0}
+										currencyCode={currencyCode}
+										disabled={isFullySynced}
+										fees={fees}
+										onChange={setFees}
+									/>
+								</>
+							}
+							installments={
+								<FormField
+									autoComplete="off"
+									description={
+										installmentsLocked
+											? "Compras sincronizadas não permitem alterar a quantidade de parcelas."
+											: undefined
+									}
+									disabled={installmentsLocked || purchase.isStatementCharge}
+									id="credit-purchase-installments"
+									inputMode="numeric"
+									label="Total de parcelas"
+									name="credit-purchase-installments"
+									onChange={event =>
+										setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))
+									}
+									placeholder="Ex: 12"
+									required
+									type="text"
+									value={count}
+								/>
+							}
+							store={<StorePicker onValueChange={setStoreName} value={storeName} />}
+							summary={
+								totalAmount > 0 ? (
+									<div className="border-primary/15 bg-primary/5 rounded-xl border p-3 text-sm">
+										<strong>Valor original: {currency.format(totalAmount)}</strong>
+
+										{installments > 1 ? (
+											<p className="text-muted-foreground mt-1">
+												{installments}x de {currency.format(installmentAmount)}.
+											</p>
+										) : null}
+									</div>
+								) : null
+							}
+							tags={<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />}
+							time={
 								<TimeField
 									id="credit-purchase-time"
 									label="Horário"
@@ -470,47 +527,8 @@ export function EditCreditPurchaseDialog({
 									placeholder="Ex: 14:30"
 									value={time}
 								/>
-							</FormFieldRow>
-						</div>
-						{totalAmount > 0 ? (
-							<div className="border-primary/15 bg-primary/5 rounded-xl border p-3 text-sm">
-								<strong>Valor original: {currency.format(totalAmount)}</strong>
-
-								{installments > 1 ? (
-									<p className="text-muted-foreground mt-1">
-										{installments}x de {currency.format(installmentAmount)}.
-									</p>
-								) : null}
-							</div>
-						) : null}
-						<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
-						<div className="grid gap-3 rounded-2xl border p-3">
-							<CheckboxField
-								checkboxProps={{
-									checked: isDebt,
-									disabled: purchase.isStatementCharge,
-									id: "edit-purchase-is-debt",
-									onCheckedChange: checked => {
-										setIsDebt(checked === true);
-									},
-								}}
-							>
-								<span>Esta compra é de uma dívida</span>
-							</CheckboxField>
-							{isDebt ? (
-								<DebtSplitEditor
-									amount={totalAmount * (purchase.exchangeRate ?? 1)}
-									currencyCode={purchase.bookingCurrency ?? "BRL"}
-									onChange={value =>
-										setDebtSplit({
-											...value,
-											currency: purchase.bookingCurrency ?? "BRL",
-										})
-									}
-									value={debtSplit}
-								/>
-							) : null}
-						</div>
+							}
+						/>
 					</DialogBody>
 					<DialogFooter>
 						<Button

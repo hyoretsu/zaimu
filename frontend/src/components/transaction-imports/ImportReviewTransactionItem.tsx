@@ -10,11 +10,15 @@ import {
 	LuPencil,
 	LuShieldOff,
 } from "react-icons/lu";
-import { AssociateImportedRecurrenceDialog } from "@/components/recurrences/AssociateImportedRecurrenceDialog";
+import {
+	AssociateImportedRecurrenceDialog,
+	type PendingImportRecurrence,
+} from "@/components/recurrences/AssociateImportedRecurrenceDialog";
 import { ImportItemDateTime, TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { Transaction, TransactionImportItem } from "@/lib/api";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { TransferSuggestionActions } from "./TransferSuggestionActions";
 
@@ -22,12 +26,13 @@ export function ImportReviewTransactionItem({
 	collapsed,
 	disabled,
 	importId,
-	onAssociated,
 	pending = false,
 	isIgnoringDuplicate,
 	item,
 	accountNames,
 	onApprove,
+	recurrence,
+	onRecurrenceChange,
 	onCollapsedChange,
 	onEdit,
 	onIgnoreDuplicate,
@@ -39,11 +44,12 @@ export function ImportReviewTransactionItem({
 	collapsed: boolean;
 	disabled: boolean;
 	importId?: string;
-	onAssociated?: () => Promise<unknown>;
 	pending?: boolean;
 	isIgnoringDuplicate: boolean;
 	item: TransactionImportItem;
 	onApprove: () => void;
+	recurrence?: PendingImportRecurrence;
+	onRecurrenceChange: (recurrence: PendingImportRecurrence) => void;
 	onCollapsedChange: (collapsed: boolean) => void;
 	onEdit: () => void;
 	onIgnoreDuplicate: () => void;
@@ -53,10 +59,7 @@ export function ImportReviewTransactionItem({
 }) {
 	const [associating, setAssociating] = useState(false);
 	const formatCurrency = (value: number) =>
-		new Intl.NumberFormat("pt-BR", {
-			currency: transaction.bookingCurrency ?? "BRL",
-			style: "currency",
-		}).format(value);
+		createCurrencyFormatter(transaction.bookingCurrency ?? "BRL").format(value);
 	const amountPrefix =
 		Number(transaction.amount) === 0
 			? ""
@@ -120,7 +123,7 @@ export function ImportReviewTransactionItem({
 									disabled,
 									icon: <LuLink />,
 									onClick: () => setAssociating(true),
-									text: "Aprovar e associar a recorrência",
+									text: recurrence ? "Alterar recorrência" : "Associar a recorrência",
 								},
 							]
 						: []),
@@ -179,6 +182,11 @@ export function ImportReviewTransactionItem({
 						/>
 						<div className="flex flex-wrap items-center gap-1.5">
 							<ImportItemDateTime time={item.time} />
+							{recurrence ? (
+								<span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+									<LuLink /> {recurrence.name}
+								</span>
+							) : null}
 							{item.duplicateReason ? (
 								<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700">
 									<LuCircleAlert /> Possível duplicata
@@ -197,9 +205,8 @@ export function ImportReviewTransactionItem({
 			{associating && importId && (
 				<AssociateImportedRecurrenceDialog
 					date={transaction.date}
-					importId={importId}
-					onAssociated={onAssociated}
 					onOpenChange={setAssociating}
+					onSelect={onRecurrenceChange}
 					target={{ ...transaction, id: item.id, kind: "TRANSACTION" }}
 				/>
 			)}

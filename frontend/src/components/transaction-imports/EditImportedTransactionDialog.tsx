@@ -18,6 +18,7 @@ import { primaryCurrency } from "@/lib/account-assets";
 import type { DebtSplitInput, FinancialAccount, TransactionImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { formatLocalTime } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
@@ -61,7 +62,7 @@ const toDraft = (item: TransactionImportItem): EditableItem => ({
 	paymentCreditCardId: item.paymentCreditCardId ?? null,
 	storeName: item.storeName ?? "",
 	tagIds: item.tagIds,
-	time: item.time ?? "",
+	time: formatLocalTime(item.time) ?? "",
 	type: item.type,
 });
 

@@ -5,6 +5,7 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import { createCurrencyFormatter } from "@/lib/format-currency";
 
 export function CreditPurchaseFeeFields({
 	amountDisabled = false,
@@ -32,7 +33,7 @@ export function CreditPurchaseFeeFields({
 	return (
 		<AutoCollapseSection
 			complete={hasFee && Boolean(localFeeDescription.trim()) && Number(feeAmount) > 0}
-			summary={`${localFeeDescription} - ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(Number(feeAmount))}`}
+			summary={`${localFeeDescription} - ${createCurrencyFormatter("BRL").format(Number(feeAmount))}`}
 			title="Taxa"
 		>
 			<CheckboxField
@@ -72,7 +73,6 @@ export function CreditPurchaseFeeFields({
 						id="purchase-fee-amount"
 						label="Valor da taxa"
 						onValueChange={onFeeAmountChange}
-						placeholder="R$ 6,38"
 						required
 						value={feeAmount}
 					/>
