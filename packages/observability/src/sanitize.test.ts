@@ -54,3 +54,22 @@ test("large arrays inspect at most twenty slots without enumerating their keys",
 	expect(descriptors).toBe(21);
 	expect(summarize(new Uint8Array(1000000))).toBe('"[binary]"');
 });
+
+test("wide objects inspect only fixed technical fields without enumerating keys", () => {
+	let descriptors = 0;
+	const input = new Proxy(
+		{ amount: 12345, status: 200 },
+		{
+			getOwnPropertyDescriptor(target, key) {
+				descriptors++;
+				return Reflect.getOwnPropertyDescriptor(target, key);
+			},
+			ownKeys() {
+				throw new Error("full enumeration is forbidden");
+			},
+		},
+	);
+	const result = JSON.parse(summarize(input));
+	expect(result).toEqual({ status: 200, type: "[object]" });
+	expect(descriptors).toBeLessThanOrEqual(20);
+});

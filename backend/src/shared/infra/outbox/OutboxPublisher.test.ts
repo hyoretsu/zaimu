@@ -15,6 +15,22 @@ const event = createEventEnvelope({
 });
 
 describe("OutboxPublisher", () => {
+	test("continues polling after a transient claim failure", async () => {
+		let attempts = 0;
+		let publisher: OutboxPublisher;
+		const outbox = {
+			claim: mock(async () => {
+				attempts++;
+				if (attempts === 1) throw new Error("temporary database outage");
+				publisher.stop();
+				return [];
+			}),
+		} as unknown as PostgresOutbox;
+		publisher = new OutboxPublisher({} as EventBrokerPort, outbox);
+		await publisher.run(0);
+		expect(outbox.claim).toHaveBeenCalledTimes(2);
+	});
+
 	test("releases an event when publisher confirmation fails", async () => {
 		const broker = {
 			publish: mock(async () => {

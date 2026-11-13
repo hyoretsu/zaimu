@@ -14,7 +14,7 @@ export const MAX_TOASTS = 5;
 export function notificationMessage(message: Message): Message {
 	if (typeof message !== "string") return message;
 	if (/timed?\s*out|timeout/i.test(message)) return "A operação demorou demais. Tente novamente.";
-	if (/failed to fetch|networkerror|network request failed/i.test(message))
+	if (/failed to fetch|network\s*error|network request failed/i.test(message))
 		return "Não foi possível conectar. Verifique sua conexão e tente novamente.";
 	return message;
 }

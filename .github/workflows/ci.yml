@@ -3,6 +3,11 @@ name: CI
 on:
   pull_request:
 
+# A newer push supersedes any run still in progress for the same PR.
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   detect:
     name: Detect affected
@@ -114,12 +119,23 @@ jobs:
           bun check --project scripts/tsconfig.json
           bun run test:runner
 
-      - name: Prepare local disposable service images
+      # Service images are cached as a tarball instead of being pulled on every job.
+      - name: Restore service images
+        if: matrix.category != 'unit'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/docker-images.tar
+          key: docker-images-postgres16-valkey-rabbitmq-v1
+
+      - name: Load or pull service images
         if: matrix.category != 'unit'
         run: |
-          docker pull postgres:16
-          docker pull valkey/valkey:latest
-          docker pull rabbitmq:latest
+          if [ -f ~/docker-images.tar ]; then
+            docker load -i ~/docker-images.tar
+          else
+            docker pull postgres:16 & docker pull valkey/valkey:latest & docker pull rabbitmq:latest & wait
+            docker save -o ~/docker-images.tar postgres:16 valkey/valkey:latest rabbitmq:latest
+          fi
 
       - name: Run tests
         run: bun run --filter '${{ matrix.package }}' 'test:${{ matrix.category }}'

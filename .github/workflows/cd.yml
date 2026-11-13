@@ -104,8 +104,12 @@ jobs:
             VARIANT=${{ matrix.variant.slug }}
             BRANDING_REVISION=${{ github.run_id }}-${{ github.run_attempt }}
           secrets: DATABASE_URL=${{ secrets.DATABASE_URL }}
-          cache-from: type=gha,scope=${{ matrix.service }}${{ matrix.variant.suffix }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}${{ matrix.variant.suffix }}
+          # Registry cache lives as an image in GHCR: no 10 GB GitHub cache quota to evict
+          # it, and layers are shared by every branch. GHA cache is read as a warm fallback.
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ github.repository }}_${{ matrix.service }}${{ matrix.variant.suffix }}:buildcache
+            type=gha,scope=${{ matrix.service }}${{ matrix.variant.suffix }}
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}_${{ matrix.service }}${{ matrix.variant.suffix }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true,compression=zstd
       - name: Publication summary
         env:
           IMAGE: ghcr.io/${{ github.repository }}_${{ matrix.service }}${{ matrix.variant.suffix }}

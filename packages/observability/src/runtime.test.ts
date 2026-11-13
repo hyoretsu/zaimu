@@ -129,6 +129,10 @@ test("argument inspection is skipped when disabled or span budget is exhausted",
 	const args = new Proxy(
 		{},
 		{
+			getOwnPropertyDescriptor() {
+				inspected++;
+				return undefined;
+			},
 			ownKeys() {
 				inspected++;
 				return [];

@@ -88,6 +88,16 @@ export const captureCacheMutation = (): CacheMutationStart => ({
 	identity: getCurrentCacheIdentity(),
 });
 
+/** Mutations settling within this window (e.g. the results of one /batch response) share one refetch. */
+const INVALIDATION_COALESCE_MS = 50;
+
+interface PendingInvalidation {
+	operations: Set<MutationOperation>;
+	promise: Promise<void>;
+}
+
+const pendingInvalidations = new WeakMap<QueryClient, Map<string, PendingInvalidation>>();
+
 /** Shared completion policy for React mutations and persisted background actions. */
 export async function invalidateMutationCache(
 	client: QueryClient,
@@ -96,20 +106,49 @@ export async function invalidateMutationCache(
 	identity: () => CacheIdentity | null = getCurrentCacheIdentity,
 ): Promise<void> {
 	if (!start.identity || start.identity !== identity() || !meta?.cacheOperations?.length) return;
-	const owner = start.identity;
+	const byClient = pendingInvalidations.get(client) ?? new Map<string, PendingInvalidation>();
+	pendingInvalidations.set(client, byClient);
+	const key = JSON.stringify([start.identity, start.currency]);
+	let pending = byClient.get(key);
+	if (pending) for (const operation of meta.cacheOperations) pending.operations.add(operation);
+	else {
+		const operations = new Set<MutationOperation>(meta.cacheOperations);
+		const created: PendingInvalidation = {
+			operations,
+			promise: new Promise<void>((resolve, reject) => {
+				setTimeout(() => {
+					byClient.delete(key);
+					// A session change while waiting makes the refresh stale; drop it.
+					if (start.identity !== identity()) return resolve();
+					refreshMutationCache(client, start, [...operations]).then(resolve, reject);
+				}, INVALIDATION_COALESCE_MS);
+			}),
+		};
+		byClient.set(key, created);
+		pending = created;
+	}
+	// Refetch failures stay observable only to callers that asked to await them.
+	if (meta.awaitRefetch) await pending.promise;
+	else void pending.promise.catch(() => undefined);
+}
+
+async function refreshMutationCache(
+	client: QueryClient,
+	start: CacheMutationStart,
+	cacheOperations: readonly MutationOperation[],
+): Promise<void> {
+	const owner = start.identity!;
 	const domains = new Set(
-		meta.cacheOperations
-			.filter(isDomainOperation)
-			.flatMap(operation => [...cacheOperationDomains[operation]]),
+		cacheOperations.filter(isDomainOperation).flatMap(operation => [...cacheOperationDomains[operation]]),
 	);
 	const roots = [...domains].map(domain => queryKeys[domain].all(owner));
 	const tags = new Set<ApiTag>([...domains].flatMap(domain => [...cacheDomainTags[domain]]));
-	const auxiliaryRoots = meta.cacheOperations.flatMap(operation =>
+	const auxiliaryRoots = cacheOperations.flatMap(operation =>
 		Object.hasOwn(auxiliaryOperations, operation)
 			? [...auxiliaryOperations[operation as keyof typeof auxiliaryOperations]]
 			: [],
 	);
-	const pending = refreshQueries(client, {
+	await refreshQueries(client, {
 		predicate: query => {
 			const currency = query.meta?.cacheCurrency ?? queryCurrency(query.queryKey);
 			const relatedTag = !query.meta?.apiTags || query.meta.apiTags.some(tag => tags.has(tag));
@@ -132,6 +171,4 @@ export async function invalidateMutationCache(
 		},
 		refetchType: "active",
 	});
-	if (meta.awaitRefetch) await pending;
-	else void pending.catch(() => undefined);
 }

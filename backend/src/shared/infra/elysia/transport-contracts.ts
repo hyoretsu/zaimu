@@ -164,7 +164,7 @@ export const FinancialInstitutionReturn = t.Object({
 	),
 	creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
 	creditStatementClosingInclusive: t.Optional(t.Boolean()),
-	currency: t.Optional(t.String()),
+	currency: t.Optional(t.Nullable(t.String())),
 	id: t.String(),
 	name: t.String(),
 	operatingCountryCodes: t.Optional(t.Array(t.String())),

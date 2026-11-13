@@ -437,7 +437,7 @@ namespace public {
     accountCurrenciesByCountry Json @default(sql`'{}'::json`)
     creditStatementClosingInclusive Boolean @default(false)
     creditInstallmentRemainderOnFirst Boolean @default(false)
-    currency VarChar(3) @default("BRL")
+    currency VarChar(3)?
 
     id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(sql`cuid2()`)
     userId         VarChar(36)?

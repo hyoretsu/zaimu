@@ -177,6 +177,24 @@ export function CreditCardStatementDetails({
 			showToast("Transação excluída.", "positive");
 		},
 	});
+	const deletePayment = useMutation({
+		meta: { cacheOperations: ["statement"] },
+		mutationFn: (paymentId: string) => dataService.transactions.delete(paymentId),
+		onError: error => {
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível excluir o pagamento.",
+				"negative",
+			);
+		},
+		onMutate: id => setPendingDeleteIds(current => new Set(current).add(id)),
+		onSettled: (_data, _error, id) =>
+			setPendingDeleteIds(current => {
+				const next = new Set(current);
+				next.delete(id);
+				return next;
+			}),
+		onSuccess: () => showToast("Pagamento excluído.", "positive"),
+	});
 	const backgroundAction = (
 		payload: StatementActionRecovery,
 		close: () => void,
@@ -267,6 +285,7 @@ export function CreditCardStatementDetails({
 							<strong className="block text-2xl tabular-nums">
 								{
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[{ amount: invoiceAmount, currency: currencyCode }]}
 									/>
 								}
@@ -276,6 +295,7 @@ export function CreditCardStatementDetails({
 									<p className="text-muted-foreground text-xs">Saldo transposto</p>
 									<strong className="block text-2xl tabular-nums">
 										<PreferredMoneyAmount
+											currency={currencyCode}
 											values={[{ amount: carriedOutAmount, currency: currencyCode }]}
 										/>
 									</strong>
@@ -285,6 +305,7 @@ export function CreditCardStatementDetails({
 								<p className="text-muted-foreground mt-1 text-xs">
 									Crédito da fatura anterior:{" "}
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[
 											{ amount: statement.creditInAmount ?? 0, currency: currencyCode },
 										]}
@@ -295,6 +316,7 @@ export function CreditCardStatementDetails({
 								<p className="text-muted-foreground mt-1 text-xs">
 									Previsão:{" "}
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[{ amount: projectedAmount, currency: currencyCode }]}
 									/>
 								</p>
@@ -303,6 +325,7 @@ export function CreditCardStatementDetails({
 								<p className="text-muted-foreground mt-1 text-sm">
 									Valor original:{" "}
 									<PreferredMoneyAmount
+										currency={currencyCode}
 										values={[
 											{
 												amount: displayedStatement.calculatedTotalAmount ?? 0,
@@ -315,11 +338,13 @@ export function CreditCardStatementDetails({
 
 							{!isIgnored &&
 								displayedStatement.status !== "CARRIED" &&
+								Math.abs(remainingAmount) > 0.001 &&
 								Math.abs(invoiceAmount - remainingAmount) > 0.001 && (
 									<p className="text-muted-foreground mt-1 text-sm">
 										{remainingAmount < 0 ? "Crédito" : "Restante a pagar"}:{" "}
 										{
 											<PreferredMoneyAmount
+												currency={currencyCode}
 												values={[
 													{
 														amount: Math.abs(remainingAmount),
@@ -415,7 +440,17 @@ export function CreditCardStatementDetails({
 							<div className="grid gap-2">
 								{entries.map(entry =>
 									entry.kind === "payment" ? (
-										<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
+										<CreditCardPaymentRow
+											deleteDisabled={
+												statement.isForecast === true ||
+												pendingDeleteIds.has(entry.payment.id)
+											}
+											key={entry.id}
+											onDelete={async () => {
+												await deletePayment.mutateAsync(entry.payment.id);
+											}}
+											payment={entry.payment}
+										/>
 									) : (
 										<CreditPurchaseRow
 											anticipateDisabled={
@@ -439,7 +474,10 @@ export function CreditCardStatementDetails({
 												entry.purchase.isRefund
 													? (setRecoveredAction(null),
 														setRefundingPurchase(entry.purchase))
-													: entry.purchase.parentId && !entry.purchase.isSynced
+													: (entry.purchase.parentId ||
+																(entry.purchase.currentInstallment === 1 &&
+																	entry.purchase.installments > 1)) &&
+														  !entry.purchase.isSynced
 														? setChoosingEditScope(entry.purchase)
 														: setEditingPurchase(
 																entry.purchase.isSynced &&
@@ -539,10 +577,19 @@ export function CreditCardStatementDetails({
 					onSelect={scope => {
 						setEditingPurchase(
 							scope === "installment"
-								? choosingEditScope
+								? {
+										...choosingEditScope,
+										parentId:
+											choosingEditScope.parentId ??
+											choosingEditScope.purchaseId ??
+											choosingEditScope.id,
+									}
 								: {
 										...choosingEditScope,
-										id: choosingEditScope.purchaseId ?? choosingEditScope.parentId!,
+										id:
+											choosingEditScope.purchaseId ??
+											choosingEditScope.parentId ??
+											choosingEditScope.id,
 										parentId: undefined,
 									},
 						);

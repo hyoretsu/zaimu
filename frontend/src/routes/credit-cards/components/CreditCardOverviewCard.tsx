@@ -64,6 +64,7 @@ export function CreditCardOverviewCard({
 						<p className="mt-1 font-bold">
 							{
 								<PreferredMoneyAmount
+									currency={currencyCode}
 									values={[{ amount: currentBill, currency: currencyCode }]}
 								/>
 							}
@@ -74,20 +75,11 @@ export function CreditCardOverviewCard({
 						<p className="mt-1 font-bold">
 							{
 								<PreferredMoneyAmount
+									currency={currencyCode}
 									values={[{ amount: limit.availableLimit, currency: currencyCode }]}
 								/>
 							}
 						</p>
-						{limit.temporaryCredit > 0 && (
-							<p className="text-brand-ink/60 mt-1 text-xs">
-								Crédito temporário por pagamento excedente: +{" "}
-								{
-									<PreferredMoneyAmount
-										values={[{ amount: limit.temporaryCredit, currency: currencyCode }]}
-									/>
-								}
-							</p>
-						)}
 					</div>
 				</div>
 				{card.securityDeposit != null && (
@@ -96,6 +88,7 @@ export function CreditCardOverviewCard({
 						<p className="mt-1 font-bold">
 							{
 								<PreferredMoneyAmount
+									currency={currencyCode}
 									values={[{ amount: card.securityDeposit, currency: currencyCode }]}
 								/>
 							}

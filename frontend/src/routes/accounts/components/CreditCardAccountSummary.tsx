@@ -34,13 +34,17 @@ export function CreditCardAccountSummary({ accountId }: { accountId: string }) {
 		<div className="grid gap-4 min-[420px]:grid-cols-2">
 			<div>
 				<p className="text-muted-foreground text-xs">Fatura atual</p>
-				<p className="mt-1 font-bold text-lg">
-					{<PreferredMoneyAmount values={[{ amount: currentBill, currency: card.currency ?? "BRL" }]} />}
+				<p className="mt-1 text-lg font-bold">
+					{
+						<PreferredMoneyAmount
+							values={[{ amount: currentBill, currency: card.currency ?? "BRL" }]}
+						/>
+					}
 				</p>
 			</div>
 			<div>
 				<p className="text-muted-foreground text-xs">Limite disponível</p>
-				<p className="mt-1 font-bold text-lg">
+				<p className="mt-1 text-lg font-bold">
 					{
 						<PreferredMoneyAmount
 							values={[{ amount: limit.availableLimit, currency: card.currency ?? "BRL" }]}
@@ -48,24 +52,14 @@ export function CreditCardAccountSummary({ accountId }: { accountId: string }) {
 					}
 				</p>
 			</div>
-			{limit.temporaryCredit > 0 && (
-				<div className="min-[420px]:col-span-2">
-					<p className="text-muted-foreground text-xs">Crédito temporário por pagamento excedente</p>
-					<p className="mt-1 font-semibold text-sm">
-						+{" "}
-						{
-							<PreferredMoneyAmount
-								values={[{ amount: limit.temporaryCredit, currency: card.currency ?? "BRL" }]}
-							/>
-						}
-					</p>
-				</div>
-			)}
 			{card.cashbackRate ? (
 				<div className="min-[420px]:col-span-2">
 					<p className="text-muted-foreground text-xs">Cashback</p>
-					<p className="mt-1 font-semibold text-sm">
-						{new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackRate)}%
+					<p className="mt-1 text-sm font-semibold">
+						{new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(
+							card.cashbackRate,
+						)}
+						%
 						{card.cashbackYieldReferenceRate
 							? ` · rende ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackYieldReferencePercentage ?? 100)}% de ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackYieldReferenceRate)}% ${card.cashbackYieldPeriod === "YEARLY" ? "ao ano" : "ao mês"}`
 							: ""}

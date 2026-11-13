@@ -132,6 +132,10 @@ Qualquer usuário pode sugerir à equipe, pelo botão "Sugerir à equipe" nas te
 
 Países, associações moeda-país e feriados por país são globais e obtidos automaticamente das fontes oficiais. Não há tela administrativa de cadastro manual desses dados. O país da conta determina o calendário aplicável. Feriados bloqueiam rendimento automático e projetado naquela moeda; finais de semana continuam sem rendimento. Feriados pessoais antigos não são promovidos ao calendário global. Alterações administrativas recalculam rendimentos afetados.
 
+## Moeda do cartão
+
+Compras, limites, faturas e pagamentos do cartão são exibidos na moeda do próprio cartão, como nas contas, sem conversão para a moeda de exibição preferida do usuário.
+
 ## Taxas de compras no cartão
 
 Uma compra no cartão pode ter uma taxa nomeada, como IOF. A taxa compõe o total cobrado, cada parcela, a fatura, o limite utilizado, cashback e eventual rateio de dívida. O lançamento preserva nome e valor da taxa para explicar a composição do total.

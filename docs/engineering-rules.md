@@ -26,6 +26,8 @@ Every modal must use the shared `Dialog` components from `frontend/src/component
 
 Mobile system back buttons, back gestures, and browser Back must traverse every visited subpage and modal in order. Navigate to subpages through the router with history pushes, reserving replacement for redirects. Opening a modal must add a history step through the shared `Dialog`; Back closes only the topmost modal before navigating away from its page. Closing through buttons, Escape, or the overlay must consume that modal's history step without leaving dead entries. Nested modals must unwind one at a time. Preserve router history state and handle effect replay and unmounting without duplicate entries or accidental page navigation.
 
+Never close a modal with a bare `history.back()`. A modal reached by a direct link (e.g. a shared link) has no previous app entry, so a raw back leaves the modal stuck open or exits the app/site instead of landing on the parent page; this also applies after an action, which must end on its explicit destination. Close only through the shared dialog-history helper (`frontend/src/lib/dialog-history.ts`): if the modal's own history entry exists, go back; otherwise `replace` the URL with the parent route (or the explicit post-action destination).
+
 ## Infinite scroll
 
 Loading more items must never change the current scroll position. Keep the existing list, rows, and scroll container mounted with stable keys throughout pagination, including dependent requests and pagination errors. Never replace loaded content with a spinner, skeleton, or full-list error state when fetching another page. Show incremental loading and retry feedback after the existing items, append new items without shrinking existing content, and preserve dependent query data while pagination changes its range. Reserve full-list loading states for the initial load or an explicit filter change; never reset scroll as a side effect of pagination.
@@ -211,7 +213,7 @@ repeated selections use repeated parameters. Omit default and empty values.
 Validate incoming values with schemas from `frontend/src/lib/view-state.ts` or domain schemas.
 Use history replacement for every view change, preserving unrelated parameters,
 hashes, router state and the current page/modal. Filters must never add history steps.
-Modal opening retains its own history behavior. Keep draft form values, transient
+Modal opening retains its own history behavior. Modal closing follows "Back navigation" (never a bare `history.back()`). Keep draft form values, transient
 popover searches, hover state, collapsed/expanded sections and automatic infinite-scroll pagination local.
 Follow AGENTS.md "URL state relevance": load-more counters, previous/next expansion
 counts, cursors and loaded-window size/radius must remain local, never persisted.

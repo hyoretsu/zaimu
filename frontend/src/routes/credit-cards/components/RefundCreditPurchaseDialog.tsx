@@ -20,7 +20,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate } from "@/lib/date";
+import { formatLocalDate, getLocalDateKey } from "@/lib/date";
 import { createCurrencyFormatter } from "@/lib/format-currency";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { RefundInstallmentOptions } from "./RefundInstallmentOptions";
@@ -122,9 +122,18 @@ export function RefundCreditPurchaseDialog({
 			)
 			.flatMap(effect => effect.canceledInstallmentNumbers),
 	);
+	const today = getLocalDateKey();
+	// Closed invoices are immutable: only installments already canceled by this refund stay selectable.
+	const closedStatementIds = new Set(
+		plan?.statements.filter(statement => statement.statementDate <= today).map(statement => statement.id),
+	);
 	const available =
 		plan?.installments.filter(
-			item => item.purchaseId === purchaseId && !item.isSettled && !claimed.has(item.number),
+			item =>
+				item.purchaseId === purchaseId &&
+				!item.isSettled &&
+				!claimed.has(item.number) &&
+				(!closedStatementIds.has(item.statementId) || initialSelection.includes(item.number)),
 		) ?? [];
 	const effectiveDirection =
 		direction ??

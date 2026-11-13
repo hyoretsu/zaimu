@@ -52,3 +52,15 @@ Native migration `20261108T0626_otel_outbox_context` generated from current main
 Merged current main a03e1f77 while preserving the new dashboard compute worker build entry, advancing benchmark clock and user time-format schema. Native outbox migration is regenerated after the new SQL head. Public HTTP and durable contexts retain traceparent only: vendor tracestate must never bypass attribute sanitization. The regression fixture passed with all eight context/stream tests (24 assertions). Worker image now includes external PDF package dependencies and linked source maps. Fresh hooks, images, disposable journeys, overhead measurements and integration remain pending.
 
 Native successor `20261109T0344_otel_outbox_context` now follows user-time-format head611bd8a... and emits storage a2f0ff9...; official export/plan passed with exactly one additive nullable JSONB operation. Compute transport regressions passed ten tests (21 assertions); a real Bun Worker preserved the incoming trace ID and first message across SDK bootstrap. SDK suite passed19tests/67assertions. Further validation remains pending.
+
+## November 13 continuation
+
+Commit f6be40d1 passed normal hooks, including affected types, backend tests and SDK generation. The current main cb61304b is incorporated in the isolated worktree; its outbox transient-error recovery is retained alongside backlog instrumentation. The native nullable context migration is being regenerated after the optional institution-currency contract. Original Zaimu frontend/backend working changes and template branding remain outside the task.
+
+Capture now checks disabled telemetry and operation budgets before inspecting arguments; binary buffers remain opaque, and large arrays inspect at most twenty slots without enumerating all keys. Fresh SDK verification passed 21 tests and 74 assertions. SQL type checks explicitly depend on their own contract export, fixing cold-worktree ordering.
+
+The report docs/observability-validation-2026-11-09.json records the historical local stack checks and fifteen visually reviewed desktop/mobile screenshots; no fresh live stack run is claimed on November 13. Full disposable journeys, final application/image builds, measured overhead and integration into original branches are still pending. Dedicated local benchmark services are being prepared; no shared migration or deployment has run.
+
+Review also identified full-key enumeration of wide objects before the collection limit. Object summaries now inspect only the fixed technical allowlist; unknown fields remain opaque, preserving bounded capture work. Five sanitizer tests passed (14 assertions), including a Proxy that rejects enumeration. The off/budget fixture counts descriptor access as well as key enumeration.
+
+Native successor 20261113T2333_otel_outbox_context now links 71b2dfe9... to d28051f1...; official export, plan and offline migration check passed. Its only operation adds nullable JSONB telemetryContext. Fourteen context/sanitizer tests passed (41 assertions), and three outbox tests passed (5 assertions). Final application builds are being rerun after the capture correction.

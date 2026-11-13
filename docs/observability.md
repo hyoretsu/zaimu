@@ -34,7 +34,7 @@ Vite values are public. No Collector credential belongs in a bundle. Clients exp
 
 ## Capture and lifecycle
 
-No SQL parameters, raw results, Redis keys, user IDs, credentials, financial amounts, documents or file content are exported. Summaries retain approved technical fields only; other values become types, counts and structure. Unknown field names are replaced. Limits: depth 4, 20 items/properties, 512 characters and 8 KiB. Getters, toJSON, streams and iterators are not consumed. Exception text and stacks are omitted rather than exporting potentially sensitive content.
+No SQL parameters, raw results, Redis keys, user IDs, credentials, financial amounts, documents or file content are exported. Summaries retain approved technical fields only; other values become types, counts and structure. Unknown object fields remain opaque; only fixed technical property descriptors are inspected. Arrays retain counts and at most twenty slots. Limits: depth 4, 20 collection items, 512 characters and 8 KiB. Getters, toJSON, streams and iterators are not consumed. Exception text and stacks are omitted rather than exporting potentially sensitive content.
 
 The transformer covers own backend functions/methods and excludes generated files, dependencies, tests, administrative scripts and telemetry internals. Use `/* @otel-ignore */` directly before a function for an exclusion. Classes keep constructors intact. Sync functions returning promises retain identity and unhandled-rejection behavior; their function spans end on synchronous return. Async function spans observe the body settlement. Generators use passive lifecycle spans from first iteration to exhaustion, return or exception; context is never held active across yields. Unclosed iterators cannot produce completed spans. Source maps compose transform and bundle mappings.
 
@@ -44,7 +44,7 @@ Queues are bounded to 2048 records, export requests have a 3-second timeout and 
 
 ## Optional outbox column
 
-`packages/sql/migrations/app/20261109T0344_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
+`packages/sql/migrations/app/20261113T2333_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
 
 ## Production sampling and cost
 

@@ -12,7 +12,7 @@ export interface InstitutionFormSource {
 	creditCardRules?: InstitutionCardRules | null;
 	creditInstallmentRemainderOnFirst?: boolean;
 	creditStatementClosingInclusive?: boolean;
-	currency?: string;
+	currency?: string | null;
 	id: string;
 	name: string;
 	operatingCountryCodes?: string[];

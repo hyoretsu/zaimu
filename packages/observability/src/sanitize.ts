@@ -78,13 +78,13 @@ export function summarize(value: unknown): string {
 				}),
 			};
 		}
-		const output: Record<string, unknown> = {};
-		for (const key of Object.getOwnPropertyNames(item).slice(0, 20)) {
+		// Enumerating arbitrary object keys has unbounded cost, even when sliced afterwards.
+		// Unknown fields remain opaque; inspect only the fixed technical allowlist.
+		const output: Record<string, unknown> = { type: "[object]" };
+		for (const key of technical) {
 			const descriptor = Object.getOwnPropertyDescriptor(item, key);
-			// Unapproved property names can contain user data too.
-			const label = technical.has(key) ? key : `field_${Object.keys(output).length}`;
-			output[label] =
-				descriptor && "value" in descriptor ? walk(descriptor.value, depth + 1, key) : "[accessor]";
+			if (!descriptor) continue;
+			output[key] = "value" in descriptor ? walk(descriptor.value, depth + 1, key) : "[accessor]";
 		}
 		return output;
 	};

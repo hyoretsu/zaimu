@@ -33,7 +33,6 @@ import {
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { toast } from "@/lib/toast";
 import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
-import { showToast } from "@/stores";
 import { useCurrencyStore } from "@/stores/currency";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -254,7 +253,10 @@ export function CreateTransactionDialog({
 				debtSplit: isDebt && !isCryptoAsset(draft.currency) ? debtSplit : undefined,
 				description: description.trim() || undefined,
 				destinationAmount:
-					draft.type === "TRANSFER" && draft.destinationAmount
+					draft.type === "TRANSFER" &&
+					draft.destinationAmount &&
+					(pointsConversion.counterpart !== null ||
+						(draft.destinationCurrency || draft.currency) !== draft.currency)
 						? isCryptoAsset(draft.destinationCurrency || draft.currency)
 							? draft.destinationAmount
 							: Number(draft.destinationAmount)
@@ -280,9 +282,11 @@ export function CreateTransactionDialog({
 			});
 			return { statement: null, transaction };
 		},
-		onError: (error, _, context) => {
+		onError: (error, variables, context) => {
 			toast.dismiss(context?.toastId);
-			showToast(error.message, "negative");
+			toast.error(error.message, {
+				action: { label: "Tentar novamente", onClick: () => create.mutate(variables) },
+			});
 		},
 		onMutate: () => {
 			handleOpenChange(false);

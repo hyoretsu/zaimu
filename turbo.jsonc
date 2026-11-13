@@ -102,6 +102,9 @@
 			"inputs": ["src/migrations/**"],
 			"outputLogs": "new-only",
 		},
+		"sql#check-types": {
+			"dependsOn": ["export"],
+		},
 		"sql#export": {
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/prisma/contract.prisma", "prisma.config.ts"],

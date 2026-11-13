@@ -51,6 +51,7 @@ const points = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
 
 export function FinancialAccountCard({
 	account,
+	compact = false,
 	institutionName,
 	institutions,
 	onDelete,
@@ -59,6 +60,7 @@ export function FinancialAccountCard({
 	rewardAccounts,
 }: {
 	account: FinancialAccount;
+	compact?: boolean;
 	institutionName?: string;
 	institutions: FinancialInstitution[];
 	onDelete: () => void | Promise<void>;
@@ -87,7 +89,9 @@ export function FinancialAccountCard({
 	const canImport = account.type !== "CREDIT_CARD" && account.type !== "REWARDS";
 	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
-		<article className="group bg-card shadow-card hover:border-primary/30 row-span-3 grid grid-rows-subgrid gap-y-0 rounded-2xl border p-5 transition hover:-translate-y-0.5">
+		<article
+			className={`group bg-card shadow-card hover:border-primary/30 rounded-2xl border p-5 transition hover:-translate-y-0.5 ${compact ? "flex flex-col gap-y-0" : "row-span-3 grid grid-rows-subgrid gap-y-0"}`}
+		>
 			<div className="flex min-h-16 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
 				<div className="flex min-w-0 flex-1 items-start gap-3">
 					<span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">

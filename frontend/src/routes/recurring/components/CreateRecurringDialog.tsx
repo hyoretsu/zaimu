@@ -81,6 +81,8 @@ export function CreateRecurringDialog({
 	const [validationError, setValidationError] = useState<string>();
 	const [completedWrite, setCompletedWrite] = useState(false);
 	const [resumeId, setResumeId] = useState<string>();
+	// A recovered edit may be taken by the always-mounted create dialog, which has no recurrence of its own.
+	const [resumeRecurrenceId, setResumeRecurrenceId] = useState<string>();
 	const [recoveryId, setRecoveryId] = useState<string>();
 	const accounts = useQuery({
 		enabled: identity !== null && open,
@@ -135,6 +137,7 @@ export function CreateRecurringDialog({
 		setDebtEnabled(Boolean(recurrence?.debtSplit));
 		setAddPast(false);
 		setResumeId(undefined);
+		setResumeRecurrenceId(undefined);
 		setRecoveryId(undefined);
 		setCompletedWrite(false);
 	});
@@ -145,6 +148,7 @@ export function CreateRecurringDialog({
 		setDebtEnabled(entry.payload.debtEnabled);
 		setAddPast(entry.payload.addPast);
 		setResumeId(entry.payload.savedId);
+		setResumeRecurrenceId(entry.payload.recurrenceId);
 		setCompletedWrite(entry.payload.completedWrite);
 		onOpenChange(true);
 	});
@@ -155,11 +159,11 @@ export function CreateRecurringDialog({
 		runBackgroundModalAction({
 			cache: { client: queryClient, operations: ["recurring"] },
 			close: () => onOpenChange(false),
-			conflictKey: `recurrence:${recurrence?.id ?? recovery.savedId ?? "new"}`,
+			conflictKey: `recurrence:${recurrence?.id ?? recovery.recurrenceId ?? recovery.savedId ?? "new"}`,
 			failureMessage: "Não foi possível salvar a recorrência.",
 			loadingMessage: recovery.completedWrite ? "Recompondo ocorrências..." : "Salvando recorrência...",
 			recovery: {
-				entityId: recurrence?.id ?? recovery.savedId,
+				entityId: recurrence?.id ?? recovery.recurrenceId ?? recovery.savedId,
 				kind: "recurrence-save",
 				payload: recovery,
 			},
@@ -171,7 +175,8 @@ export function CreateRecurringDialog({
 					dataService.recurrences,
 					getLocalDateKey(),
 				),
-			successMessage: recurrence ? "Recorrência atualizada." : "Recorrência criada.",
+			successMessage:
+				(recurrence ?? recovery.recurrenceId) ? "Recorrência atualizada." : "Recorrência criada.",
 		});
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -275,6 +280,7 @@ export function CreateRecurringDialog({
 								debtSplit,
 								draft: submittedDraft,
 								input,
+								recurrenceId: recurrence?.id ?? resumeRecurrenceId,
 								savedId: resumeId,
 							});
 						}}

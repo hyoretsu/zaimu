@@ -29,7 +29,7 @@ export function ListItemLayout({
 					<div className="shrink-0">{amount}</div>
 				</div>
 				<div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-3">
-					<div className="min-w-0 flex-1 basis-48 space-y-3">
+					<div className="min-w-0 flex-1 basis-48 space-y-3 self-start">
 						{metadata}
 						{tags}
 						{children}

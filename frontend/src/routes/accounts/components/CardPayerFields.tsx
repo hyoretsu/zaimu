@@ -34,11 +34,13 @@ export function CardPayerFields({
 					{ label: "Usar conta padrão para faturas", special: true, value: "primary" },
 					...(accounts.data ?? [])
 						.filter(account => !["CREDIT_CARD", "REWARDS"].includes(account.type))
-						.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id })),
+						.map(account => ({
+							label: getFinancialAccountOptionLabel(account),
+							value: account.id,
+						})),
 				]}
 				placeholder="Selecione a conta pagadora"
 				searchable
-				sortOptions={false}
 				value={payer ?? "primary"}
 			/>
 			<CheckboxField
@@ -50,7 +52,9 @@ export function CardPayerFields({
 			>
 				Sugerir pagamento de faturas fechadas
 			</CheckboxField>
-			<p className="text-muted-foreground text-xs">Sugestões exigem revisão. Nenhum pagamento automático.</p>
+			<p className="text-muted-foreground text-xs">
+				Sugestões exigem revisão. Nenhum pagamento automático.
+			</p>
 		</section>
 	);
 }

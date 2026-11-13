@@ -55,7 +55,12 @@ export class OutboxPublisher {
 					/* Telemetry reads must not stop publication. */
 				}
 			}
-			const count = await this.publishBatch();
+			// A transient failure (database hiccup, lost connection) must not end the loop: the worker would
+			// keep consuming while nothing new is ever published, silently stalling every command.
+			const count = await this.publishBatch().catch(error => {
+				console.error("Outbox publish batch failed; retrying", error);
+				return 0;
+			});
 			if (count === 0) await Bun.sleep(pollIntervalMs);
 		}
 	}

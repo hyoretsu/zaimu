@@ -22,7 +22,6 @@ import {
 } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { toast } from "@/lib/toast";
-import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
 function createDraft(transaction: Transaction) {
@@ -72,9 +71,11 @@ export function EditStatementPaymentDialog({
 				time: draft.time || null,
 			});
 		},
-		onError: (error, _, context) => {
+		onError: (error, variables, context) => {
 			toast.dismiss(context?.toastId);
-			showToast(error.message, "negative");
+			toast.error(error.message, {
+				action: { label: "Tentar novamente", onClick: () => update.mutate(variables) },
+			});
 		},
 		onMutate: () => {
 			onOpenChange(false);

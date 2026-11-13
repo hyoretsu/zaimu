@@ -166,9 +166,18 @@ elif platform == "ios":
             for app in apps:
                 tar.add(app, arcname=app.name)
 else:
-    tauri("build", "--ci", "--config", str(ci_config))
+    # Bundle only what is published; the default "all" also builds unused formats.
+    # Windows is cross-compiled from Linux (cargo-xwin + NSIS): MSI needs WiX, so only
+    # the NSIS installer exists. Linux minutes cost 1x versus 2x for Windows runners.
+    windows_target = "x86_64-pc-windows-msvc"
+    extra = {
+        "windows": ["--runner", "cargo-xwin", "--target", windows_target, "--bundles", "nsis"],
+        "linux": ["--bundles", "deb,rpm,appimage"],
+        "macos": ["--bundles", "dmg"],
+    }[platform]
+    tauri("build", "--ci", "--config", str(ci_config), *extra)
     patterns = {
-        "windows": ["target/release/bundle/nsis/*.exe", "target/release/bundle/msi/*.msi"],
+        "windows": [f"target/{windows_target}/release/bundle/nsis/*.exe"],
         "linux": ["target/release/bundle/deb/*.deb", "target/release/bundle/rpm/*.rpm", "target/release/bundle/appimage/*.AppImage"],
         "macos": ["target/release/bundle/dmg/*.dmg"],
     }

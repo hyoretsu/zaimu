@@ -16,12 +16,13 @@ export function CountriesSection({
 	onChange: (patch: Partial<InstitutionFormState>) => void;
 	state: InstitutionFormState;
 }) {
+	const currencySummary = state.currency ? ` - moeda ${state.currency}` : "";
 	return (
 		<CollapsibleFormSection
 			summary={
 				state.countries.length
-					? `${state.countries.map(code => countryName(code)).join("; ")} - moeda ${state.currency}`
-					: `Nenhum país configurado - moeda ${state.currency}`
+					? `${state.countries.map(code => countryName(code)).join("; ")}${currencySummary}`
+					: `Nenhum país configurado${currencySummary}`
 			}
 			title="Países de operação"
 		>

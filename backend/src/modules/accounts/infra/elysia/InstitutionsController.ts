@@ -28,7 +28,7 @@ const DateDTO = t.String({ format: "date" });
 const InstitutionBody = t.Object({
 	creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
 	creditStatementClosingInclusive: t.Optional(t.Boolean()),
-	currency: t.Optional(t.String({ maxLength: 3, minLength: 3 })),
+	currency: t.Optional(t.Nullable(t.String({ maxLength: 3, minLength: 3 }))),
 	effectiveDate: t.Optional(DateDTO),
 	name: t.Optional(t.String({ maxLength: 100, minLength: 1 })),
 	operatingCountryCodes: t.Optional(t.Array(t.String({ maxLength: 2, minLength: 2 }))),

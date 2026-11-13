@@ -250,7 +250,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				isHidden: body.kind === "MANUAL" ? (body.isHidden ?? false) : false,
 				kind: body.kind,
 				origin: "USER" as const,
-				time: body.kind === "MANUAL" ? (body.time ?? null) : null,
+				time: body.time ?? null,
 				updatedAt: new Date(),
 			};
 			if (existing)

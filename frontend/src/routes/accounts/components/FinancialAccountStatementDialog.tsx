@@ -81,9 +81,6 @@ export function FinancialAccountStatementDialog({
 	const [importOpen, setImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
-	const yieldFilters = {
-		startDate: statement.hasNextPage ? statement.data?.pages.at(-1)?.days.at(-1)?.date : undefined,
-	};
 	const yields = useInfiniteQuery<
 		Awaited<ReturnType<typeof dataService.accountYields.getDisplayPage>>,
 		Error,
@@ -96,10 +93,8 @@ export function FinancialAccountStatementDialog({
 		enabled: identity !== null && open && !statement.isPending,
 		getNextPageParam: page => page.nextCursor ?? undefined,
 		initialPageParam: undefined as string | undefined,
-		placeholderData: previous => previous,
-		queryFn: ({ pageParam }) =>
-			dataService.accountYields.getDisplayPage(account.id, pageParam, yieldFilters),
-		queryKey: [...queryKeys.accountYields.list(identity!, account.id), "statement", yieldFilters],
+		queryFn: ({ pageParam }) => dataService.accountYields.getDisplayPage(account.id, pageParam),
+		queryKey: [...queryKeys.accountYields.list(identity!, account.id), "statement"],
 	});
 	const yieldEntries = yields.data?.pages.flatMap(page => page.items) ?? [];
 	const dailyEndingBalances = new Map<string, MoneyPosition[]>(
@@ -208,7 +203,6 @@ export function FinancialAccountStatementDialog({
 							/>
 						)}
 						<TransactionsList
-							canDeleteTransaction={transaction => !transaction.paymentCreditCardId}
 							currencyCode={primaryCurrency(account) ?? "BRL"}
 							dailyEndingBalances={dailyEndingBalances}
 							hasMoreTransactions={statement.hasNextPage}

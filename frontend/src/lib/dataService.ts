@@ -1205,6 +1205,7 @@ export const dataService = {
 			date: string;
 			financialAccountId: string;
 			isExcluded?: boolean;
+			time?: string | null;
 		}): Promise<FinancialAccountYield> {
 			if (!isGuestMode()) {
 				return postFinancialAccountYields({ body: { ...data, kind: "AUTOMATIC" } }).then(
@@ -1226,6 +1227,7 @@ export const dataService = {
 				id: existing?.id ?? crypto.randomUUID(),
 				isExcluded: data.isExcluded ?? false,
 				kind: "AUTOMATIC",
+				time: data.time ?? null,
 			};
 			await localMeta.set(
 				"financial-account-yields",
