@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { endOfMonth, format, startOfMonth } from "date-fns";
+import { lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useUrlViewState } from "@/hooks/use-url-view-state";
@@ -7,7 +8,13 @@ import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { viewChartParameters, viewChartPeriod } from "@/lib/view-state";
 import { useCurrencyStore } from "@/stores/currency";
-import { ChartPeriodFilter, type ChartPeriodSettings, DashboardPeriodChart } from "./components";
+import { ChartPeriodFilter, type ChartPeriodSettings } from "./components";
+
+const DashboardPeriodChart = lazy(() =>
+	import("./components/DashboardPeriodChart").then(module => ({
+		default: module.DashboardPeriodChart,
+	})),
+);
 
 function formatAxisLabel(startDate: string) {
 	const date = new Date(`${startDate}T12:00:00`);
@@ -67,20 +74,22 @@ export function DashboardComparisonChart() {
 						Não foi possível carregar o gráfico. Selecione o período novamente para tentar.
 					</p>
 				) : (
-					<div className="space-y-6">
-						<DashboardPeriodChart
-							currencyCode={currencyCode}
-							currentPeriod={currentPeriod?.label}
-							data={data}
-							kind="balances"
-						/>
-						<DashboardPeriodChart
-							currencyCode={currencyCode}
-							currentPeriod={currentPeriod?.label}
-							data={data}
-							kind="flows"
-						/>
-					</div>
+					<Suspense fallback={<Skeleton className="h-64 w-full" />}>
+						<div className="space-y-6">
+							<DashboardPeriodChart
+								currencyCode={currencyCode}
+								currentPeriod={currentPeriod?.label}
+								data={data}
+								kind="balances"
+							/>
+							<DashboardPeriodChart
+								currencyCode={currencyCode}
+								currentPeriod={currentPeriod?.label}
+								data={data}
+								kind="flows"
+							/>
+						</div>
+					</Suspense>
 				)}
 			</CardContent>
 		</Card>

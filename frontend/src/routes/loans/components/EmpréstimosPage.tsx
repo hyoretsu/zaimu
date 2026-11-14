@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { LuChartNoAxesCombined, LuPlus } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -20,7 +20,10 @@ import { LoanCard, LoanCreateDialog, LoanPaymentsDialog } from "@/routes/loans/c
 import { LoanContractDialog } from "./LoanContractDialog";
 import { LoanContractEditor } from "./LoanContractEditor";
 import type { LoanPaymentRecovery } from "./LoanPaymentsDialog";
-import { LoanPlannerDialog } from "./LoanPlannerDialog";
+const LoanPlannerDialog = lazy(() =>
+	import("./LoanPlannerDialog").then(module => ({ default: module.LoanPlannerDialog })),
+);
+
 export function EmpréstimosPage() {
 	const identity = useCacheIdentity();
 	const [plannerOpen, setPlannerOpen] = useUrlViewState("planner", false, viewBoolean);
@@ -171,7 +174,11 @@ export function EmpréstimosPage() {
 					)}
 				</>
 			)}
-			{plannerOpen && <LoanPlannerDialog onClose={() => setPlannerOpen(false)} />}
+			{plannerOpen && (
+				<Suspense fallback={null}>
+					<LoanPlannerDialog onClose={() => setPlannerOpen(false)} />
+				</Suspense>
+			)}
 			{createOpen && !recoveredCreate && <LoanContractEditor onClose={() => setCreateOpen(false)} />}
 			{createOpen && recoveredCreate && (
 				<LoanCreateDialog

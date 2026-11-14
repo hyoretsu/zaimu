@@ -1361,7 +1361,7 @@ export async function commitLocalRecurrenceChanges(
 			scopedId: scopedId(owner, localId),
 		});
 		const storedOccurrences = (await requestResult(
-			tx.objectStore("scoped-recurrenceOccurrences").getAll(),
+			tx.objectStore("scoped-recurrenceOccurrences").index("ownerKey").getAll(owner),
 		)) as LocalData<RecurrenceOccurrence>[];
 		const periods = new Set(
 			storedOccurrences
