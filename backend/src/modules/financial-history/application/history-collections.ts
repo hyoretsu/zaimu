@@ -182,14 +182,11 @@ export async function requestHistoryCollection(
 							`UPDATE "FinancialHistoryUnit" SET "state"='COMPLETED',"completedAt"=now(),"updatedAt"=now(),"lastError"=NULL WHERE "id"=$1 AND "state" IN ('PENDING','FAILED')`,
 							[unit.id],
 						);
-				ranges = intervals.flatMap(interval =>
-					historyCoverageRanges(
-						Math.max(interval.startDate, window.startDate),
-						interval.endDate,
-						covered,
-						occupied,
-					),
-				);
+				ranges = intervals.flatMap(interval => {
+					let rangeStart = interval.startDate;
+					if (rangeStart < window.startDate) rangeStart = window.startDate;
+					return historyCoverageRanges(rangeStart, interval.endDate, covered, occupied);
+				});
 			}
 			for (const interval of ranges) {
 				const unitKey = `${kind}:${value}:${interval.startDate}:${interval.endDate}`;
