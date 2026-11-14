@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { differenceInMonths, differenceInYears } from "date-fns";
 import { getInstitutionProfileContext } from "~/modules/accounts/application/get-institution-profile-context";
 import {
@@ -7,6 +8,7 @@ import {
 import { loadCountryHolidayRows } from "~/modules/yield-calendar/catalog";
 import { ensureAccountCoverage } from "~/modules/yield-calendar/ensure-coverage";
 import { db, queryRaw, queryRawDecimal, queryRows } from "~/shared/infra/sql";
+import { businessDateSql } from "~/shared/infra/sql/business-date";
 import { resolveAccountAsset } from "./account-assets";
 import { cashbackReversalsSql } from "./cashback-reversals-sql";
 import { getFinancialInstitutionYieldPolicies } from "./get-financial-institution-yield-policies";
@@ -19,7 +21,7 @@ export function calculateCashbackValue(
 	yieldReferenceRate?: null | number,
 	yieldReferencePercentage?: null | number,
 	yieldPeriod?: null | string,
-	today = new Date(),
+	today = businessNow(),
 ) {
 	if (!yieldReferenceRate || !yieldReferencePercentage || !yieldPeriod) return amount;
 	const periods = Math.max(
@@ -97,7 +99,9 @@ export async function loadFinancialAccountBalanceInput(
 	const currencyTransactions = transactions.filter(
 		transaction =>
 			transaction.assetCode ===
-			currencyOf.get((transaction.originFinancialAccountId ?? transaction.destinationFinancialAccountId)!),
+			currencyOf.get(
+				(transaction.originFinancialAccountId ?? transaction.destinationFinancialAccountId)!,
+			),
 	);
 	const rewardsAccounts = await queryRows(
 		db.sql.public.RewardsAccount.select("financialAccountId", "initialBalance")
@@ -172,21 +176,21 @@ export async function loadFinancialAccountBalanceInput(
   SELECT r.*, sum(r."amount") OVER (PARTITION BY r."purchaseId" ORDER BY r."creditDate",r."createdAt",r."id") AS cumulative
   FROM "CreditRefundRecord" r WHERE r."deletedAt" IS NULL
  )
- SELECT p."cashbackAccountId",p."cashbackAmount",p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",p."purchaseDate" FROM "CreditPurchaseRecord" p WHERE p."cashbackAccountId"=ANY($1) AND p."purchaseDate"<=CURRENT_DATE
+ SELECT p."cashbackAccountId",p."cashbackAmount",p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",p."purchaseDate" FROM "CreditPurchaseRecord" p WHERE p."cashbackAccountId"=ANY($1) AND p."purchaseDate"<=${businessDateSql}
  UNION ALL SELECT p."cashbackAccountId",r.amount,p."cashbackYieldPeriod",p."cashbackYieldReferenceRate",p."cashbackYieldReferencePercentage",r."date"
  FROM (${cashbackReversalsSql}) r JOIN "CreditPurchaseRecord" p ON p."id"=r."purchaseId"
- WHERE p."cashbackAccountId"=ANY($1) AND r."date"<=CURRENT_DATE
- UNION ALL SELECT "financialAccountId","amount","yieldPeriod"::"CashbackYieldPeriod","yieldReferenceRate","yieldReferencePercentage","date" FROM "DetachedRewardCredit" WHERE "financialAccountId"=ANY($1) AND "date"<=CURRENT_DATE`,
+ WHERE p."cashbackAccountId"=ANY($1) AND r."date"<=${businessDateSql}
+ UNION ALL SELECT "financialAccountId","amount","yieldPeriod"::"CashbackYieldPeriod","yieldReferenceRate","yieldReferencePercentage","date" FROM "DetachedRewardCredit" WHERE "financialAccountId"=ANY($1) AND "date"<=${businessDateSql}`,
 				[rewardsAccountIds],
 			)
 		: [];
 	const startYear = Math.min(
-		new Date().getFullYear(),
+		businessNow().getFullYear(),
 		...accounts.map(account => account.createdAt.getFullYear()),
 		...currencyTransactions.map(transaction => new Date(transaction.date).getFullYear()),
 	);
 	const years = Array.from(
-		{ length: new Date().getFullYear() - startYear + 1 },
+		{ length: businessNow().getFullYear() - startYear + 1 },
 		(_, index) => startYear + index,
 	);
 	const scopes = [
@@ -197,9 +201,7 @@ export async function loadFinancialAccountBalanceInput(
 		).values(),
 	];
 	await Promise.all(
-		scopes.map(account =>
-			ensureAccountCoverage(currencyOf.get(account.id)!, account.countryCode, years),
-		),
+		scopes.map(account => ensureAccountCoverage(currencyOf.get(account.id)!, account.countryCode, years)),
 	);
 	const coverage = await queryRaw<{ countryCode: string; year: number }>(
 		`SELECT "countryCode","year" FROM "YieldCalendarCoverage" WHERE "status"='COMPLETE'`,
@@ -282,7 +284,7 @@ export async function loadFinancialAccountBalanceInput(
 
 export async function getFinancialAccountBalances(
 	accountIds: string[],
-	asOf = new Date(),
+	asOf = businessNow(),
 	knownAccounts?: Array<{ id: string; userId: string; type: string }>,
 ) {
 	const balances = new Map(accountIds.map(id => [id, 0]));

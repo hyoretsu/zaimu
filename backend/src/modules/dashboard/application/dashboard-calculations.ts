@@ -1,4 +1,5 @@
-import { type ComparisonOptions, comparisonIntervals } from "@zaimu/finance/comparison-periods";
+import { comparisonIntervals, type ComparisonOptions } from "@zaimu/finance/comparison-periods";
+import { businessNow } from "@zaimu/finance/time-zone";
 import {
 	addDays,
 	addMonths,
@@ -60,7 +61,7 @@ export function reconcilePeriodCashFlow(input: {
 	};
 }
 
-export function resolveDashboardRange(startDate?: string, endDate?: string, today = new Date()) {
+export function resolveDashboardRange(startDate?: string, endDate?: string, today = businessNow()) {
 	const fallbackStart = startOfDay(new Date(today.getFullYear(), today.getMonth(), 1));
 	const fallbackEnd = endOfDay(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 	const start = startDate ? startOfDay(new Date(`${startDate}T00:00:00`)) : fallbackStart;
@@ -76,7 +77,7 @@ export function nextOccurrence(input: {
 	from?: Date;
 	startDate: Date;
 }) {
-	const from = startOfDay(input.from ?? new Date());
+	const from = startOfDay(input.from ?? businessNow());
 	const start = startOfDay(input.startDate);
 	const end = input.endDate ? endOfDay(input.endDate) : undefined;
 	if (end && end < from) return undefined;
@@ -232,7 +233,8 @@ export function endingBalanceAtPeriodEnd(input: {
 	const movements = input.transactions.filter(transaction => transaction.type !== "TRANSFER");
 	const net = (transactions: typeof movements) =>
 		transactions.reduce(
-			(sum, transaction) => sum + (transaction.type === "INCOME" ? transaction.amount : -transaction.amount),
+			(sum, transaction) =>
+				sum + (transaction.type === "INCOME" ? transaction.amount : -transaction.amount),
 			0,
 		);
 
@@ -240,7 +242,9 @@ export function endingBalanceAtPeriodEnd(input: {
 		return (
 			input.currentBalance -
 			net(
-				movements.filter(transaction => transaction.date > endOfDay(periodEnd) && transaction.date <= today),
+				movements.filter(
+					transaction => transaction.date > endOfDay(periodEnd) && transaction.date <= today,
+				),
 			)
 		);
 	if (periodEnd > today)

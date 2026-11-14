@@ -1,4 +1,5 @@
 import { materializeBookInstallments } from "@zaimu/finance/credit-book";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { HttpException } from "~/shared/errors";
 import { db, param, queryFirst, queryRaw } from "~/shared/infra/sql";
 import { loadCreditCardScheduleCandidates } from "./credit-card-schedule-candidates";
@@ -50,7 +51,7 @@ export async function getOrCreateStatement(creditCardId: string, dueDate: Date, 
 	return statement;
 }
 
-export async function materializeCreditCardSchedules(asOf = new Date(), cardIds?: string[]) {
+export async function materializeCreditCardSchedules(asOf = businessNow(), cardIds?: string[]) {
 	const cards = await loadCreditCardScheduleCandidates(asOf, cardIds);
 	const changedCards = new Set<string>();
 	const missing = cards.flatMap(card =>

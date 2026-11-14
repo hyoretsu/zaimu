@@ -3,22 +3,24 @@ import {
 	defaultCardRules,
 	type InstitutionCardRules,
 } from "@zaimu/finance/institution-card-rules";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { HttpException } from "~/shared/errors";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
+import { businessDateSql } from "~/shared/infra/sql/business-date";
 import { assertCashbackSettings } from "../domain/assert-cashback-settings";
 import { ensureAccountAssetCatalog } from "./account-assets";
 
 /** Trusted SQL aliases only. Resolve profile for this user and financial date. */
-export function institutionCardRulesSql(account = "a", date = "CURRENT_DATE") {
+export function institutionCardRulesSql(account = "a", date = businessDateSql) {
 	const context = `(to_jsonb(${account})->'transferredProfileContext')`;
 	const archivedProfile = `COALESCE((SELECT change->>'profileId' FROM jsonb_array_elements(COALESCE(${context}->'institutionProfileChanges','[]'::jsonb)) change WHERE (change->>'effectiveDate')::date<=${date} ORDER BY change->>'effectiveDate' DESC LIMIT 1),${context}->>'defaultInstitutionProfileId')`;
 	const live = `COALESCE((SELECT p."creditCardRules" FROM "FinancialInstitutionProfile" p WHERE p."id"=COALESCE((SELECT change->>'profileId' FROM jsonb_array_elements(COALESCE(to_jsonb(${account})->'transferredProfileContext'->'institutionProfileChanges','[]'::jsonb)) change WHERE (change->>'effectiveDate')::date<=${date} ORDER BY change->>'effectiveDate' DESC LIMIT 1),(to_jsonb(${account})->'transferredProfileContext'->>'defaultInstitutionProfileId'),(SELECT h."profileId" FROM "UserInstitutionProfileChange" h JOIN "UserFinancialInstitution" l ON l.id=h."linkId" WHERE l."userId"=${account}."userId" AND l."institutionId"=${account}."institutionId" AND h."effectiveDate"<=${date} ORDER BY h."effectiveDate" DESC LIMIT 1),(SELECT d.id FROM "FinancialInstitutionProfile" d WHERE d."institutionId"=${account}."institutionId" AND d."isDefault" LIMIT 1))),(SELECT i."creditCardRules" FROM "FinancialInstitution" i WHERE i.id=${account}."institutionId"),'{}'::json)`;
 	return `COALESCE((SELECT nullif(profile->'creditCardRules','null'::jsonb) FROM jsonb_array_elements(COALESCE(${context}->'cardRulesProfiles','[]'::jsonb)) profile WHERE profile->>'id'=${archivedProfile}),(${live})::jsonb)`;
 }
-export function workingDueDateSql(account = "a", date = "CURRENT_DATE") {
+export function workingDueDateSql(account = "a", date = businessDateSql) {
 	return `COALESCE((${institutionCardRulesSql(account, date)}->>'workingDueDate')::boolean,false)`;
 }
-export async function accountCardRules(accountId: string, date = new Date().toISOString().slice(0, 10)) {
+export async function accountCardRules(accountId: string, date = businessNow().toISOString().slice(0, 10)) {
 	const [row] = await queryRaw<{ rules: InstitutionCardRules }>(
 		`SELECT ${institutionCardRulesSql("a", "$2::date")} AS rules FROM "FinancialAccount" a WHERE a.id=$1`,
 		[accountId, date],

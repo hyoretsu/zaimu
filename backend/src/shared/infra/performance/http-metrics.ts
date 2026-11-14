@@ -1,5 +1,7 @@
 import { monitorEventLoopDelay } from "node:perf_hooks";
-import { getPoolMetrics, getQueryMetrics, withQueryKind, withQueryMetrics } from "sql";
+import { businessNow } from "@zaimu/finance/time-zone";
+import { getPoolMetrics, getQueryMetrics, queryRaw, withQueryKind, withQueryMetrics } from "sql";
+import { businessDateSql } from "../sql/business-date";
 
 const lag = monitorEventLoopDelay({ resolution: 20 });
 lag.enable();
@@ -19,6 +21,19 @@ export const instrumentHttp =
 			const headers = new Headers(response.headers);
 			if (process.env.PERFORMANCE_METRICS_HEADERS === "true") {
 				headers.set("x-performance-namespace", process.env.SERVICE_NAMESPACE ?? "");
+				// A preflight handshake through the running bundle and its actual pool.
+				// Only health requests pay for this query, outside measured scenarios.
+				if (
+					new URL(request.url).pathname === "/health" &&
+					process.env.SERVICE_NAMESPACE === "zaimu_performance"
+				) {
+					const [clock] = await queryRaw<{ date: string }>(
+						`SELECT (${businessDateSql})::text AS date`,
+					);
+					headers.set("x-performance-business-date", businessNow().toISOString().slice(0, 10));
+					headers.set("x-performance-sql-business-date", clock?.date ?? "");
+					headers.set("x-performance-operational-epoch", String(Date.now()));
+				}
 				headers.set("x-performance-query-count", String(metrics.queryCount));
 				headers.set("x-performance-auth-query-count", String(metrics.authQueryCount));
 				headers.set("x-performance-business-query-count", String(metrics.businessQueryCount));
@@ -65,7 +80,11 @@ export const instrumentHttp =
 			};
 			if (!response.body) {
 				log(true);
-				return new Response(null, { headers, status: response.status, statusText: response.statusText });
+				return new Response(null, {
+					headers,
+					status: response.status,
+					statusText: response.statusText,
+				});
 			}
 			const reader = response.body.getReader();
 			const body = new ReadableStream<Uint8Array>({

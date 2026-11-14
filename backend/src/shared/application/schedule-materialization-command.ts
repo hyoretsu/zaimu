@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { materializeCreditCardSchedules } from "~/modules/creditCards/application/materialize-credit-card-schedules";
 import { materializeAllRecurrences } from "~/modules/recurring/application/recurrences";
 import { PostgresOutbox } from "~/shared/infra/outbox";
@@ -17,7 +18,7 @@ interface PublishScheduleMaterializationOptions {
 
 export async function publishScheduleMaterialization(
 	broker: EventBrokerPort,
-	now = new Date(),
+	now = businessNow(),
 	options: PublishScheduleMaterializationOptions = {},
 ) {
 	const cutoff = new Date(now);
@@ -35,7 +36,7 @@ export async function publishScheduleMaterialization(
 		correlationId: commandId,
 		eventId: commandId,
 		eventType: scheduleMaterializationEventType,
-		occurredAt: asOf,
+		occurredAt: new Date().toISOString(),
 		payload: { asOf },
 		schemaVersion: 1,
 		userIds: [],

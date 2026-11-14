@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import {
 	referenceRateBootstrapIntervals,
 	referenceRateWindow,
@@ -51,7 +52,7 @@ async function publishUnit(unit: Parameters<typeof unitEvent>[0]) {
 export async function requestHistoryCollection(
 	kind: CollectionKind,
 	seriesInput: string[],
-	referenceDate = dateKey(new Date()),
+	referenceDate = dateKey(businessNow()),
 	dependencies: {
 		publish: typeof publishUnit;
 		publishBatch?: (units: Parameters<typeof unitEvent>[0][]) => Promise<void>;
@@ -68,7 +69,7 @@ export async function requestHistoryCollection(
 	const explicitWindow =
 		requestedWindow && coverageWindow(requestedWindow.startDate, requestedWindow.endDate);
 	const reference = dateKey(referenceDate);
-	if (reference > dateKey(new Date())) throw new RangeError("Coleta não aceita datas futuras");
+	if (reference > dateKey(businessNow())) throw new RangeError("Coleta não aceita datas futuras");
 	const series = [...new Set(seriesInput.map(value => value.toUpperCase()))].sort();
 	if (
 		!series.length ||
@@ -183,7 +184,7 @@ export async function requestHistoryCollection(
 						);
 				ranges = intervals.flatMap(interval =>
 					historyCoverageRanges(
-						interval.startDate < window.startDate ? window.startDate : interval.startDate,
+						Math.max(interval.startDate, window.startDate),
 						interval.endDate,
 						covered,
 						occupied,

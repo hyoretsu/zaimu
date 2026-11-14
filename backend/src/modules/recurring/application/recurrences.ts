@@ -9,6 +9,7 @@ import {
 	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { assertFiatHolding, resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership } from "~/modules/auth";
@@ -194,11 +195,13 @@ export async function saveRecurrence(
 			next.movement === "CARD_PURCHASE" && next.creditCardId
 				? await creditCardCurrency(next.creditCardId)
 				: accountId
-					? (await resolveAccountAsset(accountId, next.currency, {
-						create: true,
-						fiatOnly: true,
-						userId,
-					})).assetCode
+					? (
+							await resolveAccountAsset(accountId, next.currency, {
+								create: true,
+								fiatOnly: true,
+								userId,
+							})
+						).assetCode
 					: await defaultCurrency(userId);
 		next.currency = await assertSupportedCurrency(next.currency ?? linkedCurrency);
 		next.name = next.name?.trim();
@@ -466,7 +469,7 @@ export async function materializeRecurrence(
 		return created;
 	});
 }
-export async function materializeAllRecurrences(asOf = new Date(), userIds?: string[]) {
+export async function materializeAllRecurrences(asOf = businessNow(), userIds?: string[]) {
 	if (userIds && !userIds.length) return { transactions: 0, userIds: [] };
 	const rows = await queryRaw<{
 		id: string;

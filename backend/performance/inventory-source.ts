@@ -8,7 +8,11 @@ export async function inventorySourceHash(root = new URL("../../", import.meta.u
 		"backend/performance/inventory.ts",
 		"backend/scripts/export-openapi.ts",
 	]);
-	for (const pattern of ["backend/src/**/*.ts", "frontend/src/routes/**/*.tsx"]) {
+	for (const pattern of [
+		"backend/src/**/*.ts",
+		"packages/finance/src/**/*.ts",
+		"frontend/src/routes/**/*.tsx",
+	]) {
 		for await (const path of new Bun.Glob(pattern).scan(root)) {
 			if (!path.endsWith(".test.ts") && !path.includes("/tests/")) paths.add(path);
 		}

@@ -1,7 +1,9 @@
 import { decimalToUnits } from "@zaimu/finance/asset-amount";
 import { registerAssetDecimals } from "@zaimu/finance/money";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { HttpException } from "~/shared/errors";
 import { queryRawDecimal } from "~/shared/infra/sql";
+import { businessDateSql } from "~/shared/infra/sql/business-date";
 import { ensureAccountAssetCatalog } from "./account-assets";
 import { monetaryBalancesSql } from "./monetary-balances-sql";
 
@@ -16,7 +18,7 @@ export async function accountHoldings(userId: string, accountId: string) {
 			'WHERE account."userId"=$1',
 			'WHERE account."userId"=$1 AND account."id"=$3',
 		),
-		[userId, [new Date().toISOString().slice(0, 10)], accountId],
+		[userId, [businessNow().toISOString().slice(0, 10)], accountId],
 	);
 	return rows.map(row => ({ assetCode: row.assetCode, balance: String(row.balance) }));
 }
@@ -74,7 +76,7 @@ export async function saveAccountHoldings(accountId: string, assets: AccountHold
 		);
 		if (!existing && units !== 0n)
 			await queryRawDecimal(
-				`INSERT INTO "BalanceAdjustment" ("id","userId","financialAccountId","assetCode","balance","date","createdAt","updatedAt") SELECT $3,account."userId",account."id",$2,$4::numeric,CURRENT_DATE,now(),now() FROM "FinancialAccount" account WHERE account."id"=$1`,
+				`INSERT INTO "BalanceAdjustment" ("id","userId","financialAccountId","assetCode","balance","date","createdAt","updatedAt") SELECT $3,account."userId",account."id",$2,$4::numeric,${businessDateSql},now(),now() FROM "FinancialAccount" account WHERE account."id"=$1`,
 				[accountId, holding.assetCode, crypto.randomUUID(), balance],
 			);
 	}

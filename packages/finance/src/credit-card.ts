@@ -1,4 +1,5 @@
 import { currencyScale } from "./money";
+import { businessNow } from "./time-zone";
 export type FinancialDate = Date | string;
 export const dateKey = (value: FinancialDate) =>
 	typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
@@ -13,7 +14,7 @@ export function statementCutoffAfter(statementDate: FinancialDate) {
 }
 
 export function currentDateKey() {
-	const now = new Date();
+	const now = businessNow();
 	return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 

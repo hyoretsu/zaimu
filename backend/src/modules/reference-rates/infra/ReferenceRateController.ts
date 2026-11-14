@@ -1,4 +1,5 @@
 import { financialIndicators } from "@zaimu/finance/financial-indicators";
+import { businessNow } from "@zaimu/finance/time-zone";
 import Elysia, { t } from "elysia";
 import { HistoryProgressReturn } from "~/modules/financial-history/infra/FinancialHistoryController";
 import { financialIndicatorContext } from "../application/financial-indicators";
@@ -23,7 +24,7 @@ export const ReferenceRateController = new Elysia({ prefix: "/reference-rates" }
 	.get(
 		"/indicators",
 		async () => {
-			const context = await financialIndicatorContext(new Date().toISOString().slice(0, 10));
+			const context = await financialIndicatorContext(businessNow().toISOString().slice(0, 10));
 			return {
 				catalog: financialIndicators,
 				observations: context.observations,

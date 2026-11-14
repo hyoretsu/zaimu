@@ -4,6 +4,7 @@ import {
 	type ReferenceRateType,
 	settingsRequireReference,
 } from "@zaimu/finance/projected-yield";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { countryHolidayDates } from "@zaimu/finance/yield-calendar";
 import type { YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays } from "date-fns";
@@ -16,7 +17,7 @@ import { loadYieldAccounts } from "./reference-rate-jobs";
 export async function projectedYieldContext(
 	userId: string,
 	accountIds: string[],
-	from = new Date(),
+	from = businessNow(),
 	through = from,
 ) {
 	const owned = accountIds.length

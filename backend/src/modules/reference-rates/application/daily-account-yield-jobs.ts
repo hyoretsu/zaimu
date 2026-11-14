@@ -1,9 +1,10 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { queryRaw } from "~/shared/infra/sql";
 import { completedYieldDate } from "../domain/yield-scheduler-clock";
 import { enqueueAccountYieldRecalculation } from "./reference-rate-jobs";
 
 /** Replay from creation, including gaps older than the recent official-rate refresh window. */
-export async function enqueueDailyAccountYieldRecalculations(now = new Date()) {
+export async function enqueueDailyAccountYieldRecalculations(now = businessNow()) {
 	const throughDate = completedYieldDate(now);
 	const accounts = await queryRaw<{ id: string; createdAt: Date }>(
 		`SELECT account."id", account."createdAt" FROM "FinancialAccount" account

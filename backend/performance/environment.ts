@@ -1,4 +1,4 @@
-import { installPerformanceClock } from "./clock";
+import { installPerformanceClock, PERFORMANCE_REFERENCE_DATE } from "./clock";
 import { createPerformanceFetch } from "./local-fetch";
 
 export function configurePerformanceEnvironment() {
@@ -7,7 +7,7 @@ export function configurePerformanceEnvironment() {
 	Object.assign(process.env, {
 		BETTER_AUTH_SECRET: "zaimu-local-performance-secret-at-least-32-characters",
 		BETTER_AUTH_URL: "http://127.0.0.1:3335",
-		DATABASE_URL: "postgresql://performance:performance-local@127.0.0.1:55495/zaimu_performance",
+		DATABASE_URL: `postgresql://performance:performance-local@127.0.0.1:55495/zaimu_performance?options=${encodeURIComponent(`-c zaimu.business_date=${PERFORMANCE_REFERENCE_DATE}`)}`,
 		NODE_ENV: "test",
 		PERFORMANCE_METRICS_HEADERS: "true",
 		PORT: "3335",

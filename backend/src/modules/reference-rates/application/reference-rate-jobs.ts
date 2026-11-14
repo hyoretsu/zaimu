@@ -1,4 +1,5 @@
 import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, max, startOfDay } from "date-fns";
 import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
@@ -129,14 +130,14 @@ export async function enqueueUserYieldRecalculations(userId: string, fromDate: D
 	);
 	for (const account of accounts) await enqueueAccountYieldRecalculation(account.id, fromDate, cause);
 }
-export async function ensureReferenceRateBootstrapJobs(now = new Date()) {
+export async function ensureReferenceRateBootstrapJobs(now = businessNow()) {
 	return requestHistoryCollection(
 		"INTEREST",
 		["CDI", "SELIC", "IPCA", "TR"],
 		dateKey(yieldSchedulerClock(now).date),
 	);
 }
-export async function enqueueDailyReferenceRateFetches(now = new Date()) {
+export async function enqueueDailyReferenceRateFetches(now = businessNow()) {
 	const window = recentReferenceRateWindow(now);
 	if (!window) return;
 	// Recent publications are provisional: historical coverage must never suppress this refresh.

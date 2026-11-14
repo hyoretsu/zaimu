@@ -1,4 +1,5 @@
 import { comparisonDuration } from "@zaimu/finance/comparison-periods";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { addDays, startOfDay } from "date-fns";
 import { buildComparisonPeriods, dateKey, resolveDashboardRange } from "./dashboard-calculations";
 import { dashboardCurrencyContext } from "./dashboard-currency-context";
@@ -12,7 +13,7 @@ export async function getDashboardComparison(
 	load = loadDashboardData,
 	currency?: string,
 ) {
-	const today = startOfDay(new Date());
+	const today = startOfDay(businessNow());
 	const range = resolveDashboardRange(query.startDate, query.endDate, today);
 	const options = { ...comparisonDuration(range.start, range.end), ...query };
 	const periods = buildComparisonPeriods({ ...options, base: range, initialBalance: 0, transactions: [] });

@@ -2,6 +2,7 @@ import { Value } from "@sinclair/typebox/value";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { type LoanContractBook, sameLoanContract, validateLoanTerms } from "@zaimu/finance/loan-contract";
 import { toMinorUnits } from "@zaimu/finance/money";
+import { businessNow } from "@zaimu/finance/time-zone";
 import Elysia from "elysia";
 import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
 import { accountHoldings, saveAccountHoldings } from "~/modules/accounts/application/account-holdings";
@@ -317,7 +318,8 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 							historicalYieldSettings != null &&
 							(!Value.Check(HistoricalYieldSettingsDTO, historicalYieldSettings) ||
 								type === "CREDIT_CARD" ||
-								historicalYieldSettings.throughDate > new Date().toLocaleDateString("sv-SE"))
+								historicalYieldSettings.throughDate >
+									businessNow().toLocaleDateString("sv-SE"))
 						)
 							throw new Error("Regra histórica de rendimento inválida");
 						const values = {
@@ -527,7 +529,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 								id,
 								recalculationDates.toSorted(
 									(left, right) => left.valueOf() - right.valueOf(),
-								)[0] ?? new Date(),
+								)[0] ?? businessNow(),
 								`sync-account:${id}:${syncRevision(entity)}`,
 							);
 						}
@@ -1517,7 +1519,7 @@ export const SyncController = new Elysia({ prefix: "/sync" })
 					for (const entity of inputs)
 						if (entity.materializedThrough) {
 							const cursor = String(entity.materializedThrough).slice(0, 10);
-							if (cursor > new Date().toISOString().slice(0, 10))
+							if (cursor > businessNow().toISOString().slice(0, 10))
 								throw new Error("Cursor de recorrência futuro");
 							const id = recurrenceMappings.get(String(entity.id));
 							await executeRaw(

@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
@@ -132,7 +133,7 @@ export const FinancialHistoryController = new Elysia({ prefix: "/financial-histo
 		"/rate",
 		async ({ query }) => {
 			const date = query.date === "latest" ? "latest" : currencyRateDate(query.date);
-			if (date !== "latest" && date > new Date().toISOString().slice(0, 10))
+			if (date !== "latest" && date > businessNow().toISOString().slice(0, 10))
 				throw new HttpException("Conversão diária não aceita datas futuras", 400);
 			const currencies = await supportedCurrencies();
 			if (!currencies.includes(query.from) || !currencies.includes(query.to))

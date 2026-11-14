@@ -1,4 +1,5 @@
 import { cryptoAssets } from "@zaimu/finance/crypto-assets";
+import { businessNow } from "@zaimu/finance/time-zone";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { supportedCurrencies } from "../application/currency-catalog";
@@ -44,7 +45,7 @@ export const CurrenciesController = new Elysia({ prefix: "/currencies" })
 		"/asset-quote",
 		async ({ query }) => {
 			const date = currencyRateDate(query.date);
-			if (date > new Date().toISOString().slice(0, 10))
+			if (date > businessNow().toISOString().slice(0, 10))
 				throw new RangeError("Cotação futura indisponível");
 			return getAssetQuote(date, query.assetCode, "USD");
 		},

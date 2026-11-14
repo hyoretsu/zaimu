@@ -5,6 +5,7 @@ import {
 	loanScheduleTotal,
 	outstandingLoanSchedule,
 } from "@zaimu/finance/loan-contract";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { resolveAccountAsset } from "~/modules/accounts/application/account-assets";
@@ -372,7 +373,7 @@ const LegacyLoansController = new Elysia({ detail: { tags: ["Loans"] }, prefix: 
 			const paidPaymentCount = await loanPaymentTotals(params.id);
 			const paidInstallments = Number(paidPaymentCount?.count ?? 0);
 
-			const targetDate = query.targetDate ? new Date(query.targetDate) : new Date();
+			const targetDate = query.targetDate ? new Date(query.targetDate) : businessNow();
 			const advanceType = query.advanceType ?? "BACK";
 
 			const payoff = calculateEarlyPayoff(

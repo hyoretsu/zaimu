@@ -1,4 +1,5 @@
 import { convertFixedSplitAtDate, isCryptoAsset } from "@zaimu/finance/money";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { TransactionMoneyError } from "@zaimu/finance/transaction-money";
 import Elysia, { t } from "elysia";
 import {
@@ -114,7 +115,7 @@ function resolveTransactionTime(value: string | null | undefined): string | null
 		if (!timePattern.test(value)) throw new HttpException("Informe um horário válido", 400);
 		return value;
 	}
-	return new Date().toTimeString().slice(0, 5);
+	return businessNow().toTimeString().slice(0, 5);
 }
 
 async function refreshCardPayments(cardIds: string[]) {

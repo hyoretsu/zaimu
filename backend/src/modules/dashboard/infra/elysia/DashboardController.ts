@@ -6,6 +6,7 @@ import {
 	recurrenceNeedsConfiguration,
 	recurrencePeriodStart,
 } from "@zaimu/finance/recurrence";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { addDays, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
@@ -47,7 +48,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" })
 				{ ...query, locationCurrency, view: "currency-context-v2" },
 				async () => {
 					const consolidatedCurrency = await defaultCurrency(userId, locationCurrency);
-					const now = new Date();
+					const now = businessNow();
 					const today = startOfDay(now);
 					const range = resolveDashboardRange(query.startDate, query.endDate, now);
 					const comparisonEnd = new Date(

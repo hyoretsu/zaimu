@@ -1,6 +1,7 @@
 import type { CreditBook } from "@zaimu/finance/credit-book";
 import { shiftRecurrenceDate } from "@zaimu/finance/recurrence";
 import { pendingRecurrenceDates, projectRecurrenceCreditBook } from "@zaimu/finance/recurrence-projection";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { getCurrencyHistoryEstimate } from "~/modules/financial-history/application/currency-history-estimate";
 import { requestHistoryCollection } from "~/modules/financial-history/application/history-collections";
 import { userFinancialDate } from "~/shared/application/financial-date";
@@ -8,7 +9,7 @@ import { queryRaw } from "~/shared/infra/sql";
 import { normalizeRecurrence } from "./recurrences";
 export async function projectRecurringCreditBook(
 	book: CreditBook,
-	through = `${new Date().getFullYear() + 2}-12-31`,
+	through = `${businessNow().getFullYear() + 2}-12-31`,
 ) {
 	const rows = await queryRaw(
 		'SELECT * FROM "Recurrence" WHERE "userId"=$1 AND "creditCardId"=$2 AND "isActive"=true',

@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { format } from "date-fns";
 import { getHistoryCollection } from "~/modules/financial-history/application/history-collections";
 import { queryRaw } from "~/shared/infra/sql";
@@ -6,7 +7,7 @@ import { referenceRateWindow } from "../domain/reference-rate-window";
 
 export { referenceRateAveragesSql };
 
-export async function getReferenceRateAverages(today = new Date()) {
+export async function getReferenceRateAverages(today = businessNow()) {
 	const window = referenceRateWindow(today);
 	const startDate = format(window.startDate, "yyyy-MM-dd");
 	const endDate = format(window.endDate, "yyyy-MM-dd");

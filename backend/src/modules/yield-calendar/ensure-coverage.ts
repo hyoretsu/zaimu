@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { queryRaw, withRawTransaction } from "~/shared/infra/sql";
 import {
 	calendarSourceVersion,
@@ -118,7 +119,7 @@ export async function ensureCalendarCoverage(countryCode: string, year: number) 
 export async function ensureAccountCoverage(
 	currency: string,
 	countryCode?: string | null,
-	years = [new Date().getFullYear()],
+	years = [businessNow().getFullYear()],
 ) {
 	await ensureCurrencyAssociations(currency);
 	if (!countryCode) return false;

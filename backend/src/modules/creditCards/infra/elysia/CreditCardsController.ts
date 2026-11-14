@@ -25,6 +25,7 @@ import { assertImportedPurchaseEdit } from "@zaimu/finance/credit-purchase";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
 import { convertFixedSplitAtDate, currencyScale } from "@zaimu/finance/money";
 import { listedRecurrenceStatements } from "@zaimu/finance/recurrence-projection";
+import { businessNow } from "@zaimu/finance/time-zone";
 import Elysia, { t } from "elysia";
 import { resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { accountCardRules, cardRulesByAccount } from "~/modules/accounts/application/institution-card-rules";
@@ -110,7 +111,7 @@ const statementColumns = [
 ] as const;
 const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
 function resolvePurchaseTime(value?: string | null) {
-	return value === undefined ? new Date().toTimeString().slice(0, 5) : value;
+	return value === undefined ? businessNow().toTimeString().slice(0, 5) : value;
 }
 const RefundPolicyDTO = t.Union([t.Literal("KEEP_INSTALLMENTS"), t.Literal("CANCEL_FUTURE_INSTALLMENTS")]);
 const PurchaseFields = {
@@ -278,7 +279,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					userId,
 					replayCards,
 					rows,
-					new Date().toISOString().slice(0, 10),
+					businessNow().toISOString().slice(0, 10),
 				);
 				const byCard = new Map<string, typeof statements>();
 				for (const statement of statements) {
@@ -289,7 +290,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				const managedRules = await cardRulesByAccount(cards.map(card => card.financialAccountId));
 				return cards.map((card): typeof CreditCardOverviewReturn.static => {
 					const effectiveStatements = byCard.get(card.id) ?? [];
-					const currentStatement = paymentStatement(effectiveStatements, new Date()) ?? null;
+					const currentStatement = paymentStatement(effectiveStatements, businessNow()) ?? null;
 					const resolvedCard = { ...card, ...managedRules.get(card.financialAccountId) };
 					const period = resolvedCard.cashbackYieldPeriod;
 					if (period !== null && period !== "MONTHLY" && period !== "YEARLY")

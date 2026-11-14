@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { addDays, format, startOfDay } from "date-fns";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
@@ -45,7 +46,10 @@ export async function scheduleFinancialAccountYieldRate({
 	const fiat = await fiatHoldingCodes(financialAccountId);
 	const currency = fiat.includes(current[0]?.yieldCurrency ?? "") ? current[0]!.yieldCurrency! : fiat[0];
 	if (!currency)
-		throw new HttpException("Adicione ao menos um ativo fiduciário à conta para configurar o rendimento", 400);
+		throw new HttpException(
+			"Adicione ao menos um ativo fiduciário à conta para configurar o rendimento",
+			400,
+		);
 	await assertTaxSelection(
 		yieldTaxIds,
 		current.flatMap(row => row.yieldTaxIds),
@@ -107,4 +111,4 @@ export async function scheduleFinancialAccountYieldRate({
 	await enqueueAccountYieldRecalculation(financialAccountId, date, `settings:${Date.now()}`);
 }
 
-export const tomorrow = () => addDays(startOfDay(new Date()), 1);
+export const tomorrow = () => addDays(startOfDay(businessNow()), 1);
