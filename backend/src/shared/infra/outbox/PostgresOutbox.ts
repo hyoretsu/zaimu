@@ -6,8 +6,6 @@ export interface PendingOutboxEvent extends EventEnvelope {
 	attempts: number;
 }
 
-const traceColumnEnabled = () => process.env.OTEL_OUTBOX_CONTEXT_ENABLED === "true";
-
 export class PostgresOutbox implements OutboxPort {
 	async backlog() {
 		const rows = await queryRaw<{ count: string }>(
@@ -17,8 +15,8 @@ export class PostgresOutbox implements OutboxPort {
 	}
 	async append(event: EventEnvelope) {
 		await executeRaw(
-			`INSERT INTO "public"."OutboxEvent" ("id", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload"${traceColumnEnabled() ? ', "telemetryContext"' : ""})
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb${traceColumnEnabled() ? ", $10::jsonb" : ""}) ON CONFLICT ("id") DO NOTHING`,
+			`INSERT INTO "public"."OutboxEvent" ("id", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload", "telemetryContext")
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb) ON CONFLICT ("id") DO NOTHING`,
 			[
 				event.eventId,
 				event.eventType,
@@ -29,16 +27,16 @@ export class PostgresOutbox implements OutboxPort {
 				event.schemaVersion,
 				event.correlationId,
 				JSON.stringify(event.payload),
-				...(traceColumnEnabled() ? [JSON.stringify(event.telemetryContext ?? null)] : []),
+				JSON.stringify(event.telemetryContext ?? null),
 			],
 		);
 	}
 	async appendMany(events: EventEnvelope[]) {
 		if (!events.length) return;
 		await executeRaw(
-			`INSERT INTO "public"."OutboxEvent" ("id", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload"${traceColumnEnabled() ? ', "telemetryContext"' : ""})
-			 SELECT "eventId", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload"${traceColumnEnabled() ? ', "telemetryContext"' : ""}
-			 FROM jsonb_to_recordset($1::jsonb) AS events("eventId" varchar, "eventType" varchar, "aggregateType" varchar, "aggregateId" varchar, "userIds" varchar[], "occurredAt" timestamptz, "schemaVersion" integer, "correlationId" varchar, "payload" jsonb${traceColumnEnabled() ? ', "telemetryContext" jsonb' : ""})
+			`INSERT INTO "public"."OutboxEvent" ("id", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload", "telemetryContext")
+			 SELECT "eventId", "eventType", "aggregateType", "aggregateId", "userIds", "occurredAt", "schemaVersion", "correlationId", "payload", "telemetryContext"
+			 FROM jsonb_to_recordset($1::jsonb) AS events("eventId" varchar, "eventType" varchar, "aggregateType" varchar, "aggregateId" varchar, "userIds" varchar[], "occurredAt" timestamptz, "schemaVersion" integer, "correlationId" varchar, "payload" jsonb, "telemetryContext" jsonb)
 			 ON CONFLICT ("id") DO NOTHING`,
 			[JSON.stringify(events)],
 		);
@@ -71,7 +69,7 @@ export class PostgresOutbox implements OutboxPort {
 			SET "lockedUntil" = now() + ($2 * interval '1 millisecond'), "attempts" = "attempts" + 1, "updatedAt" = now()
 			FROM candidates WHERE event."id" = candidates."id"
 			RETURNING event."id" AS "eventId", event."eventType", event."aggregateType", event."aggregateId",
-				event."userIds", event."occurredAt", event."schemaVersion", event."correlationId", event."payload", event."attempts"${traceColumnEnabled() ? ', event."telemetryContext"' : ""}`,
+				event."userIds", event."occurredAt", event."schemaVersion", event."correlationId", event."payload", event."attempts", event."telemetryContext"`,
 			[limit, leaseMs],
 		);
 		return rows.map(row => ({ ...row, occurredAt: row.occurredAt.toISOString() }));

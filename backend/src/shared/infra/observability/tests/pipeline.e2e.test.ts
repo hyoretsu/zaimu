@@ -29,14 +29,10 @@ beforeAll(async () => {
 	await client.connect();
 	try {
 		await installContractFixture(client, contract);
-		await client.query(
-			'ALTER TABLE "OutboxEvent" ADD COLUMN IF NOT EXISTS "telemetryContext" jsonb NULL',
-		);
 	} finally {
 		await client.end();
 	}
 	process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:1";
-	process.env.OTEL_OUTBOX_CONTEXT_ENABLED = "true";
 });
 afterAll(async () => {
 	await broker.close();
@@ -130,36 +126,4 @@ test("HTTP to SQL/Redis and durable outbox to worker retain correlation after pu
 		),
 	).toBe(true);
 	expect(JSON.stringify(spans.map(span => span.attributes))).not.toContain("private-id");
-}, 180000);
-
-test("disabled outbox context remains compatible with the previous schema", async () => {
-	const client = new Client({ connectionString: requireFixtureUrl("DATABASE_TEST_URL") });
-	await client.connect();
-	try {
-		await client.query('ALTER TABLE "OutboxEvent" DROP COLUMN "telemetryContext"');
-		process.env.OTEL_OUTBOX_CONTEXT_ENABLED = "false";
-		const event = createEventEnvelope({
-			aggregateId: crypto.randomUUID(),
-			aggregateType: "fixture",
-			correlationId: crypto.randomUUID(),
-			eventId: crypto.randomUUID(),
-			eventType: "command.schedule-materialization",
-			payload: { technical: true },
-			userIds: [],
-		});
-		const outbox = new PostgresOutbox();
-		await outbox.append(event);
-		const bulk = { ...event, eventId: crypto.randomUUID() };
-		await outbox.appendMany([bulk]);
-		const pending = await outbox.claim(10, 1000);
-		expect(pending.find(item => item.eventId === event.eventId)?.payload).toEqual(event.payload);
-		expect(pending.find(item => item.eventId === event.eventId)?.telemetryContext).toBeUndefined();
-		expect(pending.find(item => item.eventId === bulk.eventId)?.payload).toEqual(event.payload);
-	} finally {
-		await client.query(
-			'ALTER TABLE "OutboxEvent" ADD COLUMN IF NOT EXISTS "telemetryContext" jsonb NULL',
-		);
-		process.env.OTEL_OUTBOX_CONTEXT_ENABLED = "true";
-		await client.end();
-	}
 }, 180000);

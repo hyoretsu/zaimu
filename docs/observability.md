@@ -24,7 +24,6 @@ Grafana binds localhost:3300 and the Collector localhost:4318. Override host por
 | OTEL_CAPTURE_SUMMARIES      | false              | Bounded structural summaries                              |
 | OTEL_FUNCTION_MAX_DEPTH     | 32                 | Nested operation limit, maximum 32                        |
 | OTEL_FUNCTION_MAX_SPANS     | 1000               | Span budget, maximum 1000                                 |
-| OTEL_OUTBOX_CONTEXT_ENABLED | false              | Enable optional column after operator migration           |
 | VITE_OTEL_ENABLED           | true in production | Web/native webview SDK override                           |
 | TRACE_RETENTION             | 168h               | Tempo retention                                           |
 | LOG_RETENTION               | 336h               | Loki retention                                            |
@@ -46,7 +45,7 @@ Queues are bounded to 2048 records, export requests have a 3-second timeout and 
 
 ## Optional outbox column
 
-`packages/sql/migrations/app/20261114T2247_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
+`packages/sql/migrations/app/20261114T2247_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. The outbox always writes `telemetryContext`, so apply the migration through the normal migration workflow before deploying this code; do not apply separate DDL outside the graph. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
 
 ## Production sampling and cost
 
@@ -64,7 +63,7 @@ Own TypeScript functions under `backend/src` are transformed automatically in de
 
 Wrap a new dependency at its physical execution boundary with `startDependency`; finish exactly once on success or failure, including callback APIs. Do not add a second SQL counting layer around repositories. New operation names and metric attributes must come from a finite application-defined set; keep record IDs, paths, query parameters and user data out of metric labels. For durable work, capture W3C context in optional event metadata inside the transaction, then use `linkedOperation` after publication/consumption. Never retain an HTTP span until a delayed job completes.
 
-Production operators configure allowed web origins and public API URL, pin backend/client release identifiers, apply the reviewed additive outbox migration, then enable its flag. Route only the restricted application gateway publicly; keep Collector credentials and storage ports private. Attach containerized API/worker services to the Compose project's `telemetry` network and set the internal Collector address. Back up persistent volumes before changing retention. Collector refusal, queue saturation and failed export counters require capacity review before enabling detailed capture at production volume.
+Production operators configure allowed web origins and public API URL, pin backend/client release identifiers, apply the reviewed additive outbox migration before deploying. Route only the restricted application gateway publicly; keep Collector credentials and storage ports private. Attach containerized API/worker services to the Compose project's `telemetry` network and set the internal Collector address. Back up persistent volumes before changing retention. Collector refusal, queue saturation and failed export counters require capacity review before enabling detailed capture at production volume.
 
 The disabled/enabled comparison measures the instrumentation switch in the same build. SDK imports and transformed call sites can still contribute startup/bundle cost with the switch disabled; this is not an unmodified-application baseline. Benchmark under comparable host load and record cold startup separately from steady request latency, CPU and RSS.
 
