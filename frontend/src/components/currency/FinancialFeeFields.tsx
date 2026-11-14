@@ -2,7 +2,7 @@ import { formatAsset } from "@zaimu/finance/asset-amount";
 import { LuPlus } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import type { FinancialFee } from "@/lib/api";
 import { showToast } from "@/stores";
 import { FinancialFeeRow } from "./FinancialFeeRow";
@@ -27,7 +27,7 @@ export function FinancialFeeFields({
 	selectableAsset?: boolean;
 }) {
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			defaultExpanded={fees.length > 0}
 			summary={
 				fees.length
@@ -74,6 +74,6 @@ export function FinancialFeeFields({
 					</Button>
 				</ActionGroup>
 			</fieldset>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

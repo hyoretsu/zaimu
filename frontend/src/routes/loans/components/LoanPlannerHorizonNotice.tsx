@@ -1,6 +1,6 @@
 import { activeLoanVersion, outstandingLoanSchedule } from "@zaimu/finance/loan-contract";
 import { loanPlannerHorizon, type PlannerInput } from "@zaimu/finance/loan-planner";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { formatCurrency } from "./loan-format";
 export function LoanPlannerHorizonNotice({
 	input,
@@ -20,7 +20,7 @@ export function LoanPlannerHorizonNotice({
 		.filter(row => row.date > through)
 		.toSorted((a, b) => a.date.localeCompare(b.date));
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={`${loans.length} contratos e ${later.length} movimentos conhecidos após ${through}`}
 			title="Compromissos após horizonte"
 		>
@@ -48,6 +48,6 @@ export function LoanPlannerHorizonNotice({
 			))}
 			{later.length > 8 && <p>Primeiros oito movimentos conhecidos exibidos.</p>}
 			{!loans.length && !later.length && <p>Nenhum vencimento posterior no retrato carregado.</p>}
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

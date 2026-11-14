@@ -1,8 +1,8 @@
 import type { PlannerAccount, PlannerEligibility } from "@zaimu/finance/loan-planner";
 import { CheckboxField } from "@/components/ui/CheckboxField";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { DateField } from "@/components/ui/DateField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
+import { FormSection } from "@/components/ui/FormSection";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 export function LoanPlannerAccountRow({
@@ -28,7 +28,7 @@ export function LoanPlannerAccountRow({
 				: rule[field].filter(id => id !== account.id),
 		});
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={
 				rule.excludeAccountIds.includes(account.id)
 					? "Excluída explicitamente"
@@ -97,6 +97,6 @@ export function LoanPlannerAccountRow({
 					value={String(account.redemptionCost ?? 0)}
 				/>
 			</FormFieldRow>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

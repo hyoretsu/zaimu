@@ -3,7 +3,7 @@ import { useState } from "react";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -16,7 +16,7 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 		queryKey: queryKeys.loans.earlyPayoff(identity!, loanId, "BACK"),
 	});
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			onExpandedChange={setOpen}
 			summary="Principal restante e juros futuros previstos"
 			title="Estimativa de quitação"
@@ -66,6 +66,6 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 						</p>
 					</div>
 				))}
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

@@ -15,10 +15,10 @@ import { LuCalculator, LuSave, LuTrash2, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
 import { CheckboxField } from "@/components/ui/CheckboxField";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
+import { FormSection } from "@/components/ui/FormSection";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useLoanPlanner } from "@/hooks/use-loan-planner";
 import type { SavedLoanScenario } from "@/lib/api";
@@ -181,7 +181,7 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 				cinco anos, janela fixa.
 			</p>
 			<LoanPlannerHorizonNotice input={input} names={loanNames} />
-			<CollapsibleFormSection
+			<FormSection
 				defaultExpanded
 				summary={`${input.eligibleLoanIds?.length ?? input.loans.length} empréstimos para antecipar; demais obrigações preservadas`}
 				title="Empréstimos comparados"
@@ -239,8 +239,8 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 						)}
 					</div>
 				))}
-			</CollapsibleFormSection>
-			<CollapsibleFormSection
+			</FormSection>
+			<FormSection
 				summary="Investimentos excluídos por padrão; exclusão específica prevalece"
 				title="Contas e liquidez"
 			>
@@ -284,7 +284,7 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 						rule={input.eligibility}
 					/>
 				))}
-			</CollapsibleFormSection>
+			</FormSection>
 			<FormFieldRow>
 				<MoneyField
 					currencyCode={input.currency}
@@ -427,7 +427,7 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 					)}
 				</>
 			)}
-			<CollapsibleFormSection summary={`${saved.data?.length ?? 0} cenários`} title="Cenários salvos">
+			<FormSection summary={`${saved.data?.length ?? 0} cenários`} title="Cenários salvos">
 				{saved.isPending ? (
 					<p role="status">Carregando cenários...</p>
 				) : saved.isError ? (
@@ -463,8 +463,8 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 						</div>
 					))
 				)}
-			</CollapsibleFormSection>
-			<CollapsibleFormSection
+			</FormSection>
+			<FormSection
 				summary="Média geométrica de cinco anos; receitas e despesas conforme agendas"
 				title="Hipóteses financeiras"
 			>
@@ -486,7 +486,7 @@ export function LoanPlannerContent({ snapshot }: { snapshot: LoanPlannerSnapshot
 					Dados atualizados em {snapshot.capturedAt}. Alterações futuras nas taxas, rendas e gastos
 					mudam os resultados.
 				</p>
-			</CollapsibleFormSection>
+			</FormSection>
 			{review && (
 				<LoanContractDialog
 					initial={review}

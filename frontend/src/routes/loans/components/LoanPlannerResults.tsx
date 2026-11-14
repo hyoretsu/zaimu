@@ -1,7 +1,7 @@
 import type { PlannerInput, PlannerResult } from "@zaimu/finance/loan-planner";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { formatCurrency } from "./loan-format";
 import { LoanPlannerChart } from "./LoanPlannerChart";
@@ -110,7 +110,7 @@ export function LoanPlannerResults({
 				</p>
 			))}
 			<LoanPlannerDailyBalances accounts={accounts} key={selected.id} names={names} result={selected} />
-			<CollapsibleFormSection
+			<FormSection
 				summary={`${selected.days.length} dias até ${selected.through}`}
 				title="Evolução diária"
 			>
@@ -149,7 +149,7 @@ export function LoanPlannerResults({
 						)}
 					</div>
 				</ScrollArea>
-			</CollapsibleFormSection>
+			</FormSection>
 		</div>
 	);
 }

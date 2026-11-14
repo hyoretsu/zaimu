@@ -19,6 +19,7 @@ export function CustomSelectPopover({
 	error,
 	onRetry,
 	onOpenChange,
+	hideLabel = false,
 	label,
 	onValueChange,
 	options,
@@ -35,6 +36,7 @@ export function CustomSelectPopover({
 	error?: string;
 	onRetry?: () => void;
 	onOpenChange?: (open: boolean) => void;
+	hideLabel?: boolean;
 	label: string;
 	onValueChange: (value: string) => void;
 	options: Option[];
@@ -77,7 +79,7 @@ export function CustomSelectPopover({
 
 	return (
 		<div className={cn("grid gap-2", className)}>
-			<p className="text-sm leading-none font-medium">
+			<p className={cn("text-sm leading-none font-medium", hideLabel && "sr-only")}>
 				{label} {required && <span className="text-destructive">*</span>}
 			</p>
 			<Popover onOpenChange={changeOpen} open={open}>

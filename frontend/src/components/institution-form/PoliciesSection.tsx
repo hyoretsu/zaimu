@@ -2,7 +2,7 @@ import { useState } from "react";
 import { LuPencil, LuPlus, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { showToast } from "@/stores";
 import { policyPeriod, policyScope, policyTiers } from "./policy-summary";
@@ -39,7 +39,7 @@ export function PoliciesSection({
 	};
 	const count = state.policies.length;
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={
 				count
 					? `${count} ${count === 1 ? "política" : "políticas"} de rendimento nesta sugestão`
@@ -134,6 +134,6 @@ export function PoliciesSection({
 				open={open}
 				profiles={profiles}
 			/>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

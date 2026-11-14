@@ -1,4 +1,4 @@
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { DebouncedTextField } from "./DebouncedTextField";
 import { parseAliases } from "./proposal";
 import type { InstitutionFormState } from "./types";
@@ -14,7 +14,7 @@ export function IdentitySection({
 }) {
 	const aliases = parseAliases(state.aliases);
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			defaultExpanded
 			summary={
 				<>
@@ -44,6 +44,6 @@ export function IdentitySection({
 				placeholder="Ex: Inter, Banco Intermedium"
 				value={state.aliases}
 			/>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

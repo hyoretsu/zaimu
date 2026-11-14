@@ -8,10 +8,10 @@ import { useState } from "react";
 import { LuCalculator, LuPlus, LuTrash2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
+import { FormSection } from "@/components/ui/FormSection";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { showToast } from "@/stores";
@@ -69,7 +69,7 @@ export function LoanPlannerManualScenario({
 		showToast("Operação adicionada ao cenário", "info");
 	};
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={`${operations.length} operações e ${transfers.length} transferências`}
 			title="Montar cenário manual"
 		>
@@ -212,6 +212,6 @@ export function LoanPlannerManualScenario({
 					Simular cenário manual
 				</Button>
 			</ActionGroup>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

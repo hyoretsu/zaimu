@@ -3,7 +3,7 @@ import { LuPlus, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
+import { FormSection } from "@/components/ui/FormSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { showToast } from "@/stores";
 import { DebouncedTextField } from "./DebouncedTextField";
@@ -44,7 +44,7 @@ export function ProfilesSection({
 		showToast("Perfil adicionado à edição", "info");
 	};
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={
 				profiles.length + state.newProfiles.length
 					? `${profiles.length + state.newProfiles.length} ${profiles.length + state.newProfiles.length === 1 ? "perfil" : "perfis"}${state.newProfiles.length ? ` (${state.newProfiles.length} ${state.newProfiles.length === 1 ? "novo" : "novos"})` : ""}`
@@ -116,6 +116,6 @@ export function ProfilesSection({
 					Adicionar perfil
 				</Button>
 			</ActionGroup>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

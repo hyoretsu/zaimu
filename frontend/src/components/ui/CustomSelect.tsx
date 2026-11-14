@@ -17,6 +17,7 @@ export function CustomSelect({
 	error,
 	onRetry,
 	onOpenChange,
+	hideLabel,
 	label,
 	onValueChange,
 	options,
@@ -34,6 +35,7 @@ export function CustomSelect({
 	error?: string;
 	onRetry?: () => void;
 	onOpenChange?: (open: boolean) => void;
+	hideLabel?: boolean;
 	label: string;
 	onValueChange: (value: string) => void;
 	options: Option[];
@@ -76,6 +78,7 @@ export function CustomSelect({
 			className={className}
 			disabled={disabled}
 			error={error}
+			hideLabel={hideLabel}
 			initialScrollValue={initialScrollValue}
 			isLoading={isLoading}
 			label={label}

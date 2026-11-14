@@ -1,6 +1,6 @@
 import { CheckboxField } from "@/components/ui/CheckboxField";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { FormSection } from "@/components/ui/FormSection";
 import type { InstitutionFormState } from "./types";
 
 export function InvoiceSection({
@@ -13,7 +13,7 @@ export function InvoiceSection({
 	state: InstitutionFormState;
 }) {
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={`Fechamento ${state.closingInclusive ? "inclusivo" : "exclusivo"} - resto das parcelas ${
 				state.remainderOnFirst ? "na primeira parcela" : "distribuído"
 			}`}
@@ -42,6 +42,6 @@ export function InvoiceSection({
 			>
 				Concentrar o resto da divisão das parcelas na primeira parcela
 			</CheckboxField>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

@@ -1,8 +1,8 @@
 import { LuX } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency";
 import { Button } from "@/components/ui/Button";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { FormSection } from "@/components/ui/FormSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { countryCodes, countryName } from "@/lib/countries";
 import type { InstitutionFormState } from "./types";
@@ -18,7 +18,7 @@ export function CountriesSection({
 }) {
 	const currencySummary = state.currency ? ` - moeda ${state.currency}` : "";
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={
 				state.countries.length
 					? `${state.countries.map(code => countryName(code)).join("; ")}${currencySummary}`
@@ -72,6 +72,6 @@ export function CountriesSection({
 				onValueChange={currency => onChange({ currency })}
 				value={state.currency}
 			/>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

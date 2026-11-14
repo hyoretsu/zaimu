@@ -2,28 +2,40 @@ import { type ReactNode, useId, useState } from "react";
 import { LuChevronDown, LuChevronUp } from "react-icons/lu";
 import { Button } from "./Button";
 
-/** Form section that toggles from its whole header row; collapsed it shows the title and one summary line. */
-export function CollapsibleFormSection({
+/**
+ * Titled form section. Collapsible by default: the whole header row toggles it and, collapsed, shows the title
+ * and one summary line. With `collapsible={false}` it renders the same card, always expanded and without a toggle.
+ */
+export function FormSection({
 	children,
+	collapsible = true,
 	defaultExpanded = false,
 	onExpandedChange,
 	summary,
 	title,
 }: {
 	children: ReactNode;
+	collapsible?: boolean;
 	defaultExpanded?: boolean;
 	onExpandedChange?: (expanded: boolean) => void;
-	summary: ReactNode;
+	summary?: ReactNode;
 	title: string;
 }) {
 	const [expanded, setExpanded] = useState(defaultExpanded);
 	const contentId = useId();
+	if (!collapsible)
+		return (
+			<section className="grid min-w-0 gap-4 rounded-xl border p-3">
+				<h3 className="text-sm font-semibold">{title}</h3>
+				{children}
+			</section>
+		);
 	return (
 		<section className="relative grid min-w-0 gap-3 rounded-xl border p-3">
 			<div className={`-m-3 flex min-w-0 items-center gap-2 p-3 ${expanded ? "relative" : ""}`}>
 				<div className="min-w-0 flex-1 space-y-0.5">
 					<h3 className="text-sm font-semibold">{title}</h3>
-					{!expanded && (
+					{!expanded && summary != null && (
 						<p aria-live="polite" className="text-muted-foreground text-sm break-words">
 							{summary}
 						</p>

@@ -27,6 +27,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
+import { FormSection } from "@/components/ui/FormSection";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
@@ -609,7 +610,7 @@ export function CreateFinancialAccountDialog({
 							</div>
 						)}
 						{type === "CREDIT_CARD" && (
-							<div className="bg-muted/35 grid gap-5 rounded-2xl border p-4">
+							<FormSection collapsible={false} title="Limite e fatura">
 								<MoneyField
 									currencyCode={currency}
 									id="credit-limit"
@@ -659,7 +660,7 @@ export function CreateFinancialAccountDialog({
 										value={calendarTransition}
 									/>
 								)}
-							</div>
+							</FormSection>
 						)}
 						{type === "CREDIT_CARD" && (
 							<CardPayerFields

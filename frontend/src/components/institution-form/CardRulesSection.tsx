@@ -1,8 +1,8 @@
 import { defaultCardRules } from "@zaimu/finance/institution-card-rules";
 import { useState } from "react";
 import { CheckboxField } from "@/components/ui/CheckboxField";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { FormSection } from "@/components/ui/FormSection";
 import { cardRulesSummary } from "./card-rules-summary";
 import { InstitutionCardRuleFields } from "./InstitutionCardRuleFields";
 import type { ExistingProfile, InstitutionFormState } from "./types";
@@ -53,7 +53,7 @@ export function CardRulesSection({
 		})),
 	];
 	return (
-		<CollapsibleFormSection
+		<FormSection
 			summary={`Padrão: ${cardRulesSummary(state.rules)}${own ? ` - ${own} ${own === 1 ? "perfil" : "perfis"} com regras próprias` : ""}`}
 			title="Regras de cartão"
 		>
@@ -97,6 +97,6 @@ export function CardRulesSection({
 					</>
 				)}
 			</fieldset>
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }

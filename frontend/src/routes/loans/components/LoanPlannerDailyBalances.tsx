@@ -1,7 +1,7 @@
 import type { PlannerInput, PlannerResult } from "@zaimu/finance/loan-planner";
 import { useState } from "react";
-import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { DateField } from "@/components/ui/DateField";
+import { FormSection } from "@/components/ui/FormSection";
 import { formatCurrency } from "./loan-format";
 export function LoanPlannerDailyBalances({
 	result,
@@ -15,10 +15,7 @@ export function LoanPlannerDailyBalances({
 	const [date, setDate] = useState(result.minimumDate);
 	const day = result.days.find(row => row.date === date);
 	return (
-		<CollapsibleFormSection
-			summary={`Consulte qualquer dia até ${result.through}`}
-			title="Saldo diário por conta"
-		>
+		<FormSection summary={`Consulte qualquer dia até ${result.through}`} title="Saldo diário por conta">
 			<DateField
 				id="planner-balance-date"
 				label="Data para consultar saldos"
@@ -40,6 +37,6 @@ export function LoanPlannerDailyBalances({
 			) : (
 				<p role="status">Escolha data dentro do horizonte exibido.</p>
 			)}
-		</CollapsibleFormSection>
+		</FormSection>
 	);
 }
