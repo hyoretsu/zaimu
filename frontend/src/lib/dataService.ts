@@ -4059,7 +4059,7 @@ export const dataService = {
 		async acceptTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept({
-				path: { counterpartItemId: importId, id: itemId, itemId: counterpartItemId },
+				path: { counterpartItemId, id: importId, itemId },
 			}).then(result => result.data);
 		},
 		async approve(id: string): Promise<{ created: number; finished: boolean }> {
@@ -4160,7 +4160,7 @@ export const dataService = {
 		async rejectTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject({
-				path: { counterpartItemId: importId, id: itemId, itemId: counterpartItemId },
+				path: { counterpartItemId, id: importId, itemId },
 			}).then(result => result.data);
 		},
 		async updateItem(
