@@ -1205,6 +1205,7 @@ export const dataService = {
 			date: string;
 			financialAccountId: string;
 			isExcluded?: boolean;
+			time?: string | null;
 		}): Promise<FinancialAccountYield> {
 			if (!isGuestMode()) {
 				return postFinancialAccountYields({ body: { ...data, kind: "AUTOMATIC" } }).then(
@@ -1226,6 +1227,7 @@ export const dataService = {
 				id: existing?.id ?? crypto.randomUUID(),
 				isExcluded: data.isExcluded ?? false,
 				kind: "AUTOMATIC",
+				time: data.time ?? null,
 			};
 			await localMeta.set(
 				"financial-account-yields",
@@ -4057,7 +4059,7 @@ export const dataService = {
 		async acceptTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdAccept({
-				path: { counterpartItemId: importId, id: itemId, itemId: counterpartItemId },
+				path: { counterpartItemId, id: importId, itemId },
 			}).then(result => result.data);
 		},
 		async approve(id: string): Promise<{ created: number; finished: boolean }> {
@@ -4158,7 +4160,7 @@ export const dataService = {
 		async rejectTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			return postTransactionImportsByIdItemsByItemIdTransferSuggestionsByCounterpartItemIdReject({
-				path: { counterpartItemId: importId, id: itemId, itemId: counterpartItemId },
+				path: { counterpartItemId, id: importId, itemId },
 			}).then(result => result.data);
 		},
 		async updateItem(

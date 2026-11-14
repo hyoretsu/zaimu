@@ -164,7 +164,7 @@ export const FinancialInstitutionReturn = t.Object({
 	),
 	creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
 	creditStatementClosingInclusive: t.Optional(t.Boolean()),
-	currency: t.Optional(t.String()),
+	currency: t.Optional(t.Nullable(t.String())),
 	id: t.String(),
 	name: t.String(),
 	operatingCountryCodes: t.Optional(t.Array(t.String())),
@@ -1498,7 +1498,10 @@ export const TransactionImportCreateResultReturn = t.Object({
 export type TransactionImportCreateResultReturn = typeof TransactionImportCreateResultReturn.static;
 
 export const TransactionImportSummaryReturn = t.Object({
+	accountName: t.String(),
+	createdAt: t.String(),
 	fileName: t.String(),
+	financialAccountId: t.String(),
 	id: t.String(),
 	pendingItemCount: t.Number(),
 });

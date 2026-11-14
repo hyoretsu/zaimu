@@ -37,3 +37,29 @@ test("replay retry uses the recurrence already created", async () => {
 	expect(creates).toBe(1);
 	expect(replays).toBe(2);
 });
+
+test("recovered edit updates the recurrence instead of creating a new one", async () => {
+	const recovery = {
+		addPast: false,
+		completedWrite: false,
+		debtEnabled: false,
+		debtSplit: null,
+		draft: {},
+		input: { startDate: "2026-11-05" } as RecurrenceInput,
+		recurrenceId: "existing",
+		savedId: undefined as string | undefined,
+	};
+	const updated: string[] = [];
+	const service = {
+		create: async () => {
+			throw new Error("Unexpected create");
+		},
+		replay: async () => undefined,
+		update: async (id: string) => {
+			updated.push(id);
+			return { id };
+		},
+	};
+	await saveRecurrenceWithReplay(recovery, undefined, service, "2026-11-12");
+	expect(updated).toEqual(["existing"]);
+});

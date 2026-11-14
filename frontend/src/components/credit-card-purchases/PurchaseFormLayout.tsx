@@ -38,10 +38,8 @@ export function PurchaseFormLayout({
 	return (
 		<>
 			{card ? <FormFieldRow>{card}</FormFieldRow> : null}
-			<FormFieldRow>
-				{description}
-				{store}
-			</FormFieldRow>
+			<FormFieldRow className="grid-cols-1">{description}</FormFieldRow>
+			<FormFieldRow className="grid-cols-1">{store}</FormFieldRow>
 			{notices}
 			<FormFieldRow>
 				{currency}

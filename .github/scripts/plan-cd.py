@@ -41,7 +41,7 @@ def plan():
         if publish and os.environ.get("GITHUB_REF") != "refs/tags/" + tag:
             raise ValueError(f"Publishing requires the existing tag {tag}, matching the native app version")
         outputs.update(version=version, tag=tag, publish=publish, name=config["productName"])
-        platforms = [("windows", "windows-latest", "desktop"),
+        platforms = [("windows", "ubuntu-latest", "desktop"),
                      ("linux", "ubuntu-latest", "desktop"),
                      ("macos", "macos-latest", "desktop"),
                      ("android", "ubuntu-latest", "android"),

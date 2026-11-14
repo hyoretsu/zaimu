@@ -71,10 +71,15 @@ export function EditCreditCardStatementDialog({
 				}
 				const value = manualTotalAmount === "" ? null : Number(manualTotalAmount);
 				if (value !== (statement.manualTotalAmount ?? null)) {
-					await dataService.creditCards.setStatementAmount(statement.creditCardId, statement.id, value, {
-						dueDate,
-						statementDate,
-					});
+					await dataService.creditCards.setStatementAmount(
+						statement.creditCardId,
+						statement.id,
+						value,
+						{
+							dueDate,
+							statementDate,
+						},
+					);
 				}
 			},
 			successMessage: "Fatura atualizada.",
@@ -86,8 +91,8 @@ export function EditCreditCardStatementDialog({
 				<DialogHeader>
 					<DialogTitle>Editar fatura</DialogTitle>
 					<DialogDescription>
-						Altere fechamento, vencimento e valor da fatura. Compras e parcelas serão redistribuídas conforme
-						as novas datas.
+						Altere fechamento, vencimento e valor da fatura. Compras e parcelas serão
+						redistribuídas conforme as novas datas.
 					</DialogDescription>
 				</DialogHeader>
 				<form
@@ -95,11 +100,15 @@ export function EditCreditCardStatementDialog({
 					onSubmit={event => {
 						event.preventDefault();
 						if (!statementDate || !dueDate || invalidDates) return;
-						const raw = String(new FormData(event.currentTarget).get("manualTotalAmount") ?? "").trim();
+						const raw = String(
+							new FormData(event.currentTarget).get("manualTotalAmount") ?? "",
+						).trim();
 						try {
 							if (raw !== "") assertStatementAmount(Number(raw), currency);
 						} catch {
-							setError("Informe um valor válido, com as casas decimais da moeda e menor que 1 trilhão.");
+							setError(
+								"Informe um valor válido, com as casas decimais da moeda e menor que 1 trilhão.",
+							);
 							return;
 						}
 						setError("");
@@ -119,7 +128,11 @@ export function EditCreditCardStatementDialog({
 							/>
 							<DateField
 								disabled={statement.isForecast}
-								error={invalidDates ? "Vencimento deve ser igual ou posterior ao fechamento." : undefined}
+								error={
+									invalidDates
+										? "Vencimento deve ser igual ou posterior ao fechamento."
+										: undefined
+								}
 								id="statement-due-date"
 								label="Vencimento"
 								min={statementDate}
@@ -133,6 +146,7 @@ export function EditCreditCardStatementDialog({
 							<p className="text-muted-foreground text-sm">
 								Valor calculado:{" "}
 								<PreferredMoneyAmount
+									currency={currency}
 									values={[
 										{
 											amount:
@@ -152,8 +166,8 @@ export function EditCreditCardStatementDialog({
 								value={amount}
 							/>
 							<p className="text-muted-foreground text-sm">
-								Informe o total final, incluindo saldo anterior e créditos. Pagamentos abatem depois. Deixe
-								vazio para usar o valor calculado.
+								Informe o total final, incluindo saldo anterior e créditos. Pagamentos abatem
+								depois. Deixe vazio para usar o valor calculado.
 							</p>
 							{error && (
 								<p className="text-destructive text-sm" role="alert">

@@ -221,8 +221,8 @@ export function AccountsPage() {
 				pending={accounts.isFetching && !accounts.isPending}
 			/>
 			{accounts.isPending ? (
-				<div className="grid gap-6">
-					{[1, 2].map(item => (
+				<div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+					{[1, 2, 3].map(item => (
 						<Skeleton className="h-64" key={item} />
 					))}
 				</div>
@@ -233,7 +233,7 @@ export function AccountsPage() {
 					title="Não foi possível carregar suas contas"
 				/>
 			) : visibleAccounts.length ? (
-				<section className="grid gap-6">
+				<section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
 					{organization.groups.map(group => (
 						<FinancialInstitutionGroup
 							accounts={group.accounts}

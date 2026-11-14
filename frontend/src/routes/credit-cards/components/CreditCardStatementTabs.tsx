@@ -169,6 +169,7 @@ export function CreditCardStatementTabs({
 										<strong className="truncate text-sm">
 											{
 												<PreferredMoneyAmount
+													currency={currencyCode}
 													values={[
 														{
 															amount: getCreditCardStatementInvoiceAmount(

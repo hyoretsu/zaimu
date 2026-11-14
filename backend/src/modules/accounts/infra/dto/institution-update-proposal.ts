@@ -15,7 +15,7 @@ export const InstitutionUpdateProposalBody = t.Object({
 	...t.Partial(InstitutionCountriesBody).properties,
 	creditCardRules: t.Optional(InstitutionCardRulesDTO),
 	creditInstallmentRemainderOnFirst: t.Optional(t.Boolean()),
-	currency: t.Optional(t.String({ maxLength: 3, minLength: 3 })),
+	currency: t.Optional(t.Nullable(t.String({ maxLength: 3, minLength: 3 }))),
 	policies: t.Optional(t.Array(InstitutionPolicyProposal, { maxItems: 50 })),
 	profiles: t.Optional(t.Array(InstitutionProfileProposal, { maxItems: 20 })),
 });

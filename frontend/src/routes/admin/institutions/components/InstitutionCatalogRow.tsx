@@ -1,7 +1,6 @@
 import { LuPencil } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { countryName } from "@/lib/countries";
 import { InstitutionFormDialog } from "./InstitutionFormDialog";
 import type { AdminInstitution } from "./types";
@@ -27,18 +26,13 @@ export function InstitutionCatalogRow({ institution }: { institution: AdminInsti
 				<InstitutionFormDialog
 					institution={institution}
 					trigger={
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									aria-label={`Configurar ${institution.name}`}
-									size="icon-sm"
-									variant="outline"
-								>
-									<LuPencil />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Configurar instituição</TooltipContent>
-						</Tooltip>
+						<Button
+							aria-label={`Configurar ${institution.name}`}
+							size="icon-sm"
+							variant="outline"
+						>
+							<LuPencil />
+						</Button>
 					}
 				/>
 			</ActionGroup>

@@ -31,7 +31,6 @@ import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { toast } from "@/lib/toast";
 import { getTransactionFormAccounts } from "@/lib/transaction-form-accounts";
-import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "../../TransactionDetailsFields";
 
 function validAssetAmount(value: string, code: string) {
@@ -140,7 +139,10 @@ export function EditTransactionForm({
 				debtSplit: isDebt && !isCryptoAsset(draft.currency) ? debtSplit : null,
 				description: description.trim(),
 				destinationAmount:
-					draft.type === "TRANSFER" && draft.destinationAmount
+					draft.type === "TRANSFER" &&
+					draft.destinationAmount &&
+					(pointsConversion.counterpart !== null ||
+						(draft.destinationCurrency || draft.currency) !== draft.currency)
 						? isCryptoAsset(draft.destinationCurrency || draft.currency)
 							? draft.destinationAmount
 							: Number(draft.destinationAmount)
@@ -161,9 +163,11 @@ export function EditTransactionForm({
 				type: draft.type,
 			});
 		},
-		onError: (error, _, context) => {
+		onError: (error, variables, context) => {
 			toast.dismiss(context?.toastId);
-			showToast(error.message, "negative");
+			toast.error(error.message, {
+				action: { label: "Tentar novamente", onClick: () => update.mutate(variables) },
+			});
 		},
 		onMutate: () => {
 			onOpenChange(false);
@@ -393,13 +397,23 @@ export function EditTransactionForm({
 								<CustomSelect
 									disabled={accountsQuery.isPending || accountsQuery.isError}
 									label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
-									onValueChange={accountId =>
+									onValueChange={accountId => {
+										const assets = accountsQuery.data?.find(
+											item => item.id === accountId,
+										)?.assets;
+										const currency =
+											assets?.length === 1 ? assets[0].assetCode : undefined;
 										setDraft(current =>
 											current
 												? current.type === "INCOME"
-													? { ...current, destinationFinancialAccountId: accountId }
+													? {
+															...current,
+															...(currency && { currency }),
+															destinationFinancialAccountId: accountId,
+														}
 													: {
 															...current,
+															...(currency && { currency }),
 															destinationFinancialAccountId:
 																current.type === "TRANSFER"
 																	? account && accountId !== account.id
@@ -412,8 +426,8 @@ export function EditTransactionForm({
 															originFinancialAccountId: accountId,
 														}
 												: current,
-										)
-									}
+										);
+									}}
 									options={primaryAccountOptions}
 									placeholder="Selecione a conta"
 									required

@@ -118,9 +118,7 @@ export function TransactionsPage() {
 	const transactionQueryFilters = toTransactionQueryFilters(filters);
 	const yieldFilters = {
 		endDate: filters.dateRange.endDate || undefined,
-		startDate:
-			filters.dateRange.startDate ||
-			(transactionsQuery.hasNextPage ? transactionDays.at(-1)?.date : undefined),
+		startDate: filters.dateRange.startDate || undefined,
 		visibility: filters.visibility === "all" ? undefined : filters.visibility,
 	} as const;
 	const yieldQueryScope = [

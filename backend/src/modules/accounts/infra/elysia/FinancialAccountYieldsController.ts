@@ -215,7 +215,10 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				? account.yieldCurrency
 				: fiatCodes[0];
 			if (!defaultCode)
-				throw new HttpException("Adicione ao menos um ativo fiduciário à conta para registrar rendimentos", 400);
+				throw new HttpException(
+					"Adicione ao menos um ativo fiduciário à conta para registrar rendimentos",
+					400,
+				);
 			const asset = await resolveAccountAsset(account.id, body.assetCode ?? defaultCode, {
 				fiatOnly: true,
 				userId,
@@ -247,7 +250,7 @@ export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial
 				isHidden: body.kind === "MANUAL" ? (body.isHidden ?? false) : false,
 				kind: body.kind,
 				origin: "USER" as const,
-				time: body.kind === "MANUAL" ? (body.time ?? null) : null,
+				time: body.time ?? null,
 				updatedAt: new Date(),
 			};
 			if (existing)

@@ -472,7 +472,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				const effectiveCurrency = await defaultCurrency(userId, request.headers.get("x-currency"));
 				const institution = body.institutionId
 					? await visibleInstitution(userId, body.institutionId)
-					: await resolveFinancialInstitution(userId, body.institutionName, effectiveCurrency);
+					: await resolveFinancialInstitution(userId, body.institutionName);
 				if (institution) await ensureInstitutionLink(userId, institution.id);
 				const [countryPreference] = await queryRaw<{ preferredCountry: string | null }>(
 					'SELECT "preferredCountry" FROM "user" WHERE "id"=$1',

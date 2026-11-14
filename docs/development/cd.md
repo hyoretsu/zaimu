@@ -48,7 +48,7 @@ the explicit build generates contracts. Docker stages use that same Bun version.
 Rust compiler is pinned in `apps.yml`; update deliberately with Cargo.lock.
 Third-party workflow actions are pinned to commit SHAs with version comments.
 
-A push of `v<tauri version>` builds Windows, Linux, macOS, Android and iOS in
+A push of `v<tauri version>` builds Windows (cross-compiled on Linux), Linux, macOS, Android and iOS in
 parallel (maximum five). Update the native Tauri version before creating the tag.
 Manual dispatch can build only desktop, Android or iOS without publishing.
 Publishing requires `platform=all`, `publish=true`, and selecting the matching
@@ -65,6 +65,24 @@ tag; builds that fail never publish a partial release.
 
 Native desktop signing/notarization is not configured here. Windows/macOS
 installers may prompt users because they are unsigned.
+
+## Build cost (runner minutes)
+
+GitHub bills Linux 1x, Windows 2x and macOS 10x. To spend the least:
+
+- **Windows is cross-compiled on Linux** (`ubuntu-latest`) with `cargo-xwin`, LLVM/lld
+  and NSIS (`--runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis`).
+  Only the NSIS `-setup.exe` exists: MSI needs WiX and Windows. `cargo-xwin` and the
+  downloaded Windows SDK are cached; bump `CARGO_XWIN_VERSION` deliberately.
+- **macOS and iOS stay on `macos-latest`.** `xtool` only builds SwiftPM iOS apps and
+  neither it nor Tauri's bundler can produce a Tauri `.app`/`.dmg` or Xcode project off
+  macOS, so there is no supported Linux path. Cost is limited instead by building only
+  the published bundle (`--bundles dmg`), Rust/Bun caches and tag-only triggers.
+- Each build only bundles what is published; `CARGO_INCREMENTAL=0` keeps caches small.
+- Android also caches Gradle; CI cancels superseded PR runs, caches
+  the Postgres/Valkey/RabbitMQ test images.
+- Docker images use a GHCR registry cache (`:buildcache`, `mode=max`) beside the GHA
+  cache, so layers survive the 10 GB GitHub cache quota.
 
 ## Android signing and Play
 

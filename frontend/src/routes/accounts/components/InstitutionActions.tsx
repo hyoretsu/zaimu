@@ -1,4 +1,5 @@
-import { LuEllipsis, LuTrash2 } from "react-icons/lu";
+import { useState } from "react";
+import { LuEllipsis, LuSend, LuTrash2 } from "react-icons/lu";
 import { AccountTransferDialog } from "@/components/account-transfers";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -13,11 +14,18 @@ export function InstitutionActions({
 	institution: FinancialInstitution;
 	onDelete: (institution: FinancialInstitution) => Promise<unknown>;
 }) {
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [transferOpen, setTransferOpen] = useState(false);
 	return (
 		<>
-			<AccountTransferDialog iconOnly institutionId={institution.id} />
+			<AccountTransferDialog
+				hideTrigger
+				institutionId={institution.id}
+				onOpenChange={setTransferOpen}
+				open={transferOpen}
+			/>
 			<InstitutionProfileDialog institution={institution} />
-			<Popover>
+			<Popover onOpenChange={setMenuOpen} open={menuOpen}>
 				<PopoverTrigger asChild>
 					<Button
 						aria-label={`Mais ações de ${institution.name}`}
@@ -28,7 +36,18 @@ export function InstitutionActions({
 						<LuEllipsis />
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent align="end" className="w-52 p-2">
+				<PopoverContent align="end" className="flex w-52 flex-col gap-2 p-2">
+					<Button
+						className="w-full cursor-pointer justify-start"
+						onClick={() => {
+							setMenuOpen(false);
+							setTransferOpen(true);
+						}}
+						size="sm"
+						variant="outline"
+					>
+						<LuSend /> Transferir contas
+					</Button>
 					<ConfirmActionButton
 						className="w-full cursor-pointer justify-start"
 						confirmation={`Excluir ${institution.name}? Produtos serão mantidos sem instituição.`}

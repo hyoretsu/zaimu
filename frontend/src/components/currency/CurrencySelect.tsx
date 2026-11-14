@@ -11,6 +11,7 @@ export function CurrencySelect({
 	onValueChange,
 	label = "Moeda",
 	disabled = false,
+	required = true,
 }: {
 	allowCrypto?: boolean;
 	currencies?: string[];
@@ -18,6 +19,7 @@ export function CurrencySelect({
 	onValueChange: (value: string) => void;
 	label?: string;
 	disabled?: boolean;
+	required?: boolean;
 }) {
 	const currencies = useCurrencyStore(state => state.currencies);
 	const names = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "currency" });
@@ -29,10 +31,10 @@ export function CurrencySelect({
 		.map(value => {
 			const asset = cryptoAsset(value);
 			return {
+				keywords: [value],
 				label: asset
 					? `${asset.symbol} - ${asset.name}`
 					: `${assetSymbol(value)} - ${isCryptoAsset(value) ? value : (names.of(value) ?? value)}`,
-				keywords: [value],
 				value,
 			};
 		});
@@ -43,7 +45,7 @@ export function CurrencySelect({
 			onValueChange={onValueChange}
 			options={options}
 			placeholder={allowCrypto ? "Ex: BTC - Bitcoin" : "Ex: US$ - Dólar americano"}
-			required
+			required={required}
 			searchable
 			value={value}
 		/>

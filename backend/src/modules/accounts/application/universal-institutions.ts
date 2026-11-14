@@ -1,8 +1,5 @@
-import { countryCurrencies } from "@zaimu/finance/country-currencies";
-import { countryCurrency } from "@zaimu/finance/currency-preference";
 import type { InstitutionCardRules } from "@zaimu/finance/institution-card-rules";
 import { businessNow } from "@zaimu/finance/time-zone";
-import { supportedCurrencies } from "~/modules/currencies/application/currency-catalog";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
@@ -25,7 +22,7 @@ export async function visibleInstitution(userId: string, id: string) {
 	const [institution] = await queryRaw<{
 		id: string;
 		name: string;
-		currency: string;
+		currency: string | null;
 		creditStatementClosingInclusive: boolean;
 		creditInstallmentRemainderOnFirst: boolean;
 		status: string;
@@ -100,9 +97,7 @@ export async function proposeInstitution(
 					userId,
 					normalized.name,
 					normalized.normalizedName,
-					(payload.operatingCountryCodes as string[] | undefined)?.length === 1
-						? (countryCurrencies[(payload.operatingCountryCodes as string[])[0]!] ?? "USD")
-						: "USD",
+					(payload.currency as string | null | undefined) ?? null,
 					payload.operatingCountryCodes ?? [],
 				],
 			);
@@ -420,19 +415,13 @@ export async function reviewInstitutionProposal(
 		} else if (action === "APPROVE") {
 			if (proposal.kind === "NEW_INSTITUTION" || proposal.kind === "INSTITUTION_UPDATE") {
 				const name = normalizeFinancialInstitutionName(String(payload.name ?? institution.name));
-				const countries = payload.operatingCountryCodes as string[] | undefined;
-				// A single operating country suggests the institution currency, like the admin catalog editor.
-				const countryDerivedCurrency =
-					countries?.length === 1 && !payload.currency
-						? countryCurrency(countries[0]!, await supportedCurrencies())
-						: null;
 				await query(
 					`UPDATE "FinancialInstitution" SET "name"=$2,"normalizedName"=$3,"currency"=$4,"creditInstallmentRemainderOnFirst"=$5,"operatingCountryCodes"=$6,"creditStatementClosingInclusive"=$7,"aliases"=$8::varchar[],"status"='APPROVED',"userId"=NULL,"version"="version"+1,"updatedAt"=NOW() WHERE "id"=$1`,
 					[
 						institution.id,
 						name.name,
 						name.normalizedName,
-						payload.currency ?? countryDerivedCurrency ?? institution.currency,
+						payload.currency === undefined ? institution.currency : payload.currency,
 						payload.creditInstallmentRemainderOnFirst ??
 							institution.creditInstallmentRemainderOnFirst,
 						payload.operatingCountryCodes ?? institution.operatingCountryCodes,
