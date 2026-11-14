@@ -90,7 +90,7 @@ test("window never splits a duplicate month at either edge", () => {
 	expect(visible.map(item => item.id)).toEqual(["first", "second"]);
 });
 
-test("defaults to the first unclosed invoice after the current month closes", () => {
+test("defaults to the first unpaid invoice, keeping closed ones until they are paid or overdue", () => {
 	const october = { ...actual, dueDate: "2026-10-20", id: "october", statementDate: "2026-10-15" };
 	const november = {
 		...actual,
@@ -120,7 +120,8 @@ test("defaults to the first unclosed invoice after the current month closes", ()
 			"2026-10-25",
 		),
 	).toBe(december);
-	expect(getSelectedStatement(statements, null, "2026-11", "2026-11-15")).toBe(december);
+	expect(getSelectedStatement(statements, null, "2026-11", "2026-11-15")).toBe(november);
+	expect(getSelectedStatement(statements, null, "2026-11", "2026-11-21")).toBe(december);
 });
 
 test("selects the earliest closing when multiple cycles share a due month", () => {

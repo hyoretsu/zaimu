@@ -16,7 +16,8 @@ export function getSelectedStatement(
 				statement =>
 					!statement.isPaid &&
 					!statement.isForecast &&
-					statement.statementDate.slice(0, 10) > today,
+					statement.status !== "CARRIED" &&
+					statement.dueDate.slice(0, 10) >= today,
 			)
 			.toSorted(
 				(a, b) =>
