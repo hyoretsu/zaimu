@@ -47,7 +47,7 @@ Queues are bounded to 2048 records, export requests have a 3-second timeout and 
 
 ## Optional outbox column
 
-`packages/sql/migrations/app/20261113T2333_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
+`packages/sql/migrations/app/20261114T2247_otel_outbox_context` prepares the additive nullable JSONB column in the native migration graph, with its generated contract snapshot. Review and apply it through the normal migration workflow before enabling `OTEL_OUTBOX_CONTEXT_ENABLED`; do not apply separate DDL outside the graph. With the flag disabled, application SQL remains compatible with the previous schema. Payloads, routing keys and old events remain valid. No shared migration has been executed by this task.
 
 ## Production sampling and cost
 
