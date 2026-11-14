@@ -91,15 +91,26 @@ export const BalanceAdjustmentsController = new Elysia({ prefix: "/balance-adjus
 				date: localDate(row.date),
 				name: accountName ?? institutionName ?? null,
 			}));
-			return Promise.all(
-				adjustments.map(async adjustment => ({
-					...adjustment,
-					calculatedBalance: await balanceBeforeAdjustment(queryRaw, userId, {
-						...adjustment,
-						date: rowDateKey(adjustment.date),
-					}),
-				})),
+			// Each checkpoint needs its own ledger replay (it excludes itself), so bound the concurrency.
+			const result: ((typeof adjustments)[number] & { calculatedBalance: string })[] = new Array(
+				adjustments.length,
 			);
+			let next = 0;
+			const worker = async () => {
+				while (next < adjustments.length) {
+					const index = next++;
+					const adjustment = adjustments[index]!;
+					result[index] = {
+						...adjustment,
+						calculatedBalance: await balanceBeforeAdjustment(queryRaw, userId, {
+							...adjustment,
+							date: rowDateKey(adjustment.date),
+						}),
+					};
+				}
+			};
+			await Promise.all(Array.from({ length: Math.min(4, adjustments.length) }, worker));
+			return result;
 		},
 		{ detail: { operationId: "getBalanceAdjustments", tags: ["Accounts"] } },
 	)

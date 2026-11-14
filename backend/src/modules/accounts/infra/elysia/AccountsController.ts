@@ -50,7 +50,11 @@ import {
 	queryRows,
 	withRawTransaction,
 } from "~/shared/infra/sql";
-import { accountHoldings, saveAccountHoldings } from "../../application/account-holdings";
+import {
+	accountHoldings,
+	accountHoldingsByAccount,
+	saveAccountHoldings,
+} from "../../application/account-holdings";
 import { financialAccountContextSql } from "../../application/financial-account-context-sql";
 import {
 	accountCardRules,
@@ -230,10 +234,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						rows.some(row => row.account.id === account.id && row.rewards?.kind === "POINTS"),
 					),
 				);
+				const holdings = await accountHoldingsByAccount(userId);
 				return Promise.all(
 					rows.map(async ({ account, institution, card, rewards }) => ({
 						...account,
-						assets: await accountHoldings(userId, account.id),
+						assets: holdings.get(account.id) ?? [],
 						...profileContext.get(account.id),
 						balance:
 							account.type === "REWARDS" && rewards?.kind === "POINTS"

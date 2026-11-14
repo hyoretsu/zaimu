@@ -23,6 +23,21 @@ export async function accountHoldings(userId: string, accountId: string) {
 	return rows.map(row => ({ assetCode: row.assetCode, balance: String(row.balance) }));
 }
 
+/** Holdings of every account of the user in a single ledger query, grouped by account id. */
+export async function accountHoldingsByAccount(userId: string) {
+	const rows = await queryRawDecimal<{ accountId: string; assetCode: string; balance: string }>(
+		monetaryBalancesSql,
+		[userId, [businessNow().toISOString().slice(0, 10)]],
+	);
+	const grouped = new Map<string, { assetCode: string; balance: string }[]>();
+	for (const row of rows) {
+		const list = grouped.get(row.accountId) ?? [];
+		list.push({ assetCode: row.assetCode, balance: String(row.balance) });
+		grouped.set(row.accountId, list);
+	}
+	return grouped;
+}
+
 /** Holdings are denomination declarations, never an alternative ledger write API. */
 export async function saveAccountHoldings(accountId: string, assets: AccountHoldingInput[] | undefined) {
 	const declared = assets ?? [];
