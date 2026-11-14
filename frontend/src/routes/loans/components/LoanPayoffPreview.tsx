@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuCalculator } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -16,13 +16,11 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 		queryKey: queryKeys.loans.earlyPayoff(identity!, loanId, "BACK"),
 	});
 	return (
-		<div className="space-y-2">
-			<ActionGroup>
-				<Button className="cursor-pointer" onClick={() => setOpen(value => !value)} variant="outline">
-					<LuCalculator />
-					{open ? "Minimizar" : "Expandir"} estimativa de quitação
-				</Button>
-			</ActionGroup>
+		<CollapsibleFormSection
+			onExpandedChange={setOpen}
+			summary="Principal restante e juros futuros previstos"
+			title="Estimativa de quitação"
+		>
 			{open &&
 				(estimate.isPending ? (
 					<Skeleton className="h-16" />
@@ -68,6 +66,6 @@ export function LoanPayoffPreview({ loanId }: { loanId: string }) {
 						</p>
 					</div>
 				))}
-		</div>
+		</CollapsibleFormSection>
 	);
 }

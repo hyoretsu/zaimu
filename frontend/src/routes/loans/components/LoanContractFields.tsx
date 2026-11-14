@@ -3,6 +3,7 @@ import type { LoanContractTerms } from "@zaimu/finance/loan-contract";
 import { LuPlus } from "react-icons/lu";
 import { CurrencySelect } from "@/components/currency/CurrencySelect";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
@@ -12,7 +13,6 @@ import { showToast } from "@/stores";
 import { LoanChargeRow } from "./LoanChargeRow";
 import { LoanManualRow } from "./LoanManualRow";
 import { LoanRateFields } from "./LoanRateFields";
-import { LoanSection } from "./LoanSection";
 export function LoanContractFields({
 	value,
 	onChange,
@@ -74,8 +74,8 @@ export function LoanContractFields({
 					value={value.firstDueDate}
 				/>
 			</FormFieldRow>
-			<LoanSection
-				initiallyOpen
+			<CollapsibleFormSection
+				defaultExpanded
 				summary={
 					value.rate.indicator ??
 					`${value.rate.fixedRate ?? 0}% ${value.rate.fixedPeriod === "YEARLY" ? "ao ano" : "ao mês"}`
@@ -83,8 +83,11 @@ export function LoanContractFields({
 				title="Juros e correção"
 			>
 				<LoanRateFields onChange={v => set("rate", v)} value={value.rate} />
-			</LoanSection>
-			<LoanSection summary={`${value.graceMonths} meses de carência`} title="Carência e atraso">
+			</CollapsibleFormSection>
+			<CollapsibleFormSection
+				summary={`${value.graceMonths} meses de carência`}
+				title="Carência e atraso"
+			>
 				<FormFieldRow>
 					<NumericField
 						decimalScale={0}
@@ -121,8 +124,11 @@ export function LoanContractFields({
 						value={String(value.lateMonthlyPercent)}
 					/>
 				</FormFieldRow>
-			</LoanSection>
-			<LoanSection summary={`${value.charges.length} encargos`} title="Seguros, tarifas e impostos">
+			</CollapsibleFormSection>
+			<CollapsibleFormSection
+				summary={`${value.charges.length} encargos`}
+				title="Seguros, tarifas e impostos"
+			>
 				{value.charges.map((charge, index) => (
 					<LoanChargeRow
 						currency={value.currency}
@@ -158,7 +164,7 @@ export function LoanContractFields({
 					<LuPlus />
 					Adicionar encargo
 				</Button>
-			</LoanSection>
+			</CollapsibleFormSection>
 			<CustomSelect
 				label="Desconto por antecipação"
 				onValueChange={v => set("discount", v as LoanContractTerms["discount"])}
@@ -170,8 +176,8 @@ export function LoanContractFields({
 				value={value.discount}
 			/>
 			{value.amortization === "MANUAL" && (
-				<LoanSection
-					initiallyOpen
+				<CollapsibleFormSection
+					defaultExpanded
 					summary={`${value.manualSchedule?.length ?? 0} parcelas`}
 					title="Cronograma manual"
 				>
@@ -217,7 +223,7 @@ export function LoanContractFields({
 						<LuPlus />
 						Adicionar parcela
 					</Button>
-				</LoanSection>
+				</CollapsibleFormSection>
 			)}
 		</>
 	);

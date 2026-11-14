@@ -10,6 +10,7 @@ import { useRef, useState } from "react";
 import { LuCalculator, LuCheck } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormFieldRow } from "@/components/ui/FormFieldRow";
@@ -25,7 +26,6 @@ import { showToast } from "@/stores";
 import { submittedNumber } from "./loan-contract-form";
 import { formatCurrency } from "./loan-format";
 import { LoanInstallmentRow } from "./LoanInstallmentRow";
-import { LoanSection } from "./LoanSection";
 export function LoanOperationForm({
 	book,
 	onChanged,
@@ -188,8 +188,8 @@ export function LoanOperationForm({
 				/>
 			)}
 			{mode === "SELECTED" && (
-				<LoanSection
-					initiallyOpen
+				<CollapsibleFormSection
+					defaultExpanded
 					summary={`${selected.length} selecionadas`}
 					title="Parcelas escolhidas"
 				>
@@ -207,7 +207,7 @@ export function LoanOperationForm({
 							selected={selected.includes(row.id)}
 						/>
 					))}
-				</LoanSection>
+				</CollapsibleFormSection>
 			)}
 			{mode !== "PAYMENT" && (
 				<MoneyField
