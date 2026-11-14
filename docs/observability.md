@@ -76,3 +76,15 @@ The pinned Collector spanmetrics connector derives bounded HTTP diagnostic histo
 The dashboard comparison compute worker initializes its SDK before application imports and carries only traceparent through its internal transport. Results return before export finishes. Each disposable worker retains its concurrency slot for at most one second during telemetry shutdown; exporter outages can temporarily exhaust the configured compute slots. The bounded grace can drop unsent telemetry.
 
 Backend builds retain the runtime NODE_ENV lookup so deployment environment resources and log fields do not inherit the build host environment. Docker contexts exclude environment files; provide database configuration through the documented build secret.
+
+### Diagnostic overhead measurement
+
+A paired local run (`accounts`, `categories`, `creditCards`; `--diagnostic`: five samples, load 1, 10,000 transactions, same release bundle, API restarted between modes, host load average about 9) measured p95 in ms, telemetry off versus on with a local Collector:
+
+| Scenario    | Redis cold | Hot     | 304     |
+| ----------- | ---------- | ------- | ------- |
+| accounts    | 564 / 395  | 6 / 21  | 6 / 25  |
+| categories  | 39 / 104   | 10 / 30 | 9 / 27  |
+| creditCards | 590 / 632  | 19 / 34 | 22 / 18 |
+
+With five samples on a loaded host these figures only bound the overhead (roughly tens of milliseconds on cached reads, within noise on cold reads); they are not acceptance results.

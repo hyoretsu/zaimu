@@ -1988,6 +1988,20 @@
 			"usableP95Ms": 1000
 		},
 		{
+			"path": "/tools/",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/tools/index.tsx",
+			"usableP95Ms": 1000
+		},
+		{
+			"path": "/tools/loan-comparison",
+			"requestBudget": null,
+			"result": "pending",
+			"source": "frontend/src/routes/tools/loan-comparison.tsx",
+			"usableP95Ms": 1000
+		},
+		{
 			"path": "/transactions",
 			"requestBudget": null,
 			"result": "pending",
@@ -1995,5 +2009,5 @@
 			"usableP95Ms": 1000
 		}
 	],
-	"sourceHash": "540c418181538756ad37760221f6541bcbe000e32245ea80d153cf629eb50e9c"
+	"sourceHash": "6d1042baaeb3ee02357f350ec6823a2863a0170fea1526403d61c830bd5969a3"
 }
