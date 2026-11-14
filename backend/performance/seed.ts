@@ -85,11 +85,12 @@ try {
 			);
 
 			await query(
-				`INSERT INTO "FinancialInstitution" ("id", "userId", "name", "normalizedName")
+				`INSERT INTO "FinancialInstitution" ("id", "userId", "name", "normalizedName", "currency")
 			 SELECT 'perf-institution-' || series,
 			        $1,
 			        'Instituição ' || series,
-			        'instituicao ' || series
+			        'instituicao ' || series,
+			        'BRL'
 			 FROM generate_series(1, 5) AS series`,
 				[userId],
 			);
@@ -118,20 +119,30 @@ try {
 			);
 			await query(
 				`INSERT INTO "FinancialAccount"
-			 ("id", "userId", "name", "type", "balance", "institutionId")
-			 VALUES ('perf-account-main', $1, 'Conta principal', 'CHECKING', 25000, 'perf-institution-1')`,
+			 ("id", "userId", "name", "type", "yieldCurrency", "institutionId")
+			 VALUES ('perf-account-main', $1, 'Conta principal', 'CHECKING', 'BRL', 'perf-institution-1')`,
 				[userId],
 			);
 			await query(
 				`INSERT INTO "FinancialAccount"
-			 ("id", "userId", "name", "type", "balance", "institutionId")
+			 ("id", "userId", "name", "type", "yieldCurrency", "institutionId")
 			 SELECT 'perf-account-card-' || lpad(series::text, 2, '0'),
 			        $1,
 			        'Cartão ' || lpad(series::text, 2, '0'),
 			        'CREDIT_CARD',
-			        0,
+			        'BRL',
 			        'perf-institution-' || (((series - 1) % 5) + 1)
 			 FROM generate_series(1, 20) AS series`,
+				[userId],
+			);
+			await query(
+				`INSERT INTO "Asset" ("code", "kind", "name", "decimals")
+			 VALUES ('BRL', 'FIAT', 'Brazilian real', 2) ON CONFLICT ("code") DO NOTHING`,
+			);
+			await query(
+				`INSERT INTO "FinancialAccountAsset" ("financialAccountId", "assetCode", "balance")
+			 SELECT "id", 'BRL', CASE WHEN "id" = 'perf-account-main' THEN 25000 ELSE 0 END
+			 FROM "FinancialAccount" WHERE "userId" = $1`,
 				[userId],
 			);
 			await query(
@@ -148,22 +159,22 @@ try {
 			await query(
 				`INSERT INTO "FinancialAccountYieldRateHistory"
 			 ("id", "financialAccountId", "effectiveDate", "yieldPeriod", "yieldReferenceType",
-			  "yieldReferencePercentage", "yieldFixedRate", "yieldTaxRate")
+			  "yieldReferencePercentage", "yieldFixedRate", "yieldTaxRate", "currency")
 			 SELECT 'perf-rate-' || lpad(series::text, 4, '0'),
 			        'perf-account-main',
 			        (date_trunc('month', $1::date) - make_interval(months => series))::date,
-			        'MONTHLY', 'CDI', 100, NULL, 22.5
+			        'MONTHLY', 'CDI', 100, NULL, 22.5, 'BRL'
 			 FROM generate_series(0, 59) AS series`,
 				[anchorDate],
 			);
 			await query(
 				`INSERT INTO "FinancialAccountYield"
-			 ("id", "financialAccountId", "date", "amount", "kind", "origin")
+			 ("id", "financialAccountId", "date", "amount", "kind", "origin", "assetCode")
 			 SELECT 'perf-yield-' || lpad(series::text, 5, '0'),
 			        'perf-account-main',
 			        $1::date - series,
 			        ((series % 500) + 1)::numeric / 100,
-			        'AUTOMATIC', 'SYSTEM'
+			        'AUTOMATIC', 'SYSTEM', 'BRL'
 			 FROM generate_series(0, 1825) AS series`,
 				[anchorDate],
 			);

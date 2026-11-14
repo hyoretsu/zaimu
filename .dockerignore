@@ -12,3 +12,8 @@ tmp
 **/node_modules
 **/out
 **/target
+
+.env
+.env.*
+**/.env
+**/.env.*

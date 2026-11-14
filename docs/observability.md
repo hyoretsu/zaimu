@@ -6,6 +6,9 @@ Telemetry is opt-in: set `OTEL_ENABLED=true` for API and worker, and `VITE_OTEL_
 
 ```sh
 export GRAFANA_ADMIN_PASSWORD='choose-a-local-password'
+# Public configuration only: non-root containers must read these bind mounts.
+chmod 644 observability/*.yaml observability/grafana/dashboards/*.json \
+  observability/grafana/provisioning/*/*.yaml
 docker compose -f observability/compose.yaml up -d --build
 ```
 
@@ -71,3 +74,5 @@ The disabled/enabled comparison measures the instrumentation switch in the same 
 The pinned Collector spanmetrics connector derives bounded HTTP diagnostic histograms before tail sampling, with exemplars linking measurements to Tempo. These `otel_request_*` diagnostics remain separate from canonical unsampled `http_server_*` application metrics. A retained error, slow or development trace resolves its exemplar; ordinary traces can be discarded by tail sampling. The connector is experimental in this pinned Collector release. Its cardinality limit is 2,000, resource cache 128, and metric expiration five minutes; include its CPU and memory in capacity planning.
 
 The dashboard comparison compute worker initializes its SDK before application imports and carries only traceparent through its internal transport. Results return before export finishes. Each disposable worker retains its concurrency slot for at most one second during telemetry shutdown; exporter outages can temporarily exhaust the configured compute slots. The bounded grace can drop unsent telemetry.
+
+Backend builds retain the runtime NODE_ENV lookup so deployment environment resources and log fields do not inherit the build host environment. Docker contexts exclude environment files; provide database configuration through the documented build secret.
