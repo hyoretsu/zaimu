@@ -16,19 +16,26 @@ import { LoanRateFields } from "./LoanRateFields";
 export function LoanContractFields({
 	value,
 	onChange,
+	idPrefix = "",
+	hideCurrency = false,
 }: {
 	value: LoanContractTerms;
 	onChange: (value: LoanContractTerms) => void;
+	/** Distinguishes field ids when several contracts are edited on one page. */
+	idPrefix?: string;
+	hideCurrency?: boolean;
 }) {
 	const set = <K extends keyof LoanContractTerms>(key: K, v: LoanContractTerms[K]) =>
 		onChange({ ...value, [key]: v });
 	return (
 		<>
 			<FormFieldRow>
-				<CurrencySelect onValueChange={v => set("currency", v)} value={value.currency} />
+				{!hideCurrency && (
+					<CurrencySelect onValueChange={v => set("currency", v)} value={value.currency} />
+				)}
 				<MoneyField
 					currencyCode={value.currency}
-					id="loan-principal"
+					id={`${idPrefix}loan-principal`}
 					label="Principal"
 					onValueChange={v => set("principalAmount", Number(v))}
 					required
@@ -36,7 +43,7 @@ export function LoanContractFields({
 				/>
 				<NumericField
 					decimalScale={0}
-					id="loan-installments"
+					id={`${idPrefix}loan-installments`}
 					label="Número de parcelas"
 					onValueChange={v => set("totalInstallments", Number(v))}
 					placeholder="Ex: 80"
@@ -58,17 +65,17 @@ export function LoanContractFields({
 			</FormFieldRow>
 			<FormFieldRow>
 				<DateField
-					id="contract-start"
+					id={`${idPrefix}contract-start`}
 					label="Início"
-					name="contract-start"
+					name={`${idPrefix}contract-start`}
 					onValueChange={v => set("startDate", v)}
 					required
 					value={value.startDate}
 				/>
 				<DateField
-					id="contract-first-due"
+					id={`${idPrefix}contract-first-due`}
 					label="Primeiro vencimento"
-					name="contract-first-due"
+					name={`${idPrefix}contract-first-due`}
 					onValueChange={v => set("firstDueDate", v)}
 					required
 					value={value.firstDueDate}
@@ -82,7 +89,7 @@ export function LoanContractFields({
 				}
 				title="Juros e correção"
 			>
-				<LoanRateFields onChange={v => set("rate", v)} value={value.rate} />
+				<LoanRateFields idPrefix={idPrefix} onChange={v => set("rate", v)} value={value.rate} />
 			</CollapsibleFormSection>
 			<CollapsibleFormSection
 				summary={`${value.graceMonths} meses de carência`}
@@ -91,7 +98,7 @@ export function LoanContractFields({
 				<FormFieldRow>
 					<NumericField
 						decimalScale={0}
-						id="loan-grace"
+						id={`${idPrefix}loan-grace`}
 						label="Meses de carência"
 						onValueChange={v => set("graceMonths", Number(v))}
 						placeholder="Ex: 3"
@@ -108,7 +115,7 @@ export function LoanContractFields({
 						value={value.graceInterest}
 					/>
 					<NumericField
-						id="loan-late-fine"
+						id={`${idPrefix}loan-late-fine`}
 						label="Multa por atraso"
 						onValueChange={v => set("lateFinePercent", Number(v))}
 						placeholder="Ex: 2%"
@@ -116,7 +123,7 @@ export function LoanContractFields({
 						value={String(value.lateFinePercent)}
 					/>
 					<NumericField
-						id="loan-late-rate"
+						id={`${idPrefix}loan-late-rate`}
 						label="Juros mensais por atraso"
 						onValueChange={v => set("lateMonthlyPercent", Number(v))}
 						placeholder="Ex: 1%"
@@ -132,6 +139,7 @@ export function LoanContractFields({
 				{value.charges.map((charge, index) => (
 					<LoanChargeRow
 						currency={value.currency}
+						idPrefix={idPrefix}
 						index={index}
 						key={index}
 						onChange={row =>
@@ -184,6 +192,7 @@ export function LoanContractFields({
 					{value.manualSchedule?.map((row, index) => (
 						<LoanManualRow
 							currency={value.currency}
+							idPrefix={idPrefix}
 							index={index}
 							key={index}
 							onChange={row =>

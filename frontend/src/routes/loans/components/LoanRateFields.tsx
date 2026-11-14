@@ -6,9 +6,11 @@ import { NumericField } from "@/components/ui/NumericField";
 export function LoanRateFields({
 	value,
 	onChange,
+	idPrefix = "",
 }: {
 	value: FinancialRateRule;
 	onChange: (value: FinancialRateRule) => void;
+	idPrefix?: string;
 }) {
 	return (
 		<>
@@ -32,7 +34,7 @@ export function LoanRateFields({
 				/>
 				{value.indicator && (
 					<NumericField
-						id="loan-reference-percent"
+						id={`${idPrefix}loan-reference-percent`}
 						label="Percentual do indicador"
 						onValueChange={v => onChange({ ...value, percentage: Number(v) })}
 						placeholder="Ex: 100%"
@@ -42,7 +44,7 @@ export function LoanRateFields({
 					/>
 				)}
 				<NumericField
-					id="loan-fixed-rate"
+					id={`${idPrefix}loan-fixed-rate`}
 					label="Taxa fixa"
 					onValueChange={v => onChange({ ...value, fixedRate: Number(v) })}
 					placeholder="Ex: 1,5%"
@@ -65,7 +67,7 @@ export function LoanRateFields({
 				<>
 					<NumericField
 						decimalScale={0}
-						id="loan-index-lag"
+						id={`${idPrefix}loan-index-lag`}
 						label="Defasagem do indicador em meses"
 						onValueChange={v => onChange({ ...value, lagMonths: Number(v) })}
 						placeholder="Ex: 1"

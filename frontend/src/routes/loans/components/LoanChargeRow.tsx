@@ -11,21 +11,23 @@ export function LoanChargeRow({
 	currency,
 	onChange,
 	onRemove,
+	idPrefix = "",
 }: {
 	value: LoanCharge;
 	index: number;
 	currency: string;
 	onChange: (value: LoanCharge) => void;
 	onRemove: () => void;
+	idPrefix?: string;
 }) {
 	const [name, setName] = useDebouncedInput(value.name, name => onChange({ ...value, name }));
 	return (
 		<div className="space-y-2 rounded-xl border p-3">
-			<label className="grid gap-2" htmlFor={`charge-name-${index}`}>
+			<label className="grid gap-2" htmlFor={`${idPrefix}charge-name-${index}`}>
 				Nome do encargo
 				<Input
-					id={`charge-name-${index}`}
-					name={`charge-name-${index}`}
+					id={`${idPrefix}charge-name-${index}`}
+					name={`${idPrefix}charge-name-${index}`}
 					onChange={e => setName(e.currentTarget.value)}
 					placeholder="Ex: Seguro mensal"
 					type="text"
@@ -34,7 +36,7 @@ export function LoanChargeRow({
 			</label>
 			<MoneyField
 				currencyCode={currency}
-				id={`charge-amount-${index}`}
+				id={`${idPrefix}charge-amount-${index}`}
 				label="Valor"
 				onValueChange={v => onChange({ ...value, amount: Number(v) })}
 				value={String(value.amount)}

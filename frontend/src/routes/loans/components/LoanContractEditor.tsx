@@ -38,10 +38,13 @@ import { submittedLoanTerms, submittedNumber } from "./loan-contract-form";
 import { LoanContractFields } from "./LoanContractFields";
 export function LoanContractEditor({
 	book,
+	initialTerms,
 	onClose,
 	restructure,
 }: {
 	book?: LoanContractBook;
+	/** Prefills a new contract, e.g. from a compared offer. */
+	initialTerms?: LoanContractTerms;
 	onClose: () => void;
 	restructure?: "RENEGOTIATE" | "PORTABILITY";
 }) {
@@ -62,21 +65,23 @@ export function LoanContractEditor({
 					startDate: getLocalDateKey(),
 					totalInstallments: Math.max(1, outstandingLoanSchedule(book).length),
 				}
-			: {
-					amortization: "PRICE",
-					charges: [],
-					currency,
-					discount: "PRESENT_VALUE",
-					firstDueDate: shiftMonths(getLocalDateKey(), 1),
-					graceInterest: "PAY",
-					graceMonths: 0,
-					lateFinePercent: 0,
-					lateMonthlyPercent: 0,
-					principalAmount: 0,
-					rate: { fixedPeriod: "MONTHLY", fixedRate: 0 },
-					startDate: getLocalDateKey(),
-					totalInstallments: 12,
-				},
+			: initialTerms
+				? structuredClone(initialTerms)
+				: {
+						amortization: "PRICE",
+						charges: [],
+						currency,
+						discount: "PRESENT_VALUE",
+						firstDueDate: shiftMonths(getLocalDateKey(), 1),
+						graceInterest: "PAY",
+						graceMonths: 0,
+						lateFinePercent: 0,
+						lateMonthlyPercent: 0,
+						principalAmount: 0,
+						rate: { fixedPeriod: "MONTHLY", fixedRate: 0 },
+						startDate: getLocalDateKey(),
+						totalInstallments: 12,
+					},
 	);
 	const [institutionId, setInstitutionId] = useState(book?.institutionId ?? "");
 	const [effectiveDate, setEffectiveDate] = useState(getLocalDateKey());
