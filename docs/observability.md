@@ -1,6 +1,6 @@
 # OpenTelemetry
 
-Telemetry is opt-in: set `OTEL_ENABLED=true` for API and worker, and `VITE_OTEL_ENABLED=true` before building web/Tauri. The SDK starts before application modules. Bun preload and build use the same AST transform; React functions are excluded.
+Backend telemetry is enabled automatically when `OTEL_EXPORTER_OTLP_ENDPOINT` is set for API and worker; leave it unset to disable. Web/Tauri builds enable it by default in production; set `VITE_OTEL_ENABLED=false` (or `true` in development) before building to override. The SDK starts before application modules. Bun preload and build use the same AST transform; React functions are excluded.
 
 ## Local stack
 
@@ -16,24 +16,23 @@ Grafana binds localhost:3300 and the Collector localhost:4318. Override host por
 
 ## Configuration
 
-| Variable                    | Default               | Purpose                                                  |
-| --------------------------- | --------------------- | -------------------------------------------------------- |
-| OTEL_ENABLED                | false                 | Backend SDK                                              |
-| OTEL_EXPORTER_OTLP_ENDPOINT | http://localhost:4318 | Private Collector URL                                    |
-| OTEL_SERVICE_VERSION        | development           | Release identifier                                       |
-| OTEL_CLIENT_VERSIONS        | backend version       | Up to ten allowed client releases; others become unknown |
-| OTEL_LOG_LEVEL              | info                  | Minimum severity                                         |
-| OTEL_CAPTURE_SUMMARIES      | false                 | Bounded structural summaries                             |
-| OTEL_FUNCTION_MAX_DEPTH     | 32                    | Nested operation limit, maximum 32                       |
-| OTEL_FUNCTION_MAX_SPANS     | 1000                  | Span budget, maximum 1000                                |
-| OTEL_OUTBOX_CONTEXT_ENABLED | false                 | Enable optional column after operator migration          |
-| VITE_OTEL_ENABLED           | false                 | Web/native webview SDK                                   |
-| VITE_OTEL_SERVICE_VERSION   | development           | Public client release                                    |
-| TRACE_RETENTION             | 168h                  | Tempo retention                                          |
-| LOG_RETENTION               | 336h                  | Loki retention                                           |
-| METRICS_RETENTION           | 30d                   | Prometheus retention                                     |
+| Variable                    | Default            | Purpose                                                   |
+| --------------------------- | ------------------ | --------------------------------------------------------- |
+| OTEL_EXPORTER_OTLP_ENDPOINT | unset (disabled)   | Private Collector URL; setting it enables the backend SDK |
+| OTEL_CLIENT_VERSIONS        | NODE_ENV           | Up to ten allowed client releases; others become unknown  |
+| OTEL_LOG_LEVEL              | info               | Minimum severity                                          |
+| OTEL_CAPTURE_SUMMARIES      | false              | Bounded structural summaries                              |
+| OTEL_FUNCTION_MAX_DEPTH     | 32                 | Nested operation limit, maximum 32                        |
+| OTEL_FUNCTION_MAX_SPANS     | 1000               | Span budget, maximum 1000                                 |
+| OTEL_OUTBOX_CONTEXT_ENABLED | false              | Enable optional column after operator migration           |
+| VITE_OTEL_ENABLED           | true in production | Web/native webview SDK override                           |
+| TRACE_RETENTION             | 168h               | Tempo retention                                           |
+| LOG_RETENTION               | 336h               | Loki retention                                            |
+| METRICS_RETENTION           | 30d                | Prometheus retention                                      |
 
 Vite values are public. No Collector credential belongs in a bundle. Clients export a restricted JSON trace subset to `/telemetry/traces`: allowed origins, 64 KiB, 64 spans, 30 batches/minute per direct peer, bounded bucket map and read timeout. Proxy trust requires operator review before relying on individual peer limits. Arbitrary URLs, errors, attributes, logs and event bodies are discarded. Client metrics are recorded before trace sampling. Authentication and SDK requests resolve the instrumented fetch transport. Tauri uses its actual webview fetch and a separate service identity.
+
+Service names are derived in code, not configured: `zaimu-api` and `zaimu-worker` from `initialize(service, "zaimu")` in the entrypoints (exported as `OTEL_SERVICE_NAME`), and `zaimu-web` or `zaimu-tauri` from the browser SDK, which the gateway validates before forwarding. `service.namespace` is `zaimu`. `service.version` and `deployment.environment.name` come from `NODE_ENV` (backend) and the Vite mode (clients); there is no separate release variable.
 
 ## Capture and lifecycle
 

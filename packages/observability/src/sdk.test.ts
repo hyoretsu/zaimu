@@ -9,7 +9,6 @@ test("collector outage cannot fail application work or keep shutdown open", () =
 		{
 			env: {
 				...process.env,
-				OTEL_ENABLED: "true",
 				OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:1",
 				OTEL_LOG_LEVEL: "error",
 			},
@@ -55,7 +54,6 @@ process.stdout.write(JSON.stringify({result,spans,parents})+"\\n");`;
 	const child = Bun.spawnSync([process.execPath, "--eval", script], {
 		env: {
 			...process.env,
-			OTEL_ENABLED: "true",
 			OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:1",
 			OTEL_LOG_LEVEL: "error",
 		},

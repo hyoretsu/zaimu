@@ -69,7 +69,10 @@ export function bindOperationContext(span: Span) {
 	const scope = { budget: { count: 0 }, depth: 0, root: span };
 	return <T>(work: () => T): T => state.run(scope, work);
 }
-export const enabled = () => process.env.OTEL_ENABLED === "true" && !suppressed.getStore();
+/** Telemetry is active exactly when a Collector endpoint is configured. */
+export const otlpEndpoint = () =>
+	process.env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim().replace(/\/$/, "") || undefined;
+export const enabled = () => otlpEndpoint() !== undefined && !suppressed.getStore();
 export function captureContext(): Record<string, string> {
 	const carrier: Record<string, string> = {};
 	propagation.inject(context.active(), carrier);

@@ -10,15 +10,15 @@ import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { AlwaysOnSampler, BatchSpanProcessor } from "@opentelemetry/sdk-trace";
-import { getOperationRoute, markCurrentOperationFailed, operation } from "./index";
+import { getOperationRoute, markCurrentOperationFailed, operation, otlpEndpoint } from "./index";
 import { operationalLog } from "./log-record";
 
 let sdk: NodeSDK | undefined;
 let restoreConsole: (() => void)[] = [];
 export function initialize(service: "api" | "worker", project: string) {
-	if (sdk || process.env.OTEL_ENABLED !== "true") return;
+	const base = otlpEndpoint();
+	if (sdk || !base) return;
 	process.env.OTEL_SERVICE_NAME = `${project}-${service}`;
-	const base = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318").replace(/\/$/, "");
 	const config = { concurrencyLimit: 2, timeoutMillis: 3000 };
 	sdk = new NodeSDK({
 		autoDetectResources: false,
@@ -43,7 +43,7 @@ export function initialize(service: "api" | "worker", project: string) {
 			"service.instance.id": crypto.randomUUID(),
 			"service.name": process.env.OTEL_SERVICE_NAME,
 			"service.namespace": project,
-			"service.version": process.env.OTEL_SERVICE_VERSION ?? "development",
+			"service.version": process.env.NODE_ENV ?? "development",
 		}),
 		sampler: new AlwaysOnSampler(),
 		spanProcessors: [

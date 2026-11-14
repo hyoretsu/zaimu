@@ -160,12 +160,12 @@ test("flush failures preserve the delivered result and always send cleanup contr
 	const scope = globalThis as unknown as Worker;
 	const previousMessage = scope.onmessage;
 	const previousPost = scope.postMessage;
-	const previousEnabled = process.env.OTEL_ENABLED;
+	const previousEnabled = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 	const replies: unknown[] = [];
 	scope.postMessage = message => {
 		replies.push(message);
 	};
-	process.env.OTEL_ENABLED = "true";
+	process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:1";
 	try {
 		serveWorker(
 			async () => 42,
@@ -181,7 +181,7 @@ test("flush failures preserve the delivered result and always send cleanup contr
 	} finally {
 		scope.onmessage = previousMessage;
 		scope.postMessage = previousPost;
-		if (previousEnabled === undefined) delete process.env.OTEL_ENABLED;
-		else process.env.OTEL_ENABLED = previousEnabled;
+		if (previousEnabled === undefined) delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+		else process.env.OTEL_EXPORTER_OTLP_ENDPOINT = previousEnabled;
 	}
 });

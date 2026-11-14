@@ -11,7 +11,7 @@ const provider = new TracerProvider({ spanProcessors: [new SimpleSpanProcessor({
 context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 trace.setGlobalTracerProvider(provider);
 propagation.setGlobalPropagator(new W3CTraceContextPropagator());
-process.env.OTEL_ENABLED = "true";
+process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:1";
 test("concurrent operations retain separate parents", async () => {
 	const ids = await Promise.all(
 		[1, 2].map(index =>
@@ -60,7 +60,7 @@ test("durable operations link to origin without extending its lifetime", async (
 
 test("sync promise returns retain native unhandled-rejection behavior", async () => {
 	const script = `import {functionCall} from ${JSON.stringify(new URL("./index.ts", import.meta.url).pathname)};
- process.env.OTEL_ENABLED="true";
+ process.env.OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:1";
  process.on("unhandledRejection",()=>{console.log("unhandled");clearTimeout(deadline);});
  functionCall("fixture","fixture.ts",[],()=>Promise.reject(new Error("fixture")),false);
  const deadline=setTimeout(()=>process.exit(1),1000);`;
@@ -122,7 +122,7 @@ test("argument inspection is skipped when disabled or span budget is exhausted",
 	const { functionCall } = await import("./index");
 	const previous = {
 		capture: process.env.OTEL_CAPTURE_SUMMARIES,
-		enabled: process.env.OTEL_ENABLED,
+		enabled: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
 		limit: process.env.OTEL_FUNCTION_MAX_SPANS,
 	};
 	let inspected = 0;
@@ -141,16 +141,16 @@ test("argument inspection is skipped when disabled or span budget is exhausted",
 	);
 	try {
 		process.env.OTEL_CAPTURE_SUMMARIES = "true";
-		process.env.OTEL_ENABLED = "false";
+		delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 		expect(functionCall("off", "fixture.ts", args, () => 42)).toBe(42);
-		process.env.OTEL_ENABLED = "true";
+		process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://127.0.0.1:1";
 		process.env.OTEL_FUNCTION_MAX_SPANS = "1";
 		expect(operation("bounded", () => functionCall("limited", "fixture.ts", args, () => 7))).toBe(7);
 		expect(inspected).toBe(0);
 	} finally {
 		for (const [key, value] of Object.entries({
 			OTEL_CAPTURE_SUMMARIES: previous.capture,
-			OTEL_ENABLED: previous.enabled,
+			OTEL_EXPORTER_OTLP_ENDPOINT: previous.enabled,
 			OTEL_FUNCTION_MAX_SPANS: previous.limit,
 		})) {
 			if (value === undefined) delete process.env[key];

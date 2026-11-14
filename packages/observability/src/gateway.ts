@@ -1,4 +1,5 @@
 import { metrics } from "@opentelemetry/api";
+import { otlpEndpoint } from "./index";
 
 const signalDuration = metrics.getMeter("client").createHistogram("client.signal.duration", {
 	advice: { explicitBucketBoundaries: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10] },
@@ -14,7 +15,7 @@ const nanos = (value: unknown): value is string => typeof value === "string" && 
 /** Strict OTLP/JSON trace subset. Arbitrary OTLP attributes and logs are never proxied. */
 export function clientGateway(project: string, origins: string[]) {
 	return async (request: Request, ip = "local"): Promise<Response> => {
-		if (process.env.OTEL_ENABLED !== "true") return new Response(null, { status: 404 });
+		if (!otlpEndpoint()) return new Response(null, { status: 404 });
 		const origin = request.headers.get("origin");
 		if (!origin || !origins.includes(origin)) return new Response(null, { status: 403 });
 		const now = Date.now();
@@ -67,11 +68,7 @@ export function clientGateway(project: string, origins: string[]) {
 				const version = raw.resource?.attributes?.find(
 					attribute => attribute.key === "service.version",
 				)?.value.stringValue;
-				const releases = (
-					process.env.OTEL_CLIENT_VERSIONS ??
-					process.env.OTEL_SERVICE_VERSION ??
-					"development"
-				)
+				const releases = (process.env.OTEL_CLIENT_VERSIONS ?? process.env.NODE_ENV ?? "development")
 					.split(",")
 					.slice(0, 10);
 				const safeVersion =
@@ -174,10 +171,7 @@ export function clientGateway(project: string, origins: string[]) {
 					scopeSpans: [{ scope: { name: "client" }, spans }],
 				};
 			});
-			const base = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318").replace(
-				/\/$/,
-				"",
-			);
+			const base = otlpEndpoint() as string;
 			let response: Response;
 			try {
 				response = await fetch(`${base}/v1/traces`, {

@@ -8,7 +8,7 @@ const request = (body: string, origin = "http://localhost:5173") =>
 		headers: { "content-type": "application/json", origin },
 		method: "POST",
 	});
-process.env.OTEL_ENABLED = "true";
+process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??= "http://127.0.0.1:1";
 test("client ingress rejects untrusted origins and oversized or arbitrary OTLP", async () => {
 	expect((await gateway(request("{}", "https://untrusted.example"))).status).toBe(403);
 	expect((await gateway(request("x".repeat(65537)))).status).toBe(400);
