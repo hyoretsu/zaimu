@@ -790,13 +790,22 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				{ domain: "transaction-imports" },
 				() =>
 					queryRaw<
-						{ id: string; fileName: string; pendingItemCount: number } & Record<string, unknown>
+						{
+							accountName: string;
+							createdAt: Date;
+							fileName: string;
+							financialAccountId: string;
+							id: string;
+							pendingItemCount: number;
+						} & Record<string, unknown>
 					>(
-						`SELECT import."id", import."fileName", count(item."id")::integer AS "pendingItemCount"
+						`SELECT import."id", import."fileName", import."createdAt", import."financialAccountId",
+			        account."name" AS "accountName", count(item."id")::integer AS "pendingItemCount"
 			 FROM "TransactionImport" import
+			 JOIN "FinancialAccount" account ON account."id" = import."financialAccountId"
 			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
 			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
-			 GROUP BY import."id", import."fileName", import."createdAt"
+			 GROUP BY import."id", import."fileName", import."createdAt", import."financialAccountId", account."name"
 			 ORDER BY "pendingItemCount" ASC, import."createdAt" DESC`,
 						[userId],
 					),
