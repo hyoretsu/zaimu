@@ -25,7 +25,7 @@ function groupByAccount(imports: TransactionImportSummary[]) {
 		if (group) group.imports.push(transactionImport);
 		else
 			groups.set(transactionImport.financialAccountId, {
-				accountName: transactionImport.accountName,
+				accountName: transactionImport.accountName ?? "Conta",
 				imports: [transactionImport],
 			});
 	}

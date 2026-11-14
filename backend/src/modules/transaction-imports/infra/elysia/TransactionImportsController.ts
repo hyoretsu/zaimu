@@ -800,7 +800,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						} & Record<string, unknown>
 					>(
 						`SELECT import."id", import."fileName", import."createdAt", import."financialAccountId",
-			        account."name" AS "accountName", count(item."id")::integer AS "pendingItemCount"
+			        COALESCE(account."name", 'Conta') AS "accountName", count(item."id")::integer AS "pendingItemCount"
 			 FROM "TransactionImport" import
 			 JOIN "FinancialAccount" account ON account."id" = import."financialAccountId"
 			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
