@@ -307,7 +307,12 @@ export const TransactionsController = new Elysia({
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.FinancialAccount.userId, userId),
-										functions.raw`${fields.Transaction.time} IS NOT NULL`.returns(
+										// Same pattern as transferSuggestionTimeSeconds: rows without a valid time never pair.
+										functions.raw`${fields.Transaction.time} ~ '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$'`.returns(
+											"pg/bool@1",
+										),
+										// Non 3-letter codes are always crypto; registered 3-letter ones are still filtered below.
+										functions.raw`UPPER(TRIM(${fields.Transaction.bookingCurrency})) ~ '^[A-Z]{3}$'`.returns(
 											"pg/bool@1",
 										),
 									),
