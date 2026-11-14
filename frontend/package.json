@@ -17,6 +17,7 @@
 		"tauri:android": "tauri android dev",
 		"tauri:ios": "tauri ios dev",
 		"test:currency": "playwright test --config playwright.currency.config.ts",
+		"test:loan-comparison": "playwright test --config playwright.loan-comparison.config.ts",
 		"test:open-finance": "playwright test --config playwright.open-finance.config.ts",
 		"check-types": "bun check -b",
 		"performance:test": "playwright test --config playwright.performance.config.ts",

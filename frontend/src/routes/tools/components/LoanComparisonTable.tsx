@@ -50,7 +50,7 @@ function bestValue(metric: Metric, rows: ComparisonResult[]) {
 		.filter(row => row.status === "OK")
 		.map(metric.value)
 		.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-	if (values.length < 2) return null;
+	if (values.length < 2 || values.every(value => value === values[0])) return null;
 	return metric.best === "min" ? Math.min(...values) : Math.max(...values);
 }
 
