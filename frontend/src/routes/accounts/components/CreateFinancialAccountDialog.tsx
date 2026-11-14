@@ -129,7 +129,9 @@ export function CreateFinancialAccountDialog({
 	const countryFiatCurrency = countryCode ? countryCurrency(countryCode, supportedCurrencies) : null;
 	const countryNames = new Intl.DisplayNames(document.documentElement.lang || "pt-BR", { type: "region" });
 	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
-	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? defaultType ?? "CHECKING");
+	const [type, setType] = useState<FinancialAccount["type"]>(
+		account?.type ?? (cardOnly ? "CREDIT_CARD" : (defaultType ?? "CHECKING")),
+	);
 	const [paymentAccountId, setPaymentAccountId] = useState<string | null>(
 		account?.creditCard?.paymentAccountId ?? null,
 	);
@@ -137,9 +139,6 @@ export function CreateFinancialAccountDialog({
 		account?.creditCard?.paymentSuggestionsEnabled ?? true,
 	);
 	const [creditLimit, setCreditLimit] = useState(String(account?.creditCard?.creditLimit ?? ""));
-	const [securityDeposit, setSecurityDeposit] = useState(
-		String(account?.creditCard?.securityDeposit ?? ""),
-	);
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
 	const [transitionOverride, setTransitionOverride] = useState<CardCalendarPeriod | null>(null);
@@ -219,9 +218,8 @@ export function CreateFinancialAccountDialog({
 		setCountry(account?.countryCode ?? undefined);
 		setInstitutionId(initialInstitution());
 		setName(account?.name ?? "");
-		setType(account?.type ?? defaultType ?? "CHECKING");
+		setType(account?.type ?? (cardOnly ? "CREDIT_CARD" : (defaultType ?? "CHECKING")));
 		setCreditLimit(String(account?.creditCard?.creditLimit ?? ""));
-		setSecurityDeposit(String(account?.creditCard?.securityDeposit ?? ""));
 		setStatementDay(String(account?.creditCard?.statementDay ?? 10));
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
 		setTransitionOverride(null);
@@ -304,7 +302,6 @@ export function CreateFinancialAccountDialog({
 								dueDay: Number(dueDay),
 								paymentAccountId,
 								paymentSuggestionsEnabled,
-								securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
 								statementDay: Number(statementDay),
 								workingDueDate: false,
 							}
@@ -466,28 +463,30 @@ export function CreateFinancialAccountDialog({
 							searchable
 							value={institutionId}
 						/>
-						<CustomSelect
-							disabled={!institution}
-							label="País da conta"
-							onValueChange={value => {
-								setCountry(value);
-							}}
-							options={availableCountries.map(value => ({
-								label: countryNames.of(value) ?? value,
-								value,
-							}))}
-							placeholder="Ex: Brasil"
-							required
-							searchable
-							value={countryCode}
-						/>
-						<CurrencySelect
-							currencies={supportedCurrencies.filter(code => !isCryptoAsset(code))}
-							disabled={!institution || !countryCode}
-							label={type === "CREDIT_CARD" ? "Moeda do cartão" : "Moeda padrão"}
-							onValueChange={setCurrency}
-							value={currency}
-						/>
+						<div className="grid gap-5 sm:grid-cols-2">
+							<CustomSelect
+								disabled={!institution}
+								label="País da conta"
+								onValueChange={value => {
+									setCountry(value);
+								}}
+								options={availableCountries.map(value => ({
+									label: countryNames.of(value) ?? value,
+									value,
+								}))}
+								placeholder="Ex: Brasil"
+								required
+								searchable
+								value={countryCode}
+							/>
+							<CurrencySelect
+								currencies={supportedCurrencies.filter(code => !isCryptoAsset(code))}
+								disabled={!institution || !countryCode}
+								label={type === "CREDIT_CARD" ? "Moeda do cartão" : "Moeda padrão"}
+								onValueChange={setCurrency}
+								value={currency}
+							/>
+						</div>
 
 						<FormField
 							autoComplete="off"
@@ -499,27 +498,24 @@ export function CreateFinancialAccountDialog({
 							type="text"
 							value={name}
 						/>
-						{account ? (
-							<div className="grid gap-2">
-								<p className="text-sm font-medium">Tipo</p>
-								<p className="bg-muted/30 rounded-md border px-3 py-2 text-sm">
-									{types.find(item => item.value === type)?.label}
-								</p>
-							</div>
-						) : (
-							<CustomSelect
-								label="Tipo"
-								onValueChange={value => setType(value as FinancialAccount["type"])}
-								options={
-									cardOnly
-										? types.filter(item => item.value === "CREDIT_CARD")
-										: types.filter(item => item.value !== "CREDIT_CARD")
-								}
-								placeholder="Selecione o tipo"
-								required
-								value={type}
-							/>
-						)}
+						{!cardOnly &&
+							(account ? (
+								<div className="grid gap-2">
+									<p className="text-sm font-medium">Tipo</p>
+									<p className="bg-muted/30 rounded-md border px-3 py-2 text-sm">
+										{types.find(item => item.value === type)?.label}
+									</p>
+								</div>
+							) : (
+								<CustomSelect
+									label="Tipo"
+									onValueChange={value => setType(value as FinancialAccount["type"])}
+									options={types.filter(item => item.value !== "CREDIT_CARD")}
+									placeholder="Selecione o tipo"
+									required
+									value={type}
+								/>
+							))}
 						{type !== "CREDIT_CARD" && (
 							<AccountYieldFields
 								allowReference={!isGuestMode}
@@ -622,19 +618,6 @@ export function CreateFinancialAccountDialog({
 									required
 									value={creditLimit}
 								/>
-								<div className="grid gap-2">
-									<MoneyField
-										currencyCode={currency}
-										id="security-deposit"
-										label="Valor em garantia"
-										onValueChange={setSecurityDeposit}
-										value={securityDeposit}
-									/>
-									<p className="text-muted-foreground text-xs">
-										Use somente em cartões cujo limite depende de dinheiro deixado em
-										garantia. Não entra no saldo disponível.
-									</p>
-								</div>
 								<div className="grid gap-4 sm:grid-cols-2">
 									<CustomSelect
 										label="Fechamento"

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { CheckboxField } from "@/components/ui/CheckboxField";
+import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
@@ -25,8 +26,14 @@ export function CardPayerFields({
 	if (accounts.isPending) return <Skeleton className="h-28" />;
 	if (accounts.isError)
 		return <p className="text-destructive text-sm">Não foi possível carregar contas pagadoras.</p>;
+	const payerAccount = (accounts.data ?? []).find(account => account.id === payer);
 	return (
-		<section className="grid gap-3 rounded-xl border p-3">
+		<CollapsibleFormSection
+			summary={
+				payerAccount ? getFinancialAccountOptionLabel(payerAccount) : "Usar conta padrão para faturas"
+			}
+			title="Conta pagadora"
+		>
 			<CustomSelect
 				label="Conta pagadora"
 				onValueChange={value => onPayerChange(value === "primary" ? null : value)}
@@ -55,6 +62,6 @@ export function CardPayerFields({
 			<p className="text-muted-foreground text-xs">
 				Sugestões exigem revisão. Nenhum pagamento automático.
 			</p>
-		</section>
+		</CollapsibleFormSection>
 	);
 }
