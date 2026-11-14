@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useState } from "react";
-import { LuChartNoAxesCombined, LuPlus } from "react-icons/lu";
+import { LuChartNoAxesCombined, LuPlus, LuScale } from "react-icons/lu";
 import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +26,7 @@ const LoanPlannerDialog = lazy(() =>
 );
 
 export function EmpréstimosPage() {
+	const navigate = useNavigate();
 	const identity = useCacheIdentity();
 	const [plannerOpen, setPlannerOpen] = useUrlViewState("planner", false, viewBoolean);
 	const [institution, setInstitution] = useUrlViewState("institution", "", viewString);
@@ -74,6 +76,13 @@ export function EmpréstimosPage() {
 						icon: LuChartNoAxesCombined,
 						label: "Planejar antecipações",
 						onClick: () => setPlannerOpen(true),
+						variant: "outline",
+					},
+					{
+						icon: LuScale,
+						label: "Comparar ofertas",
+						onClick: () =>
+							void navigate({ search: { from: "loans" }, to: "/tools/loan-comparison" }),
 						variant: "outline",
 					},
 					{

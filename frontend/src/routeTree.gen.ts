@@ -33,6 +33,8 @@ import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-passw
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as BudgetIndexRouteImport } from './routes/budget/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as ToolsIndexRouteImport } from './routes/tools/index'
+import { Route as ToolsLoanComparisonRouteImport } from './routes/tools/loan-comparison'
 import { Route as AdminHistoryIndexRouteImport } from './routes/admin/history/index'
 import { Route as AdminInstitutionsIndexRouteImport } from './routes/admin/institutions/index'
 import { Route as AdminTaxesIndexRouteImport } from './routes/admin/taxes/index'
@@ -159,6 +161,16 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const ToolsIndexRoute = ToolsIndexRouteImport.update({
+  id: '/tools/',
+  path: '/tools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsLoanComparisonRoute = ToolsLoanComparisonRouteImport.update({
+  id: '/tools/loan-comparison',
+  path: '/tools/loan-comparison',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminHistoryIndexRoute = AdminHistoryIndexRouteImport.update({
   id: '/admin/history/',
   path: '/admin/history/',
@@ -206,11 +218,13 @@ export interface FileRoutesByFullPath {
   '/auth/register': typeof AuthRegisterRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/tools/loan-comparison': typeof ToolsLoanComparisonRoute
   '/account-transfers/': typeof AccountTransfersIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/budget/': typeof BudgetIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/tools/': typeof ToolsIndexRoute
   '/admin/history/': typeof AdminHistoryIndexRoute
   '/admin/institutions/': typeof AdminInstitutionsIndexRoute
   '/admin/taxes/': typeof AdminTaxesIndexRoute
@@ -235,11 +249,13 @@ export interface FileRoutesByTo {
   '/auth/register': typeof AuthRegisterRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/tools/loan-comparison': typeof ToolsLoanComparisonRoute
   '/account-transfers': typeof AccountTransfersIndexRoute
   '/admin': typeof AdminIndexRoute
   '/auth': typeof AuthIndexRoute
   '/budget': typeof BudgetIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/tools': typeof ToolsIndexRoute
   '/admin/history': typeof AdminHistoryIndexRoute
   '/admin/institutions': typeof AdminInstitutionsIndexRoute
   '/admin/taxes': typeof AdminTaxesIndexRoute
@@ -267,11 +283,13 @@ export interface FileRoutesById {
   '/auth/register': typeof AuthRegisterRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/tools/loan-comparison': typeof ToolsLoanComparisonRoute
   '/account-transfers/': typeof AccountTransfersIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/budget/': typeof BudgetIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/tools/': typeof ToolsIndexRoute
   '/admin/history/': typeof AdminHistoryIndexRoute
   '/admin/institutions/': typeof AdminInstitutionsIndexRoute
   '/admin/taxes/': typeof AdminTaxesIndexRoute
@@ -300,11 +318,13 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/auth/reset-password'
     | '/auth/verify-email'
+    | '/tools/loan-comparison'
     | '/account-transfers/'
     | '/admin/'
     | '/auth/'
     | '/budget/'
     | '/settings/'
+    | '/tools/'
     | '/admin/history/'
     | '/admin/institutions/'
     | '/admin/taxes/'
@@ -329,11 +349,13 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/auth/reset-password'
     | '/auth/verify-email'
+    | '/tools/loan-comparison'
     | '/account-transfers'
     | '/admin'
     | '/auth'
     | '/budget'
     | '/settings'
+    | '/tools'
     | '/admin/history'
     | '/admin/institutions'
     | '/admin/taxes'
@@ -360,11 +382,13 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/auth/reset-password'
     | '/auth/verify-email'
+    | '/tools/loan-comparison'
     | '/account-transfers/'
     | '/admin/'
     | '/auth/'
     | '/budget/'
     | '/settings/'
+    | '/tools/'
     | '/admin/history/'
     | '/admin/institutions/'
     | '/admin/taxes/'
@@ -388,9 +412,11 @@ export interface RootRouteChildren {
   SubscriptionsRoute: typeof SubscriptionsRoute
   TermsRoute: typeof TermsRoute
   TransactionsRoute: typeof TransactionsRoute
+  ToolsLoanComparisonRoute: typeof ToolsLoanComparisonRoute
   AccountTransfersIndexRoute: typeof AccountTransfersIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
   BudgetIndexRoute: typeof BudgetIndexRoute
+  ToolsIndexRoute: typeof ToolsIndexRoute
   AdminHistoryIndexRoute: typeof AdminHistoryIndexRoute
   AdminInstitutionsIndexRoute: typeof AdminInstitutionsIndexRoute
   AdminTaxesIndexRoute: typeof AdminTaxesIndexRoute
@@ -567,6 +593,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/tools/': {
+      id: '/tools/'
+      path: '/tools'
+      fullPath: '/tools/'
+      preLoaderRoute: typeof ToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/loan-comparison': {
+      id: '/tools/loan-comparison'
+      path: '/tools/loan-comparison'
+      fullPath: '/tools/loan-comparison'
+      preLoaderRoute: typeof ToolsLoanComparisonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/history/': {
       id: '/admin/history/'
       path: '/admin/history'
@@ -653,9 +693,11 @@ const rootRouteChildren: RootRouteChildren = {
   SubscriptionsRoute: SubscriptionsRoute,
   TermsRoute: TermsRoute,
   TransactionsRoute: TransactionsRoute,
+  ToolsLoanComparisonRoute: ToolsLoanComparisonRoute,
   AccountTransfersIndexRoute: AccountTransfersIndexRoute,
   AdminIndexRoute: AdminIndexRoute,
   BudgetIndexRoute: BudgetIndexRoute,
+  ToolsIndexRoute: ToolsIndexRoute,
   AdminHistoryIndexRoute: AdminHistoryIndexRoute,
   AdminInstitutionsIndexRoute: AdminInstitutionsIndexRoute,
   AdminTaxesIndexRoute: AdminTaxesIndexRoute,

@@ -71,6 +71,14 @@ const TransactionsPage = lazy(() =>
 		default: module.TransactionsPage,
 	})),
 );
+const ToolsPage = lazy(() =>
+	import("@/routes/tools/components/ToolsPage").then(module => ({ default: module.ToolsPage })),
+);
+const LoanComparisonPage = lazy(() =>
+	import("@/routes/tools/components/LoanComparisonPage").then(module => ({
+		default: module.LoanComparisonPage,
+	})),
+);
 
 const AccountTransfersPage = lazy(() =>
 	import("@/routes/account-transfers/components").then(module => ({
@@ -95,6 +103,8 @@ const screenByPath = {
 	"/recurring": RecurringPage,
 	"/settings": AjustesPage,
 	"/settings/open-finance": OpenFinancePage,
+	"/tools": ToolsPage,
+	"/tools/loan-comparison": LoanComparisonPage,
 	"/transactions": TransactionsPage,
 } satisfies Record<MobileScreenPath, ComponentType>;
 

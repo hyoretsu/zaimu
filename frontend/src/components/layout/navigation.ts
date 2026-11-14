@@ -7,6 +7,7 @@ import {
 	LuRepeat2,
 	LuSettings2,
 	LuWalletCards,
+	LuWrench,
 } from "react-icons/lu";
 
 export const primaryNavigation = [
@@ -21,6 +22,7 @@ export const primaryNavigation = [
 export const utilityNavigation = [
 	{ icon: LuArrowLeftRight, label: "Transferir contas", to: "/account-transfers" },
 	{ icon: LuWalletCards, label: "Orçamento", to: "/budget" },
+	{ icon: LuWrench, label: "Ferramentas", to: "/tools" },
 	{ icon: LuSettings2, label: "Ajustes", to: "/settings" },
 ] as const;
 

@@ -28,6 +28,9 @@ describe("mobile tab routes", () => {
 		["/recurring", "more", "/recurring"],
 		["/budget/", "more", "/budget"],
 		["/settings", "more", "/settings"],
+		["/tools", "more", "/tools"],
+		["/tools/", "more", "/tools"],
+		["/tools/loan-comparison", "more", "/tools/loan-comparison"],
 		["/salaries", "more", "/recurring"],
 		["/subscriptions", "more", "/recurring"],
 	])("classifies %s", (pathname, tabId, screenPath) => {
