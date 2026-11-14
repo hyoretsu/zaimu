@@ -20,14 +20,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { primaryCurrency } from "@/lib/account-assets";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate, getLocalDateKey } from "@/lib/date";
 import {
-	compareFinancialAccountsByOptionLabel,
-	getFinancialAccountOptionLabel,
+	compareFinancialAccountsByDisplayName,
+	getFinancialAccountDisplayName,
 } from "@/lib/financial-account";
 import { loanContractService } from "@/lib/loan-contract-service";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
@@ -177,33 +178,73 @@ export function LoanContractEditor({
 				>
 					<DialogBody>
 						<div className="space-y-4">
-							{institutions.isPending ? (
-								<Skeleton className="h-20" />
-							) : institutions.isError ? (
-								<p role="alert">
-									Falha ao carregar instituições.{" "}
-									<Button
-										onClick={() => void institutions.refetch()}
-										type="button"
-										variant="outline"
-									>
-										Tentar novamente
-									</Button>
-								</p>
-							) : (
-								<CustomSelect
-									label="Instituição financeira"
-									onValueChange={setInstitutionId}
-									options={(institutions.data ?? []).map(row => ({
-										label: row.name,
-										value: row.id,
-									}))}
-									placeholder="Ex: Banco do Brasil"
-									required
-									searchable
-									value={institutionId}
-								/>
-							)}
+							<FormFieldRow>
+								{institutions.isPending ? (
+									<Skeleton className="h-20" />
+								) : institutions.isError ? (
+									<p role="alert">
+										Falha ao carregar instituições.{" "}
+										<Button
+											onClick={() => void institutions.refetch()}
+											type="button"
+											variant="outline"
+										>
+											Tentar novamente
+										</Button>
+									</p>
+								) : (
+									<CustomSelect
+										label="Instituição financeira"
+										onValueChange={setInstitutionId}
+										options={(institutions.data ?? []).map(row => ({
+											label: row.name,
+											value: row.id,
+										}))}
+										placeholder="Ex: Banco do Brasil"
+										required
+										searchable
+										value={institutionId}
+									/>
+								)}
+								{!book &&
+									(accounts.isPending ? (
+										<Skeleton className="h-20" />
+									) : (
+										<CustomSelect
+											label="Recebimento"
+											onValueChange={setDisbursementAccountId}
+											options={[
+												{ label: "Não registrar", special: true, value: "" },
+												...(accounts.data ?? [])
+													.filter(
+														row =>
+															["CASH", "CHECKING"].includes(row.type) &&
+															(primaryCurrency(row) ?? "BRL") ===
+																draft.currency,
+													)
+													.toSorted(compareFinancialAccountsByDisplayName)
+													.map(row => ({
+														label: getFinancialAccountDisplayName(row),
+														value: row.id,
+													})),
+												...(transactions.data ?? [])
+													.filter(
+														row =>
+															row.type === "INCOME" &&
+															(row.currency ?? "BRL") === draft.currency &&
+															row.amount === draft.principalAmount,
+													)
+													.map(row => ({
+														label: `Vincular recebimento de ${formatLocalDate(row.date)} - ${row.description ?? "Recebimento"}`,
+														value: `link:${row.id}`,
+													})),
+											]}
+											placeholder="Ex: Conta corrente"
+											searchable
+											value={disbursementAccountId}
+										/>
+									))}
+							</FormFieldRow>
 							{restructure && (
 								<MoneyField
 									currencyCode={draft.currency}
@@ -215,7 +256,7 @@ export function LoanContractEditor({
 								/>
 							)}
 							<LoanContractFields onChange={setDraft} value={draft} />
-							{book ? (
+							{book && (
 								<DateField
 									id="contract-effective"
 									label="Vigência da alteração"
@@ -224,43 +265,7 @@ export function LoanContractEditor({
 									required
 									value={effectiveDate}
 								/>
-							) : accounts.isPending ? (
-								<Skeleton className="h-20" />
-							) : (
-								<CustomSelect
-									label="Entrada do valor emprestado"
-									onValueChange={setDisbursementAccountId}
-									options={[
-										{ label: "Não registrar entrada", special: true, value: "" },
-										...(accounts.data ?? [])
-											.filter(
-												row =>
-													["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(
-														row.type,
-													) && (primaryCurrency(row) ?? "BRL") === draft.currency,
-											)
-											.toSorted(compareFinancialAccountsByOptionLabel)
-											.map(row => ({
-												label: `Registrar entrada em ${getFinancialAccountOptionLabel(row)}`,
-												value: row.id,
-											})),
-										...(transactions.data ?? [])
-											.filter(
-												row =>
-													row.type === "INCOME" &&
-													(row.currency ?? "BRL") === draft.currency &&
-													row.amount === draft.principalAmount,
-											)
-											.map(row => ({
-												label: `Vincular recebimento de ${formatLocalDate(row.date)} - ${row.description ?? "Recebimento"}`,
-												value: `link:${row.id}`,
-											})),
-									]}
-									placeholder="Ex: Conta corrente"
-									searchable
-									value={disbursementAccountId}
-								/>
-							)}{" "}
+							)}
 							{error && (
 								<p className="text-destructive" role="alert">
 									{error}
