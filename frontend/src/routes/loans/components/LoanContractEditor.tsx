@@ -24,7 +24,11 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { primaryCurrency } from "@/lib/account-assets";
 import { dataService } from "@/lib/dataService";
-import { getLocalDateKey } from "@/lib/date";
+import { formatLocalDate, getLocalDateKey } from "@/lib/date";
+import {
+	compareFinancialAccountsByOptionLabel,
+	getFinancialAccountOptionLabel,
+} from "@/lib/financial-account";
 import { loanContractService } from "@/lib/loan-contract-service";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -119,7 +123,7 @@ export function LoanContractEditor({
 					</DialogDescription>
 				</DialogHeader>
 				<form
-					className="flex min-h-0 flex-1 flex-col"
+					className="flex min-h-0 flex-1 flex-col gap-6"
 					onSubmit={async event => {
 						event.preventDefault();
 						if (pending) return;
@@ -224,10 +228,10 @@ export function LoanContractEditor({
 								<Skeleton className="h-20" />
 							) : (
 								<CustomSelect
-									label="Crédito recebido"
+									label="Entrada do valor emprestado"
 									onValueChange={setDisbursementAccountId}
 									options={[
-										{ label: "Não criar movimento", special: true, value: "" },
+										{ label: "Não registrar entrada", special: true, value: "" },
 										...(accounts.data ?? [])
 											.filter(
 												row =>
@@ -235,8 +239,9 @@ export function LoanContractEditor({
 														row.type,
 													) && (primaryCurrency(row) ?? "BRL") === draft.currency,
 											)
+											.toSorted(compareFinancialAccountsByOptionLabel)
 											.map(row => ({
-												label: `Criar crédito em ${row.name}`,
+												label: `Registrar entrada em ${getFinancialAccountOptionLabel(row)}`,
 												value: row.id,
 											})),
 										...(transactions.data ?? [])
@@ -247,7 +252,7 @@ export function LoanContractEditor({
 													row.amount === draft.principalAmount,
 											)
 											.map(row => ({
-												label: `Vincular crédito de ${row.date} - ${row.description ?? "Recebimento"}`,
+												label: `Vincular recebimento de ${formatLocalDate(row.date)} - ${row.description ?? "Recebimento"}`,
 												value: `link:${row.id}`,
 											})),
 									]}

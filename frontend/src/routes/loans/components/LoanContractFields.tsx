@@ -25,6 +25,7 @@ export function LoanContractFields({
 	return (
 		<>
 			<FormFieldRow>
+				<CurrencySelect onValueChange={v => set("currency", v)} value={value.currency} />
 				<MoneyField
 					currencyCode={value.currency}
 					id="loan-principal"
@@ -33,7 +34,6 @@ export function LoanContractFields({
 					required
 					value={String(value.principalAmount || "")}
 				/>
-				<CurrencySelect onValueChange={v => set("currency", v)} value={value.currency} />
 				<NumericField
 					decimalScale={0}
 					id="loan-installments"
