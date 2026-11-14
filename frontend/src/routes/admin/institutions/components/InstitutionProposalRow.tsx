@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuCheck, LuLink, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -7,11 +7,10 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { PostFinancialInstitutionsReviewProposalsByIdBody } from "@/lib/api";
-import { getFinancialInstitutions, postFinancialInstitutionsReviewProposalsById } from "@/lib/api";
+import { postFinancialInstitutionsReviewProposalsById } from "@/lib/api";
 import { captureCacheMutation, invalidateMutationCache, mutationCacheMeta } from "@/lib/mutation-cache";
 import { showToast } from "@/stores";
-import { useAuthStore } from "@/stores/auth";
-import type { InstitutionProposal } from "./InstitutionReviewQueue";
+import type { InstitutionCatalogEntry, InstitutionProposal } from "./InstitutionReviewQueue";
 import { MergeProfileResolution, type ProfileResolution } from "./MergeProfileResolution";
 import { InstitutionUpdateDiff } from "./ProposalDiff";
 
@@ -26,20 +25,20 @@ const labels: Record<string, string> = {
 	PROFILE: "Novo perfil",
 	REJECTED: "Rejeitada",
 };
-export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProposal }) {
+export function InstitutionProposalRow({
+	institutions,
+	proposal,
+}: {
+	institutions: InstitutionCatalogEntry[] | undefined;
+	proposal: InstitutionProposal;
+}) {
 	const queryClient = useQueryClient();
 	const [reason, setReason] = useDebouncedInput("", () => undefined);
 	const [target, setTarget] = useState<string>();
 	const [resolution, setResolution] = useState<ProfileResolution[]>();
 	const [pending, setPending] = useState(false);
 	const [confirmed, setConfirmed] = useState(false);
-	const userId = useAuthStore(state => state.user?.id);
-	const institutions = useQuery({
-		enabled: proposal.status === "PENDING",
-		queryFn: () => getFinancialInstitutions({}).then(result => result.data),
-		queryKey: ["institutions", userId],
-	});
-	const current = institutions.data?.find(item => item.id === proposal.institutionId);
+	const current = institutions?.find(item => item.id === proposal.institutionId);
 	const stale =
 		proposal.baseVersion !== null &&
 		proposal.version !== null &&
@@ -135,7 +134,7 @@ export function InstitutionProposalRow({ proposal }: { proposal: InstitutionProp
 							setTarget(value);
 							setResolution(undefined);
 						}}
-						options={(institutions.data ?? [])
+						options={(institutions ?? [])
 							.filter(item => item.status === "APPROVED" && item.id !== proposal.institutionId)
 							.map(item => ({
 								label: `${item.name} - ${(item.operatingCountryCodes ?? []).join(", ")}`,
