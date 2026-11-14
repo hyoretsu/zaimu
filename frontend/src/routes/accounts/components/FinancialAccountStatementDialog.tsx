@@ -21,11 +21,10 @@ import type { MoneyPosition } from "@/lib/consolidated-money";
 import { dataService } from "@/lib/dataService";
 import { type FinancialAccountYieldEntry, getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
-import { buildStatementCsv, downloadCsv } from "@/lib/statement-csv";
-import { showToast } from "@/stores";
 import { BalanceAdjustmentsDialog } from "./BalanceAdjustmentsDialog";
 import { DetachedRewardHistory } from "./DetachedRewardHistory";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
+import { ExportStatementDialog } from "./ExportStatementDialog";
 import { useRecalculateAccountYield } from "./RecalculateAccountYieldButton";
 
 export function FinancialAccountStatementDialog({
@@ -79,6 +78,7 @@ export function FinancialAccountStatementDialog({
 	const [creatingTransaction, setCreatingTransaction] = useState(false);
 	const [adjustingBalance, setAdjustingBalance] = useState(false);
 	const [importOpen, setImportOpen] = useState(false);
+	const [exportOpen, setExportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const yields = useInfiniteQuery<
@@ -156,25 +156,6 @@ export function FinancialAccountStatementDialog({
 			successMessage: "Rendimento excluído.",
 		});
 		return Promise.resolve();
-	};
-	const exportCsv = async () => {
-		try {
-			const transactions: Transaction[] = [];
-			let cursor: string | undefined;
-			do {
-				const page = await dataService.transactions.getDailyPage({
-					cursor,
-					financialAccountId: account.id,
-					limit: 50,
-				});
-				transactions.push(...page.days.flatMap(day => day.transactions));
-				cursor = page.nextCursor ?? undefined;
-			} while (cursor);
-			downloadCsv(`extrato-${displayName}.csv`, buildStatementCsv(transactions, account.id));
-			showToast("Extrato exportado.", "positive");
-		} catch {
-			showToast("Não foi possível exportar extrato.", "negative");
-		}
 	};
 	const editTransaction = (transaction: Transaction) => setEditingTransaction(transaction);
 
@@ -291,7 +272,7 @@ export function FinancialAccountStatementDialog({
 							{
 								icon: LuDownload,
 								label: "Exportar CSV",
-								onClick: exportCsv,
+								onClick: () => setExportOpen(true),
 							},
 							{
 								icon: LuPlus,
@@ -316,6 +297,7 @@ export function FinancialAccountStatementDialog({
 						/>
 					</>
 				)}
+				<ExportStatementDialog account={account} onOpenChange={setExportOpen} open={exportOpen} />
 				<BalanceAdjustmentsDialog
 					account={account}
 					onOpenChange={setAdjustingBalance}
