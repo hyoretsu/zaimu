@@ -2,6 +2,8 @@
 
 Infra exclusiva local: PostgreSQL 55495, Redis 6395, RabbitMQ 56795 e API 3335. Nunca usar serviços compartilhados. Compose não baixa imagens; imagens precisam estar disponíveis na máquina.
 
+Segunda stack isolada (por exemplo, outra sessão já usa a padrão): defina, antes de qualquer comando abaixo, `PERFORMANCE_COMPOSE_PROJECT` (nome do projeto compose, padrão `zaimu-performance`), `PERFORMANCE_POSTGRES_PORT` (55495), `PERFORMANCE_REDIS_PORT` (6395), `PERFORMANCE_RABBITMQ_PORT` (56795), `PERFORMANCE_API_PORT` (3335) e `PERFORMANCE_DATABASE` (`zaimu_performance`; deve casar `zaimu_performance[a-z0-9_]*`). Os padrões preservam a stack original; `backend/performance/endpoints.ts` é a fonte única lida por compose, ambiente, seed, preflight, executor, matriz e guarda de fetch. O namespace Redis `zaimu_performance` não muda. Ao semear, use `PERFORMANCE_DATABASE_URL` com a porta e o banco escolhidos; derrube somente a própria stack com `docker compose -p <projeto> -f backend/performance/compose.yml down -v`. Specs de navegador (`frontend/tests/performance`) continuam fixas em 3335.
+
 ```bash
 bun backend/performance/inventory.ts
 docker compose -f backend/performance/compose.yml up -d --pull never

@@ -1,3 +1,4 @@
+import { PERFORMANCE_API_ORIGIN, PERFORMANCE_API_PORT } from "./endpoints";
 export function selectScenarios(known: readonly string[], selection?: string) {
 	if (selection === undefined) return [...known];
 	const names = selection.split(",").map(value => value.trim());
@@ -18,8 +19,8 @@ export function percentile(values: readonly number[], fraction: number) {
 }
 
 export function assertDedicatedApi(url: URL) {
-	if (url.origin !== "http://127.0.0.1:3335" || url.username || url.password || url.hash)
-		throw new Error("Dedicated loopback API 3335 required");
+	if (url.origin !== PERFORMANCE_API_ORIGIN || url.username || url.password || url.hash)
+		throw new Error(`Dedicated loopback API ${PERFORMANCE_API_PORT} required`);
 }
 
 export const numericHeader = (response: Response, name: string) => {

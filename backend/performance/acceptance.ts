@@ -3,6 +3,12 @@ import { RedisClient } from "bun";
 import { performanceBudgets } from "./budgets";
 import { completeCoverage, evaluateCoverage } from "./coverage";
 import coverage from "./coverage.json";
+import {
+	PERFORMANCE_API_ORIGIN,
+	PERFORMANCE_API_PORT,
+	PERFORMANCE_REDIS_PORT,
+	PERFORMANCE_REDIS_URL,
+} from "./endpoints";
 import { assertInventoryCurrent } from "./inventory-schema";
 import { inventorySourceHash } from "./inventory-source";
 import { PerformanceJournal } from "./journal";
@@ -11,15 +17,17 @@ import { preflight } from "./preflight";
 import { captureRequest, completeMetrics, percentile, type RequestSample, selectScenarios } from "./runner";
 import { attachTelemetry, completeTelemetry, readTelemetry } from "./telemetry";
 
-const base = new URL(process.env.PERFORMANCE_BASE_URL ?? "http://127.0.0.1:3335");
-const redisUrl = new URL(process.env.PERFORMANCE_ISOLATED_REDIS_URL ?? "redis://127.0.0.1:6395");
+const base = new URL(process.env.PERFORMANCE_BASE_URL ?? PERFORMANCE_API_ORIGIN);
+const redisUrl = new URL(process.env.PERFORMANCE_ISOLATED_REDIS_URL ?? PERFORMANCE_REDIS_URL);
 if (
 	base.hostname !== "127.0.0.1" ||
-	base.port !== "3335" ||
+	base.port !== String(PERFORMANCE_API_PORT) ||
 	redisUrl.hostname !== "127.0.0.1" ||
-	redisUrl.port !== "6395"
+	redisUrl.port !== String(PERFORMANCE_REDIS_PORT)
 )
-	throw new Error("Dedicated loopback API 3335 and Redis 6395 required");
+	throw new Error(
+		`Dedicated loopback API ${PERFORMANCE_API_PORT} and Redis ${PERFORMANCE_REDIS_PORT} required`,
+	);
 const namespace = "zaimu_performance";
 const reportPath =
 	process.env.PERFORMANCE_REPORT_PATH ?? new URL("./acceptance-result.json", import.meta.url).pathname;

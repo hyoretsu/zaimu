@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { assertLocalDockerSocket } from "../../scripts/testing/validation";
 import coverage from "./coverage.json";
+import { PERFORMANCE_API_ORIGIN, PERFORMANCE_API_PORT, PERFORMANCE_DATABASE_URL } from "./endpoints";
 import { assertInventoryCurrent } from "./inventory-schema";
 import { inventorySourceHash } from "./inventory-source";
 
@@ -45,7 +46,7 @@ try {
 	const contextHost = (await new Response(context.stdout).text()).trim();
 	if (await context.exited) throw new Error("Cannot inspect local Docker context");
 	assertLocalDockerSocket(contextHost);
-	const probe = Bun.listen({ hostname: "127.0.0.1", port: 3335, socket: { data() {} } });
+	const probe = Bun.listen({ hostname: "127.0.0.1", port: PERFORMANCE_API_PORT, socket: { data() {} } });
 	probe.stop();
 	// Compose refuses pulls and publishes dedicated services only on loopback.
 	await command(
@@ -56,8 +57,7 @@ try {
 		if (stopped) break;
 		await command(["bun", "run", "backend/performance/seed.ts"], {
 			DO_NOT_TRACK: "1",
-			PERFORMANCE_DATABASE_URL:
-				"postgresql://performance:performance-local@127.0.0.1:55495/zaimu_performance",
+			PERFORMANCE_DATABASE_URL,
 			PERFORMANCE_FIXTURE_SIZE: String(size),
 			PERFORMANCE_FIXTURE_USERS: "20",
 			PRISMA_TELEMETRY_DISABLED: "1",
@@ -75,7 +75,7 @@ try {
 			let ready = false;
 			for (let attempt = 0; attempt < 60; attempt++) {
 				try {
-					const response = await fetch("http://127.0.0.1:3335/health", {
+					const response = await fetch(`${PERFORMANCE_API_ORIGIN}/health`, {
 						redirect: "error",
 						signal: AbortSignal.timeout(1000),
 					});

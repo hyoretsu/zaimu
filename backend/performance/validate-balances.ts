@@ -1,7 +1,12 @@
 import { monetaryBalancesSql } from "../src/modules/accounts/application/monetary-balances-sql";
+import { PERFORMANCE_DATABASE, PERFORMANCE_POSTGRES_PORT } from "./endpoints";
 
 const url = new URL(process.env.PERFORMANCE_DATABASE_URL ?? "");
-if (url.hostname !== "127.0.0.1" || url.port !== "55495" || url.pathname !== "/zaimu_performance")
+if (
+	url.hostname !== "127.0.0.1" ||
+	url.port !== String(PERFORMANCE_POSTGRES_PORT) ||
+	url.pathname !== `/${PERFORMANCE_DATABASE}`
+)
 	throw new Error("Dedicated local performance database required");
 process.env.DATABASE_URL = url.href;
 const { closeDatabase, queryRaw, withRawTransaction } = await import("sql");
@@ -35,10 +40,10 @@ try {
 							[user],
 						);
 					const started = performance.now();
-					const before = await query<{ date: string; accountId: string; balance: string }>(baseline, [
-						user,
-						dates,
-					]);
+					const before = await query<{ date: string; accountId: string; balance: string }>(
+						baseline,
+						[user, dates],
+					);
 					if (!before.length) throw new Error(`Missing account fixture: ${user}`);
 					const beforeMs = performance.now() - started;
 					const optimizedAt = performance.now();
@@ -58,7 +63,8 @@ try {
 							const row = cents(after).find(
 								item => item.accountId === accountId && item.date === "2026-10-04",
 							);
-							if (row?.balance !== balance) throw new Error(`Independent balance mismatch: ${accountId}`);
+							if (row?.balance !== balance)
+								throw new Error(`Independent balance mismatch: ${accountId}`);
 						}
 						if (after.some(row => row.accountId === "balance-test-points"))
 							throw new Error("Points included in monetary balances");

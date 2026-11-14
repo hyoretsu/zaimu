@@ -1,6 +1,7 @@
 import { Client } from "pg";
 import { businessDateSql } from "../src/shared/infra/sql/business-date";
 import { PERFORMANCE_REFERENCE_DATE } from "./clock";
+import { PERFORMANCE_API_ORIGIN, PERFORMANCE_DATABASE, PERFORMANCE_DATABASE_URL } from "./endpoints";
 
 export function performanceClockEvidence(
 	databaseDate: string,
@@ -40,14 +41,14 @@ export function performanceApiClockEvidence(response: Response, diagnostic = fal
 /** Never inherit DATABASE_URL; this connection is always the dedicated loopback fixture. */
 export async function preflight(users: number, { diagnostic = false } = {}) {
 	const client = new Client({
-		connectionString: "postgresql://performance:performance-local@127.0.0.1:55495/zaimu_performance",
+		connectionString: PERFORMANCE_DATABASE_URL,
 		connectionTimeoutMillis: 5000,
 		options: `-c zaimu.business_date=${PERFORMANCE_REFERENCE_DATE}`,
 	});
 	try {
 		await client.connect();
 		const apiClock = performanceApiClockEvidence(
-			await fetch("http://127.0.0.1:3335/health", {
+			await fetch(`${PERFORMANCE_API_ORIGIN}/health`, {
 				redirect: "error",
 				signal: AbortSignal.timeout(5000),
 			}),
@@ -98,7 +99,7 @@ export async function preflight(users: number, { diagnostic = false } = {}) {
 		]);
 		return {
 			clock,
-			database: "zaimu_performance",
+			database: PERFORMANCE_DATABASE,
 			namespace: "zaimu_performance",
 			referenceDate: PERFORMANCE_REFERENCE_DATE,
 			transactions: Number(size.rows[0].size),
@@ -111,7 +112,7 @@ export async function preflight(users: number, { diagnostic = false } = {}) {
 
 export async function cleanupPerformanceLoan(id: string, user: number) {
 	const client = new Client({
-		connectionString: "postgresql://performance:performance-local@127.0.0.1:55495/zaimu_performance",
+		connectionString: PERFORMANCE_DATABASE_URL,
 		connectionTimeoutMillis: 5000,
 	});
 	try {

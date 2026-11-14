@@ -1,12 +1,17 @@
 import { installPerformanceClock, PERFORMANCE_REFERENCE_DATE } from "./clock";
+import { PERFORMANCE_DATABASE, PERFORMANCE_POSTGRES_PORT, PERFORMANCE_REDIS_URL } from "./endpoints";
 
 installPerformanceClock();
 const target = new URL(process.env.PERFORMANCE_DATABASE_URL ?? "");
-if (target.hostname !== "127.0.0.1" || target.port !== "55495" || target.pathname !== "/zaimu_performance")
+if (
+	target.hostname !== "127.0.0.1" ||
+	target.port !== String(PERFORMANCE_POSTGRES_PORT) ||
+	target.pathname !== `/${PERFORMANCE_DATABASE}`
+)
 	throw new Error("Dedicated DB required");
 target.searchParams.set("options", `-c zaimu.business_date=${PERFORMANCE_REFERENCE_DATE}`);
 process.env.DATABASE_URL = target.href;
-process.env.REDIS_URL = "redis://127.0.0.1:6395";
+process.env.REDIS_URL = PERFORMANCE_REDIS_URL;
 process.env.SERVICE_NAMESPACE = "zaimu_performance";
 process.env.BETTER_AUTH_SECRET = "local-performance-profile-secret-at-least-32";
 const { dashboardFinancialContext } =

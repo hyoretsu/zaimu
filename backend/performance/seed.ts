@@ -1,3 +1,4 @@
+import { PERFORMANCE_DATABASE, PERFORMANCE_POSTGRES_PORT } from "./endpoints";
 const performanceDatabaseUrl = process.env.PERFORMANCE_DATABASE_URL;
 
 if (!performanceDatabaseUrl) throw new Error("Defina PERFORMANCE_DATABASE_URL");
@@ -7,13 +8,15 @@ const databaseName = databaseUrl.pathname.slice(1);
 if (
 	databaseUrl.protocol !== "postgresql:" ||
 	databaseUrl.hostname !== "127.0.0.1" ||
-	databaseUrl.port !== "55495" ||
-	databaseName !== "zaimu_performance" ||
+	databaseUrl.port !== String(PERFORMANCE_POSTGRES_PORT) ||
+	databaseName !== PERFORMANCE_DATABASE ||
 	databaseUrl.username !== "performance" ||
 	databaseUrl.search ||
 	databaseUrl.hash
 )
-	throw new Error("Dedicated PostgreSQL 127.0.0.1:55495/zaimu_performance required");
+	throw new Error(
+		`Dedicated PostgreSQL 127.0.0.1:${PERFORMANCE_POSTGRES_PORT}/${PERFORMANCE_DATABASE} required`,
+	);
 const size = Number(process.env.PERFORMANCE_FIXTURE_SIZE ?? 100000);
 if (![10, 10000, 100000].includes(size)) throw new Error("PERFORMANCE_FIXTURE_SIZE: 10, 10000 ou 100000");
 const users = Number(process.env.PERFORMANCE_FIXTURE_USERS ?? 1);

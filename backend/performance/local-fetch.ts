@@ -1,3 +1,4 @@
+import { PERFORMANCE_API_PORT, PERFORMANCE_WEB_PORT } from "./endpoints";
 const parseDate = (value: string | null) => {
 	const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value ?? "");
 	if (!match) throw new Error("Invalid BCB fixture date");
@@ -14,7 +15,8 @@ const parseDate = (value: string | null) => {
 /** Known providers are simulated in memory; all other external HTTP fails before network I/O. */
 export function createPerformanceFetch(original: typeof fetch): typeof fetch {
 	const guarded = async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-		const request = input instanceof Request ? new Request(input, init) : new Request(String(input), init);
+		const request =
+			input instanceof Request ? new Request(input, init) : new Request(String(input), init);
 		const url = new URL(request.url);
 		if (
 			url.origin === "https://api.bcb.gov.br" &&
@@ -50,7 +52,12 @@ export function createPerformanceFetch(original: typeof fetch): typeof fetch {
 			const base = jsdelivr?.[2] ?? cfPath?.[1];
 			const units: Record<string, number> = { brl: 5, eur: 0.9, jpy: 150, usd: 1 };
 			if (!base)
-				return Response.json({ brl: "Brazilian Real", eur: "Euro", jpy: "Japanese Yen", usd: "US Dollar" });
+				return Response.json({
+					brl: "Brazilian Real",
+					eur: "Euro",
+					jpy: "Japanese Yen",
+					usd: "US Dollar",
+				});
 			if (!units[base]) return new Response(null, { status: 404 });
 			return Response.json({
 				date: requestedDate === "latest" ? "2026-10-04" : requestedDate,
@@ -63,7 +70,7 @@ export function createPerformanceFetch(original: typeof fetch): typeof fetch {
 		if (
 			!["http:", "https:"].includes(url.protocol) ||
 			!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-			!["3335", "5173"].includes(url.port)
+			![String(PERFORMANCE_API_PORT), String(PERFORMANCE_WEB_PORT)].includes(url.port)
 		)
 			throw new Error("External HTTP blocked by performance environment");
 		return original(new Request(request, { redirect: "error" }));
@@ -74,7 +81,7 @@ export function createPerformanceFetch(original: typeof fetch): typeof fetch {
 			if (
 				!["http:", "https:"].includes(url.protocol) ||
 				!["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-				!["3335", "5173"].includes(url.port)
+				![String(PERFORMANCE_API_PORT), String(PERFORMANCE_WEB_PORT)].includes(url.port)
 			)
 				throw new Error("External preconnect blocked by performance environment");
 			return original.preconnect(...args);
