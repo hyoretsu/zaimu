@@ -37,6 +37,7 @@ import {
 	localLoanPayments,
 	localMeta,
 	localRecurrenceOccurrences,
+	localTransactions,
 	readLocalCreditBook,
 } from "./localStorage";
 import { monthlyBudgetService } from "./monthly-budget-service";
@@ -79,6 +80,8 @@ export async function getGuestDashboardFinancialContext(
 		localMeta.get("financial-account-yields"),
 		monthlyBudgetService.getAll(),
 	]);
+	// One shared read for every card's payments instead of one per card.
+	const rawTransactionRows = cards.length ? await localTransactions.getAll() : [];
 	// The listing also contains card purchases; their cash effect belongs to statement payments.
 	const transactions = listedTransactions.filter(row => row.source !== "CREDIT_CARD");
 	const key = (date: Date) => format(date, "yyyy-MM-dd");
@@ -243,7 +246,7 @@ export async function getGuestDashboardFinancialContext(
 	const projectedBooks = await Promise.all(
 		cards.map(async card =>
 			projectRecurrenceCreditBook(
-				await readLocalCreditBook(card.id),
+				await readLocalCreditBook(card.id, undefined, rawTransactionRows),
 				forecastMoney.consolidation.forecastAvailable
 					? recurrences
 					: recurrences.filter(row => (row.currency ?? "BRL") === (card.currency ?? "BRL")),

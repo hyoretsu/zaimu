@@ -41,7 +41,7 @@ import type { Recurrence, RecurrenceOccurrence } from "./recurrence";
 import { cachedYieldCalendar } from "./yield-calendar";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 17;
+const DB_VERSION = 18;
 
 const LOCAL_STORES = {
 	accounts: "accounts",
@@ -174,6 +174,12 @@ async function openLocalDb(): Promise<IDBDatabase> {
 					store.createIndex("ownerModifiedAt", ["ownerKey", "modifiedAt"]);
 				if (domain === "transactions" && !store.indexNames.contains("ownerDate"))
 					store.createIndex("ownerDate", ["ownerKey", "data.date", "localId"]);
+				// Point lookups of everything linked to one recurrence; rows without a recurrence are not indexed.
+				if (
+					(domain === "transactions" || domain === "recurrenceOccurrences") &&
+					!store.indexNames.contains("ownerRecurrence")
+				)
+					store.createIndex("ownerRecurrence", ["ownerKey", "data.recurrenceId"]);
 			}
 		};
 	});
@@ -268,6 +274,29 @@ export async function getAll<T>(domain: StoreDomain, ownerKey?: StorageOwner): P
 						}
 					: item,
 			);
+	});
+}
+
+/** Live rows linked to one recurrence, via the `ownerRecurrence` index when the schema has it. */
+export async function getByRecurrenceId<T>(
+	domain: "recurrenceOccurrences" | "transactions",
+	recurrenceId: string,
+	ownerKey?: StorageOwner,
+): Promise<LocalData<T>[]> {
+	const owner = requireOwner(ownerKey);
+	return runTransaction(scopedStoreName(domain), "readonly", async store => {
+		// A database advanced by the retired-store cleanup may lack the index: scan instead.
+		if (!store.indexNames.contains("ownerRecurrence"))
+			return ((await requestResult(store.index("ownerKey").getAll(owner))) as LocalData<T>[]).filter(
+				item =>
+					!item.deleted &&
+					(item.data as { recurrenceId?: string | null }).recurrenceId === recurrenceId,
+			);
+		return (
+			(await requestResult(
+				store.index("ownerRecurrence").getAll([owner, recurrenceId]),
+			)) as LocalData<T>[]
+		).filter(item => !item.deleted);
 	});
 }
 
@@ -1199,11 +1228,16 @@ export async function transferLocalCreditBookPurchase(
 		throw error;
 	}
 }
-export async function readLocalCreditBook(cardId: string, owner?: StorageOwner): Promise<CreditBook> {
+export async function readLocalCreditBook(
+	cardId: string,
+	owner?: StorageOwner,
+	/** Rows from one shared `localTransactions.getAll(owner)` read, to avoid re-reading per card. */
+	preloadedTransactions?: Awaited<ReturnType<typeof localTransactions.getAll>>,
+): Promise<CreditBook> {
 	const [stored, cardRow, transactions] = await Promise.all([
 		localCreditBooks.getById(cardId, owner),
 		localCreditCards.getById(cardId, owner),
-		localTransactions.getAll(owner),
+		preloadedTransactions ?? localTransactions.getAll(owner),
 	]);
 	if (!cardRow || cardRow.deleted) throw new Error("Cartão não encontrado");
 	const card = cardRow.data;

@@ -264,6 +264,7 @@ import {
 	confirmLocalSuggestedPayment,
 	createLocalDebtOrigins,
 	createLocalLoanWithPayments,
+	getByRecurrenceId,
 	initLocalDb,
 	localAccounts,
 	localCategories,
@@ -1898,6 +1899,7 @@ export const dataService = {
 					account.isDefaultForStatements &&
 					["CHECKING", "CASH", "SAVINGS", "INVESTMENT"].includes(account.type),
 			);
+			const transactionRows = await localTransactions.getAll();
 			return (
 				await Promise.all(
 					cards
@@ -1910,7 +1912,9 @@ export const dataService = {
 									!["CREDIT_CARD", "REWARDS"].includes(account.type),
 							);
 							if (!payer) return [];
-							return pendingStatementPayments(await readLocalCreditBook(card.id)).map(row => ({
+							return pendingStatementPayments(
+								await readLocalCreditBook(card.id, undefined, transactionRows),
+							).map(row => ({
 								...row,
 								cardName: card.accountName ?? "Cartão de crédito",
 								financialAccountId: payer.id,
@@ -1973,8 +1977,9 @@ export const dataService = {
 				return getCreditCardsByIdStatementsByStatementId({ path: { id: cardId, statementId } }).then(
 					result => result.data,
 				);
+			const transactionRows = await localTransactions.getAll();
 			const book = await projectGuestRecurrenceCreditBook(
-				await readLocalCreditBook(cardId),
+				await readLocalCreditBook(cardId, undefined, transactionRows),
 				await dataService.recurrences.getAll(),
 				shiftRecurrenceDate(getLocalDateKey(), 1),
 				`${new Date().getFullYear() + 2}-12-31`,
@@ -2010,7 +2015,7 @@ export const dataService = {
 						};
 					}),
 			);
-			const payments = (await localTransactions.getAll())
+			const payments = transactionRows
 				.filter(
 					row =>
 						!row.deleted &&
@@ -4271,11 +4276,9 @@ export const dataService = {
 					? (data.recurrenceOccurrenceDate ?? data.date)
 					: undefined;
 				if (recurrenceOccurrenceDate) {
-					const existing = (await localTransactions.getAll()).find(
-						item =>
-							item.data.recurrenceId === data.recurrenceId &&
-							item.data.recurrenceOccurrenceDate === recurrenceOccurrenceDate,
-					);
+					const existing = (
+						await getByRecurrenceId<Transaction>("transactions", data.recurrenceId!)
+					).find(item => item.data.recurrenceOccurrenceDate === recurrenceOccurrenceDate);
 					if (existing) return existing.data;
 				}
 				const hasExplicitTags = data.tagIds !== undefined;
@@ -4338,18 +4341,24 @@ export const dataService = {
 			await deleteTransactionsById({ path: { id } }).then(result => result.data);
 			cacheRemoteData(localTransactions.delete(id));
 		},
-		async getAll(params?: {
-			categoryId?: string;
-			endDate?: string;
-			financialAccountId?: string;
-			limit?: number;
-			offset?: number;
-			search?: string;
-			source?: NonNullable<Transaction["source"]>;
-			startDate?: string;
-			type?: Transaction["type"];
-			visibility?: "hidden" | "visible";
-		}): Promise<Transaction[]> {
+		async getAll(
+			params?: {
+				categoryId?: string;
+				endDate?: string;
+				financialAccountId?: string;
+				limit?: number;
+				offset?: number;
+				search?: string;
+				source?: NonNullable<Transaction["source"]>;
+				startDate?: string;
+				type?: Transaction["type"];
+				visibility?: "hidden" | "visible";
+			},
+			preloaded?: {
+				accounts?: Awaited<ReturnType<typeof localAccounts.getAll>>;
+				transactions?: Awaited<ReturnType<typeof localTransactions.getAll>>;
+			},
+		): Promise<Transaction[]> {
 			if (isGuestMode()) {
 				const [
 					local,
@@ -4359,12 +4368,12 @@ export const dataService = {
 					storedCategories,
 					storedAccounts,
 				] = await Promise.all([
-					localTransactions.getAll(),
+					preloaded?.transactions ?? localTransactions.getAll(),
 					localCreditBooks.getAll(),
 					localCreditCardStatements.getAll(),
 					localCreditCards.getAll(),
 					localCategories.getAll(),
-					localAccounts.getAll(),
+					preloaded?.accounts ?? localAccounts.getAll(),
 				]);
 				const statements = new Map(storedStatements.map(item => [item.data.id, item.data]));
 				const cards = new Map(storedCards.map(item => [item.data.id, item.data]));
@@ -4527,14 +4536,20 @@ export const dataService = {
 		}> {
 			if (isGuestMode()) {
 				const { cursor: _cursor, limit: _limit, ...filters } = params;
-				const page = guestTransactionPage(await this.getAll(filters), getUserId(), params);
+				const [accounts, transactions] = await Promise.all([
+					localAccounts.getAll(),
+					localTransactions.getAll(),
+				]);
+				const page = guestTransactionPage(
+					await this.getAll(filters, { accounts, transactions }),
+					getUserId(),
+					params,
+				);
 				const dates = transactionPageDates(
 					page.items.map(row => row.date.slice(0, 10)),
 					params,
 				);
-				const [accounts, transactions, holidays, yields, loanPayments] = await Promise.all([
-					localAccounts.getAll(),
-					localTransactions.getAll(),
+				const [holidays, yields, loanPayments] = await Promise.all([
 					Promise.resolve(cachedYieldCalendar()),
 					localMeta.get("financial-account-yields"),
 					localLoanPayments.getAll(),

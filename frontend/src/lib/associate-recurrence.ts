@@ -3,13 +3,14 @@ import { recurrencePeriodStart, validateRecurrenceAssociation } from "@zaimu/fin
 import type { PostRecurringByIdAssociateBody } from "./api";
 import {
 	commitLocalRecurrenceChanges,
+	getByRecurrenceId,
 	localCreditBooks,
-	localRecurrenceOccurrences,
 	localRecurrences,
 	localTransactions,
 	readLocalCreditBook,
 	type StorageOwner,
 } from "./localStorage";
+import type { RecurrenceOccurrence } from "./recurrence";
 
 export async function associateLocalRecurrence(
 	owner: StorageOwner,
@@ -37,11 +38,10 @@ export async function associateLocalRecurrence(
 		input.date,
 	);
 	const occurrenceId = `${id}:${input.date}`;
-	const existing = (await localRecurrenceOccurrences.getAll(owner)).find(
+	const existing = (await getByRecurrenceId<RecurrenceOccurrence>("recurrenceOccurrences", id, owner)).find(
 		row =>
-			row.data.recurrenceId === id &&
 			recurrencePeriodStart(record.data.unit, row.data.date) ===
-				recurrencePeriodStart(record.data.unit, input.date),
+			recurrencePeriodStart(record.data.unit, input.date),
 	);
 	if (existing) {
 		if (
