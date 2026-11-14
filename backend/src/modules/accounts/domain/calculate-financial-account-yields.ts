@@ -4,6 +4,7 @@ import {
 	legacyCalendarHoliday,
 	type LegacyYieldCalendar,
 } from "@zaimu/finance/projected-yield";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
@@ -115,7 +116,7 @@ export function calculateFinancialAccountYieldBalances({
 	holidaysByCountry,
 	coveredCalendarYears,
 	initialRewardsBalances,
-	today = new Date(),
+	today = businessNow(),
 	transactions,
 	yields = [],
 	lotSnapshots,

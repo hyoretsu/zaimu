@@ -14,6 +14,7 @@ test("fingerprint changes for mounted source, route screens and budgets; exclude
 			"backend/performance/inventory.ts",
 			"backend/scripts/export-openapi.ts",
 			"backend/src/server.ts",
+			"packages/finance/src/time-zone.ts",
 			"frontend/src/routes/cards/index.tsx",
 		])
 			await Bun.write(join(root, path), path);
@@ -28,7 +29,10 @@ test("fingerprint changes for mounted source, route screens and budgets; exclude
 		const screenChanged = await inventorySourceHash(root);
 		expect(screenChanged).not.toBe(backendChanged);
 		await Bun.write(join(root, "backend/performance/budgets.ts"), "changed budget");
-		expect(await inventorySourceHash(root)).not.toBe(screenChanged);
+		const budgetChanged = await inventorySourceHash(root);
+		expect(budgetChanged).not.toBe(screenChanged);
+		await Bun.write(join(root, "packages/finance/src/time-zone.ts"), "changed financial clock");
+		expect(await inventorySourceHash(root)).not.toBe(budgetChanged);
 	} finally {
 		await rm(root, { force: true, recursive: true });
 	}

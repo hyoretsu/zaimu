@@ -8,6 +8,7 @@ import { useState } from "react";
 import { LuArrowRightLeft, LuPencil, LuUndo2 } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import {
 	Dialog,
 	DialogBody,
@@ -25,7 +26,6 @@ import { formatCurrency } from "./loan-format";
 import { LoanContractEditor } from "./LoanContractEditor";
 import { LoanInstallmentRow } from "./LoanInstallmentRow";
 import { LoanOperationForm } from "./LoanOperationForm";
-import { LoanSection } from "./LoanSection";
 export function LoanContractDialog({
 	loanId,
 	onClose,
@@ -120,8 +120,8 @@ export function LoanContractDialog({
 										Credor legado preservado. Associe instituição em Editar contrato.
 									</p>
 								)}
-								<LoanSection
-									initiallyOpen
+								<CollapsibleFormSection
+									defaultExpanded
 									summary={
 										rows.length ? `${rows.length} parcelas pendentes` : "Contrato quitado"
 									}
@@ -133,8 +133,11 @@ export function LoanContractDialog({
 										key={book.data.revision}
 										onChanged={refresh}
 									/>
-								</LoanSection>
-								<LoanSection summary={`${rows.length} parcelas pendentes`} title="Cronograma">
+								</CollapsibleFormSection>
+								<CollapsibleFormSection
+									summary={`${rows.length} parcelas pendentes`}
+									title="Cronograma"
+								>
 									{rows.map(row => (
 										<LoanInstallmentRow
 											currency={version.terms.currency}
@@ -142,8 +145,8 @@ export function LoanContractDialog({
 											row={row}
 										/>
 									))}
-								</LoanSection>
-								<LoanSection
+								</CollapsibleFormSection>
+								<CollapsibleFormSection
 									summary={`${book.data.receipts.length} registros`}
 									title="Histórico de pagamentos"
 								>
@@ -202,8 +205,8 @@ export function LoanContractDialog({
 												)}
 										</div>
 									))}
-								</LoanSection>
-								<LoanSection
+								</CollapsibleFormSection>
+								<CollapsibleFormSection
 									summary={`${book.data.versions.length} versões`}
 									title="Versões contratuais"
 								>
@@ -223,7 +226,7 @@ export function LoanContractDialog({
 																: "Atualização"}
 										</p>
 									))}
-								</LoanSection>
+								</CollapsibleFormSection>
 							</div>
 						) : null}
 					</DialogBody>

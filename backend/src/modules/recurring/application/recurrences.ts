@@ -9,6 +9,7 @@ import {
 	validateRecurrenceInstallments,
 	validateRecurrenceSchedule,
 } from "@zaimu/finance/recurrence";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { resolveTransactionMoneySides } from "@zaimu/finance/transaction-money";
 import { assertFiatHolding, resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership } from "~/modules/auth";
@@ -468,7 +469,7 @@ export async function materializeRecurrence(
 		return created;
 	});
 }
-export async function materializeAllRecurrences(asOf = new Date(), userIds?: string[]) {
+export async function materializeAllRecurrences(asOf = businessNow(), userIds?: string[]) {
 	if (userIds && !userIds.length) return { transactions: 0, userIds: [] };
 	const rows = await queryRaw<{
 		id: string;

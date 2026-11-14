@@ -45,9 +45,17 @@ export async function deleteLinkedTransactions(
 		...new Set(transactions.flatMap(row => (row.paymentCreditCardId ? [row.paymentCreditCardId] : []))),
 	];
 	if (cards.length) await withTransaction(executor => recalculateStatementPayments(executor, cards));
+	// One recalculation per account from its earliest affected date covers the later ones.
+	const earliestByAccount = new Map<string, Date>();
 	for (const row of transactions)
-		for (const accountId of [row.originFinancialAccountId, row.destinationFinancialAccountId])
-			if (accountId)
-				await enqueueAccountYieldRecalculation(accountId, new Date(row.date), "recurrence-deleted");
+		for (const accountId of [row.originFinancialAccountId, row.destinationFinancialAccountId]) {
+			if (!accountId) continue;
+			const date = new Date(row.date);
+			const current = earliestByAccount.get(accountId);
+			if (!current || date < current) earliestByAccount.set(accountId, date);
+		}
+	// Sequential on purpose: bounds the queue fan-out.
+	for (const [accountId, date] of earliestByAccount)
+		await enqueueAccountYieldRecalculation(accountId, date, "recurrence-deleted");
 	return transactionIds.length;
 }

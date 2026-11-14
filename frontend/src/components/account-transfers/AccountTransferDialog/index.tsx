@@ -150,7 +150,7 @@ export function AccountTransferDialog({
 					</>
 				) : (
 					<form
-						className="flex min-h-0 flex-1 flex-col"
+						className="flex min-h-0 flex-1 flex-col gap-6"
 						onSubmit={event => {
 							event.preventDefault();
 							const recipientEmail = String(

@@ -1,6 +1,7 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { dateKey, shiftDay, windowDays } from "./collection";
 
-export function coverageWindow(start?: string, end?: string, now = new Date()) {
+export function coverageWindow(start?: string, end?: string, now = businessNow()) {
 	const today = dateKey(now);
 	const startDate = dateKey(start ?? shiftDay(today, -365));
 	const endDate = dateKey(end ?? shiftDay(today, -1));

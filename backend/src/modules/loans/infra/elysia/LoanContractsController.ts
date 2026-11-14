@@ -10,6 +10,7 @@ import {
 	reverseLoanReceipt,
 	simulateLoanOperation,
 } from "@zaimu/finance/loan-contract";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { Elysia, t } from "elysia";
 import { assertFiatHolding, resolveAccountAsset } from "~/modules/accounts/application/account-assets";
 import { assertBalanceAccountOwnership, requireUserId } from "~/modules/auth";
@@ -163,7 +164,7 @@ export const LoanContractsController = new Elysia({ detail: { tags: ["Loans"] },
 		"/contracts",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			const context = await loanReferenceContext(new Date().toISOString().slice(0, 10));
+			const context = await loanReferenceContext(businessNow().toISOString().slice(0, 10));
 			return withRawTransaction(async () => {
 				const book = await insertLoanBook(
 					userId,
@@ -328,7 +329,7 @@ export const LoanContractsController = new Elysia({ detail: { tags: ["Loans"] },
 		"/:id/simulate",
 		async ({ params, body, request }) => {
 			const book = await loadLoanBook(await requireUserId(request), params.id);
-			const context = await loanReferenceContext(new Date().toISOString().slice(0, 10));
+			const context = await loanReferenceContext(businessNow().toISOString().slice(0, 10));
 			return simulateLoanOperation(book, body, context.reference);
 		},
 		{ body: LoanSimulationInputDTO, params: Params, response: LoanSimulationReturn },
@@ -337,7 +338,7 @@ export const LoanContractsController = new Elysia({ detail: { tags: ["Loans"] },
 		"/:id/execute",
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
-			const context = await loanReferenceContext(new Date().toISOString().slice(0, 10));
+			const context = await loanReferenceContext(businessNow().toISOString().slice(0, 10));
 			return withRawTransaction(async () => {
 				const book = await loadLoanBook(userId, params.id, true);
 				const payment = await booking(

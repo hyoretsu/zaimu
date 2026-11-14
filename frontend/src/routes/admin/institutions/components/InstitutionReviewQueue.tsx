@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { CollapsibleListingSection } from "@/components/ui/CollapsibleListingSection";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { getFinancialInstitutionsReviewProposals } from "@/lib/api";
+import { getFinancialInstitutions, getFinancialInstitutionsReviewProposals } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 import { InstitutionProposalRow } from "./InstitutionProposalRow";
 export type InstitutionProposal = Awaited<
 	ReturnType<typeof getFinancialInstitutionsReviewProposals>
 >["data"][number];
+export type InstitutionCatalogEntry = Awaited<ReturnType<typeof getFinancialInstitutions>>["data"][number];
 const duplicateReason = /duplicad?a|duplicate/i;
 // Reviewed proposals disappear on their own: approved/associated ones, rejected duplicates and
 // reviewed ones already outdated by a newer institution version.
@@ -21,6 +22,12 @@ export function InstitutionReviewQueue() {
 	const query = useQuery({
 		queryFn: () => getFinancialInstitutionsReviewProposals({}).then(result => result.data),
 		queryKey: ["institution-review", userId],
+	});
+	const hasPending = query.data?.some(item => item.status === "PENDING") ?? false;
+	const catalog = useQuery({
+		enabled: hasPending,
+		queryFn: () => getFinancialInstitutions({}).then(result => result.data),
+		queryKey: ["institutions", userId],
 	});
 	const proposals = query.data?.filter(item => !isResolvedNoise(item));
 	const total = proposals?.length ?? 0;
@@ -45,7 +52,13 @@ export function InstitutionReviewQueue() {
 			) : query.isError ? (
 				<p role="alert">{query.error.message}</p>
 			) : proposals?.length ? (
-				proposals.map(proposal => <InstitutionProposalRow key={proposal.id} proposal={proposal} />)
+				proposals.map(proposal => (
+					<InstitutionProposalRow
+						institutions={catalog.data}
+						key={proposal.id}
+						proposal={proposal}
+					/>
+				))
 			) : (
 				<p>Nenhuma proposta registrada.</p>
 			)}

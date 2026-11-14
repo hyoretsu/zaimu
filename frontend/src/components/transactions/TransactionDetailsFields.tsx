@@ -127,21 +127,23 @@ export function TransactionDetailsFields({
 					value={type}
 				/>
 			) : null}
-			{showDescription || showStore ? (
-				<FormFieldRow>
-					{showDescription ? (
-						<FormField
-							autoComplete="off"
-							id="transaction-description"
-							label="Descrição"
-							name="description"
-							onChange={event => onDescriptionChange(event.currentTarget.value)}
-							placeholder="Ex: Mercado do mês"
-							type="text"
-							value={description}
-						/>
-					) : null}
-					{showStore ? <StorePicker onValueChange={onStoreNameChange} value={storeName} /> : null}
+			{showDescription ? (
+				<FormFieldRow className="grid-cols-1">
+					<FormField
+						autoComplete="off"
+						id="transaction-description"
+						label="Descrição"
+						name="description"
+						onChange={event => onDescriptionChange(event.currentTarget.value)}
+						placeholder="Ex: Mercado do mês"
+						type="text"
+						value={description}
+					/>
+				</FormFieldRow>
+			) : null}
+			{showStore ? (
+				<FormFieldRow className="grid-cols-1">
+					<StorePicker onValueChange={onStoreNameChange} value={storeName} />
 				</FormFieldRow>
 			) : null}
 			<FormFieldRow className="max-sm:grid-cols-1">

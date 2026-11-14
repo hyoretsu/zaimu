@@ -4,7 +4,7 @@
 namespace public {
   model FinancialInstitutionProfile {
     creditCardRules Json?
-    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Cascade, index: false)
     changes UserInstitutionProfileChange[]
     policies FinancialInstitutionYieldPolicy[]
     id VarChar(36) @id
@@ -19,7 +19,7 @@ namespace public {
 
   model UserFinancialInstitution {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade, index: false)
-    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
+    institution FinancialInstitution @relation(fields: [institutionId], references: [id], onDelete: Cascade, index: false)
     changes UserInstitutionProfileChange[]
     @@index([institutionId])
     id VarChar(36) @id
@@ -34,7 +34,7 @@ namespace public {
 
   model UserInstitutionProfileChange {
     link UserFinancialInstitution @relation(fields: [linkId], references: [id], onDelete: Cascade, index: false)
-    profile FinancialInstitutionProfile @relation(fields: [profileId], references: [id], onDelete: Restrict, index: false)
+    profile FinancialInstitutionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade, index: false)
     @@index([profileId])
     id VarChar(36) @id
     linkId VarChar(36)
@@ -47,9 +47,9 @@ namespace public {
   }
 
   model FinancialInstitutionProposal {
-    institution FinancialInstitution? @relation(fields: [institutionId], references: [id], onDelete: Restrict, index: false)
-    author User @relation("ProposalAuthor", fields: [authorId], references: [id], onDelete: Restrict, index: false)
-    reviewer User? @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: Restrict, index: false)
+    institution FinancialInstitution? @relation(fields: [institutionId], references: [id], onDelete: SetNull, index: false)
+    author User @relation("ProposalAuthor", fields: [authorId], references: [id], onDelete: Cascade, index: false)
+    reviewer User? @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull, index: false)
     audits InstitutionReviewAudit[]
     @@index([institutionId])
     @@index([reviewerId])
@@ -72,8 +72,8 @@ namespace public {
   }
 
   model InstitutionReviewAudit {
-    proposal FinancialInstitutionProposal @relation(fields: [proposalId], references: [id], onDelete: Restrict, index: false)
-    reviewer User @relation(fields: [reviewerId], references: [id], onDelete: Restrict, index: false)
+    proposal FinancialInstitutionProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade, index: false)
+    reviewer User @relation(fields: [reviewerId], references: [id], onDelete: Cascade, index: false)
     @@index([reviewerId])
     id VarChar(36) @id
     proposalId VarChar(36)
@@ -100,7 +100,7 @@ namespace public {
   }
 
   model YieldCalendarCoverage {
-    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, index: false)
     countryCode VarChar(2)
     year Int
     status VarChar(24)
@@ -115,7 +115,7 @@ namespace public {
   }
 
   model YieldCalendarOverride {
-    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, index: false)
     id VarChar(36) @id
     countryCode VarChar(2)
     date Date
@@ -128,7 +128,7 @@ namespace public {
   }
 
   model CurrencyCountryAssociation {
-    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Restrict, index: false)
+    country YieldCalendarCountry @relation(fields: [countryCode], references: [code], onDelete: Cascade, index: false)
     id VarChar(36) @id
     countryCode VarChar(2)
     currency VarChar(3)
@@ -261,7 +261,7 @@ namespace public {
     effectiveDate Date
     applicationOrder Int
     brackets Json
-    definition TaxDefinition @relation(fields: [taxDefinitionId], references: [id], onDelete: Restrict)
+    definition TaxDefinition @relation(fields: [taxDefinitionId], references: [id], onDelete: Cascade)
     @@unique([taxDefinitionId, effectiveDate])
     @@map("taxDefinitionVersion")
   }
@@ -455,7 +455,7 @@ namespace public {
   }
 
   model FinancialInstitutionYieldPolicy {
-    profile FinancialInstitutionProfile? @relation(fields: [profileId], references: [id], onDelete: Restrict, index: false)
+    profile FinancialInstitutionProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade, index: false)
     @@index([profileId, countryCode, currency, effectiveDate], map: "InstitutionPolicy_scope_date_idx")
     profileId VarChar(36)?
     countryCode VarChar(2)?
@@ -672,7 +672,7 @@ namespace public {
     recurrenceOrigins       Recurrence[] @relation("RecurrenceOrigin")
     recurrenceDestinations  Recurrence[] @relation("RecurrenceDestination")
     user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
-    institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
+    institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
     transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
     transactionsTransaction Transaction[]                 @relation(name: "Transaction_originId_fkey")
     transactionImports     TransactionImport[]

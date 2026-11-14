@@ -1,6 +1,7 @@
 import { decimalToUnits } from "@zaimu/finance/asset-amount";
 import { roundMoney } from "@zaimu/finance/money";
 import type { RawQuery } from "~/modules/creditCards/application/normalized-statement-replay";
+import { businessDateSql } from "~/shared/infra/sql/business-date";
 import { resolveAccountAsset } from "./account-assets";
 import { monetaryBalancesSql } from "./monetary-balances-sql";
 
@@ -46,7 +47,7 @@ export async function reconcileBalanceAdjustments(
 		assetCode: string;
 	}>(
 		`SELECT "id", "financialAccountId", "date"::text, "balance"::text AS "balance", "assetCode"
-		 FROM "BalanceAdjustment" WHERE "userId"=$1 AND "financialAccountId"=$2 AND "date"<=CURRENT_DATE AND "date">=$3::date AND ($4::date IS NULL OR "date"<$4::date)
+		 FROM "BalanceAdjustment" WHERE "userId"=$1 AND "financialAccountId"=$2 AND "date"<=${businessDateSql} AND "date">=$3::date AND ($4::date IS NULL OR "date"<$4::date)
 		 ORDER BY "date", "id" FOR UPDATE`,
 		[userId, accountId, fromDate, beforeDate],
 	);

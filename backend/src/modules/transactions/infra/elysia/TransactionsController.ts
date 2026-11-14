@@ -1,4 +1,5 @@
 import { convertFixedSplitAtDate, isCryptoAsset } from "@zaimu/finance/money";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { TransactionMoneyError } from "@zaimu/finance/transaction-money";
 import Elysia, { t } from "elysia";
 import {
@@ -114,7 +115,7 @@ function resolveTransactionTime(value: string | null | undefined): string | null
 		if (!timePattern.test(value)) throw new HttpException("Informe um horário válido", 400);
 		return value;
 	}
-	return new Date().toTimeString().slice(0, 5);
+	return businessNow().toTimeString().slice(0, 5);
 }
 
 async function refreshCardPayments(cardIds: string[]) {
@@ -306,7 +307,12 @@ export const TransactionsController = new Elysia({
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.FinancialAccount.userId, userId),
-										functions.raw`${fields.Transaction.time} IS NOT NULL`.returns(
+										// Same pattern as transferSuggestionTimeSeconds: rows without a valid time never pair.
+										functions.raw`${fields.Transaction.time} ~ '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$'`.returns(
+											"pg/bool@1",
+										),
+										// Non 3-letter codes are always crypto; registered 3-letter ones are still filtered below.
+										functions.raw`UPPER(TRIM(${fields.Transaction.bookingCurrency})) ~ '^[A-Z]{3}$'`.returns(
 											"pg/bool@1",
 										),
 									),

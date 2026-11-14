@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { HttpException } from "~/shared/errors";
 import { queryRaw } from "~/shared/infra/sql";
 import type { FinancialCoverageReturn } from "../infra/financial-coverage.dto";
@@ -12,7 +13,7 @@ type Metadata = Partial<
 >;
 const day = (date: Date) => date.toISOString().slice(0, 10);
 export function financialCoverageWindow(start?: string, end?: string) {
-	const today = new Date();
+	const today = businessNow();
 	const startDate = start ?? `${today.getUTCFullYear()}-01-01`;
 	const endDate = end ?? `${today.getUTCFullYear()}-12-31`;
 	const from = new Date(`${startDate}T00:00:00Z`);

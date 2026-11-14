@@ -6,6 +6,7 @@ import { cashbackReversalsSql } from "~/modules/accounts/application/cashback-re
 import { workingDueDateSql } from "~/modules/accounts/application/institution-card-rules";
 import { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
 import { projectedYieldContext } from "~/modules/reference-rates/application/projected-yield-context";
+import { businessDateSql } from "~/shared/infra/sql/business-date";
 
 export { replayOverviewStatements as replayDashboardStatements } from "~/modules/creditCards/application/credit-overview";
 
@@ -257,23 +258,23 @@ UNION ALL
 SELECT 'flow', jsonb_build_object('yieldIncome', true, 'currency', entry."assetCode", 'destinationAccountId', entry."financialAccountId", 'amount', entry."amount", 'date', entry."date", 'type', 'INCOME', 'recurring', false)
 FROM "FinancialAccountYield" entry
 JOIN "FinancialAccount" account ON account."id" = entry."financialAccountId"
-WHERE account."userId" = $1 AND entry."date" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
+WHERE account."userId" = $1 AND entry."date" BETWEEN $2::date AND LEAST($3::date, ${businessDateSql})
   AND NOT entry."isExcluded" AND entry."amount" IS NOT NULL
 UNION ALL
 SELECT 'flow', jsonb_build_object('currency', account."yieldCurrency", 'destinationAccountId', account."id", 'amount', purchase."cashbackAmount", 'date', purchase."purchaseDate", 'type', 'INCOME', 'recurring', false)
 FROM "CreditPurchaseRecord" purchase
 JOIN "FinancialAccount" account ON account."id" = purchase."cashbackAccountId"
-WHERE purchase."userId" = $1 AND purchase."purchaseDate" BETWEEN $2::date AND LEAST($3::date, CURRENT_DATE)
+WHERE purchase."userId" = $1 AND purchase."purchaseDate" BETWEEN $2::date AND LEAST($3::date, ${businessDateSql})
   AND (account."type" IN ('CHECKING', 'CASH', 'SAVINGS', 'INVESTMENT') OR EXISTS (SELECT 1 FROM "RewardsAccount" r WHERE r."financialAccountId"=account."id" AND r."kind"='CASHBACK')) AND purchase."cashbackAmount" > 0
 UNION ALL
 SELECT 'flow', jsonb_build_object('currency',account."yieldCurrency",'destinationAccountId',account."id",'amount',reversal.amount,'date',reversal."date",'type','INCOME','recurring',false)
 FROM (${cashbackReversalsSql}) reversal JOIN "FinancialAccount" account ON account."id"=reversal."cashbackAccountId"
-WHERE account."userId"=$1 AND reversal."date" BETWEEN $2::date AND LEAST($3::date,CURRENT_DATE)
+WHERE account."userId"=$1 AND reversal."date" BETWEEN $2::date AND LEAST($3::date,${businessDateSql})
  AND (account."type" IN ('CHECKING','CASH','SAVINGS','INVESTMENT') OR EXISTS(SELECT 1 FROM "RewardsAccount" reward WHERE reward."financialAccountId"=account."id" AND reward."kind"='CASHBACK'))
 UNION ALL
 SELECT 'flow', jsonb_build_object('currency',account."yieldCurrency",'destinationAccountId',account."id",'amount',credit."amount",'date',credit."date",'type','INCOME','recurring',false)
 FROM "DetachedRewardCredit" credit JOIN "FinancialAccount" account ON account."id"=credit."financialAccountId"
-WHERE account."userId"=$1 AND credit."date" BETWEEN $2::date AND LEAST($3::date,CURRENT_DATE)
+WHERE account."userId"=$1 AND credit."date" BETWEEN $2::date AND LEAST($3::date,${businessDateSql})
  AND EXISTS(SELECT 1 FROM "RewardsAccount" reward WHERE reward."financialAccountId"=account."id" AND reward."kind"='CASHBACK')
 UNION ALL
 SELECT 'linked', jsonb_build_object(

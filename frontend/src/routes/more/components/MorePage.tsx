@@ -6,6 +6,7 @@ import {
 	HiClipboardDocumentList,
 	HiCog6Tooth,
 	HiUsers,
+	HiWrenchScrewdriver,
 } from "react-icons/hi2";
 import { mobileNavigation, primaryNavigation, utilityNavigation } from "@/components/layout/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -59,6 +60,13 @@ const menuItems = [
 		icon: HiCalendarDays,
 		label: "Recorrências",
 		to: "/recurring",
+	},
+	{
+		color: "bg-primary/10 text-primary",
+		description: "Compare empréstimos e simule cenários",
+		icon: HiWrenchScrewdriver,
+		label: "Ferramentas",
+		to: "/tools",
 	},
 	{
 		color: "bg-primary-500/10 text-primary-500",

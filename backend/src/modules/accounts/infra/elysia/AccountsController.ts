@@ -1,5 +1,6 @@
 import { countryCurrency } from "@zaimu/finance/currency-preference";
 import { cardRuleValues } from "@zaimu/finance/institution-card-rules";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { format } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
@@ -49,7 +50,11 @@ import {
 	queryRows,
 	withRawTransaction,
 } from "~/shared/infra/sql";
-import { accountHoldings, saveAccountHoldings } from "../../application/account-holdings";
+import {
+	accountHoldings,
+	accountHoldingsByAccount,
+	saveAccountHoldings,
+} from "../../application/account-holdings";
 import { financialAccountContextSql } from "../../application/financial-account-context-sql";
 import {
 	accountCardRules,
@@ -224,15 +229,16 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				);
 				const balances = await getFinancialAccountBalances(
 					rows.filter(row => row.rewards?.kind === "POINTS").map(row => row.account.id),
-					new Date(),
+					businessNow(),
 					accounts.filter(account =>
 						rows.some(row => row.account.id === account.id && row.rewards?.kind === "POINTS"),
 					),
 				);
+				const holdings = await accountHoldingsByAccount(userId);
 				return Promise.all(
 					rows.map(async ({ account, institution, card, rewards }) => ({
 						...account,
-						assets: await accountHoldings(userId, account.id),
+						assets: holdings.get(account.id) ?? [],
 						...profileContext.get(account.id),
 						balance:
 							account.type === "REWARDS" && rewards?.kind === "POINTS"
@@ -596,7 +602,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				Object.assign(account, await saveAccountDefaults(userId, account.id, body, true));
 				if (type !== "CREDIT_CARD" && (body.yieldFixedRate || body.yieldReferenceType)) {
 					await scheduleFinancialAccountYieldRate({
-						effectiveDate: new Date(),
+						effectiveDate: businessNow(),
 						financialAccountId: account.id,
 						yieldFixedRate: body.yieldFixedRate,
 						yieldPeriod: body.yieldPeriod,
@@ -973,7 +979,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					body.yieldTaxRate !== undefined;
 				if (yieldChanged) {
 					await scheduleFinancialAccountYieldRate({
-						effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
+						effectiveDate: body.recalculateCurrentDay ? businessNow() : tomorrow(),
 						financialAccountId: account.id,
 						yieldFixedRate:
 							body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
@@ -1005,7 +1011,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 								.where((fields, functions) =>
 									functions.and(
 										functions.eq(fields.financialAccountId, account.id),
-										functions.eq(fields.date, format(new Date(), "yyyy-MM-dd")),
+										functions.eq(fields.date, format(businessNow(), "yyyy-MM-dd")),
 										functions.eq(fields.kind, "AUTOMATIC"),
 									),
 								)

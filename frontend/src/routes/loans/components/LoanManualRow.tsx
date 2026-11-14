@@ -11,20 +11,22 @@ export function LoanManualRow({
 	currency,
 	onChange,
 	onRemove,
+	idPrefix = "",
 }: {
 	value: Row;
 	index: number;
 	currency: string;
 	onChange: (row: Row) => void;
 	onRemove: () => void;
+	idPrefix?: string;
 }) {
 	return (
 		<div className="space-y-2 rounded-xl border p-3">
 			<p>Parcela {index + 1}</p>
 			<DateField
-				id={`manual-date-${index}`}
+				id={`${idPrefix}manual-date-${index}`}
 				label="Vencimento"
-				name={`manual-date-${index}`}
+				name={`${idPrefix}manual-date-${index}`}
 				onValueChange={dueDate => onChange({ ...value, dueDate })}
 				required
 				value={value.dueDate}
@@ -39,7 +41,7 @@ export function LoanManualRow({
 				).map(([key, label]) => (
 					<MoneyField
 						currencyCode={currency}
-						id={`manual-${key}-${index}`}
+						id={`${idPrefix}manual-${key}-${index}`}
 						key={key}
 						label={label}
 						onValueChange={v => onChange({ ...value, [key]: Number(v) })}

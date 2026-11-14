@@ -1498,7 +1498,10 @@ export const TransactionImportCreateResultReturn = t.Object({
 export type TransactionImportCreateResultReturn = typeof TransactionImportCreateResultReturn.static;
 
 export const TransactionImportSummaryReturn = t.Object({
+	accountName: t.String(),
+	createdAt: t.String(),
 	fileName: t.String(),
+	financialAccountId: t.String(),
 	id: t.String(),
 	pendingItemCount: t.Number(),
 });

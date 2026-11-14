@@ -6,11 +6,13 @@ import { Button } from "./Button";
 export function CollapsibleFormSection({
 	children,
 	defaultExpanded = false,
+	onExpandedChange,
 	summary,
 	title,
 }: {
 	children: ReactNode;
 	defaultExpanded?: boolean;
+	onExpandedChange?: (expanded: boolean) => void;
 	summary: ReactNode;
 	title: string;
 }) {
@@ -32,7 +34,10 @@ export function CollapsibleFormSection({
 					aria-expanded={expanded}
 					aria-label={expanded ? "Minimizar" : "Expandir"}
 					className="static shrink-0 cursor-pointer after:absolute after:inset-0 after:rounded-xl after:content-[''] active:not-aria-[haspopup]:translate-none"
-					onClick={() => setExpanded(value => !value)}
+					onClick={() => {
+						setExpanded(!expanded);
+						onExpandedChange?.(!expanded);
+					}}
 					size="icon-sm"
 					type="button"
 					variant="outline"

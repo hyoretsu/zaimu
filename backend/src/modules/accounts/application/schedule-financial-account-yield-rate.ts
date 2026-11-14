@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { addDays, format, startOfDay } from "date-fns";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
@@ -110,4 +111,4 @@ export async function scheduleFinancialAccountYieldRate({
 	await enqueueAccountYieldRecalculation(financialAccountId, date, `settings:${Date.now()}`);
 }
 
-export const tomorrow = () => addDays(startOfDay(new Date()), 1);
+export const tomorrow = () => addDays(startOfDay(businessNow()), 1);

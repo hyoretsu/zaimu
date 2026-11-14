@@ -218,6 +218,11 @@ popover searches, hover state, collapsed/expanded sections and automatic infinit
 Follow AGENTS.md "URL state relevance": load-more counters, previous/next expansion
 counts, cursors and loaded-window size/radius must remain local, never persisted.
 
+Explicit share links are the only exception to plain parameters: the loan comparison
+"Copiar link" action writes one opaque, versioned and schema-validated `offers`
+payload. Opening it imports the offers into the local draft once and removes the
+parameter with history replacement; the payload never acts as live view state.
+
 Data-view modals must restore their parent context from plain URL parameters, not
 only keep the selected tab or filters. Pass a stable `url` descriptor to shared
 `Dialog`, and derive its selected record/open state from URL state. Include owned

@@ -1,11 +1,11 @@
 import type { PlannerInput, PlannerResult } from "@zaimu/finance/loan-planner";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { CollapsibleFormSection } from "@/components/ui/CollapsibleFormSection";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { formatCurrency } from "./loan-format";
 import { LoanPlannerChart } from "./LoanPlannerChart";
 import { LoanPlannerDailyBalances } from "./LoanPlannerDailyBalances";
-import { LoanSection } from "./LoanSection";
 export function LoanPlannerResults({
 	baseline,
 	ranked,
@@ -110,7 +110,7 @@ export function LoanPlannerResults({
 				</p>
 			))}
 			<LoanPlannerDailyBalances accounts={accounts} key={selected.id} names={names} result={selected} />
-			<LoanSection
+			<CollapsibleFormSection
 				summary={`${selected.days.length} dias até ${selected.through}`}
 				title="Evolução diária"
 			>
@@ -149,7 +149,7 @@ export function LoanPlannerResults({
 						)}
 					</div>
 				</ScrollArea>
-			</LoanSection>
+			</CollapsibleFormSection>
 		</div>
 	);
 }

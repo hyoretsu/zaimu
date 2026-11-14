@@ -119,6 +119,13 @@
 		{
 			"budget": 1000,
 			"method": "GET",
+			"path": "/account-transfers/related-accounts",
+			"result": "pending",
+			"source": "OpenAPI: getAccountTransfersRelatedAccounts"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
 			"path": "/account-transfers/rewards/:accountId",
 			"result": "pending",
 			"source": "OpenAPI: getAccountTransfersRewardsByAccountId"
@@ -482,6 +489,20 @@
 		},
 		{
 			"budget": 1000,
+			"method": "POST",
+			"path": "/credit-card-imports/batch",
+			"result": "pending",
+			"source": "OpenAPI: postCreditCardImportsBatch"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/credit-card-imports/batch/:batchId",
+			"result": "pending",
+			"source": "OpenAPI: getCreditCardImportsBatchByBatchId"
+		},
+		{
+			"budget": 1000,
 			"method": "GET",
 			"path": "/credit-cards/",
 			"result": "pending",
@@ -556,6 +577,13 @@
 			"path": "/credit-cards/:id/purchases/:purchaseId",
 			"result": "pending",
 			"source": "OpenAPI: patchCreditCardsByIdPurchasesByPurchaseId"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/credit-cards/:id/purchases/:purchaseId/anticipate",
+			"result": "pending",
+			"source": "OpenAPI: postCreditCardsByIdPurchasesByPurchaseIdAnticipate"
 		},
 		{
 			"budget": 1000,
@@ -640,6 +668,34 @@
 			"path": "/credit-cards/payment-suggestions",
 			"result": "pending",
 			"source": "OpenAPI: getCreditCardsPaymentSuggestions"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/credit-cards/statement-owner/:statementId",
+			"result": "pending",
+			"source": "OpenAPI: getCreditCardsStatementOwnerByStatementId"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/currencies/asset-quote",
+			"result": "pending",
+			"source": "OpenAPI: getCurrenciesAssetQuote"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/currencies/catalog",
+			"result": "pending",
+			"source": "OpenAPI: getCurrenciesCatalog"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/currencies/convert-asset",
+			"result": "pending",
+			"source": "OpenAPI: getCurrenciesConvertAsset"
 		},
 		{
 			"budget": 1000,
@@ -980,6 +1036,13 @@
 		{
 			"budget": 1000,
 			"method": "POST",
+			"path": "/financial-institutions/:id/card-rules-proposal",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsByIdCardRulesProposal"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
 			"path": "/financial-institutions/:id/merge-proposal",
 			"result": "pending",
 			"source": "OpenAPI: postFinancialInstitutionsByIdMergeProposal"
@@ -1014,6 +1077,13 @@
 		},
 		{
 			"budget": 1000,
+			"method": "PUT",
+			"path": "/financial-institutions/:id/profile-periods",
+			"result": "pending",
+			"source": "OpenAPI: putFinancialInstitutionsByIdProfilePeriods"
+		},
+		{
+			"budget": 1000,
 			"method": "GET",
 			"path": "/financial-institutions/:id/profiles",
 			"result": "pending",
@@ -1025,6 +1095,13 @@
 			"path": "/financial-institutions/:id/profiles",
 			"result": "pending",
 			"source": "OpenAPI: postFinancialInstitutionsByIdProfiles"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/financial-institutions/:id/update-proposal",
+			"result": "pending",
+			"source": "OpenAPI: postFinancialInstitutionsByIdUpdateProposal"
 		},
 		{
 			"budget": 1000,
@@ -1070,17 +1147,17 @@
 		},
 		{
 			"budget": 1000,
-			"method": "PATCH",
-			"path": "/financial-institutions/review/catalog/:id",
+			"method": "POST",
+			"path": "/financial-institutions/review/catalog",
 			"result": "pending",
-			"source": "OpenAPI: patchFinancialInstitutionsReviewCatalogById"
+			"source": "OpenAPI: postFinancialInstitutionsReviewCatalog"
 		},
 		{
 			"budget": 1000,
-			"method": "PATCH",
-			"path": "/financial-institutions/review/catalog/:id/card-rules",
+			"method": "POST",
+			"path": "/financial-institutions/review/catalog/:id/proposal",
 			"result": "pending",
-			"source": "OpenAPI: patchFinancialInstitutionsReviewCatalogByIdCardRules"
+			"source": "OpenAPI: postFinancialInstitutionsReviewCatalogByIdProposal"
 		},
 		{
 			"budget": 1000,
@@ -1116,13 +1193,6 @@
 			"path": "/financial-institutions/review/proposals/:id",
 			"result": "pending",
 			"source": "OpenAPI: postFinancialInstitutionsReviewProposalsById"
-		},
-		{
-			"budget": 1000,
-			"method": "GET",
-			"path": "/financial-institutions/review/proposals/:id/profile-history",
-			"result": "pending",
-			"source": "OpenAPI: getFinancialInstitutionsReviewProposalsByIdProfileHistory"
 		},
 		{
 			"budget": 1000,
@@ -1519,6 +1589,20 @@
 		{
 			"budget": 1000,
 			"method": "GET",
+			"path": "/time-format-preferences",
+			"result": "pending",
+			"source": "OpenAPI: getTimeFormatPreferences"
+		},
+		{
+			"budget": 1000,
+			"method": "PATCH",
+			"path": "/time-format-preferences",
+			"result": "pending",
+			"source": "OpenAPI: patchTimeFormatPreferences"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
 			"path": "/time-zone-preferences",
 			"result": "pending",
 			"source": "OpenAPI: getTimeZonePreferences"
@@ -1606,6 +1690,20 @@
 			"path": "/transaction-imports/",
 			"result": "pending",
 			"source": "OpenAPI: postTransactionImports"
+		},
+		{
+			"budget": 1000,
+			"method": "POST",
+			"path": "/transaction-imports/batch",
+			"result": "pending",
+			"source": "OpenAPI: postTransactionImportsBatch"
+		},
+		{
+			"budget": 1000,
+			"method": "GET",
+			"path": "/transaction-imports/batch/:batchId",
+			"result": "pending",
+			"source": "OpenAPI: getTransactionImportsBatchByBatchId"
 		},
 		{
 			"budget": 1000,
@@ -1897,5 +1995,5 @@
 			"usableP95Ms": 1000
 		}
 	],
-	"sourceHash": "8b6a3a2b81621492fd11c055f418c621d994868589621a0ffd71d19028b39777"
+	"sourceHash": "540c418181538756ad37760221f6541bcbe000e32245ea80d153cf629eb50e9c"
 }

@@ -5,6 +5,7 @@ import {
 	loanScheduleTotal,
 	outstandingLoanSchedule,
 } from "@zaimu/finance/loan-contract";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { resolveAccountAsset } from "~/modules/accounts/application/account-assets";
@@ -204,25 +205,27 @@ const LegacyLoansController = new Elysia({ detail: { tags: ["Loans"] }, prefix: 
 					 ORDER BY loan."startDate" DESC, loan."id" DESC`,
 					[userId],
 				);
-				return loans.map(loan => ({
-					...loan,
-					installmentAmount: Number(loan.installmentAmount),
-					interestRate: Number(loan.interestRate),
-					paidInstallments: Number(loan.paidInstallments),
-					principalAmount: Number(loan.principalAmount),
-					remainingInstallments: loan.contractBook
-						? outstandingLoanSchedule(loan.contractBook).length
-						: Number(loan.remainingInstallments),
-					remainingPrincipal: Number(loan.remainingPrincipal),
-					remainingTotal: loan.contractBook
-						? loanScheduleTotal(
-								outstandingLoanSchedule(loan.contractBook),
-								String(loan.currency ?? "BRL"),
-							)
-						: Number(loan.remainingTotal),
-					totalPaid: Number(loan.totalPaid),
-					...(loan.contractBook ? loanContractSummary(loan.contractBook) : {}),
-				}));
+				return loans.map(loan => {
+					const outstanding = loan.contractBook
+						? outstandingLoanSchedule(loan.contractBook)
+						: undefined;
+					return {
+						...loan,
+						installmentAmount: Number(loan.installmentAmount),
+						interestRate: Number(loan.interestRate),
+						paidInstallments: Number(loan.paidInstallments),
+						principalAmount: Number(loan.principalAmount),
+						remainingInstallments: outstanding
+							? outstanding.length
+							: Number(loan.remainingInstallments),
+						remainingPrincipal: Number(loan.remainingPrincipal),
+						remainingTotal: outstanding
+							? loanScheduleTotal(outstanding, String(loan.currency ?? "BRL"))
+							: Number(loan.remainingTotal),
+						totalPaid: Number(loan.totalPaid),
+						...(loan.contractBook ? loanContractSummary(loan.contractBook) : {}),
+					};
+				});
 			});
 			set.headers.etag = cached.etag;
 			set.headers["x-cache"] = cached.hit ? "HIT" : "MISS";
@@ -372,7 +375,7 @@ const LegacyLoansController = new Elysia({ detail: { tags: ["Loans"] }, prefix: 
 			const paidPaymentCount = await loanPaymentTotals(params.id);
 			const paidInstallments = Number(paidPaymentCount?.count ?? 0);
 
-			const targetDate = query.targetDate ? new Date(query.targetDate) : new Date();
+			const targetDate = query.targetDate ? new Date(query.targetDate) : businessNow();
 			const advanceType = query.advanceType ?? "BACK";
 
 			const payoff = calculateEarlyPayoff(

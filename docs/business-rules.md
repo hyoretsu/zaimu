@@ -563,6 +563,16 @@ Hipóteses do planejador usam exclusivamente últimos cinco anos de observaçõe
 
 Comparação usa patrimônio líquido na mesma data final, desconta dívida restante e considera rendimento líquido perdido, tributação e custos. Manter cronograma sempre aparece. Busca limitada e determinística exibe melhor cenário encontrado, datas avaliadas e progresso; não afirma ótimo global. Cenários salvos guardam parâmetros e resumo datado; reabertura recalcula. Revisar operação abre fluxo contratual atual, sem executar pagamento automaticamente. Segurança vale somente dentro da previsão base registrada e horizonte exibido.
 
+## Ferramentas: comparação de empréstimos
+
+Ferramentas ficam em `/tools` e são públicas: sem sessão abrem fora do layout autenticado, sem redirecionar para entrar; com sessão conectada ou convidada abrem no shell do app. Nada é enviado ao servidor além da leitura pública de indicadores.
+
+Comparador aceita empréstimos (PRICE, SAC ou cronograma manual, taxa fixa ou indexada, carência e encargos) e Pix no crédito. Pix no crédito recebe valor, data, parcelas e taxa mensal, parcela ou total informado; tarifa e IOF entram no financiado. Primeira parcela vence na fatura cujo fechamento é posterior à data do Pix; vencimento antes do dia de fechamento cai no mês seguinte e meses curtos usam o último dia. Parcelas consomem limite do cartão e antecipação não reduz juros: quitação custa a soma das parcelas restantes. IOF é sempre informado, nunca estimado, porque alíquota, base e isenções variam por pessoa e operação.
+
+CET anual segue a Resolução CMN 3.517 (dias corridos sobre 365) a partir do valor recebido e dos vencimentos reais; CET mensal é a equivalência composta. Valor presente usa rendimento alternativo informado ou, por padrão, CDI projetado pelos últimos cinco anos. Quitação antecipada após a parcela escolhida desconta saldo pela taxa do contrato quando há desconto contratual. Ranking padrão é menor CET, alternável para custo a valor presente ou total pago; ofertas incompletas ou indexadas sem cobertura ficam fora do ranking com motivo. Valores recebidos diferentes geram aviso.
+
+Rascunho fica neste navegador. Link compartilhável inclui apenas ofertas digitadas; empréstimos cadastrados nunca saem do dispositivo. Com sessão, é possível comparar saldo restante de empréstimos cadastrados (quitação hoje contra parcelas que faltam), preencher dias de fechamento e vencimento a partir de um cartão e cadastrar uma oferta como novo empréstimo, revisando instituição e conta no fluxo contratual normal.
+
 ## Ações no escopo da importação
 
 Revisões de extrato e fatura permitem editar os itens e associar os vínculos compatíveis com seu domínio. Compras comuns de fatura e movimentos de extrato compatíveis podem ser aprovados e associados a uma recorrência em uma única operação explícita. Falha no vínculo desfaz a aprovação e mantém o item pendente; não há criação ou aprovação parcial. Duplicatas precisam ser resolvidas antes. Reembolsos, encargos, antecipações e reparcelamentos não representam compras recorrentes comuns. A revisão permite vincular reembolsos e reparcelamentos importados, mas não oferece criação manual dessas operações.

@@ -1,9 +1,10 @@
-import { installPerformanceClock } from "./clock";
+import { installPerformanceClock, PERFORMANCE_REFERENCE_DATE } from "./clock";
 
 installPerformanceClock();
 const target = new URL(process.env.PERFORMANCE_DATABASE_URL ?? "");
 if (target.hostname !== "127.0.0.1" || target.port !== "55495" || target.pathname !== "/zaimu_performance")
 	throw new Error("Dedicated DB required");
+target.searchParams.set("options", `-c zaimu.business_date=${PERFORMANCE_REFERENCE_DATE}`);
 process.env.DATABASE_URL = target.href;
 process.env.REDIS_URL = "redis://127.0.0.1:6395";
 process.env.SERVICE_NAMESPACE = "zaimu_performance";

@@ -1,6 +1,7 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { format, subDays } from "date-fns";
 
-export function yieldSchedulerClock(now = new Date()) {
+export function yieldSchedulerClock(now = businessNow()) {
 	const parts = new Intl.DateTimeFormat("en-CA", {
 		day: "2-digit",
 		hour: "2-digit",
@@ -18,7 +19,7 @@ export function yieldSchedulerClock(now = new Date()) {
 	};
 }
 
-export function recentReferenceRateWindow(now = new Date()) {
+export function recentReferenceRateWindow(now = businessNow()) {
 	const clock = yieldSchedulerClock(now);
 	if (clock.hour < 6) return null;
 	return {
@@ -28,6 +29,6 @@ export function recentReferenceRateWindow(now = new Date()) {
 	};
 }
 
-export function completedYieldDate(now = new Date()) {
+export function completedYieldDate(now = businessNow()) {
 	return format(subDays(yieldSchedulerClock(now).date, 1), "yyyy-MM-dd");
 }

@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 export interface CreditPurchaseSyncRow {
 	hasImportedAmount: boolean;
 	id: string;
@@ -13,7 +14,7 @@ export interface CreditPurchaseSyncStatus {
 
 export function getCreditPurchaseSyncStatus(
 	purchases: CreditPurchaseSyncRow[],
-	today = new Date(),
+	today = businessNow(),
 ): Map<string, CreditPurchaseSyncStatus> {
 	const groups = new Map<string, CreditPurchaseSyncRow[]>();
 	for (const purchase of purchases) {
@@ -25,7 +26,8 @@ export function getCreditPurchaseSyncStatus(
 		const installments = groups.get(purchase.parentId ?? purchase.id) ?? [];
 		const currentOrPast = installments.filter(installment => installment.statementDate <= today);
 		const isEveryInstallmentImported =
-			installments.length === purchase.installments && installments.every(item => item.hasImportedAmount);
+			installments.length === purchase.installments &&
+			installments.every(item => item.hasImportedAmount);
 		statuses.set(purchase.id, {
 			isFullySynced:
 				purchase.parentId === null &&

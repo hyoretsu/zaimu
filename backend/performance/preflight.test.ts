@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { performanceClockEvidence } from "./preflight";
+import { performanceApiClockEvidence, performanceClockEvidence } from "./preflight";
 
 test("official captures reject a database clock different from the application reference", () => {
 	for (const date of ["2026-10-03", "2026-10-05", "2027-10-04"])
@@ -22,4 +22,27 @@ test("diagnostic captures expose divergent clocks rather than claiming a fixed d
 test("missing, malformed and impossible PostgreSQL dates fail even in diagnostic mode", () => {
 	for (const date of ["", "2026-1-04", "2026-02-30", "2026-13-04", "invalid", "2026-10-04T12:00:00Z"])
 		expect(() => performanceClockEvidence(date, true)).toThrow("Invalid PostgreSQL business date");
+});
+
+test("API handshake requires the running bundle and its pool to report the fixture date", () => {
+	const response = (application = "2026-10-04", sql = "2026-10-04") =>
+		new Response(null, {
+			headers: {
+				"x-performance-business-date": application,
+				"x-performance-namespace": "zaimu_performance",
+				"x-performance-operational-epoch": String(Date.now()),
+				"x-performance-sql-business-date": sql,
+			},
+		});
+	expect(performanceApiClockEvidence(response()).consistent).toBe(true);
+	expect(() => performanceApiClockEvidence(response("2026-11-09"))).toThrow(
+		"fixed-clock acceptance unavailable",
+	);
+	expect(() => performanceApiClockEvidence(response("2026-10-04", "2026-11-09"))).toThrow(
+		"fixed-clock acceptance unavailable",
+	);
+	expect(() => performanceApiClockEvidence(new Response(null))).toThrow("handshake unavailable");
+	const stale = response();
+	stale.headers.set("x-performance-operational-epoch", "1");
+	expect(() => performanceApiClockEvidence(stale)).toThrow("handshake invalid");
 });

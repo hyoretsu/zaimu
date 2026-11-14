@@ -13,7 +13,6 @@ export { LoanPlannerResults } from "./LoanPlannerResults";
 export { LoanPlannerChart } from "./LoanPlannerChart";
 export { LoanPlannerAccountRow } from "./LoanPlannerAccountRow";
 export { LoanPlannerTransfers } from "./LoanPlannerTransfers";
-export { LoanSection } from "./LoanSection";
 export { LoanInstallmentRow } from "./LoanInstallmentRow";
 export { LoanRateFields } from "./LoanRateFields";
 export { LoanChargeRow } from "./LoanChargeRow";

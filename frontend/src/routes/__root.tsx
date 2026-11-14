@@ -12,6 +12,7 @@ import { cachedTaxCatalog, fetchTaxCatalog } from "@/lib/tax-catalog";
 import { toast } from "@/lib/toast";
 import { useAuthStore, useThemeStore } from "@/stores";
 import { AppStartupGate } from "./components/AppStartupGate";
+import { PublicCapableRouteSkeleton } from "./components/PublicCapableRouteSkeleton";
 import { YieldCalendarLifecycle } from "./components/YieldCalendarLifecycle";
 
 function RootComponent() {
@@ -40,9 +41,12 @@ function RootComponent() {
 		pathname === "/delete-account" ||
 		pathname === "/privacy" ||
 		pathname === "/terms";
+	const isPublicCapableRoute = pathname === "/tools" || pathname.startsWith("/tools/");
+	const hasSession = isAuthenticated || isGuestMode;
+	const isPublicVariant = isPublicRoute || (isPublicCapableRoute && !hasSession);
 
 	useQuery({
-		enabled: isInitialized && !isPublicRoute,
+		enabled: isInitialized && !isPublicVariant,
 		initialData: cachedTaxCatalog,
 		queryFn: fetchTaxCatalog,
 		queryKey: ["tax-definitions"],
@@ -97,6 +101,7 @@ function RootComponent() {
 		if (
 			!isInitialized ||
 			isPublicRoute ||
+			isPublicCapableRoute ||
 			isSessionUnavailable ||
 			isRateLimited ||
 			isAuthenticated ||
@@ -112,6 +117,7 @@ function RootComponent() {
 		isAuthenticated,
 		isGuestMode,
 		isInitialized,
+		isPublicCapableRoute,
 		isPublicRoute,
 		isRateLimited,
 		isSessionUnavailable,
@@ -132,7 +138,8 @@ function RootComponent() {
 		});
 	}, [identity, queryClient]);
 
-	if (isPublicRoute) return <Outlet />;
+	if (isPublicCapableRoute && !isInitialized) return <PublicCapableRouteSkeleton />;
+	if (isPublicVariant) return <Outlet />;
 	return (
 		<AppStartupGate
 			isAuthenticated={isAuthenticated}

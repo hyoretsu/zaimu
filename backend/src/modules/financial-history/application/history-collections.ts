@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import {
 	referenceRateBootstrapIntervals,
 	referenceRateWindow,
@@ -51,7 +52,7 @@ async function publishUnit(unit: Parameters<typeof unitEvent>[0]) {
 export async function requestHistoryCollection(
 	kind: CollectionKind,
 	seriesInput: string[],
-	referenceDate = dateKey(new Date()),
+	referenceDate = dateKey(businessNow()),
 	dependencies: {
 		publish: typeof publishUnit;
 		publishBatch?: (units: Parameters<typeof unitEvent>[0][]) => Promise<void>;
@@ -68,7 +69,7 @@ export async function requestHistoryCollection(
 	const explicitWindow =
 		requestedWindow && coverageWindow(requestedWindow.startDate, requestedWindow.endDate);
 	const reference = dateKey(referenceDate);
-	if (reference > dateKey(new Date())) throw new RangeError("Coleta não aceita datas futuras");
+	if (reference > dateKey(businessNow())) throw new RangeError("Coleta não aceita datas futuras");
 	const series = [...new Set(seriesInput.map(value => value.toUpperCase()))].sort();
 	if (
 		!series.length ||
@@ -181,14 +182,11 @@ export async function requestHistoryCollection(
 							`UPDATE "FinancialHistoryUnit" SET "state"='COMPLETED',"completedAt"=now(),"updatedAt"=now(),"lastError"=NULL WHERE "id"=$1 AND "state" IN ('PENDING','FAILED')`,
 							[unit.id],
 						);
-				ranges = intervals.flatMap(interval =>
-					historyCoverageRanges(
-						interval.startDate < window.startDate ? window.startDate : interval.startDate,
-						interval.endDate,
-						covered,
-						occupied,
-					),
-				);
+				ranges = intervals.flatMap(interval => {
+					let rangeStart = interval.startDate;
+					if (rangeStart < window.startDate) rangeStart = window.startDate;
+					return historyCoverageRanges(rangeStart, interval.endDate, covered, occupied);
+				});
 			}
 			for (const interval of ranges) {
 				const unitKey = `${kind}:${value}:${interval.startDate}:${interval.endDate}`;

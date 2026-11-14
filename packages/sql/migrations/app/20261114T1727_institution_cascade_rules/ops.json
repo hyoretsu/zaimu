@@ -1,0 +1,1430 @@
+[
+  {
+    "id": "dropConstraint.CurrencyCountryAssociation.CurrencyCountryAssociation_countryCode_fkey",
+    "label": "Drop constraint \"CurrencyCountryAssociation_countryCode_fkey\" on \"CurrencyCountryAssociation\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CurrencyCountryAssociation_countryCode_fkey",
+        "table": "CurrencyCountryAssociation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CurrencyCountryAssociation_countryCode_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CurrencyCountryAssociation_countryCode_fkey",
+          "public",
+          "\"public\".\"CurrencyCountryAssociation\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"CurrencyCountryAssociation_countryCode_fkey\" on \"CurrencyCountryAssociation\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"CurrencyCountryAssociation_countryCode_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CurrencyCountryAssociation\" DROP CONSTRAINT \"CurrencyCountryAssociation_countryCode_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"CurrencyCountryAssociation_countryCode_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CurrencyCountryAssociation_countryCode_fkey",
+          "public",
+          "\"public\".\"CurrencyCountryAssociation\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"CurrencyCountryAssociation_countryCode_fkey\" on \"CurrencyCountryAssociation\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.FinancialAccount.FinancialAccount_institutionId_fkey",
+    "label": "Drop constraint \"FinancialAccount_institutionId_fkey\" on \"FinancialAccount\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialAccount_institutionId_fkey",
+        "table": "FinancialAccount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"FinancialAccount_institutionId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialAccount_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialAccount\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"FinancialAccount_institutionId_fkey\" on \"FinancialAccount\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"FinancialAccount_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialAccount\" DROP CONSTRAINT \"FinancialAccount_institutionId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"FinancialAccount_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialAccount_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialAccount\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"FinancialAccount_institutionId_fkey\" on \"FinancialAccount\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.FinancialInstitutionProfile.FinancialInstitutionProfile_institutionId_fkey",
+    "label": "Drop constraint \"FinancialInstitutionProfile_institutionId_fkey\" on \"FinancialInstitutionProfile\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProfile_institutionId_fkey",
+        "table": "FinancialInstitutionProfile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"FinancialInstitutionProfile_institutionId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProfile_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProfile\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"FinancialInstitutionProfile_institutionId_fkey\" on \"FinancialInstitutionProfile\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"FinancialInstitutionProfile_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProfile\" DROP CONSTRAINT \"FinancialInstitutionProfile_institutionId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"FinancialInstitutionProfile_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProfile_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProfile\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"FinancialInstitutionProfile_institutionId_fkey\" on \"FinancialInstitutionProfile\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.FinancialInstitutionProposal.FinancialInstitutionProposal_authorId_fkey",
+    "label": "Drop constraint \"FinancialInstitutionProposal_authorId_fkey\" on \"FinancialInstitutionProposal\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProposal_authorId_fkey",
+        "table": "FinancialInstitutionProposal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"FinancialInstitutionProposal_authorId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_authorId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"FinancialInstitutionProposal_authorId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"FinancialInstitutionProposal_authorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\" DROP CONSTRAINT \"FinancialInstitutionProposal_authorId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"FinancialInstitutionProposal_authorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_authorId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"FinancialInstitutionProposal_authorId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.FinancialInstitutionProposal.FinancialInstitutionProposal_institutionId_fkey",
+    "label": "Drop constraint \"FinancialInstitutionProposal_institutionId_fkey\" on \"FinancialInstitutionProposal\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProposal_institutionId_fkey",
+        "table": "FinancialInstitutionProposal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"FinancialInstitutionProposal_institutionId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"FinancialInstitutionProposal_institutionId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"FinancialInstitutionProposal_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\" DROP CONSTRAINT \"FinancialInstitutionProposal_institutionId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"FinancialInstitutionProposal_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"FinancialInstitutionProposal_institutionId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.FinancialInstitutionProposal.FinancialInstitutionProposal_reviewerId_fkey",
+    "label": "Drop constraint \"FinancialInstitutionProposal_reviewerId_fkey\" on \"FinancialInstitutionProposal\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProposal_reviewerId_fkey",
+        "table": "FinancialInstitutionProposal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"FinancialInstitutionProposal_reviewerId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_reviewerId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"FinancialInstitutionProposal_reviewerId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"FinancialInstitutionProposal_reviewerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\" DROP CONSTRAINT \"FinancialInstitutionProposal_reviewerId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"FinancialInstitutionProposal_reviewerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_reviewerId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"FinancialInstitutionProposal_reviewerId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_profileId_fkey",
+    "label": "Drop constraint \"FinancialInstitutionYieldPolicy_profileId_fkey\" on \"FinancialInstitutionYieldPolicy\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionYieldPolicy_profileId_fkey",
+        "table": "FinancialInstitutionYieldPolicy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"FinancialInstitutionYieldPolicy_profileId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionYieldPolicy_profileId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionYieldPolicy\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"FinancialInstitutionYieldPolicy_profileId_fkey\" on \"FinancialInstitutionYieldPolicy\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"FinancialInstitutionYieldPolicy_profileId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\" DROP CONSTRAINT \"FinancialInstitutionYieldPolicy_profileId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"FinancialInstitutionYieldPolicy_profileId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionYieldPolicy_profileId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionYieldPolicy\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"FinancialInstitutionYieldPolicy_profileId_fkey\" on \"FinancialInstitutionYieldPolicy\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.InstitutionReviewAudit.InstitutionReviewAudit_proposalId_fkey",
+    "label": "Drop constraint \"InstitutionReviewAudit_proposalId_fkey\" on \"InstitutionReviewAudit\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "InstitutionReviewAudit_proposalId_fkey",
+        "table": "InstitutionReviewAudit"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"InstitutionReviewAudit_proposalId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_proposalId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"InstitutionReviewAudit_proposalId_fkey\" on \"InstitutionReviewAudit\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"InstitutionReviewAudit_proposalId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"InstitutionReviewAudit\" DROP CONSTRAINT \"InstitutionReviewAudit_proposalId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"InstitutionReviewAudit_proposalId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_proposalId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"InstitutionReviewAudit_proposalId_fkey\" on \"InstitutionReviewAudit\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.InstitutionReviewAudit.InstitutionReviewAudit_reviewerId_fkey",
+    "label": "Drop constraint \"InstitutionReviewAudit_reviewerId_fkey\" on \"InstitutionReviewAudit\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "InstitutionReviewAudit_reviewerId_fkey",
+        "table": "InstitutionReviewAudit"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"InstitutionReviewAudit_reviewerId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_reviewerId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"InstitutionReviewAudit_reviewerId_fkey\" on \"InstitutionReviewAudit\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"InstitutionReviewAudit_reviewerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"InstitutionReviewAudit\" DROP CONSTRAINT \"InstitutionReviewAudit_reviewerId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"InstitutionReviewAudit_reviewerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_reviewerId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"InstitutionReviewAudit_reviewerId_fkey\" on \"InstitutionReviewAudit\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.UserFinancialInstitution.UserFinancialInstitution_institutionId_fkey",
+    "label": "Drop constraint \"UserFinancialInstitution_institutionId_fkey\" on \"UserFinancialInstitution\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserFinancialInstitution_institutionId_fkey",
+        "table": "UserFinancialInstitution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"UserFinancialInstitution_institutionId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserFinancialInstitution_institutionId_fkey",
+          "public",
+          "\"public\".\"UserFinancialInstitution\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"UserFinancialInstitution_institutionId_fkey\" on \"UserFinancialInstitution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"UserFinancialInstitution_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserFinancialInstitution\" DROP CONSTRAINT \"UserFinancialInstitution_institutionId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"UserFinancialInstitution_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserFinancialInstitution_institutionId_fkey",
+          "public",
+          "\"public\".\"UserFinancialInstitution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"UserFinancialInstitution_institutionId_fkey\" on \"UserFinancialInstitution\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.UserInstitutionProfileChange.UserInstitutionProfileChange_profileId_fkey",
+    "label": "Drop constraint \"UserInstitutionProfileChange_profileId_fkey\" on \"UserInstitutionProfileChange\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserInstitutionProfileChange_profileId_fkey",
+        "table": "UserInstitutionProfileChange"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"UserInstitutionProfileChange_profileId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserInstitutionProfileChange_profileId_fkey",
+          "public",
+          "\"public\".\"UserInstitutionProfileChange\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"UserInstitutionProfileChange_profileId_fkey\" on \"UserInstitutionProfileChange\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"UserInstitutionProfileChange_profileId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserInstitutionProfileChange\" DROP CONSTRAINT \"UserInstitutionProfileChange_profileId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"UserInstitutionProfileChange_profileId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserInstitutionProfileChange_profileId_fkey",
+          "public",
+          "\"public\".\"UserInstitutionProfileChange\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"UserInstitutionProfileChange_profileId_fkey\" on \"UserInstitutionProfileChange\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.YieldCalendarCoverage.YieldCalendarCoverage_countryCode_fkey",
+    "label": "Drop constraint \"YieldCalendarCoverage_countryCode_fkey\" on \"YieldCalendarCoverage\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "YieldCalendarCoverage_countryCode_fkey",
+        "table": "YieldCalendarCoverage"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"YieldCalendarCoverage_countryCode_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "YieldCalendarCoverage_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarCoverage\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"YieldCalendarCoverage_countryCode_fkey\" on \"YieldCalendarCoverage\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"YieldCalendarCoverage_countryCode_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"YieldCalendarCoverage\" DROP CONSTRAINT \"YieldCalendarCoverage_countryCode_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"YieldCalendarCoverage_countryCode_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "YieldCalendarCoverage_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarCoverage\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"YieldCalendarCoverage_countryCode_fkey\" on \"YieldCalendarCoverage\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.YieldCalendarOverride.YieldCalendarOverride_countryCode_fkey",
+    "label": "Drop constraint \"YieldCalendarOverride_countryCode_fkey\" on \"YieldCalendarOverride\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "YieldCalendarOverride_countryCode_fkey",
+        "table": "YieldCalendarOverride"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"YieldCalendarOverride_countryCode_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "YieldCalendarOverride_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarOverride\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"YieldCalendarOverride_countryCode_fkey\" on \"YieldCalendarOverride\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"YieldCalendarOverride_countryCode_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"YieldCalendarOverride\" DROP CONSTRAINT \"YieldCalendarOverride_countryCode_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"YieldCalendarOverride_countryCode_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "YieldCalendarOverride_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarOverride\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"YieldCalendarOverride_countryCode_fkey\" on \"YieldCalendarOverride\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropConstraint.taxDefinitionVersion.taxDefinitionVersion_taxDefinitionId_fkey",
+    "label": "Drop constraint \"taxDefinitionVersion_taxDefinitionId_fkey\" on \"taxDefinitionVersion\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "taxDefinitionVersion_taxDefinitionId_fkey",
+        "table": "taxDefinitionVersion"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"taxDefinitionVersion_taxDefinitionId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "taxDefinitionVersion_taxDefinitionId_fkey",
+          "public",
+          "\"public\".\"taxDefinitionVersion\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"taxDefinitionVersion_taxDefinitionId_fkey\" on \"taxDefinitionVersion\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"taxDefinitionVersion_taxDefinitionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"taxDefinitionVersion\" DROP CONSTRAINT \"taxDefinitionVersion_taxDefinitionId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"taxDefinitionVersion_taxDefinitionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "taxDefinitionVersion_taxDefinitionId_fkey",
+          "public",
+          "\"public\".\"taxDefinitionVersion\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"taxDefinitionVersion_taxDefinitionId_fkey\" on \"taxDefinitionVersion\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CurrencyCountryAssociation.CurrencyCountryAssociation_countryCode_fkey",
+    "label": "Add foreign key \"CurrencyCountryAssociation_countryCode_fkey\" on \"CurrencyCountryAssociation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CurrencyCountryAssociation_countryCode_fkey",
+        "table": "CurrencyCountryAssociation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CurrencyCountryAssociation_countryCode_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CurrencyCountryAssociation_countryCode_fkey",
+          "public",
+          "\"public\".\"CurrencyCountryAssociation\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"CurrencyCountryAssociation_countryCode_fkey\" on \"CurrencyCountryAssociation\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CurrencyCountryAssociation_countryCode_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CurrencyCountryAssociation\"\nADD CONSTRAINT \"CurrencyCountryAssociation_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CurrencyCountryAssociation_countryCode_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "CurrencyCountryAssociation_countryCode_fkey",
+          "public",
+          "\"public\".\"CurrencyCountryAssociation\"",
+          "f",
+          "[\"countryCode\"]",
+          "\"public\".\"YieldCalendarCountry\"",
+          "[\"code\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.FinancialAccount.FinancialAccount_institutionId_fkey",
+    "label": "Add foreign key \"FinancialAccount_institutionId_fkey\" on \"FinancialAccount\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialAccount_institutionId_fkey",
+        "table": "FinancialAccount"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"FinancialAccount_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialAccount_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialAccount\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"FinancialAccount_institutionId_fkey\" on \"FinancialAccount\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"FinancialAccount_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialAccount\"\nADD CONSTRAINT \"FinancialAccount_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE RESTRICT\nON UPDATE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"FinancialAccount_institutionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "FinancialAccount_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialAccount\"",
+          "f",
+          "[\"institutionId\"]",
+          "\"public\".\"FinancialInstitution\"",
+          "[\"id\"]",
+          "r",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.FinancialInstitutionProfile.FinancialInstitutionProfile_institutionId_fkey",
+    "label": "Add foreign key \"FinancialInstitutionProfile_institutionId_fkey\" on \"FinancialInstitutionProfile\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProfile_institutionId_fkey",
+        "table": "FinancialInstitutionProfile"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"FinancialInstitutionProfile_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProfile_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProfile\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"FinancialInstitutionProfile_institutionId_fkey\" on \"FinancialInstitutionProfile\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"FinancialInstitutionProfile_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProfile\"\nADD CONSTRAINT \"FinancialInstitutionProfile_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"FinancialInstitutionProfile_institutionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProfile_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProfile\"",
+          "f",
+          "[\"institutionId\"]",
+          "\"public\".\"FinancialInstitution\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.FinancialInstitutionProposal.FinancialInstitutionProposal_authorId_fkey",
+    "label": "Add foreign key \"FinancialInstitutionProposal_authorId_fkey\" on \"FinancialInstitutionProposal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProposal_authorId_fkey",
+        "table": "FinancialInstitutionProposal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"FinancialInstitutionProposal_authorId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_authorId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"FinancialInstitutionProposal_authorId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"FinancialInstitutionProposal_authorId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\"\nADD CONSTRAINT \"FinancialInstitutionProposal_authorId_fkey\"\nFOREIGN KEY (\"authorId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"FinancialInstitutionProposal_authorId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_authorId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\"",
+          "f",
+          "[\"authorId\"]",
+          "\"public\".\"user\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.FinancialInstitutionProposal.FinancialInstitutionProposal_institutionId_fkey",
+    "label": "Add foreign key \"FinancialInstitutionProposal_institutionId_fkey\" on \"FinancialInstitutionProposal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProposal_institutionId_fkey",
+        "table": "FinancialInstitutionProposal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"FinancialInstitutionProposal_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"FinancialInstitutionProposal_institutionId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"FinancialInstitutionProposal_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\"\nADD CONSTRAINT \"FinancialInstitutionProposal_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"FinancialInstitutionProposal_institutionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_institutionId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\"",
+          "f",
+          "[\"institutionId\"]",
+          "\"public\".\"FinancialInstitution\"",
+          "[\"id\"]",
+          "n",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.FinancialInstitutionProposal.FinancialInstitutionProposal_reviewerId_fkey",
+    "label": "Add foreign key \"FinancialInstitutionProposal_reviewerId_fkey\" on \"FinancialInstitutionProposal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionProposal_reviewerId_fkey",
+        "table": "FinancialInstitutionProposal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"FinancialInstitutionProposal_reviewerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_reviewerId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"FinancialInstitutionProposal_reviewerId_fkey\" on \"FinancialInstitutionProposal\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"FinancialInstitutionProposal_reviewerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionProposal\"\nADD CONSTRAINT \"FinancialInstitutionProposal_reviewerId_fkey\"\nFOREIGN KEY (\"reviewerId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"FinancialInstitutionProposal_reviewerId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "FinancialInstitutionProposal_reviewerId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionProposal\"",
+          "f",
+          "[\"reviewerId\"]",
+          "\"public\".\"user\"",
+          "[\"id\"]",
+          "n",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.FinancialInstitutionYieldPolicy.FinancialInstitutionYieldPolicy_profileId_fkey",
+    "label": "Add foreign key \"FinancialInstitutionYieldPolicy_profileId_fkey\" on \"FinancialInstitutionYieldPolicy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "FinancialInstitutionYieldPolicy_profileId_fkey",
+        "table": "FinancialInstitutionYieldPolicy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"FinancialInstitutionYieldPolicy_profileId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "FinancialInstitutionYieldPolicy_profileId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionYieldPolicy\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"FinancialInstitutionYieldPolicy_profileId_fkey\" on \"FinancialInstitutionYieldPolicy\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"FinancialInstitutionYieldPolicy_profileId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"FinancialInstitutionYieldPolicy\"\nADD CONSTRAINT \"FinancialInstitutionYieldPolicy_profileId_fkey\"\nFOREIGN KEY (\"profileId\")\nREFERENCES \"public\".\"FinancialInstitutionProfile\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"FinancialInstitutionYieldPolicy_profileId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "FinancialInstitutionYieldPolicy_profileId_fkey",
+          "public",
+          "\"public\".\"FinancialInstitutionYieldPolicy\"",
+          "f",
+          "[\"profileId\"]",
+          "\"public\".\"FinancialInstitutionProfile\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.InstitutionReviewAudit.InstitutionReviewAudit_proposalId_fkey",
+    "label": "Add foreign key \"InstitutionReviewAudit_proposalId_fkey\" on \"InstitutionReviewAudit\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "InstitutionReviewAudit_proposalId_fkey",
+        "table": "InstitutionReviewAudit"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"InstitutionReviewAudit_proposalId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_proposalId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"InstitutionReviewAudit_proposalId_fkey\" on \"InstitutionReviewAudit\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"InstitutionReviewAudit_proposalId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"InstitutionReviewAudit\"\nADD CONSTRAINT \"InstitutionReviewAudit_proposalId_fkey\"\nFOREIGN KEY (\"proposalId\")\nREFERENCES \"public\".\"FinancialInstitutionProposal\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"InstitutionReviewAudit_proposalId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_proposalId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\"",
+          "f",
+          "[\"proposalId\"]",
+          "\"public\".\"FinancialInstitutionProposal\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.InstitutionReviewAudit.InstitutionReviewAudit_reviewerId_fkey",
+    "label": "Add foreign key \"InstitutionReviewAudit_reviewerId_fkey\" on \"InstitutionReviewAudit\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "InstitutionReviewAudit_reviewerId_fkey",
+        "table": "InstitutionReviewAudit"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"InstitutionReviewAudit_reviewerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_reviewerId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"InstitutionReviewAudit_reviewerId_fkey\" on \"InstitutionReviewAudit\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"InstitutionReviewAudit_reviewerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"InstitutionReviewAudit\"\nADD CONSTRAINT \"InstitutionReviewAudit_reviewerId_fkey\"\nFOREIGN KEY (\"reviewerId\")\nREFERENCES \"public\".\"user\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"InstitutionReviewAudit_reviewerId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "InstitutionReviewAudit_reviewerId_fkey",
+          "public",
+          "\"public\".\"InstitutionReviewAudit\"",
+          "f",
+          "[\"reviewerId\"]",
+          "\"public\".\"user\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserFinancialInstitution.UserFinancialInstitution_institutionId_fkey",
+    "label": "Add foreign key \"UserFinancialInstitution_institutionId_fkey\" on \"UserFinancialInstitution\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserFinancialInstitution_institutionId_fkey",
+        "table": "UserFinancialInstitution"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserFinancialInstitution_institutionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserFinancialInstitution_institutionId_fkey",
+          "public",
+          "\"public\".\"UserFinancialInstitution\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"UserFinancialInstitution_institutionId_fkey\" on \"UserFinancialInstitution\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserFinancialInstitution_institutionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserFinancialInstitution\"\nADD CONSTRAINT \"UserFinancialInstitution_institutionId_fkey\"\nFOREIGN KEY (\"institutionId\")\nREFERENCES \"public\".\"FinancialInstitution\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserFinancialInstitution_institutionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "UserFinancialInstitution_institutionId_fkey",
+          "public",
+          "\"public\".\"UserFinancialInstitution\"",
+          "f",
+          "[\"institutionId\"]",
+          "\"public\".\"FinancialInstitution\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserInstitutionProfileChange.UserInstitutionProfileChange_profileId_fkey",
+    "label": "Add foreign key \"UserInstitutionProfileChange_profileId_fkey\" on \"UserInstitutionProfileChange\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserInstitutionProfileChange_profileId_fkey",
+        "table": "UserInstitutionProfileChange"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserInstitutionProfileChange_profileId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserInstitutionProfileChange_profileId_fkey",
+          "public",
+          "\"public\".\"UserInstitutionProfileChange\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"UserInstitutionProfileChange_profileId_fkey\" on \"UserInstitutionProfileChange\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserInstitutionProfileChange_profileId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserInstitutionProfileChange\"\nADD CONSTRAINT \"UserInstitutionProfileChange_profileId_fkey\"\nFOREIGN KEY (\"profileId\")\nREFERENCES \"public\".\"FinancialInstitutionProfile\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserInstitutionProfileChange_profileId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "UserInstitutionProfileChange_profileId_fkey",
+          "public",
+          "\"public\".\"UserInstitutionProfileChange\"",
+          "f",
+          "[\"profileId\"]",
+          "\"public\".\"FinancialInstitutionProfile\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.YieldCalendarCoverage.YieldCalendarCoverage_countryCode_fkey",
+    "label": "Add foreign key \"YieldCalendarCoverage_countryCode_fkey\" on \"YieldCalendarCoverage\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "YieldCalendarCoverage_countryCode_fkey",
+        "table": "YieldCalendarCoverage"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"YieldCalendarCoverage_countryCode_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "YieldCalendarCoverage_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarCoverage\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"YieldCalendarCoverage_countryCode_fkey\" on \"YieldCalendarCoverage\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"YieldCalendarCoverage_countryCode_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"YieldCalendarCoverage\"\nADD CONSTRAINT \"YieldCalendarCoverage_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"YieldCalendarCoverage_countryCode_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "YieldCalendarCoverage_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarCoverage\"",
+          "f",
+          "[\"countryCode\"]",
+          "\"public\".\"YieldCalendarCountry\"",
+          "[\"code\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.YieldCalendarOverride.YieldCalendarOverride_countryCode_fkey",
+    "label": "Add foreign key \"YieldCalendarOverride_countryCode_fkey\" on \"YieldCalendarOverride\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "YieldCalendarOverride_countryCode_fkey",
+        "table": "YieldCalendarOverride"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"YieldCalendarOverride_countryCode_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "YieldCalendarOverride_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarOverride\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"YieldCalendarOverride_countryCode_fkey\" on \"YieldCalendarOverride\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"YieldCalendarOverride_countryCode_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"YieldCalendarOverride\"\nADD CONSTRAINT \"YieldCalendarOverride_countryCode_fkey\"\nFOREIGN KEY (\"countryCode\")\nREFERENCES \"public\".\"YieldCalendarCountry\" (\"code\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"YieldCalendarOverride_countryCode_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "YieldCalendarOverride_countryCode_fkey",
+          "public",
+          "\"public\".\"YieldCalendarOverride\"",
+          "f",
+          "[\"countryCode\"]",
+          "\"public\".\"YieldCalendarCountry\"",
+          "[\"code\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.taxDefinitionVersion.taxDefinitionVersion_taxDefinitionId_fkey",
+    "label": "Add foreign key \"taxDefinitionVersion_taxDefinitionId_fkey\" on \"taxDefinitionVersion\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "taxDefinitionVersion_taxDefinitionId_fkey",
+        "table": "taxDefinitionVersion"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"taxDefinitionVersion_taxDefinitionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "taxDefinitionVersion_taxDefinitionId_fkey",
+          "public",
+          "\"public\".\"taxDefinitionVersion\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"taxDefinitionVersion_taxDefinitionId_fkey\" on \"taxDefinitionVersion\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"taxDefinitionVersion_taxDefinitionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"taxDefinitionVersion\"\nADD CONSTRAINT \"taxDefinitionVersion_taxDefinitionId_fkey\"\nFOREIGN KEY (\"taxDefinitionId\")\nREFERENCES \"public\".\"taxDefinition\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"taxDefinitionVersion_taxDefinitionId_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "taxDefinitionVersion_taxDefinitionId_fkey",
+          "public",
+          "\"public\".\"taxDefinitionVersion\"",
+          "f",
+          "[\"taxDefinitionId\"]",
+          "\"public\".\"taxDefinition\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  }
+]

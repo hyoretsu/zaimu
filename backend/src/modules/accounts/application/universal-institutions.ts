@@ -1,4 +1,5 @@
 import type { InstitutionCardRules } from "@zaimu/finance/institution-card-rules";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { assertSupportedCurrency } from "~/modules/currencies/application/currency-defaults";
 import { enqueueAccountYieldRecalculation } from "~/modules/reference-rates/application/reference-rate-jobs";
 import { assertTaxSelection } from "~/modules/taxes/catalog";
@@ -537,7 +538,7 @@ export async function reviewInstitutionProposal(
 export async function ensureInstitutionLink(
 	userId: string,
 	institutionId: string,
-	effectiveDate = new Date(),
+	effectiveDate = businessNow(),
 ) {
 	await queryRaw(
 		`INSERT INTO "UserFinancialInstitution" ("id","userId","institutionId","globalRulesFrom","updatedAt") SELECT $1,$2::varchar,"id",CASE WHEN "status"='APPROVED' THEN $4::date ELSE NULL END,NOW() FROM "FinancialInstitution" WHERE "id"=$3 AND ("status"='APPROVED' OR "userId"=$2) ON CONFLICT ("userId","institutionId") DO NOTHING`,

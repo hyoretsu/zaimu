@@ -1,5 +1,6 @@
 import { fetchCurrencySnapshot } from "@zaimu/finance/currency-provider";
 import { roundMoney } from "@zaimu/finance/money";
+import { businessNow } from "@zaimu/finance/time-zone";
 export type CurrencyRates = Record<string, number>;
 export interface CurrencyRateStore {
 	latest?: (baseCurrency: string) => Promise<{ date: string; rates: CurrencyRates } | null>;
@@ -76,14 +77,14 @@ export function createCurrencyExchangeService(
 	function latest(fromInput: string, toInput: string) {
 		const from = normalizeCurrency(fromInput),
 			to = normalizeCurrency(toInput);
-		if (from === to) return Promise.resolve({ date: new Date().toISOString().slice(0, 10), rate: 1 });
+		if (from === to) return Promise.resolve({ date: businessNow().toISOString().slice(0, 10), rate: 1 });
 		const key = `${from}:${to}`;
 		const previous = latestPending.get(key);
 		if (previous) return previous;
 		const operation = (async () => {
 			const stored = await store.latest?.(from);
 			let result = stored;
-			if (!stored || stored.date !== new Date().toISOString().slice(0, 10)) {
+			if (!stored || stored.date !== businessNow().toISOString().slice(0, 10)) {
 				try {
 					const snapshot = await download(() => fetchCurrencySnapshot("latest", from, fetcher));
 					result = {

@@ -1,3 +1,4 @@
+import { businessNow } from "./time-zone";
 export interface InstitutionCardRules {
 	workingDueDate: boolean;
 	transitionMode?: "EXTRA_CYCLE" | "NEXT_CYCLE";
@@ -25,7 +26,7 @@ export function resolveInstitutionCardRules(
 	institution: { creditCardRules?: InstitutionCardRules | null } | null | undefined,
 	profiles: CardRulesProfile[] = [],
 	changes: { profileId: string; effectiveDate: string }[] = [],
-	date = new Date().toISOString().slice(0, 10),
+	date = businessNow().toISOString().slice(0, 10),
 ): InstitutionCardRules {
 	const active = changes
 		.filter(change => change.effectiveDate.slice(0, 10) <= date)

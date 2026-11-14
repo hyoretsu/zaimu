@@ -13,5 +13,6 @@ export * from "./DashboardQuickActions";
 export * from "./DashboardReferenceRateNotice";
 export * from "./DashboardSkeleton";
 export * from "./LocalStorageError";
+export * from "./PublicCapableRouteSkeleton";
 
 export { SessionUnavailable } from "./SessionUnavailable";

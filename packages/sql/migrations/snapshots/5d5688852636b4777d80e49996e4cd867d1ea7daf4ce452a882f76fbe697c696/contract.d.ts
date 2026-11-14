@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'d28051f1fb0e3d0e057b3919e20ae44d17c6763894e3cfb28121b03c6cb0994b'>;
+  StorageHashBase<'5d5688852636b4777d80e49996e4cd867d1ea7daf4ce452a882f76fbe697c696'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -1798,7 +1798,6 @@ export namespace Models {
     payload: FieldOutputTypes['public']['OutboxEvent']['payload'];
     publishedAt: FieldOutputTypes['public']['OutboxEvent']['publishedAt'];
     schemaVersion: FieldOutputTypes['public']['OutboxEvent']['schemaVersion'];
-    telemetryContext: FieldOutputTypes['public']['OutboxEvent']['telemetryContext'];
     updatedAt: FieldOutputTypes['public']['OutboxEvent']['updatedAt'];
     userIds: FieldOutputTypes['public']['OutboxEvent']['userIds'];
     readonly [RelationKeys]?: never;
@@ -10096,12 +10095,6 @@ type ContractBase = Omit<
                     readonly kind: 'literal';
                     readonly value: DefaultLiteralValue<'pg/int4@1', 1>;
                   };
-                  readonly many: false;
-                };
-                readonly telemetryContext: {
-                  readonly dataType: 'pg/jsonb';
-                  readonly codecId: 'pg/jsonb@1';
-                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly updatedAt: {
@@ -21699,10 +21692,6 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
-              readonly telemetryContext: {
-                readonly nullable: true;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
-              };
               readonly updatedAt: {
                 readonly nullable: false;
                 readonly type: {
@@ -21739,7 +21728,6 @@ type ContractBase = Omit<
                 readonly payload: { readonly column: 'payload' };
                 readonly publishedAt: { readonly column: 'publishedAt' };
                 readonly schemaVersion: { readonly column: 'schemaVersion' };
-                readonly telemetryContext: { readonly column: 'telemetryContext' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
                 readonly userIds: { readonly column: 'userIds' };
               };

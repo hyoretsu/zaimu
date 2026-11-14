@@ -1,4 +1,5 @@
 import { historicalYieldOverride } from "@zaimu/finance/projected-yield";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { format, subDays } from "date-fns";
 import { t } from "elysia";
 import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/assert-financial-account-yield-settings";
@@ -49,7 +50,7 @@ export function selectHistoricalYieldSettings(
 	}
 }
 
-export function historicalYieldCollectionWindow(createdAt: Date, now = new Date()) {
+export function historicalYieldCollectionWindow(createdAt: Date, now = businessNow()) {
 	const startDate = format(createdAt, "yyyy-MM-dd");
 	const endDate = format(subDays(now, 1), "yyyy-MM-dd");
 	return startDate <= endDate ? { endDate, startDate } : null;
@@ -77,11 +78,11 @@ export async function recalculateHistoricalAccountYields(
 		}
 		const account = await loadYieldAccount(accountId);
 		if (!account) throw new HttpException("Conta não encontrada", 404);
-		const now = new Date();
+		const now = businessNow();
 		const throughDate = format(now, "yyyy-MM-dd");
 		if (customSettings) {
 			assertFinancialAccountYieldSettings({ ...customSettings, type: account.type });
-			await assertTaxSelection(customSettings.yieldTaxIds, account.yieldTaxIds ?? [], new Date());
+			await assertTaxSelection(customSettings.yieldTaxIds, account.yieldTaxIds ?? [], businessNow());
 		}
 		// Without an explicit choice, a configured profile history wins over freezing today's rule.
 		const useProfileHistory =

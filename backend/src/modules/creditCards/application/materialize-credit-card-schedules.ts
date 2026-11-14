@@ -1,8 +1,11 @@
 import { materializeBookInstallments } from "@zaimu/finance/credit-book";
+import { businessNow } from "@zaimu/finance/time-zone";
 import { HttpException } from "~/shared/errors";
 import { db, param, queryFirst, queryRaw } from "~/shared/infra/sql";
 import { loadCreditCardScheduleCandidates } from "./credit-card-schedule-candidates";
 import { mutateCreditBook } from "./normalized-credit-book";
+
+const MATERIALIZE_CONCURRENCY = 4;
 
 export { getStatementDates } from "./credit-card-schedule-periods";
 
@@ -50,7 +53,7 @@ export async function getOrCreateStatement(creditCardId: string, dueDate: Date, 
 	return statement;
 }
 
-export async function materializeCreditCardSchedules(asOf = new Date(), cardIds?: string[]) {
+export async function materializeCreditCardSchedules(asOf = businessNow(), cardIds?: string[]) {
 	const cards = await loadCreditCardScheduleCandidates(asOf, cardIds);
 	const changedCards = new Set<string>();
 	const missing = cards.flatMap(card =>
@@ -63,20 +66,27 @@ export async function materializeCreditCardSchedules(asOf = new Date(), cardIds?
 		);
 		for (const row of inserted) changedCards.add(row.creditCardId);
 	}
-	for (const card of cards) {
-		if (!card.dueInstallments) continue;
-		const changed = await mutateCreditBook(
-			card.userId,
-			card.id,
-			book => {
-				const before = book.installments.length;
-				materializeBookInstallments(book, card.through);
-				return book.installments.length !== before;
-			},
-			card.through,
-		);
-		if (changed) changedCards.add(card.id);
-	}
+	const due = cards.filter(card => card.dueInstallments);
+	let next = 0;
+	// Each mutateCreditBook runs in its own transaction and locks only its card, so cards are independent.
+	await Promise.all(
+		Array.from({ length: Math.min(MATERIALIZE_CONCURRENCY, due.length) }, async () => {
+			while (next < due.length) {
+				const card = due[next++]!;
+				const changed = await mutateCreditBook(
+					card.userId,
+					card.id,
+					book => {
+						const before = book.installments.length;
+						materializeBookInstallments(book, card.through);
+						return book.installments.length !== before;
+					},
+					card.through,
+				);
+				if (changed) changedCards.add(card.id);
+			}
+		}),
+	);
 	return {
 		cards: cards.length,
 		userIds: [...new Set(cards.filter(card => changedCards.has(card.id)).map(card => card.userId))],

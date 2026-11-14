@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
 import { defaultCurrency } from "~/modules/currencies/application/currency-defaults";
@@ -43,6 +44,7 @@ export const DashboardComparisonController = new Elysia().get(
 				{ resource: "comparison", ...query, locationCurrency, view: "currency-context-v2" },
 				async (): Promise<DashboardComparisonReturn> =>
 					compareInWorker({
+						businessTimestamp: businessNow().toISOString(),
 						currency: await defaultCurrency(userId, locationCurrency),
 						query,
 						userId,

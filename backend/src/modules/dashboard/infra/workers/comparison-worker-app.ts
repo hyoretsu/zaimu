@@ -1,16 +1,22 @@
+import { installBusinessClock } from "@zaimu/finance/time-zone";
 import { shutdown } from "@zaimu/observability/sdk";
 import { serveWorker } from "~/shared/infra/compute/offload";
 import { getDashboardComparison } from "../../application";
 import type { DashboardComparisonQuery } from "../../application/dashboard-dtos";
 
 export interface ComparisonJob {
+	businessTimestamp: string;
 	currency: string;
 	query: DashboardComparisonQuery;
 	userId: string;
 }
 
-serveWorker(
-	async ({ currency, query, userId }: ComparisonJob) =>
-		getDashboardComparison(userId, query, undefined, currency),
-	shutdown,
-);
+serveWorker(async ({ businessTimestamp, currency, query, userId }: ComparisonJob) => {
+	const timestamp = new Date(businessTimestamp);
+	const restore = installBusinessClock(() => timestamp);
+	try {
+		return await getDashboardComparison(userId, query, undefined, currency);
+	} finally {
+		restore();
+	}
+}, shutdown);

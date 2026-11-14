@@ -1,3 +1,4 @@
+import { businessNow } from "@zaimu/finance/time-zone";
 import { getAssetQuote } from "~/modules/currencies/infra/asset-exchange";
 import { queryRaw } from "~/shared/infra/sql";
 
@@ -11,7 +12,7 @@ export function refreshHeldAssetQuotes(): Promise<void> {
 		const rows = await queryRaw<{ assetCode: string }>(
 			`SELECT DISTINCT holding."assetCode" FROM "FinancialAccountAsset" holding JOIN "Asset" asset ON asset."code"=holding."assetCode" WHERE asset."kind"='CRYPTO' AND asset."quoteProvider" LIKE 'brapi:%' ORDER BY holding."assetCode"`,
 		);
-		const date = new Date().toISOString().slice(0, 10);
+		const date = businessNow().toISOString().slice(0, 10);
 		for (const row of rows) {
 			try {
 				await getAssetQuote(date, row.assetCode, "USD");

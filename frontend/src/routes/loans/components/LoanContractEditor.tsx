@@ -20,11 +20,16 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
+import { FormFieldRow } from "@/components/ui/FormFieldRow";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { primaryCurrency } from "@/lib/account-assets";
 import { dataService } from "@/lib/dataService";
-import { getLocalDateKey } from "@/lib/date";
+import { formatLocalDate, getLocalDateKey } from "@/lib/date";
+import {
+	compareFinancialAccountsByDisplayName,
+	getFinancialAccountDisplayName,
+} from "@/lib/financial-account";
 import { loanContractService } from "@/lib/loan-contract-service";
 import { queryKeys, useCacheIdentity } from "@/lib/query-cache";
 import { showToast } from "@/stores";
@@ -33,10 +38,13 @@ import { submittedLoanTerms, submittedNumber } from "./loan-contract-form";
 import { LoanContractFields } from "./LoanContractFields";
 export function LoanContractEditor({
 	book,
+	initialTerms,
 	onClose,
 	restructure,
 }: {
 	book?: LoanContractBook;
+	/** Prefills a new contract, e.g. from a compared offer. */
+	initialTerms?: LoanContractTerms;
 	onClose: () => void;
 	restructure?: "RENEGOTIATE" | "PORTABILITY";
 }) {
@@ -57,21 +65,23 @@ export function LoanContractEditor({
 					startDate: getLocalDateKey(),
 					totalInstallments: Math.max(1, outstandingLoanSchedule(book).length),
 				}
-			: {
-					amortization: "PRICE",
-					charges: [],
-					currency,
-					discount: "PRESENT_VALUE",
-					firstDueDate: shiftMonths(getLocalDateKey(), 1),
-					graceInterest: "PAY",
-					graceMonths: 0,
-					lateFinePercent: 0,
-					lateMonthlyPercent: 0,
-					principalAmount: 0,
-					rate: { fixedPeriod: "MONTHLY", fixedRate: 0 },
-					startDate: getLocalDateKey(),
-					totalInstallments: 12,
-				},
+			: initialTerms
+				? structuredClone(initialTerms)
+				: {
+						amortization: "PRICE",
+						charges: [],
+						currency,
+						discount: "PRESENT_VALUE",
+						firstDueDate: shiftMonths(getLocalDateKey(), 1),
+						graceInterest: "PAY",
+						graceMonths: 0,
+						lateFinePercent: 0,
+						lateMonthlyPercent: 0,
+						principalAmount: 0,
+						rate: { fixedPeriod: "MONTHLY", fixedRate: 0 },
+						startDate: getLocalDateKey(),
+						totalInstallments: 12,
+					},
 	);
 	const [institutionId, setInstitutionId] = useState(book?.institutionId ?? "");
 	const [effectiveDate, setEffectiveDate] = useState(getLocalDateKey());
@@ -119,7 +129,7 @@ export function LoanContractEditor({
 					</DialogDescription>
 				</DialogHeader>
 				<form
-					className="flex min-h-0 flex-1 flex-col"
+					className="flex min-h-0 flex-1 flex-col gap-6"
 					onSubmit={async event => {
 						event.preventDefault();
 						if (pending) return;
@@ -173,33 +183,73 @@ export function LoanContractEditor({
 				>
 					<DialogBody>
 						<div className="space-y-4">
-							{institutions.isPending ? (
-								<Skeleton className="h-20" />
-							) : institutions.isError ? (
-								<p role="alert">
-									Falha ao carregar instituições.{" "}
-									<Button
-										onClick={() => void institutions.refetch()}
-										type="button"
-										variant="outline"
-									>
-										Tentar novamente
-									</Button>
-								</p>
-							) : (
-								<CustomSelect
-									label="Instituição financeira"
-									onValueChange={setInstitutionId}
-									options={(institutions.data ?? []).map(row => ({
-										label: row.name,
-										value: row.id,
-									}))}
-									placeholder="Ex: Banco do Brasil"
-									required
-									searchable
-									value={institutionId}
-								/>
-							)}
+							<FormFieldRow>
+								{institutions.isPending ? (
+									<Skeleton className="h-20" />
+								) : institutions.isError ? (
+									<p role="alert">
+										Falha ao carregar instituições.{" "}
+										<Button
+											onClick={() => void institutions.refetch()}
+											type="button"
+											variant="outline"
+										>
+											Tentar novamente
+										</Button>
+									</p>
+								) : (
+									<CustomSelect
+										label="Instituição financeira"
+										onValueChange={setInstitutionId}
+										options={(institutions.data ?? []).map(row => ({
+											label: row.name,
+											value: row.id,
+										}))}
+										placeholder="Ex: Banco do Brasil"
+										required
+										searchable
+										value={institutionId}
+									/>
+								)}
+								{!book &&
+									(accounts.isPending ? (
+										<Skeleton className="h-20" />
+									) : (
+										<CustomSelect
+											label="Recebimento"
+											onValueChange={setDisbursementAccountId}
+											options={[
+												{ label: "Não registrar", special: true, value: "" },
+												...(accounts.data ?? [])
+													.filter(
+														row =>
+															["CASH", "CHECKING"].includes(row.type) &&
+															(primaryCurrency(row) ?? "BRL") ===
+																draft.currency,
+													)
+													.toSorted(compareFinancialAccountsByDisplayName)
+													.map(row => ({
+														label: getFinancialAccountDisplayName(row),
+														value: row.id,
+													})),
+												...(transactions.data ?? [])
+													.filter(
+														row =>
+															row.type === "INCOME" &&
+															(row.currency ?? "BRL") === draft.currency &&
+															row.amount === draft.principalAmount,
+													)
+													.map(row => ({
+														label: `Vincular recebimento de ${formatLocalDate(row.date)} - ${row.description ?? "Recebimento"}`,
+														value: `link:${row.id}`,
+													})),
+											]}
+											placeholder="Ex: Conta corrente"
+											searchable
+											value={disbursementAccountId}
+										/>
+									))}
+							</FormFieldRow>
 							{restructure && (
 								<MoneyField
 									currencyCode={draft.currency}
@@ -211,7 +261,7 @@ export function LoanContractEditor({
 								/>
 							)}
 							<LoanContractFields onChange={setDraft} value={draft} />
-							{book ? (
+							{book && (
 								<DateField
 									id="contract-effective"
 									label="Vigência da alteração"
@@ -220,42 +270,7 @@ export function LoanContractEditor({
 									required
 									value={effectiveDate}
 								/>
-							) : accounts.isPending ? (
-								<Skeleton className="h-20" />
-							) : (
-								<CustomSelect
-									label="Crédito recebido"
-									onValueChange={setDisbursementAccountId}
-									options={[
-										{ label: "Não criar movimento", special: true, value: "" },
-										...(accounts.data ?? [])
-											.filter(
-												row =>
-													["CASH", "CHECKING", "SAVINGS", "INVESTMENT"].includes(
-														row.type,
-													) && (primaryCurrency(row) ?? "BRL") === draft.currency,
-											)
-											.map(row => ({
-												label: `Criar crédito em ${row.name}`,
-												value: row.id,
-											})),
-										...(transactions.data ?? [])
-											.filter(
-												row =>
-													row.type === "INCOME" &&
-													(row.currency ?? "BRL") === draft.currency &&
-													row.amount === draft.principalAmount,
-											)
-											.map(row => ({
-												label: `Vincular crédito de ${row.date} - ${row.description ?? "Recebimento"}`,
-												value: `link:${row.id}`,
-											})),
-									]}
-									placeholder="Ex: Conta corrente"
-									searchable
-									value={disbursementAccountId}
-								/>
-							)}{" "}
+							)}
 							{error && (
 								<p className="text-destructive" role="alert">
 									{error}

@@ -171,7 +171,10 @@ function DialogFooter({
 }) {
 	return (
 		<div
-			className={cn("flex shrink-0 flex-wrap items-center justify-end gap-2", className)}
+			className={cn(
+				"bg-popover relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-2",
+				className,
+			)}
 			data-slot="dialog-footer"
 			{...props}
 		>
