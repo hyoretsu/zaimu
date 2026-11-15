@@ -32,3 +32,17 @@ export function submitForm(form: HTMLFormElement) {
 	form.requestSubmit(submitter);
 	return true;
 }
+
+// Modals that save through onClick instead of a <form>: the primary action is the last
+// enabled button of the modal footer (Excluir/Descartar come before Salvar). A button
+// marked data-submit-primary wins over that convention.
+export function findPrimaryAction(target: Element | null) {
+	const dialog = target?.closest('[data-slot="dialog-content"]') ?? topmostDialog();
+	if (!dialog) return null;
+	const marked = dialog.querySelector<HTMLButtonElement>("button[data-submit-primary]:not(:disabled)");
+	if (marked) return marked;
+	const buttons = dialog.querySelectorAll<HTMLButtonElement>(
+		'[data-slot="dialog-footer"] button:not(:disabled)',
+	);
+	return buttons.item(buttons.length - 1);
+}
