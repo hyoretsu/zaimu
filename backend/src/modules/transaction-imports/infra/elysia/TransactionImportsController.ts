@@ -1209,7 +1209,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		},
 		{
 			detail: { operationId: "getTransactionImportsById" },
-			params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }),
+			// Also accepts the `account:<accountId>` id of an account-wide review.
+			params: t.Object({ id: t.String({ maxLength: 44, minLength: 1 }) }),
 			query: t.Object({
 				cursor: t.Optional(t.String({ maxLength: 2048, minLength: 1 })),
 				limit: t.Optional(t.Number({ maximum: 100, minimum: 1 })),
