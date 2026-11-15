@@ -20,7 +20,7 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 	if (imports.isPending) return null;
 	if (imports.isError && !imports.data)
 		return (
-			<section className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 p-4">
+			<section className="border-destructive/30 flex items-center justify-between gap-3 rounded-2xl border p-4">
 				<p className="text-sm">Não foi possível verificar extratos pendentes.</p>
 				<Button className="cursor-pointer" onClick={() => imports.refetch()} variant="outline">
 					Tentar novamente
@@ -53,8 +53,8 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 				}
 				description={
 					<>
-						{pendingImports.length} {pendingImports.length === 1 ? "extrato" : "extratos"} · {itemCount}{" "}
-						transações ainda não afetam seus saldos.
+						{pendingImports.length} {pendingImports.length === 1 ? "conta" : "contas"} ·{" "}
+						{itemCount} transações ainda não afetam seus saldos.
 					</>
 				}
 				icon={<LuClock3 aria-hidden="true" className="size-5 text-amber-700" />}
