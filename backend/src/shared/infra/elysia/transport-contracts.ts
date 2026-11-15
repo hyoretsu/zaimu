@@ -1502,7 +1502,9 @@ export const TransactionImportSummaryReturn = t.Object({
 	createdAt: t.String(),
 	fileName: t.String(),
 	financialAccountId: t.String(),
+	firstDate: t.Union([t.Null(), t.String()]),
 	id: t.String(),
+	lastDate: t.Union([t.Null(), t.String()]),
 	pendingItemCount: t.Number(),
 });
 export type TransactionImportSummaryReturn = typeof TransactionImportSummaryReturn.static;

@@ -12,6 +12,8 @@ import {
 import { Input } from "@/components/ui/Input";
 import type { TransactionImportSummary } from "@/lib/api";
 
+const formatDate = (value: string) => value.split("-").reverse().join("/");
+
 const normalize = (value: string) =>
 	value
 		.normalize("NFD")
@@ -84,9 +86,10 @@ export function PendingTransactionImportsDialog({
 									</span>
 									<span className="text-muted-foreground block truncate text-xs">
 										{account.pendingItemCount}{" "}
-										{account.pendingItemCount === 1
-											? "transação restante"
-											: "transações restantes"}
+										{account.pendingItemCount === 1 ? "transação" : "transações"}
+										{account.firstDate && account.lastDate
+											? `, ${formatDate(account.firstDate)} a ${formatDate(account.lastDate)}`
+											: ""}
 									</span>
 								</span>
 							</Button>

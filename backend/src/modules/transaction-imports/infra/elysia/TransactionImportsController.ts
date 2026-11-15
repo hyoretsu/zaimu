@@ -589,7 +589,11 @@ const decodeImportItemsCursor = (cursor?: string): ImportItemsCursor | null => {
 
 function accountDisplayName(imports: { accountName: string; institutionName: string | null }[]) {
 	const [{ accountName, institutionName }] = imports;
-	return institutionName ?? accountName;
+	const account = accountName.trim();
+	if (!institutionName) return account;
+	return !account || account.toLocaleLowerCase("pt-BR") === institutionName.toLocaleLowerCase("pt-BR")
+		? institutionName
+		: `${institutionName} · ${account}`;
 }
 
 const accountImportPrefix = "account:";
@@ -678,10 +682,7 @@ async function getImportReturn(
 				),
 				provider: pendingImports[0].provider as Awaited<ReturnType<typeof getImport>>["provider"],
 				status: "PENDING" as const,
-				updatedAt: pendingImports.reduce(
-					(latest, current) => Math.max(current.updatedAt, latest),
-					pendingImports[0].updatedAt,
-				),
+				updatedAt: new Date(Math.max(...pendingImports.map(pending => pending.updatedAt.valueOf()))),
 			}
 		: await getImport(userId, importId);
 	const itemImportIds = pendingImports ? pendingImports.map(pending => pending.id) : [importId];
@@ -1144,19 +1145,20 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 							accountName: string;
 							createdAt: Date;
 							financialAccountId: string;
+							firstDate: string | null;
 							institutionName: string | null;
+							lastDate: string | null;
 							pendingItemCount: number;
 						} & Record<string, unknown>
 					>(
 						`SELECT import."financialAccountId", account."name" AS "accountName", institution."name" AS "institutionName",
-						        max(import."createdAt") AS "createdAt",
-						        (SELECT count(*)::integer FROM "TransactionImportItem" item
-						          JOIN "TransactionImport" pending ON pending."id" = item."transactionImportId"
-						          WHERE pending."userId" = $1 AND pending."status" = 'PENDING'
-						            AND pending."financialAccountId" = import."financialAccountId") AS "pendingItemCount"
+						        max(import."createdAt") AS "createdAt", count(item."id")::integer AS "pendingItemCount",
+						        to_char(min(item."date"), 'YYYY-MM-DD') AS "firstDate",
+						        to_char(max(item."date"), 'YYYY-MM-DD') AS "lastDate"
 						 FROM "TransactionImport" import
 						 JOIN "FinancialAccount" account ON account."id" = import."financialAccountId"
 						 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+						 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
 						 WHERE import."userId" = $1 AND import."status" = 'PENDING'
 						 GROUP BY import."financialAccountId", account."name", institution."name"
 						 ORDER BY "pendingItemCount" ASC, max(import."createdAt") DESC`,
@@ -1169,7 +1171,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 								createdAt: row.createdAt,
 								fileName: name,
 								financialAccountId: row.financialAccountId,
+								firstDate: row.firstDate,
 								id: `${accountImportPrefix}${row.financialAccountId}`,
+								lastDate: row.lastDate,
 								pendingItemCount: row.pendingItemCount,
 							};
 						}),
