@@ -24,6 +24,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBackgroundModalRecovery } from "@/hooks/use-background-modal-recovery";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { primaryCurrency } from "@/lib/account-assets";
 import type {
 	FinancialAccount,
@@ -215,6 +216,10 @@ export function TransactionImportReviewDialog({
 		initialPageParam: undefined as string | undefined,
 		queryFn: ({ pageParam }) => dataService.transactionImports.get(importId!, pageParam),
 		queryKey: queryKeys.transactionImports.detail(identity!, importId),
+	});
+	const loadMoreRef = useInfiniteScroll({
+		enabled: transactionImport.hasNextPage && !transactionImport.isFetching && !transactionImport.isError,
+		onLoadMore: transactionImport.fetchNextPage,
 	});
 	const transactionImportData = transactionImport.data?.pages[0];
 	const items = transactionImport.data?.pages.flatMap(page => page.items) ?? [];
@@ -654,22 +659,28 @@ export function TransactionImportReviewDialog({
 											))}
 										</ImportReviewDateSection>
 									))}
-									{transactionImport.hasNextPage && (
-										<ActionGroup>
-											<Button
-												className="cursor-pointer disabled:cursor-not-allowed"
-												disabled={transactionImport.isFetchingNextPage}
-												onClick={() => transactionImport.fetchNextPage()}
-												variant="outline"
+									{transactionImport.hasNextPage &&
+										(transactionImport.isFetchNextPageError ? (
+											<ActionGroup>
+												<Button
+													className="cursor-pointer"
+													onClick={() => transactionImport.fetchNextPage()}
+													variant="outline"
+												>
+													Tentar novamente
+												</Button>
+											</ActionGroup>
+										) : (
+											<div
+												aria-live="polite"
+												className="text-muted-foreground flex h-10 items-center justify-center"
+												ref={loadMoreRef}
 											>
 												{transactionImport.isFetchingNextPage
 													? "Carregando..."
-													: transactionImport.isFetchNextPageError
-														? "Tentar novamente"
-														: "Carregar mais"}
-											</Button>
-										</ActionGroup>
-									)}
+													: null}
+											</div>
+										))}
 								</div>
 							</div>
 						) : null}
