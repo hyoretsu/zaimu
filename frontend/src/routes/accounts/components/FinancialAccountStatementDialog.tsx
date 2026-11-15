@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { LuDownload, LuFileUp, LuPlus, LuRefreshCw, LuScale } from "react-icons/lu";
+import { PreferredMoneyAmount } from "@/components/currency/PreferredMoneyAmount";
 import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { CreateTransactionDialog, EditTransactionDialog, TransactionsList } from "@/components/transactions";
 import { ActionGroup } from "@/components/ui/ActionGroup";
@@ -173,6 +174,18 @@ export function FinancialAccountStatementDialog({
 				<DialogHeader>
 					<DialogTitle>Extrato · {displayName}</DialogTitle>
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
+					{account.assets.length > 0 && (
+						<p className="text-muted-foreground text-sm">
+							<strong className="font-bold">Saldo atual:</strong>{" "}
+							<PreferredMoneyAmount
+								highlightNegative
+								values={account.assets.map(({ assetCode, balance }) => ({
+									amount: balance,
+									currency: assetCode,
+								}))}
+							/>
+						</p>
+					)}
 				</DialogHeader>
 				<DialogBody>
 					<div className="space-y-5 pb-20">
