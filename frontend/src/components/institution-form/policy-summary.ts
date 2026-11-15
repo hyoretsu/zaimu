@@ -21,7 +21,7 @@ const number = (value: number) => value.toLocaleString("pt-BR", { maximumFractio
 const day = (value: string) => value.slice(0, 10).split("-").reverse().join("/");
 
 /** Scope of a policy: country and account type ("Todos os países - Todos os tipos"). */
-export function policyScope(policy: PolicyLike) {
+export function policyScope(policy: Pick<PolicyLike, "accountType" | "countryCode">) {
 	return [
 		policy.countryCode ? countryName(policy.countryCode) : "Todos os países",
 		YIELD_ACCOUNT_TYPES.find(type => type.value === policy.accountType)?.label ?? "Todos os tipos",

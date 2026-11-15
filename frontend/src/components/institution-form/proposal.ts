@@ -31,6 +31,7 @@ export function initialFormState(institution?: InstitutionFormSource): Instituti
 		policies: [],
 		profileRules: {},
 		remainderOnFirst: institution?.creditInstallmentRemainderOnFirst ?? false,
+		removedPolicies: [],
 		rules: institution?.creditCardRules ?? defaultCardRules,
 	};
 }
@@ -99,6 +100,7 @@ export function buildProposalBody(
 	}
 	if (profileEntries.length) body.profiles = profileEntries;
 	if (state.policies.length) body.policies = state.policies.map(policyDraftBody);
+	if (state.removedPolicies.length) body.removedPolicies = state.removedPolicies;
 	return body;
 }
 

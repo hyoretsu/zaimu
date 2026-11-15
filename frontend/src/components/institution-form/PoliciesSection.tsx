@@ -15,7 +15,7 @@ import { PolicyDraftDialog } from "./PolicyDraftDialog";
 import { policyProfileKey } from "./PolicyDraftEditor";
 import { PolicyRow } from "./PolicyRow";
 import { DEFAULT_PROFILE_NAME } from "./proposal";
-import type { ExistingProfile, InstitutionFormState, PolicyDraft } from "./types";
+import type { ExistingProfile, InstitutionFormState, PolicyDraft, PolicyRemoval } from "./types";
 
 interface ProfileGroup {
 	isDefault: boolean;
@@ -89,6 +89,27 @@ export function PoliciesSection({
 			: defaultProfile
 				? `id:${defaultProfile.id}`
 				: `name:${DEFAULT_PROFILE_NAME}`;
+	const removalOf = (policy: FinancialInstitutionYieldPolicy) => ({
+		accountType: policy.accountType ?? undefined,
+		countryCode: policy.countryCode ?? undefined,
+		effectiveDate: policyDay(policy.effectiveDate),
+		profileId: existingKey(policy).slice(3),
+	});
+	const sameRemoval = (left: PolicyRemoval, right: PolicyRemoval) =>
+		left.profileId === right.profileId &&
+		left.accountType === right.accountType &&
+		left.countryCode === right.countryCode &&
+		left.effectiveDate === right.effectiveDate;
+	const isRemoved = (policy: FinancialInstitutionYieldPolicy) =>
+		state.removedPolicies.some(removal => sameRemoval(removal, removalOf(policy)));
+	const toggleRemoval = (policy: FinancialInstitutionYieldPolicy) => {
+		const removal = removalOf(policy);
+		onChange({
+			removedPolicies: isRemoved(policy)
+				? state.removedPolicies.filter(item => !sameRemoval(item, removal))
+				: [...state.removedPolicies, removal],
+		});
+	};
 	const replaced = (policy: FinancialInstitutionYieldPolicy) =>
 		state.policies.some(
 			draft =>
@@ -116,7 +137,7 @@ export function PoliciesSection({
 		setPresetProfile(profileKey);
 		setOpen(true);
 	};
-	const count = state.policies.length;
+	const count = state.policies.length + state.removedPolicies.length;
 	const loading = !!institutionId && query.isPending;
 	return (
 		<FormSection
@@ -156,10 +177,12 @@ export function PoliciesSection({
 									},
 									profileId: group.key.startsWith("id:") ? group.key.slice(3) : undefined,
 								} satisfies PolicyDraft,
-								status: undefined,
+								source: policy,
+								status: isRemoved(policy) ? ("removed" as const) : undefined,
 							})),
 						...drafts.map(draft => ({
 							draft,
+							source: undefined,
 							status: draft.policy.replacesEffectiveDate
 								? ("changed" as const)
 								: ("new" as const),
@@ -190,20 +213,19 @@ export function PoliciesSection({
 						>
 							{rows.length ? (
 								<ul className="grid gap-2">
-									{rows.map(({ draft, status }) => (
+									{rows.map(({ draft, source, status }) => (
 										<PolicyRow
 											disabled={disabled}
 											key={draft.key}
 											onEdit={() => openDialog(draft)}
-											onRemove={
-												status
-													? () =>
-															onChange({
-																policies: state.policies.filter(
-																	item => item.key !== draft.key,
-																),
-															})
-													: undefined
+											onRemove={() =>
+												source
+													? toggleRemoval(source)
+													: onChange({
+															policies: state.policies.filter(
+																item => item.key !== draft.key,
+															),
+														})
 											}
 											policy={draft.policy}
 											status={status}

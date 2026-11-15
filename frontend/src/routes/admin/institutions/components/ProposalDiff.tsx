@@ -14,6 +14,7 @@ const FIELD_LABELS: Record<string, string> = {
 	operatingCountryCodes: "Países de operação",
 	policies: "Políticas de rendimento",
 	profiles: "Perfis",
+	removedPolicies: "Políticas removidas",
 };
 
 const closing = (value: unknown) => (value ? "Inclusivo" : "Exclusivo");
@@ -197,6 +198,36 @@ function PoliciesDiff({
 	);
 }
 
+function RemovedPoliciesDiff({
+	institutionId,
+	policies,
+}: {
+	institutionId?: string;
+	policies: Pick<ProposedPolicy, "accountType" | "countryCode" | "effectiveDate" | "profileId">[];
+}) {
+	const existing = useInstitutionProfiles(institutionId);
+	return (
+		<ul className="grid gap-2">
+			{policies.map(policy => (
+				<li
+					className="grid gap-1 rounded-xl border p-3"
+					key={`${policy.profileId}:${policy.countryCode}:${policy.accountType}:${policy.effectiveDate}`}
+				>
+					<p className="font-medium break-words">
+						<Badge variant="destructive">Removida</Badge>{" "}
+						{existing.data?.find(profile => profile.id === policy.profileId)?.name ??
+							"Perfil existente"}{" "}
+						- {policyScope(policy)}
+					</p>
+					<p className="text-muted-foreground">
+						Período iniciado em {policy.effectiveDate.slice(0, 10).split("-").reverse().join("/")}
+					</p>
+				</li>
+			))}
+		</ul>
+	);
+}
+
 /** Readable before/after for every section a composite institution proposal can carry. */
 export function InstitutionUpdateDiff({
 	current,
@@ -259,6 +290,11 @@ export function InstitutionUpdateDiff({
 								institutionId={institutionId}
 								isNew={isNew}
 								policies={payload.policies as ProposedPolicy[]}
+							/>
+						) : key === "removedPolicies" ? (
+							<RemovedPoliciesDiff
+								institutionId={institutionId}
+								policies={payload.removedPolicies as ProposedPolicy[]}
 							/>
 						) : (
 							<ValueDiff

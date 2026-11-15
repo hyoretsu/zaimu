@@ -40,6 +40,14 @@ export interface PolicyDraft {
 	profileName?: string;
 }
 
+/** An approved policy period the proposal removes; matches the backend by profile, scope and start date. */
+export interface PolicyRemoval {
+	accountType?: NonNullable<InstitutionProposalBody["removedPolicies"]>[number]["accountType"];
+	countryCode?: string;
+	effectiveDate: string;
+	profileId: string;
+}
+
 export interface InstitutionFormState {
 	aliases: string;
 	closingInclusive: boolean;
@@ -51,6 +59,7 @@ export interface InstitutionFormState {
 	/** Rules edited for existing profiles; `null` removes the profile's own rules. */
 	profileRules: Record<string, InstitutionCardRules | null>;
 	remainderOnFirst: boolean;
+	removedPolicies: PolicyRemoval[];
 	rules: InstitutionCardRules;
 }
 
