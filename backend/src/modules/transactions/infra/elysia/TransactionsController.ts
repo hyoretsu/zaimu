@@ -821,6 +821,14 @@ export const TransactionsController = new Elysia({
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
+			if (
+				existing.paymentCreditCardId &&
+				body.paymentCreditCardId === undefined &&
+				body.type !== undefined &&
+				body.type !== "EXPENSE"
+			) {
+				body.paymentCreditCardId = null;
+			}
 			await lockPaymentResources(
 				body.paymentCreditCardId ?? existing.paymentCreditCardId,
 				body.originFinancialAccountId ?? existing.originFinancialAccountId,
