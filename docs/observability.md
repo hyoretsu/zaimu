@@ -35,6 +35,8 @@ Service names are derived in code, not configured: `zaimu-api` and `zaimu-worker
 
 ## Capture and lifecycle
 
+While telemetry is exporting, `console.*` records go to the Collector and are not echoed locally; only errors are still written to the console. Without a Collector endpoint (outside production) structured records are printed as one readable line, e.g. `01:15:15.177 INFO  zaimu-worker worker_job queue=cache-invalidation outcome=ok durationMs=95.5`.
+
 No SQL parameters, raw results, Redis keys, user IDs, credentials, financial amounts, documents or file content are exported. Summaries retain approved technical fields only; other values become types, counts and structure. Unknown object fields remain opaque; only fixed technical property descriptors are inspected. Arrays retain counts and at most twenty slots. Limits: depth 4, 20 collection items, 512 characters and 8 KiB. Getters, toJSON, streams and iterators are not consumed. Exception text and stacks are omitted rather than exporting potentially sensitive content.
 
 The transformer covers own backend functions/methods and excludes generated files, dependencies, tests, administrative scripts and telemetry internals. Use `/* @otel-ignore */` directly before a function for an exclusion. Classes keep constructors intact. Sync functions returning promises retain identity and unhandled-rejection behavior; their function spans end on synchronous return. Async function spans observe the body settlement. Generators use passive lifecycle spans from first iteration to exhaustion, return or exception; context is never held active across yields. Unclosed iterators cannot produce completed spans. Source maps compose transform and bundle mappings.

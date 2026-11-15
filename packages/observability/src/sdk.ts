@@ -12,13 +12,19 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { AlwaysOnSampler, BatchSpanProcessor } from "@opentelemetry/sdk-trace";
 import { getOperationRoute, markCurrentOperationFailed, operation, otlpEndpoint } from "./index";
 import { operationalLog } from "./log-record";
+import { installPrettyConsole } from "./pretty";
 
 let sdk: NodeSDK | undefined;
 let restoreConsole: (() => void)[] = [];
 export function initialize(service: "api" | "worker", project: string) {
 	const base = otlpEndpoint();
-	if (sdk || !base) return;
 	process.env.OTEL_SERVICE_NAME = `${project}-${service}`;
+	if (!base) {
+		if (!sdk && process.env.NODE_ENV !== "production")
+			installPrettyConsole(process.env.OTEL_SERVICE_NAME);
+		return;
+	}
+	if (sdk) return;
 	const config = { concurrencyLimit: 2, timeoutMillis: 3000 };
 	sdk = new NodeSDK({
 		autoDetectResources: false,
@@ -108,7 +114,7 @@ export function initialize(service: "api" | "worker", project: string) {
 		observer.observe(cpu.user / 1e6, { mode: "user" });
 		observer.observe(cpu.system / 1e6, { mode: "system" });
 	});
-	// Console remains the single local emission. Export the same structured records.
+	// Export structured console records; the console itself only keeps errors while exporting.
 	for (const [method, severityNumber] of [
 		["debug", 5],
 		["info", 9],
@@ -138,6 +144,8 @@ export function initialize(service: "api" | "worker", project: string) {
 					body: record.body,
 					severityNumber,
 				});
+				// Exported records are not echoed locally; only errors stay visible in the console.
+				if (method !== "error") return;
 				const active = trace.getSpan(context.active())?.spanContext();
 				original(
 					JSON.stringify({
@@ -145,7 +153,7 @@ export function initialize(service: "api" | "worker", project: string) {
 						environment: process.env.NODE_ENV ?? "development",
 						operation_id: active?.traceId,
 						service: process.env.OTEL_SERVICE_NAME,
-						severity: method === "log" ? "info" : method,
+						severity: method,
 						span_id: active?.spanId,
 						...fields,
 						timestamp: new Date().toISOString(),
