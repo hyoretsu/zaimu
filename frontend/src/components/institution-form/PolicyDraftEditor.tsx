@@ -38,6 +38,7 @@ export const policyProfileKey = (draft: Pick<PolicyDraft, "profileId" | "profile
 export function PolicyDraftEditor({
 	countries,
 	draft,
+	initialProfileKey,
 	institutionId,
 	newProfileNames,
 	onClose,
@@ -46,6 +47,7 @@ export function PolicyDraftEditor({
 }: {
 	countries: string[];
 	draft?: PolicyDraft;
+	initialProfileKey?: string;
 	institutionId?: string;
 	newProfileNames: string[];
 	onClose: () => void;
@@ -60,9 +62,10 @@ export function PolicyDraftEditor({
 		...newProfileNames.map(name => ({ label: `${name} (novo)`, value: `${NAME}${name}` })),
 	];
 	const defaultProfileKey =
-		profiles.find(profile => profile.isDefault) !== undefined
+		initialProfileKey ??
+		(profiles.find(profile => profile.isDefault) !== undefined
 			? `${ID}${profiles.find(profile => profile.isDefault)!.id}`
-			: `${NAME}${DEFAULT_PROFILE_NAME}`;
+			: `${NAME}${DEFAULT_PROFILE_NAME}`);
 	const [profileKey, setProfileKey] = useState(draft ? policyProfileKey(draft) : defaultProfileKey);
 	const [countryCode, setCountry] = useState<string | undefined>(draft?.policy.countryCode ?? undefined);
 	const [accountType, setAccountType] = useState<YieldAccountType | undefined>(

@@ -6,6 +6,7 @@ import type { ExistingProfile, PolicyDraft } from "./types";
 export function PolicyDraftDialog({
 	countries,
 	draft,
+	initialProfileKey,
 	institutionId,
 	newProfileNames,
 	onOpenChange,
@@ -15,6 +16,7 @@ export function PolicyDraftDialog({
 }: {
 	countries: string[];
 	draft?: PolicyDraft;
+	initialProfileKey?: string;
 	institutionId?: string;
 	newProfileNames: string[];
 	onOpenChange: (open: boolean) => void;
@@ -38,6 +40,7 @@ export function PolicyDraftDialog({
 					<PolicyDraftEditor
 						countries={countries}
 						draft={draft}
+						initialProfileKey={initialProfileKey}
 						institutionId={institutionId}
 						newProfileNames={newProfileNames}
 						onClose={() => onOpenChange(false)}
