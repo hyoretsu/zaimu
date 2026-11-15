@@ -1,5 +1,5 @@
 import { indicatorDailyRate } from "./financial-indicators";
-import { roundDailyYield, type YieldLot, YieldTaxLedger } from "./yield-tax";
+import { type YieldLot, YieldTaxLedger } from "./yield-tax";
 export interface LegacyYieldCalendar {
 	throughDate: string;
 	holidays: string[];
@@ -289,13 +289,10 @@ export function projectedNetYield(
 		previousDay.setUTCDate(previousDay.getUTCDate() - 1);
 		contributions.adjustBalance(balance, previousDay.toISOString().slice(0, 10));
 	}
-	return roundDailyYield(
-		account.type,
-		contributions.netYield(
-			calculateGrossYield(contributions.eligibleBalance(day), settings, averages),
-			settings,
-			day,
-		),
+	return contributions.netYield(
+		calculateGrossYield(contributions.eligibleBalance(day), settings, averages),
+		settings,
+		day,
 	);
 }
 

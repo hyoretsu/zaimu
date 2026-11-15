@@ -5,7 +5,7 @@ import {
 	type LegacyYieldCalendar,
 } from "@zaimu/finance/projected-yield";
 import { businessNow } from "@zaimu/finance/time-zone";
-import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { creditDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, startOfDay } from "date-fns";
 
 export type YieldPeriod = "MONTHLY" | "YEARLY";
@@ -283,6 +283,7 @@ function calculateYieldedBalance(
 	if (!firstDay) return 0;
 	let balance = 0;
 	const ledger = new YieldTaxLedger();
+	let carry = 0;
 	const cashbackBalances = new Map<number, number>();
 	for (let day = new Date(`${firstDay}T12:00:00`); dateKey(day) <= todayKey; day = addDays(day, 1)) {
 		const key = dateKey(day);
@@ -335,16 +336,16 @@ function calculateYieldedBalance(
 				? 0
 				: calculateGrossYield(openingLedger.eligibleBalance(key), yieldSettings, {});
 
+			const net = hasReference ? 0 : ledger.netYield(grossAmount, yieldSettings, key);
 			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined) {
-				if (automaticYield.origin === "SYSTEM")
+				if (automaticYield.origin === "SYSTEM") {
 					ledger.accrueRecordedNet(automaticYield.amount, yieldSettings, key);
-				else ledger.accrueNet(automaticYield.amount, key);
+					carry = Math.max(0, carry + net - automaticYield.amount);
+				} else ledger.accrueNet(automaticYield.amount, key);
 			} else if (!hasReference && (calendarCovered?.(key) ?? true)) {
-				ledger.accrueRecordedNet(
-					roundDailyYield(account.type, ledger.netYield(grossAmount, yieldSettings, key)),
-					yieldSettings,
-					key,
-				);
+				const day = creditDailyYield(account.type, net, carry);
+				carry = day.carry;
+				ledger.accrueRecordedNet(day.credited, yieldSettings, key);
 			}
 			balance = ledger.balance;
 		}

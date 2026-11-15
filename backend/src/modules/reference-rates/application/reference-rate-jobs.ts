@@ -1,6 +1,6 @@
 import { legacyCalendarHoliday } from "@zaimu/finance/projected-yield";
 import { businessNow } from "@zaimu/finance/time-zone";
-import { roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { creditDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, format, isWeekend, max, startOfDay } from "date-fns";
 import { fiatHoldingCodes } from "~/modules/accounts/application/account-assets";
 import {
@@ -356,6 +356,7 @@ async function replayAccountCurrency(account: YieldAccount, currency: string, fr
 	if (!loaded.input) return null;
 	const input = { ...loaded.input, yields: [...loaded.input.yields] };
 	let firstGap: string | null = null;
+	let carry = 0;
 	for (let day = fromDate; day <= endDate; day = addDays(day, 1)) {
 		const key = dateKey(day);
 		if (isWeekend(day) || (legacyCalendarHoliday(account, key) ?? holidayKeys.has(key))) continue;
@@ -406,16 +407,13 @@ async function replayAccountCurrency(account: YieldAccount, currency: string, fr
 		const ledger = new YieldTaxLedger(snapshots.get(account.id) ?? []);
 		if (ledger.balance <= 0) continue;
 		const rates = Object.fromEntries(rows.map(row => [row.type, Number(row.value)]));
-		const amount = Number(
-			roundDailyYield(
-				account.type,
-				ledger.netYield(
-					calculateGrossYield(ledger.eligibleBalance(key), settings, rates),
-					settings,
-					key,
-				),
-			).toFixed(4),
+		const credit = creditDailyYield(
+			account.type,
+			ledger.netYield(calculateGrossYield(ledger.eligibleBalance(key), settings, rates), settings, key),
+			carry,
 		);
+		carry = credit.carry;
+		const amount = Number(credit.credited.toFixed(4));
 		if (amount === 0) continue;
 		input.yields.push({
 			amount,

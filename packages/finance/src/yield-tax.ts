@@ -18,6 +18,16 @@ const centCreditedAccountTypes = new Set(["CHECKING", "SAVINGS"]);
 export function roundDailyYield(accountType: string | undefined, amount: number) {
 	return centCreditedAccountTypes.has(accountType ?? "") ? Math.round(amount * 100 + 1e-9) / 100 : amount;
 }
+/**
+ * Credits whole cents and carries the sub-cent remainder to the next day, so small balances still earn
+ * a cent once the accumulated partial yields reach it. Other account types keep full precision.
+ */
+export function creditDailyYield(accountType: string | undefined, amount: number, carry: number) {
+	if (!centCreditedAccountTypes.has(accountType ?? "")) return { carry: 0, credited: amount };
+	const pending = carry + amount;
+	const credited = Math.floor(pending * 100 + 1e-9) / 100;
+	return { carry: Math.max(0, pending - credited), credited };
+}
 /** DAILY taxes each day's yield inside the balance; ON_REDEMPTION keeps the balance gross and taxes only on withdrawal. */
 export type YieldTaxMode = "DAILY" | "ON_REDEMPTION";
 export interface TaxSettings {

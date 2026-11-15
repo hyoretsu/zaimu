@@ -3,7 +3,7 @@ import {
 	getYieldSettings as resolveYieldSettings,
 	legacyCalendarHoliday,
 } from "@zaimu/finance/projected-yield";
-import { hasRedemptionTax, roundDailyYield, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
+import { creditDailyYield, hasRedemptionTax, type YieldLot, YieldTaxLedger } from "@zaimu/finance/yield-tax";
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
 import { assetBalance, fiatAssets, normalizeAccountAssets, replayAccountAssets } from "./account-assets";
 import type { FinancialAccount, FinancialAccountYield } from "./api";
@@ -372,6 +372,7 @@ export function calculateFinancialAccountYieldEntries(
 	const entries: FinancialAccountYieldEntry[] = [];
 	let balance = 0;
 	const ledger = new YieldTaxLedger();
+	let carry = 0;
 	for (
 		let day = new Date(`${firstDay}T12:00:00`);
 		format(day, "yyyy-MM-dd") <= todayKey;
@@ -429,10 +430,15 @@ export function calculateFinancialAccountYieldEntries(
 			const grossAmount = calendarCovered
 				? calculateGrossYield(ledger.eligibleBalance(key), settings)
 				: 0;
-			const calculatedAmount = roundDailyYield(
-				account.type,
-				ledger.netYield(grossAmount, settings, key),
-			);
+			const net = ledger.netYield(grossAmount, settings, key);
+			const credit = creditDailyYield(account.type, net, carry);
+			const calculatedAmount = credit.credited;
+			carry =
+				automaticYield?.amount != null
+					? automaticYield.origin === "SYSTEM"
+						? Math.max(0, carry + net - automaticYield.amount)
+						: carry
+					: credit.carry;
 			const amount = automaticYield?.amount ?? calculatedAmount;
 			if (amount > 0) {
 				entries.push({
@@ -530,6 +536,7 @@ function calculateYieldedBalance(
 	if (!firstDay) return 0;
 	let balance = 0;
 	const ledger = new YieldTaxLedger();
+	let carry = 0;
 	const cashbackBalances = new Map<number, number>();
 	const applyAdjustment = (key: string) => {
 		const checkpoint = checkpoints.get(key);
@@ -587,16 +594,17 @@ function calculateYieldedBalance(
 			)
 				complete = false;
 
+			const net = hasReference ? 0 : ledger.netYield(grossAmount, yieldSettings, key);
 			if (automaticYield?.amount !== null && automaticYield?.amount !== undefined) {
-				if (automaticYield.origin === "SYSTEM")
+				if (automaticYield.origin === "SYSTEM") {
 					ledger.accrueRecordedNet(automaticYield.amount, yieldSettings, key);
-				else ledger.accrueNet(automaticYield.amount, key);
-			} else if (!hasReference && (calendarCovered?.(key) ?? true))
-				ledger.accrueRecordedNet(
-					roundDailyYield(account.type, ledger.netYield(grossAmount, yieldSettings, key)),
-					yieldSettings,
-					key,
-				);
+					carry = Math.max(0, carry + net - automaticYield.amount);
+				} else ledger.accrueNet(automaticYield.amount, key);
+			} else if (!hasReference && (calendarCovered?.(key) ?? true)) {
+				const credit = creditDailyYield(account.type, net, carry);
+				carry = credit.carry;
+				ledger.accrueRecordedNet(credit.credited, yieldSettings, key);
+			}
 			balance = ledger.balance;
 		}
 		for (const [dailyRate, cashbackBalance] of cashbackBalances) {

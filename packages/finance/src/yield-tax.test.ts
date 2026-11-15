@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+	creditDailyYield,
 	defaultTaxDefinitions,
 	retainedYieldFraction,
 	validateTaxBrackets,
@@ -141,4 +142,17 @@ test("withdrawals shrink principal pro rata so only the remaining gain is taxabl
 	ledger.applyCashFlow(-550, day(200));
 	expect(ledger.lots).toEqual([{ balance: 550, date: day(0), principal: 500 }]);
 	expect(ledger.deferredTax(settings, day(200))).toBeCloseTo(10);
+});
+
+test("checking daily yield carries sub-cent fractions until they complete a cent", () => {
+	let carry = 0;
+	const credited: number[] = [];
+	for (let day = 0; day < 4; day++) {
+		const result = creditDailyYield("CHECKING", 0.004, carry);
+		carry = result.carry;
+		credited.push(result.credited);
+	}
+	expect(credited).toEqual([0, 0, 0.01, 0]);
+	expect(carry).toBeCloseTo(0.006, 9);
+	expect(creditDailyYield("INVESTMENT", 0.004, 0)).toEqual({ carry: 0, credited: 0.004 });
 });
