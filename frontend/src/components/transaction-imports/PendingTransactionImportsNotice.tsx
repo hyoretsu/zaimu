@@ -54,7 +54,7 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 				description={
 					<>
 						{pendingImports.length} {pendingImports.length === 1 ? "conta" : "contas"} ·{" "}
-						{itemCount} transações ainda não afetam seus saldos.
+						{itemCount} transações
 					</>
 				}
 				icon={<LuClock3 aria-hidden="true" className="size-5 text-amber-700" />}

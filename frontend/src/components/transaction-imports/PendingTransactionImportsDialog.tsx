@@ -42,9 +42,7 @@ export function PendingTransactionImportsDialog({
 				<DialogHeader>
 					<DialogTitle>Selecionar conta para revisão</DialogTitle>
 					<DialogDescription>
-						Escolha uma conta para revisar as transações restantes de todos os seus extratos de
-						uma só vez. As com menos transações restantes aparecem primeiro; em caso de empate, as
-						mais recentes.
+						Escolha uma conta para revisar as transações de seus extratos.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>

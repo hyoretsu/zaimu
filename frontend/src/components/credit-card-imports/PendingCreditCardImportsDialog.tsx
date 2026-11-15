@@ -27,8 +27,7 @@ export function PendingCreditCardImportsDialog({
 				<DialogHeader>
 					<DialogTitle>Selecionar fatura para revisão</DialogTitle>
 					<DialogDescription>
-						Escolha uma fatura. As com menos compras restantes aparecem primeiro; em caso de
-						empate, as mais recentes.
+						Escolha uma fatura para revisar seus lançamentos.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogBody>
