@@ -25,16 +25,22 @@ export async function validateItemAccounts(
 ) {
 	if (item.type === "INCOME" || item.type === "YIELD") {
 		if (!item.destinationFinancialAccountId) throw new HttpException("Selecione a conta de destino", 400);
-		await assertBalanceAccountOwnership(item.destinationFinancialAccountId, userId);
+		await assertBalanceAccountOwnership(item.destinationFinancialAccountId, userId, {
+			allowCashback: true,
+			allowPoints: true,
+		});
 		return;
 	}
 	if (!item.originFinancialAccountId) throw new HttpException("Selecione a conta de origem", 400);
-	await assertBalanceAccountOwnership(item.originFinancialAccountId, userId);
+	await assertBalanceAccountOwnership(item.originFinancialAccountId, userId, {
+		allowCashback: true,
+		allowPoints: true,
+	});
 	if (item.type === "TRANSFER") {
 		if (!item.destinationFinancialAccountId) throw new HttpException("Selecione a conta de destino", 400);
 		if (item.destinationFinancialAccountId === item.originFinancialAccountId)
 			throw new HttpException("Escolha contas diferentes para a transferência", 400);
-		await assertBalanceAccountOwnership(item.destinationFinancialAccountId, userId);
+		await assertBalanceAccountOwnership(item.destinationFinancialAccountId, userId, { allowPoints: true });
 	}
 }
 
