@@ -3,14 +3,18 @@ import { LuRefreshCw } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { recalculateAccountYield } from "@/lib/account-yield-recalculation";
 import type { FinancialAccount } from "@/lib/api";
-import { showToast } from "@/stores";
+import { showToast, useAuthStore } from "@/stores";
 
 export function useRecalculateAccountYield(account: FinancialAccount) {
 	return useMutation({
 		meta: { cacheOperations: ["account"] },
 		mutationFn: () => recalculateAccountYield(account.id),
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: () => showToast("Rendimentos históricos recalculados.", "positive"),
+		// Connected accounts recalculate in the background and report completion via realtime toasts.
+		onSuccess: () => {
+			if (useAuthStore.getState().isGuestMode)
+				showToast("Rendimentos históricos recalculados.", "positive");
+		},
 	});
 }
 
