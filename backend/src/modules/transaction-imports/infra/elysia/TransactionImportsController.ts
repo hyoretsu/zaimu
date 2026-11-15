@@ -587,18 +587,109 @@ const decodeImportItemsCursor = (cursor?: string): ImportItemsCursor | null => {
 	}
 };
 
+function accountDisplayName(imports: { accountName: string; institutionName: string | null }[]) {
+	const [{ accountName, institutionName }] = imports;
+	return institutionName ?? accountName;
+}
+
+const accountImportPrefix = "account:";
+const accountIdFromImportId = (importId: string) =>
+	importId.startsWith(accountImportPrefix) ? importId.slice(accountImportPrefix.length) : null;
+const reviewedAsAccount = new WeakMap<Request, string>();
+
+async function getPendingImports(userId: string, accountId: string) {
+	const imports = await queryRaw<{
+		accountName: string;
+		createdAt: Date;
+		fileName: string;
+		financialAccountId: string;
+		id: string;
+		institutionName: string | null;
+		periodEnd: Date | null;
+		periodStart: Date | null;
+		provider: string;
+		updatedAt: Date;
+	}>(
+		`SELECT import."id", import."fileName", import."createdAt", import."updatedAt", import."provider",
+		        import."periodStart", import."periodEnd", import."financialAccountId",
+		        account."name" AS "accountName", institution."name" AS "institutionName"
+		 FROM "TransactionImport" import
+		 JOIN "FinancialAccount" account ON account."id" = import."financialAccountId"
+		 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+		 WHERE import."userId" = $1 AND import."financialAccountId" = $2 AND import."status" = 'PENDING'
+		 ORDER BY import."createdAt" ASC`,
+		[userId, accountId],
+	);
+	if (!imports.length) throw new HttpException("Importação não encontrada", 404);
+	return imports;
+}
+
+/** Runs an import-level action once per pending import of the account when `importId` is an account review. */
+async function forEachReviewedImport<T>(
+	userId: string,
+	importId: string,
+	run: (realImportId: string) => Promise<T>,
+): Promise<T[]> {
+	const accountId = accountIdFromImportId(importId);
+	if (!accountId) return [await run(importId)];
+	const results: T[] = [];
+	for (const pending of await getPendingImports(userId, accountId)) results.push(await run(pending.id));
+	return results;
+}
+
+async function resolveReviewedItemImport(userId: string, accountId: string, itemId: string) {
+	const [row] = await queryRaw<{ id: string }>(
+		`SELECT import."id" FROM "TransactionImportItem" item
+		 JOIN "TransactionImport" import ON import."id" = item."transactionImportId"
+		 WHERE item."id" = $1 AND import."userId" = $2 AND import."financialAccountId" = $3
+		   AND import."status" = 'PENDING'`,
+		[itemId, userId, accountId],
+	);
+	if (!row) throw new HttpException("Importação não encontrada", 404);
+	return row.id;
+}
+
 async function getImportReturn(
 	userId: string,
 	importId: string,
 	page: { cursor?: string; limit?: number } = {},
 ) {
-	const transactionImport = await getImport(userId, importId);
-	if (
-		transactionImport.status === "PENDING" &&
-		transactionImport.provider !== "MEUPLUGGY" &&
-		transactionImport.provider !== "GENERIC"
-	)
-		await reconcileUniqueTransactions(userId, importId, transactionImport.financialAccountId);
+	const accountId = accountIdFromImportId(importId);
+	const pendingImports = accountId ? await getPendingImports(userId, accountId) : null;
+	const transactionImport = pendingImports
+		? {
+				createdAt: pendingImports[0].createdAt,
+				fileName: accountDisplayName(pendingImports),
+				financialAccountId: pendingImports[0].financialAccountId,
+				id: importId,
+				periodEnd: pendingImports.reduce<Date | null>(
+					(latest, current) =>
+						current.periodEnd && (!latest || current.periodEnd > latest)
+							? current.periodEnd
+							: latest,
+					null,
+				),
+				periodStart: pendingImports.reduce<Date | null>(
+					(earliest, current) =>
+						current.periodStart && (!earliest || current.periodStart < earliest)
+							? current.periodStart
+							: earliest,
+					null,
+				),
+				provider: pendingImports[0].provider as Awaited<ReturnType<typeof getImport>>["provider"],
+				status: "PENDING" as const,
+				updatedAt: pendingImports.reduce(
+					(latest, current) => Math.max(current.updatedAt, latest),
+					pendingImports[0].updatedAt,
+				),
+			}
+		: await getImport(userId, importId);
+	const itemImportIds = pendingImports ? pendingImports.map(pending => pending.id) : [importId];
+	if (transactionImport.status === "PENDING") {
+		for (const pending of pendingImports ?? [transactionImport])
+			if (pending.provider !== "MEUPLUGGY" && pending.provider !== "GENERIC")
+				await reconcileUniqueTransactions(userId, pending.id, transactionImport.financialAccountId);
+	}
 	const limit = Math.min(page.limit ?? 50, 100);
 	const cursor = decodeImportItemsCursor(page.cursor);
 	const itemPage = await queryRaw<{
@@ -610,11 +701,11 @@ async function getImportReturn(
 	}>(
 		`SELECT "id", "createdAt", "date", count(*) OVER()::integer AS "totalCount"
 		 FROM "TransactionImportItem"
-		 WHERE "transactionImportId" = $1
+		 WHERE "transactionImportId" = ANY($1::text[])
 		   AND ($2::date IS NULL OR ("date", "createdAt", "id") < ($2::date, $3::timestamp, $4::text))
 		 ORDER BY "date" DESC, "createdAt" DESC, "id" DESC
 		 LIMIT $5`,
-		[importId, cursor?.date ?? null, cursor?.createdAt ?? null, cursor?.id ?? null, limit + 1],
+		[itemImportIds, cursor?.date ?? null, cursor?.createdAt ?? null, cursor?.id ?? null, limit + 1],
 	);
 	const pageRows = itemPage.slice(0, limit);
 	const itemIds = pageRows.map(item => item.id);
@@ -774,11 +865,270 @@ async function getImportReturn(
 	};
 }
 
+async function approveImport(userId: string, importId: string) {
+	const transactionImport = await getImport(userId, importId);
+	if (transactionImport.status !== "PENDING")
+		throw new HttpException("Esta importação já foi aprovada", 400);
+	const items = (
+		await queryRows(
+			db.sql.public.TransactionImportItem.select(
+				"id",
+				"amount",
+				"paymentCreditCardId",
+				"date",
+				"description",
+				"destinationFinancialAccountId",
+				"externalId",
+				"transferCounterpartExternalId",
+				"isHidden",
+				"isReconciled",
+				"originFinancialAccountId",
+				"destinationAmount",
+				"fees",
+				"reconciledImportItemId",
+				"reconciledTransactionId",
+				"storeName",
+				"time",
+				"type",
+			)
+				.where((fields, functions) => functions.eq(fields.transactionImportId, transactionImport.id))
+				.build(),
+		)
+	).map(item => ({ ...item, date: new Date(item.date), type: item.type as ImportItemType }));
+	const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, items);
+	const reconciliationTargetIds = await getReconciliationTargetIds(items.map(item => item.id));
+	const approvableItems = items.filter(
+		item => !duplicates.get(item.id) && !reconciliationTargetIds.has(item.id),
+	);
+	const tagIdsByItem = new Map<string, string[]>();
+	const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
+	for (const item of approvableItems) {
+		tagIdsByItem.set(item.id, await prepareImportItem(item, userId));
+		debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
+	}
+	const importedTransactions = await withTransaction(async transaction => {
+		const results: Array<{
+			item: ImportItemToApprove;
+			reconciledTarget: ReconciledImportTarget | null;
+			transactionId: string | null;
+		}> = [];
+		for (const item of approvableItems) {
+			const reconciledTarget = item.isReconciled
+				? await persistReconciledImportItem(
+						transaction,
+						item,
+						tagIdsByItem.get(item.id) ?? [],
+						transactionImport.financialAccountId,
+					)
+				: null;
+			const transactionId = reconciledTarget
+				? null
+				: await persistImportItem(
+						transaction,
+						item,
+						tagIdsByItem.get(item.id) ?? [],
+						transactionImport.financialAccountId,
+						userId,
+					);
+			await removeImportItem(transaction, item.id);
+			results.push({ item, reconciledTarget, transactionId });
+		}
+		await recalculateStatementPayments(transaction, [
+			...new Set(
+				approvableItems.flatMap(item => (item.paymentCreditCardId ? [item.paymentCreditCardId] : [])),
+			),
+		]);
+		const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
+		return { finished, results };
+	});
+	for (const { item, reconciledTarget, transactionId } of importedTransactions.results) {
+		const debtSplit = debtSplitsByItem.get(item.id);
+		if (reconciledTarget) {
+			await replaceEntityTags({
+				entityIds: [reconciledTarget.entityId],
+				entityType: reconciledTarget.entityType,
+				tagIds: tagIdsByItem.get(item.id) ?? [],
+			});
+			await replaceDebtSplit({
+				amount: item.amount,
+				split: debtSplit ?? null,
+				target: reconciledTarget.debtTarget,
+				userId,
+			});
+		} else if (debtSplit && transactionId)
+			await linkTransactionToDebt({
+				amount: item.amount,
+				date: toDateKey(item.date),
+				debtSplit,
+				description: item.description ?? undefined,
+				transactionId,
+				type: item.type as TransactionType,
+				userId,
+			});
+	}
+	for (const result of importedTransactions.results) {
+		const localId =
+			result.transactionId ??
+			(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
+		if (localId) await refreshAppliedSnapshots(userId, localId);
+	}
+	await enqueueUserYieldRecalculations(
+		userId,
+		new Date(Math.min(...approvableItems.map(item => item.date.valueOf()))),
+		`import:${importId}:${crypto.randomUUID()}`,
+	);
+	return { created: approvableItems.length, finished: importedTransactions.finished };
+}
+
+async function approveImportDay(userId: string, importId: string, date: string, skipEmpty = false) {
+	const transactionImport = await getImport(userId, importId);
+	if (transactionImport.status !== "PENDING")
+		throw new HttpException("Esta importação já foi aprovada", 400);
+	const items = await queryRows(
+		db.sql.public.TransactionImportItem.select(
+			"id",
+			"amount",
+			"paymentCreditCardId",
+			"date",
+			"description",
+			"destinationFinancialAccountId",
+			"externalId",
+			"isDuplicateIgnored",
+			"transferCounterpartExternalId",
+			"isHidden",
+			"isReconciled",
+			"originFinancialAccountId",
+			"destinationAmount",
+			"fees",
+			"reconciledImportItemId",
+			"reconciledTransactionId",
+			"storeName",
+			"time",
+			"type",
+		)
+			.where((fields, functions) => functions.eq(fields.transactionImportId, transactionImport.id))
+			.build(),
+	);
+	const itemsForDay = items
+		.filter(item => toDateKey(item.date) === date)
+		.map(item => ({ ...item, date: new Date(item.date), type: item.type as ImportItemType }));
+	const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, itemsForDay);
+	const reconciliationTargetIds = await getReconciliationTargetIds(itemsForDay.map(item => item.id));
+	const approvableItems = itemsForDay.filter(
+		item => !duplicates.get(item.id) && !reconciliationTargetIds.has(item.id),
+	);
+	if (!approvableItems.length) {
+		if (skipEmpty) return { created: 0, finished: false };
+		throw new HttpException("Não há transações sem pendências para aprovar neste dia", 400);
+	}
+	const tagIdsByItem = new Map<string, string[]>();
+	const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
+	for (const item of approvableItems) {
+		tagIdsByItem.set(item.id, await prepareImportItem(item, userId));
+		debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
+	}
+	const importedTransactions = await withTransaction(async transaction => {
+		const results: Array<{
+			item: ImportItemToApprove;
+			reconciledTarget: ReconciledImportTarget | null;
+			transactionId: string | null;
+		}> = [];
+		for (const item of approvableItems) {
+			const reconciledTarget = item.isReconciled
+				? await persistReconciledImportItem(
+						transaction,
+						item,
+						tagIdsByItem.get(item.id) ?? [],
+						transactionImport.financialAccountId,
+					)
+				: null;
+			const transactionId = reconciledTarget
+				? null
+				: await persistImportItem(
+						transaction,
+						item,
+						tagIdsByItem.get(item.id) ?? [],
+						transactionImport.financialAccountId,
+						userId,
+					);
+			await removeImportItem(transaction, item.id);
+			results.push({ item, reconciledTarget, transactionId });
+		}
+		await recalculateStatementPayments(transaction, [
+			...new Set(
+				approvableItems.flatMap(item => (item.paymentCreditCardId ? [item.paymentCreditCardId] : [])),
+			),
+		]);
+		const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
+		return { finished, results };
+	});
+	for (const { item, reconciledTarget, transactionId } of importedTransactions.results) {
+		const debtSplit = debtSplitsByItem.get(item.id);
+		if (reconciledTarget) {
+			await replaceEntityTags({
+				entityIds: [reconciledTarget.entityId],
+				entityType: reconciledTarget.entityType,
+				tagIds: tagIdsByItem.get(item.id) ?? [],
+			});
+			await replaceDebtSplit({
+				amount: item.amount,
+				split: debtSplit ?? null,
+				target: reconciledTarget.debtTarget,
+				userId,
+			});
+		} else if (debtSplit && transactionId)
+			await linkTransactionToDebt({
+				amount: item.amount,
+				date: toDateKey(item.date),
+				debtSplit,
+				description: item.description ?? undefined,
+				transactionId,
+				type: item.type as TransactionType,
+				userId,
+			});
+	}
+	for (const result of importedTransactions.results) {
+		const localId =
+			result.transactionId ??
+			(result.reconciledTarget?.entityType === "TRANSACTION" ? result.reconciledTarget.entityId : null);
+		if (localId) await refreshAppliedSnapshots(userId, localId);
+	}
+	await enqueueUserYieldRecalculations(
+		userId,
+		new Date(Math.min(...approvableItems.map(item => item.date.valueOf()))),
+		`import:${importId}:${crypto.randomUUID()}`,
+	);
+	return { created: approvableItems.length, finished: importedTransactions.finished };
+}
+
+async function discardImport(userId: string, importId: string) {
+	const transactionImport = await getImport(userId, importId);
+	if (transactionImport.status !== "PENDING")
+		throw new HttpException("Importações aprovadas não podem ser descartadas", 400);
+	const discarded = await queryRaw<{ id: string }>(
+		'SELECT "id" FROM "TransactionImportItem" WHERE "transactionImportId"=$1',
+		[transactionImport.id],
+	);
+	await discardExternalReviews(discarded.map(item => item.id));
+	await executeStatement(
+		db.sql.public.TransactionImport.delete()
+			.where((fields, functions) => functions.eq(fields.id, transactionImport.id))
+			.build(),
+	);
+	return { success: true };
+}
+
 const { file: _fileSchema, ...batchUploadProperties } = CreateTransactionImportBody.properties;
 
 export const TransactionImportsController = new Elysia({ prefix: "/transaction-imports" })
-	.onTransform(({ body }) => {
+	.onTransform(async ({ body, params, request }) => {
 		rejectLegacyFinancialFields(body);
+		const { id, itemId } = (params ?? {}) as { id?: string; itemId?: string };
+		const accountId = id ? accountIdFromImportId(id) : null;
+		if (!id || !accountId || !itemId) return;
+		const userId = await requireUserId(request);
+		reviewedAsAccount.set(request, id);
+		(params as { id: string }).id = await resolveReviewedItemImport(userId, accountId, itemId);
 	})
 	.get(
 		"/",
@@ -793,21 +1143,36 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						{
 							accountName: string;
 							createdAt: Date;
-							fileName: string;
 							financialAccountId: string;
-							id: string;
+							institutionName: string | null;
 							pendingItemCount: number;
 						} & Record<string, unknown>
 					>(
-						`SELECT import."id", import."fileName", import."createdAt", import."financialAccountId",
-			        COALESCE(account."name", 'Conta') AS "accountName", count(item."id")::integer AS "pendingItemCount"
-			 FROM "TransactionImport" import
-			 JOIN "FinancialAccount" account ON account."id" = import."financialAccountId"
-			 LEFT JOIN "TransactionImportItem" item ON item."transactionImportId" = import."id"
-			 WHERE import."userId" = $1 AND import."status" = 'PENDING'
-			 GROUP BY import."id", import."fileName", import."createdAt", import."financialAccountId", account."name"
-			 ORDER BY "pendingItemCount" ASC, import."createdAt" DESC`,
+						`SELECT import."financialAccountId", account."name" AS "accountName", institution."name" AS "institutionName",
+						        max(import."createdAt") AS "createdAt",
+						        (SELECT count(*)::integer FROM "TransactionImportItem" item
+						          JOIN "TransactionImport" pending ON pending."id" = item."transactionImportId"
+						          WHERE pending."userId" = $1 AND pending."status" = 'PENDING'
+						            AND pending."financialAccountId" = import."financialAccountId") AS "pendingItemCount"
+						 FROM "TransactionImport" import
+						 JOIN "FinancialAccount" account ON account."id" = import."financialAccountId"
+						 LEFT JOIN "FinancialInstitution" institution ON institution."id" = account."institutionId"
+						 WHERE import."userId" = $1 AND import."status" = 'PENDING'
+						 GROUP BY import."financialAccountId", account."name", institution."name"
+						 ORDER BY "pendingItemCount" ASC, max(import."createdAt") DESC`,
 						[userId],
+					).then(rows =>
+						rows.map(row => {
+							const name = accountDisplayName([row]);
+							return {
+								accountName: name,
+								createdAt: row.createdAt,
+								fileName: name,
+								financialAccountId: row.financialAccountId,
+								id: `${accountImportPrefix}${row.financialAccountId}`,
+								pendingItemCount: row.pendingItemCount,
+							};
+						}),
 					),
 			);
 			set.headers.etag = cached.etag;
@@ -1018,7 +1383,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					target: { transactionImportItemId: current.id },
 					userId,
 				});
-			return getImportReturn(userId, transactionImport.id);
+			return getImportReturn(userId, reviewedAsAccount.get(request) ?? transactionImport.id);
 		},
 		{
 			body: TransactionImportItemUpdateDTO,
@@ -1343,133 +1708,16 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		"/:id/days/:date/approve",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			const transactionImport = await getImport(userId, params.id);
-			if (transactionImport.status !== "PENDING")
-				throw new HttpException("Esta importação já foi aprovada", 400);
-			const items = await queryRows(
-				db.sql.public.TransactionImportItem.select(
-					"id",
-					"amount",
-					"paymentCreditCardId",
-					"date",
-					"description",
-					"destinationFinancialAccountId",
-					"externalId",
-					"isDuplicateIgnored",
-					"transferCounterpartExternalId",
-					"isHidden",
-					"isReconciled",
-					"originFinancialAccountId",
-					"destinationAmount",
-					"fees",
-					"reconciledImportItemId",
-					"reconciledTransactionId",
-					"storeName",
-					"time",
-					"type",
-				)
-					.where((fields, functions) =>
-						functions.eq(fields.transactionImportId, transactionImport.id),
-					)
-					.build(),
+			const isAccountReview = accountIdFromImportId(params.id) !== null;
+			const results = await forEachReviewedImport(userId, params.id, realId =>
+				approveImportDay(userId, realId, params.date, isAccountReview),
 			);
-			const itemsForDay = items
-				.filter(item => toDateKey(item.date) === params.date)
-				.map(item => ({ ...item, date: new Date(item.date), type: item.type as ImportItemType }));
-			const duplicates = await getPotentialDuplicates(
-				transactionImport.financialAccountId,
-				itemsForDay,
-			);
-			const reconciliationTargetIds = await getReconciliationTargetIds(
-				itemsForDay.map(item => item.id),
-			);
-			const approvableItems = itemsForDay.filter(
-				item => !duplicates.get(item.id) && !reconciliationTargetIds.has(item.id),
-			);
-			if (!approvableItems.length)
+			if (isAccountReview && results.every(result => result.created === 0))
 				throw new HttpException("Não há transações sem pendências para aprovar neste dia", 400);
-			const tagIdsByItem = new Map<string, string[]>();
-			const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
-			for (const item of approvableItems) {
-				tagIdsByItem.set(item.id, await prepareImportItem(item, userId));
-				debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
-			}
-			const importedTransactions = await withTransaction(async transaction => {
-				const results: Array<{
-					item: ImportItemToApprove;
-					reconciledTarget: ReconciledImportTarget | null;
-					transactionId: string | null;
-				}> = [];
-				for (const item of approvableItems) {
-					const reconciledTarget = item.isReconciled
-						? await persistReconciledImportItem(
-								transaction,
-								item,
-								tagIdsByItem.get(item.id) ?? [],
-								transactionImport.financialAccountId,
-							)
-						: null;
-					const transactionId = reconciledTarget
-						? null
-						: await persistImportItem(
-								transaction,
-								item,
-								tagIdsByItem.get(item.id) ?? [],
-								transactionImport.financialAccountId,
-								userId,
-							);
-					await removeImportItem(transaction, item.id);
-					results.push({ item, reconciledTarget, transactionId });
-				}
-				await recalculateStatementPayments(transaction, [
-					...new Set(
-						approvableItems.flatMap(item =>
-							item.paymentCreditCardId ? [item.paymentCreditCardId] : [],
-						),
-					),
-				]);
-				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
-				return { finished, results };
-			});
-			for (const { item, reconciledTarget, transactionId } of importedTransactions.results) {
-				const debtSplit = debtSplitsByItem.get(item.id);
-				if (reconciledTarget) {
-					await replaceEntityTags({
-						entityIds: [reconciledTarget.entityId],
-						entityType: reconciledTarget.entityType,
-						tagIds: tagIdsByItem.get(item.id) ?? [],
-					});
-					await replaceDebtSplit({
-						amount: item.amount,
-						split: debtSplit ?? null,
-						target: reconciledTarget.debtTarget,
-						userId,
-					});
-				} else if (debtSplit && transactionId)
-					await linkTransactionToDebt({
-						amount: item.amount,
-						date: toDateKey(item.date),
-						debtSplit,
-						description: item.description ?? undefined,
-						transactionId,
-						type: item.type as TransactionType,
-						userId,
-					});
-			}
-			for (const result of importedTransactions.results) {
-				const localId =
-					result.transactionId ??
-					(result.reconciledTarget?.entityType === "TRANSACTION"
-						? result.reconciledTarget.entityId
-						: null);
-				if (localId) await refreshAppliedSnapshots(userId, localId);
-			}
-			await enqueueUserYieldRecalculations(
-				userId,
-				new Date(Math.min(...approvableItems.map(item => item.date.valueOf()))),
-				`import:${params.id}:${crypto.randomUUID()}`,
-			);
-			return { created: approvableItems.length, finished: importedTransactions.finished };
+			return {
+				created: results.reduce((sum, result) => sum + result.created, 0),
+				finished: results.every(result => result.finished),
+			};
 		},
 		{
 			detail: { operationId: "postTransactionImportsByIdDaysByDateApprove" },
@@ -1600,7 +1848,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				target: { transactionImportItemId: item.id },
 				userId,
 			});
-			return getImportReturn(userId, transactionImport.id);
+			return getImportReturn(userId, reviewedAsAccount.get(request) ?? transactionImport.id);
 		},
 		{
 			body: TransactionImportItemReconcileDTO,
@@ -1612,124 +1860,13 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		"/:id/approve",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			const transactionImport = await getImport(userId, params.id);
-			if (transactionImport.status !== "PENDING")
-				throw new HttpException("Esta importação já foi aprovada", 400);
-			const items = (
-				await queryRows(
-					db.sql.public.TransactionImportItem.select(
-						"id",
-						"amount",
-						"paymentCreditCardId",
-						"date",
-						"description",
-						"destinationFinancialAccountId",
-						"externalId",
-						"transferCounterpartExternalId",
-						"isHidden",
-						"isReconciled",
-						"originFinancialAccountId",
-						"destinationAmount",
-						"fees",
-						"reconciledImportItemId",
-						"reconciledTransactionId",
-						"storeName",
-						"time",
-						"type",
-					)
-						.where((fields, functions) =>
-							functions.eq(fields.transactionImportId, transactionImport.id),
-						)
-						.build(),
-				)
-			).map(item => ({ ...item, date: new Date(item.date), type: item.type as ImportItemType }));
-			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, items);
-			const reconciliationTargetIds = await getReconciliationTargetIds(items.map(item => item.id));
-			const approvableItems = items.filter(
-				item => !duplicates.get(item.id) && !reconciliationTargetIds.has(item.id),
+			const results = await forEachReviewedImport(userId, params.id, realId =>
+				approveImport(userId, realId),
 			);
-			const tagIdsByItem = new Map<string, string[]>();
-			const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
-			for (const item of approvableItems) {
-				tagIdsByItem.set(item.id, await prepareImportItem(item, userId));
-				debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
-			}
-			const importedTransactions = await withTransaction(async transaction => {
-				const results: Array<{
-					item: ImportItemToApprove;
-					reconciledTarget: ReconciledImportTarget | null;
-					transactionId: string | null;
-				}> = [];
-				for (const item of approvableItems) {
-					const reconciledTarget = item.isReconciled
-						? await persistReconciledImportItem(
-								transaction,
-								item,
-								tagIdsByItem.get(item.id) ?? [],
-								transactionImport.financialAccountId,
-							)
-						: null;
-					const transactionId = reconciledTarget
-						? null
-						: await persistImportItem(
-								transaction,
-								item,
-								tagIdsByItem.get(item.id) ?? [],
-								transactionImport.financialAccountId,
-								userId,
-							);
-					await removeImportItem(transaction, item.id);
-					results.push({ item, reconciledTarget, transactionId });
-				}
-				await recalculateStatementPayments(transaction, [
-					...new Set(
-						approvableItems.flatMap(item =>
-							item.paymentCreditCardId ? [item.paymentCreditCardId] : [],
-						),
-					),
-				]);
-				const finished = await finalizeImportWhenEmpty(transaction, transactionImport.id);
-				return { finished, results };
-			});
-			for (const { item, reconciledTarget, transactionId } of importedTransactions.results) {
-				const debtSplit = debtSplitsByItem.get(item.id);
-				if (reconciledTarget) {
-					await replaceEntityTags({
-						entityIds: [reconciledTarget.entityId],
-						entityType: reconciledTarget.entityType,
-						tagIds: tagIdsByItem.get(item.id) ?? [],
-					});
-					await replaceDebtSplit({
-						amount: item.amount,
-						split: debtSplit ?? null,
-						target: reconciledTarget.debtTarget,
-						userId,
-					});
-				} else if (debtSplit && transactionId)
-					await linkTransactionToDebt({
-						amount: item.amount,
-						date: toDateKey(item.date),
-						debtSplit,
-						description: item.description ?? undefined,
-						transactionId,
-						type: item.type as TransactionType,
-						userId,
-					});
-			}
-			for (const result of importedTransactions.results) {
-				const localId =
-					result.transactionId ??
-					(result.reconciledTarget?.entityType === "TRANSACTION"
-						? result.reconciledTarget.entityId
-						: null);
-				if (localId) await refreshAppliedSnapshots(userId, localId);
-			}
-			await enqueueUserYieldRecalculations(
-				userId,
-				new Date(Math.min(...approvableItems.map(item => item.date.valueOf()))),
-				`import:${params.id}:${crypto.randomUUID()}`,
-			);
-			return { created: approvableItems.length, finished: importedTransactions.finished };
+			return {
+				created: results.reduce((sum, result) => sum + result.created, 0),
+				finished: results.every(result => result.finished),
+			};
 		},
 		{
 			detail: { operationId: "postTransactionImportsByIdApprove" },
@@ -1740,19 +1877,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		"/:id",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			const transactionImport = await getImport(userId, params.id);
-			if (transactionImport.status !== "PENDING")
-				throw new HttpException("Importações aprovadas não podem ser descartadas", 400);
-			const discarded = await queryRaw<{ id: string }>(
-				'SELECT "id" FROM "TransactionImportItem" WHERE "transactionImportId"=$1',
-				[transactionImport.id],
-			);
-			await discardExternalReviews(discarded.map(item => item.id));
-			await executeStatement(
-				db.sql.public.TransactionImport.delete()
-					.where((fields, functions) => functions.eq(fields.id, transactionImport.id))
-					.build(),
-			);
+			await forEachReviewedImport(userId, params.id, realId => discardImport(userId, realId));
 			return { success: true };
 		},
 		{ detail: { operationId: "deleteTransactionImportsById" }, params: t.Object({ id: t.String() }) },
