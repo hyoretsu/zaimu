@@ -37,8 +37,9 @@ export function InstitutionYieldTimeline({
 							<button
 								aria-pressed={selectedStart === start}
 								className={cn(
-									"hover:bg-accent w-full rounded-md border px-3 py-2 text-left text-sm transition-colors",
-									selectedStart === start && "border-primary bg-accent",
+									"hover:bg-muted w-full cursor-pointer rounded-md border px-3 py-2 text-left text-sm transition-colors",
+									selectedStart === start &&
+										"border-primary bg-muted ring-primary font-medium ring-1",
 								)}
 								onClick={() => onSelect(policy)}
 								type="button"
