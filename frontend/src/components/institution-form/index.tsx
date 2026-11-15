@@ -13,7 +13,6 @@ import { CountriesSection } from "./CountriesSection";
 import { IdentitySection } from "./IdentitySection";
 import { InvoiceSection } from "./InvoiceSection";
 import { PoliciesSection } from "./PoliciesSection";
-import { ProfilesSection } from "./ProfilesSection";
 import { buildProposalBody, duplicateProfileName, initialFormState, invalidCardRules } from "./proposal";
 import { submitInstitutionProposal } from "./submit";
 import type {
@@ -147,12 +146,6 @@ export function InstitutionForm({
 						<CountriesSection disabled={pending} onChange={patch} state={state} />
 						<InvoiceSection disabled={pending} onChange={patch} state={state} />
 						<CardRulesSection
-							disabled={pending}
-							onChange={patch}
-							profiles={profiles}
-							state={state}
-						/>
-						<ProfilesSection
 							disabled={pending}
 							onChange={patch}
 							profiles={profiles}

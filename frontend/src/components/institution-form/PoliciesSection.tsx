@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { LuPlus } from "react-icons/lu";
+import { type ReactNode, useState } from "react";
+import { LuChevronDown, LuChevronUp, LuPlus, LuX } from "react-icons/lu";
 import { ActionGroup } from "@/components/ui/ActionGroup";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,7 @@ import { type FinancialInstitutionYieldPolicy, getFinancialInstitutionsByIdPolic
 import { useCacheIdentity } from "@/lib/query-cache";
 import { policyDay } from "@/routes/accounts/components/InstitutionYieldDialog/policy-selection";
 import { showToast } from "@/stores";
+import { NewProfileForm } from "./NewProfileForm";
 import { PolicyDraftDialog } from "./PolicyDraftDialog";
 import { policyProfileKey } from "./PolicyDraftEditor";
 import { PolicyRow } from "./PolicyRow";
@@ -113,16 +114,12 @@ export function PoliciesSection({
 	const loading = !!institutionId && query.isPending;
 	return (
 		<FormSection
-			summary={
-				count
-					? `${count} ${count === 1 ? "alteração" : "alterações"} de política de rendimento nesta sugestão`
-					: "Nenhuma política de rendimento alterada"
-			}
-			title="Políticas de rendimento"
+			summary={`${groups.length} ${groups.length === 1 ? "perfil" : "perfis"}${count ? ` · ${count} ${count === 1 ? "alteração" : "alterações"} de rendimento` : ""}`}
+			title="Perfis e políticas de rendimento"
 		>
 			<p className="text-muted-foreground text-sm">
-				Toda política pertence a um perfil. Aqui você vê as políticas vigentes de cada perfil e propõe
-				novas faixas ou períodos.
+				Perfis são planos ou categorias de cliente, como Meli+ ou Prime. Cada perfil tem suas próprias
+				políticas de rendimento; abra um perfil para ver e propor faixas e períodos.
 			</p>
 			{loading ? (
 				<div className="grid gap-2">
@@ -165,14 +162,26 @@ export function PoliciesSection({
 						sortKey(left.draft.policy).localeCompare(sortKey(right.draft.policy)),
 					);
 					return (
-						<section className="grid min-w-0 gap-2 rounded-xl border p-3" key={group.key}>
-							<div className="flex min-w-0 items-center gap-2">
-								<h4 className="min-w-0 flex-1 text-sm font-semibold break-words">
-									{group.name}
-								</h4>
-								{group.isDefault && <Badge variant="secondary">Padrão</Badge>}
-								{group.isNew && <Badge>Novo</Badge>}
-							</div>
+						<ProfileCard
+							disabled={disabled}
+							group={group}
+							key={group.key}
+							onAdd={() => openDialog(undefined, group.key)}
+							onRemoveProfile={
+								group.isNew
+									? () =>
+											onChange({
+												newProfiles: state.newProfiles.filter(
+													item => item.name.trim() !== group.name,
+												),
+												policies: state.policies.filter(
+													item => policyProfileKey(item) !== group.key,
+												),
+											})
+									: undefined
+							}
+							policyCount={rows.length}
+						>
 							{rows.length ? (
 								<ul className="grid gap-2">
 									{rows.map(({ draft, status }) => (
@@ -200,21 +209,12 @@ export function PoliciesSection({
 									Sem política própria: usa o rendimento geral da instituição.
 								</p>
 							)}
-							<ActionGroup>
-								<Button
-									disabled={disabled}
-									onClick={() => openDialog(undefined, group.key)}
-									size="sm"
-									type="button"
-									variant="outline"
-								>
-									<LuPlus />
-									Adicionar política
-								</Button>
-							</ActionGroup>
-						</section>
+						</ProfileCard>
 					);
 				})
+			)}
+			{!loading && !query.isError && (
+				<NewProfileForm disabled={disabled} onChange={onChange} profiles={profiles} state={state} />
 			)}
 			<PolicyDraftDialog
 				countries={state.countries}
@@ -229,5 +229,74 @@ export function PoliciesSection({
 				profiles={profiles}
 			/>
 		</FormSection>
+	);
+}
+
+/** One profile: collapsed it shows name and policy count; expanded, its policies and the add action. */
+function ProfileCard({
+	children,
+	disabled,
+	group,
+	onAdd,
+	onRemoveProfile,
+	policyCount,
+}: {
+	children: ReactNode;
+	disabled: boolean;
+	group: ProfileGroup;
+	onAdd: () => void;
+	onRemoveProfile?: () => void;
+	policyCount: number;
+}) {
+	const [expanded, setExpanded] = useState(false);
+	return (
+		<section className="grid min-w-0 gap-2 rounded-xl border p-3">
+			<div className="flex min-w-0 items-center gap-2">
+				<div className="min-w-0 flex-1">
+					<h4 className="text-sm font-semibold break-words">
+						{group.name} {group.isDefault && <Badge variant="secondary">Padrão</Badge>}{" "}
+						{group.isNew && <Badge>Novo</Badge>}
+					</h4>
+					<p className="text-muted-foreground text-xs">
+						{policyCount
+							? `${policyCount} ${policyCount === 1 ? "política" : "políticas"} de rendimento`
+							: "Sem política própria: usa o rendimento geral"}
+					</p>
+				</div>
+				{onRemoveProfile && (
+					<Button
+						aria-label={`Remover perfil ${group.name}`}
+						disabled={disabled}
+						onClick={onRemoveProfile}
+						size="icon-sm"
+						type="button"
+						variant="outline"
+					>
+						<LuX />
+					</Button>
+				)}
+				<Button
+					aria-expanded={expanded}
+					aria-label={expanded ? "Minimizar" : "Expandir"}
+					onClick={() => setExpanded(!expanded)}
+					size="icon-sm"
+					type="button"
+					variant="outline"
+				>
+					{expanded ? <LuChevronUp /> : <LuChevronDown />}
+				</Button>
+			</div>
+			{expanded && (
+				<>
+					{children}
+					<ActionGroup>
+						<Button disabled={disabled} onClick={onAdd} size="sm" type="button" variant="outline">
+							<LuPlus />
+							Adicionar política
+						</Button>
+					</ActionGroup>
+				</>
+			)}
+		</section>
 	);
 }

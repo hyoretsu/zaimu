@@ -21,18 +21,15 @@ export function PolicyRow({
 }) {
 	const scope = policyScope(policy);
 	return (
-		<li className="flex min-w-0 items-start gap-3 rounded-lg border p-3">
-			<div className="min-w-0 flex-1 space-y-1 text-sm">
+		<li className="flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2">
+			<div className="min-w-0 flex-1 space-y-0.5 text-sm">
 				<div className="flex flex-wrap items-center gap-2">
 					<p className="font-medium break-words">{scope}</p>
 					{status && <Badge>{status === "new" ? "Nova" : "Alterada"}</Badge>}
 				</div>
-				<p className="text-muted-foreground break-words">{policyPeriod(policy)}</p>
-				{policyTiers(policy).map(line => (
-					<p className="text-muted-foreground break-words" key={line}>
-						{line}
-					</p>
-				))}
+				<p className="text-muted-foreground break-words">
+					{policyPeriod(policy)} · {policyTiers(policy).join(" · ")}
+				</p>
 			</div>
 			<ActionGroup className="shrink-0 flex-nowrap">
 				<Tooltip>
