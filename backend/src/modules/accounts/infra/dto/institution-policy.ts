@@ -44,3 +44,12 @@ export const InstitutionPolicyProposal = t.Object({
 	profileName: t.Optional(t.String({ maxLength: 100, minLength: 1, pattern: "\\S" })),
 });
 export type InstitutionPolicyProposal = typeof InstitutionPolicyProposal.static;
+
+/** An approved policy period a composite proposal removes, identified by its profile, scope and start date. */
+export const InstitutionPolicyRemoval = t.Object({
+	accountType: t.Optional(YieldAccountTypeDTO),
+	countryCode: t.Optional(t.String({ maxLength: 2, minLength: 2 })),
+	effectiveDate: DateDTO,
+	profileId: Id,
+});
+export type InstitutionPolicyRemoval = typeof InstitutionPolicyRemoval.static;

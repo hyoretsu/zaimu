@@ -54,6 +54,7 @@ const ProposalReturn = t.Object(
 			policies: InstitutionUpdateProposalBody.properties.policies,
 			profileId: t.Optional(Id),
 			profiles: InstitutionUpdateProposalBody.properties.profiles,
+			removedPolicies: InstitutionUpdateProposalBody.properties.removedPolicies,
 			targetId: t.Optional(Id),
 		}),
 		reason: t.Nullable(t.String()),

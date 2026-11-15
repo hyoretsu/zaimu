@@ -66,8 +66,11 @@ export async function proposeInstitution(
 		payload = normalizeInstitutionUpdatePayload(payload, { allowEmpty: true });
 	if (!effectiveDate && ["INSTITUTION_UPDATE", "NEW_INSTITUTION"].includes(kind))
 		// Composite proposals recalculate yields from their earliest policy.
-		effectiveDate = (payload.policies as { effectiveDate: string }[] | undefined)
-			?.map(policy => policy.effectiveDate)
+		effectiveDate = [
+			...((payload.policies as { effectiveDate: string }[] | undefined) ?? []),
+			...((payload.removedPolicies as { effectiveDate: string }[] | undefined) ?? []),
+		]
+			.map(policy => policy.effectiveDate)
 			.toSorted()[0];
 	return withRawTransaction(async query => {
 		await assertPendingProposalLimit(query, userId);
@@ -242,6 +245,34 @@ export async function applyYieldPolicy(
 	return replacedDate && replacedDate < start.toISOString().slice(0, 10) ? new Date(replacedDate) : start;
 }
 
+/** Deletes one approved policy period in the caller's transaction; returns the date whose yield must be recalculated. */
+async function removeYieldPolicy(
+	query: RawQuery,
+	institutionId: string,
+	removal: { accountType?: string; countryCode?: string; effectiveDate: string; profileId: string },
+): Promise<Date> {
+	const scope = [
+		institutionId,
+		removal.profileId,
+		removal.countryCode ?? null,
+		removal.accountType ?? null,
+		removal.effectiveDate,
+	];
+	const deleted = await query(
+		`DELETE FROM "FinancialInstitutionYieldPolicy" WHERE "financialInstitutionId"=$1 AND "profileId"=$2 AND "countryCode" IS NOT DISTINCT FROM $3 AND "accountType" IS NOT DISTINCT FROM $4 AND "effectiveDate"=$5 RETURNING "currency"`,
+		scope,
+	);
+	if (!deleted.length) throw new HttpException("Política não encontrada", 404);
+	await consolidateYieldPolicyTimeline(query, {
+		accountType: removal.accountType ?? null,
+		countryCode: removal.countryCode ?? null,
+		currency: deleted[0].currency ?? null,
+		financialInstitutionId: institutionId,
+		profileId: removal.profileId,
+	});
+	return new Date(removal.effectiveDate);
+}
+
 interface ProposalProfile {
 	creditCardRules?: InstitutionCardRules | null;
 	id?: string;
@@ -292,6 +323,12 @@ async function applyInstitutionSections(
 		created.set(name.toLowerCase(), profileId);
 	}
 	let earliest: Date | null = null;
+	for (const removal of (payload.removedPolicies as
+		| { accountType?: string; countryCode?: string; effectiveDate: string; profileId: string }[]
+		| undefined) ?? []) {
+		const from = await removeYieldPolicy(query, institutionId, removal);
+		if (!earliest || from < earliest) earliest = from;
+	}
 	for (const policy of (payload.policies as
 		| (Omit<YieldPolicyPayload, "profileId"> & {
 				effectiveDate: string;

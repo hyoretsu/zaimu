@@ -1,7 +1,7 @@
 import { t } from "elysia";
 import { InstitutionCardRulesDTO } from "./institution-card-rules";
 import { InstitutionCountriesBody } from "./institution-countries";
-import { InstitutionPolicyProposal } from "./institution-policy";
+import { InstitutionPolicyProposal, InstitutionPolicyRemoval } from "./institution-policy";
 
 /** A profile touched by the proposal: with `id` its card rules change, without it the profile is created. */
 export const InstitutionProfileProposal = t.Object({
@@ -18,5 +18,6 @@ export const InstitutionUpdateProposalBody = t.Object({
 	currency: t.Optional(t.Nullable(t.String({ maxLength: 3, minLength: 3 }))),
 	policies: t.Optional(t.Array(InstitutionPolicyProposal, { maxItems: 50 })),
 	profiles: t.Optional(t.Array(InstitutionProfileProposal, { maxItems: 20 })),
+	removedPolicies: t.Optional(t.Array(InstitutionPolicyRemoval, { maxItems: 50 })),
 });
 export type InstitutionUpdateProposalBody = typeof InstitutionUpdateProposalBody.static;
