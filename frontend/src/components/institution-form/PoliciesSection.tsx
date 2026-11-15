@@ -96,12 +96,18 @@ export function PoliciesSection({
 				scopeKey(draft.policy) === scopeKey(policy) &&
 				draft.policy.replacesEffectiveDate === policyDay(policy.effectiveDate),
 		);
-	const save = (draft: Omit<PolicyDraft, "key">) => {
+	const save = ([first, ...rest]: Omit<PolicyDraft, "key">[]) => {
 		const known = editing && state.policies.some(item => item.key === editing.key);
+		const added = rest.map(draft => ({ ...draft, key: crypto.randomUUID() }));
 		onChange({
 			policies: known
-				? state.policies.map(item => (item.key === editing.key ? { ...draft, key: item.key } : item))
-				: [...state.policies, { ...draft, key: crypto.randomUUID() }],
+				? [
+						...state.policies.map(item =>
+							item.key === editing.key ? { ...first!, key: item.key } : item,
+						),
+						...added,
+					]
+				: [...state.policies, { ...first!, key: crypto.randomUUID() }, ...added],
 		});
 		showToast(editing ? "Política atualizada na edição" : "Política adicionada à edição", "info");
 	};

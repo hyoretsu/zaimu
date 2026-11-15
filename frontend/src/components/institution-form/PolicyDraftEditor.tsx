@@ -51,7 +51,7 @@ export function PolicyDraftEditor({
 	institutionId?: string;
 	newProfileNames: string[];
 	onClose: () => void;
-	onSubmit: (draft: Omit<PolicyDraft, "key">) => void;
+	onSubmit: (drafts: Omit<PolicyDraft, "key">[]) => void;
 	profiles: ExistingProfile[];
 }) {
 	const identity = useCacheIdentity();
@@ -68,9 +68,11 @@ export function PolicyDraftEditor({
 			: `${NAME}${DEFAULT_PROFILE_NAME}`);
 	const [profileKey, setProfileKey] = useState(draft ? policyProfileKey(draft) : defaultProfileKey);
 	const [countryCode, setCountry] = useState<string | undefined>(draft?.policy.countryCode ?? undefined);
-	const [accountType, setAccountType] = useState<YieldAccountType | undefined>(
-		draft?.policy.accountType ?? undefined,
+	const [accountTypes, setAccountTypes] = useState<YieldAccountType[]>(
+		draft?.policy.accountType ? [draft.policy.accountType] : [],
 	);
+	// Timeline, copy and prefill follow the first selected type; saving fans out to every selected one.
+	const accountType: YieldAccountType | undefined = accountTypes[0];
 	const [copied, setCopied] = useState<{ policy: FinancialInstitutionYieldPolicy; scope: string }>();
 	const [draftActive, setDraftActive] = useState(!!draft);
 	const [effectiveDate, setDate] = useState(
@@ -100,7 +102,7 @@ export function PolicyDraftEditor({
 		? timeline.find(item => policyDay(item.effectiveDate) === editingStart)
 		: undefined;
 	const replacesEffectiveDate = editedPolicy ? editingStart : undefined;
-	const scope = `${profileKey}:${countryCode}:${accountType}`;
+	const scope = `${profileKey}:${countryCode}:${accountTypes.join(",")}`;
 	const copiedPolicy = copied?.scope === scope && !editedPolicy ? copied.policy : undefined;
 	const policy =
 		editedPolicy ??
@@ -169,7 +171,13 @@ export function PolicyDraftEditor({
 			<CustomSelect
 				label="Tipo de conta"
 				onValueChange={value => {
-					setAccountType(!value || value === "__all__" ? undefined : (value as YieldAccountType));
+					setAccountTypes(current =>
+						!value || value === "__all__"
+							? []
+							: current.includes(value as YieldAccountType)
+								? current.filter(item => item !== value)
+								: [...current, value as YieldAccountType],
+					);
 					resetScope();
 				}}
 				options={[
@@ -177,7 +185,7 @@ export function PolicyDraftEditor({
 					...YIELD_ACCOUNT_TYPES,
 				]}
 				placeholder="Todos os tipos"
-				value={accountType ?? "__all__"}
+				values={accountTypes.length ? accountTypes : ["__all__"]}
 			/>
 			{copySources.length > 0 && (
 				<div className="flex flex-wrap items-center gap-2">
@@ -266,19 +274,21 @@ export function PolicyDraftEditor({
 					const startDate = effectiveDate || OPEN_START;
 					if (effectiveUntil && effectiveUntil <= startDate)
 						throw new Error("O fim da vigência deve ser posterior ao início.");
-					onSubmit({
-						policy: {
-							...body,
-							accountType,
-							countryCode,
-							effectiveDate: startDate,
-							effectiveUntil: effectiveUntil || undefined,
-							replacesEffectiveDate,
-							requestedEffectiveDate: startDate,
-						},
-						profileId,
-						profileName,
-					});
+					onSubmit(
+						(accountTypes.length ? accountTypes : [undefined]).map((type, index) => ({
+							policy: {
+								...body,
+								accountType: type,
+								countryCode,
+								effectiveDate: startDate,
+								effectiveUntil: effectiveUntil || undefined,
+								replacesEffectiveDate: index === 0 ? replacesEffectiveDate : undefined,
+								requestedEffectiveDate: startDate,
+							},
+							profileId,
+							profileName,
+						})),
+					);
 					onClose();
 				}}
 				policy={policy}

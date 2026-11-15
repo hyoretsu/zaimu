@@ -20,7 +20,7 @@ export function PolicyDraftDialog({
 	institutionId?: string;
 	newProfileNames: string[];
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (draft: Omit<PolicyDraft, "key">) => void;
+	onSubmit: (drafts: Omit<PolicyDraft, "key">[]) => void;
 	open: boolean;
 	profiles: ExistingProfile[];
 }) {
