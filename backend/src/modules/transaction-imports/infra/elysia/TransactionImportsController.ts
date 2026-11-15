@@ -587,10 +587,10 @@ const decodeImportItemsCursor = (cursor?: string): ImportItemsCursor | null => {
 	}
 };
 
-function accountDisplayName(imports: { accountName: string; institutionName: string | null }[]) {
+function accountDisplayName(imports: { accountName: string | null; institutionName: string | null }[]) {
 	const [{ accountName, institutionName }] = imports;
-	const account = accountName.trim();
-	if (!institutionName) return account;
+	const account = accountName?.trim() ?? "";
+	if (!institutionName) return account || "Conta";
 	return !account || account.toLocaleLowerCase("pt-BR") === institutionName.toLocaleLowerCase("pt-BR")
 		? institutionName
 		: `${institutionName} · ${account}`;
@@ -603,7 +603,7 @@ const reviewedAsAccount = new WeakMap<Request, string>();
 
 async function getPendingImports(userId: string, accountId: string) {
 	const imports = await queryRaw<{
-		accountName: string;
+		accountName: string | null;
 		createdAt: Date;
 		fileName: string;
 		financialAccountId: string;
@@ -1142,7 +1142,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				() =>
 					queryRaw<
 						{
-							accountName: string;
+							accountName: string | null;
 							createdAt: Date;
 							financialAccountId: string;
 							firstDate: string | null;
