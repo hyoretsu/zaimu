@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { CurrencyLifecycle } from "@/components/currency/CurrencyLifecycle";
 import { AppShell } from "@/components/layout";
 import { useOpenFinanceAutoSync } from "@/hooks/use-open-finance";
+import { useScrollKeys } from "@/hooks/use-scroll-keys";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
 import { getCurrentCacheIdentity, invalidateCacheOperation, useCacheIdentity } from "@/lib/query-cache";
 import { connectRealtimeInvalidation } from "@/lib/realtime";
@@ -17,6 +18,7 @@ import { YieldCalendarLifecycle } from "./components/YieldCalendarLifecycle";
 
 function RootComponent() {
 	useOpenFinanceAutoSync();
+	useScrollKeys();
 	const pathname = useLocation().pathname;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
