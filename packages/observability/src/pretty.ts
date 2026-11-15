@@ -6,6 +6,7 @@ const hidden = new Set([
 	"service",
 	"severity",
 	"span_id",
+	"stack",
 	"summary",
 	"timestamp",
 	"trace_id",
@@ -46,7 +47,11 @@ export function prettyRecord(args: unknown[], method: keyof typeof colors | "log
 	const color = process.stdout.isTTY ? colors[level] : "";
 	const reset = color ? "\x1b[0m" : "";
 	const origin = service ?? (typeof record.service === "string" ? record.service : "");
-	return `${time} ${color}${level.toUpperCase().padEnd(5)}${reset} ${origin} ${name}${fields.length ? ` ${fields.join(" ")}` : ""}`.trimEnd();
+	const stack = typeof record.stack === "string" && record.stack ? `\n${record.stack}` : "";
+	return (
+		`${time} ${color}${level.toUpperCase().padEnd(5)}${reset} ${origin} ${name}${fields.length ? ` ${fields.join(" ")}` : ""}`.trimEnd() +
+		stack
+	);
 }
 
 /** Local development without a Collector: readable console output instead of raw JSON lines. */

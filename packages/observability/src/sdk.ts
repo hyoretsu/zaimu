@@ -12,9 +12,13 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { AlwaysOnSampler, BatchSpanProcessor } from "@opentelemetry/sdk-trace";
 import { getOperationRoute, markCurrentOperationFailed, operation, otlpEndpoint } from "./index";
 import { operationalLog } from "./log-record";
-import { installPrettyConsole } from "./pretty";
+import { installPrettyConsole, prettyRecord } from "./pretty";
 
 let sdk: NodeSDK | undefined;
+const prettyArgs = (args: unknown[], method: "error") => {
+	const line = prettyRecord(args, method, process.env.OTEL_SERVICE_NAME);
+	return line === undefined ? args : [line];
+};
 let restoreConsole: (() => void)[] = [];
 export function initialize(service: "api" | "worker", project: string) {
 	const base = otlpEndpoint();
@@ -144,23 +148,10 @@ export function initialize(service: "api" | "worker", project: string) {
 					body: record.body,
 					severityNumber,
 				});
-				// Exported records are not echoed locally; only errors stay visible in the console.
+				// Exported records are not echoed locally; errors keep their original local detail
+				// (message and stack never reach the Collector, only this process console).
 				if (method !== "error") return;
-				const active = trace.getSpan(context.active())?.spanContext();
-				original(
-					JSON.stringify({
-						body: record.body,
-						environment: process.env.NODE_ENV ?? "development",
-						operation_id: active?.traceId,
-						service: process.env.OTEL_SERVICE_NAME,
-						severity: method,
-						span_id: active?.spanId,
-						...fields,
-						timestamp: new Date().toISOString(),
-						trace_id: active?.traceId,
-						...record.attributes,
-					}),
-				);
+				original(...(process.env.NODE_ENV === "production" ? args : prettyArgs(args, method)));
 			}
 		};
 	}
