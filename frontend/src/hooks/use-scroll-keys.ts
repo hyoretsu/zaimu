@@ -53,7 +53,7 @@ export function useScrollKeys() {
 			const scroller = findScroller(event.target, dialog, "x", delta < 0 ? -1 : 1);
 			if (!scroller) return;
 			event.preventDefault();
-			scroller.scrollBy({ behavior: "auto", left: wheelDistance(event, scroller) });
+			scroller.scrollBy({ behavior: "instant", left: wheelDistance(event, scroller) });
 		};
 
 		document.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });

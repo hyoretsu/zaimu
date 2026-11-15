@@ -137,9 +137,9 @@ export function scrollByCommand(element: HTMLElement, command: ScrollKeyCommand)
 			? 0
 			: size - client
 		: offset + command.direction * (command.page ? client * PAGE_RATIO : LINE_STEP);
-	const smooth = (command.edge || command.page) && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+	// "instant" ignores any CSS scroll-behavior: smooth on the container.
 	element.scrollTo({
-		behavior: smooth ? "smooth" : "auto",
+		behavior: "instant",
 		[command.axis === "y" ? "top" : "left"]: next,
 	});
 }
