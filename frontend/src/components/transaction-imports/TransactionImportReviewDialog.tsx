@@ -129,7 +129,7 @@ function toTransferSuggestionTransaction(
 		destinationName,
 		id: suggestion.id,
 		isHidden: suggestion.isHidden,
-		isSynced: true,
+		isSynced: suggestion.source === "TRANSACTION",
 		originAccountRewardsKind: originAccount?.rewardsAccount?.kind,
 		originAccountType: originAccount?.type,
 		originFinancialAccountId,

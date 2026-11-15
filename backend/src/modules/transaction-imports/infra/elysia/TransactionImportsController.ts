@@ -841,6 +841,7 @@ async function getImportReturn(
 						id: counterpart.id,
 						isHidden: counterpart.isHidden ?? false,
 						originFinancialAccountId: counterpart.originFinancialAccountId,
+						source: counterpart.source,
 						storeName: counterpart.storeName,
 						tagIds: counterpart.tagIds ?? [],
 						tags: counterpart.tags ?? [],

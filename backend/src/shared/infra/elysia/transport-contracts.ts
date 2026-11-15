@@ -1362,6 +1362,7 @@ export const TransactionImportTransferSuggestionReturn = t.Object({
 	id: t.String(),
 	isHidden: t.Boolean(),
 	originFinancialAccountId: t.Optional(t.Union([t.Null(), t.String()])),
+	source: t.Union([t.Literal("IMPORT_ITEM"), t.Literal("TRANSACTION")]),
 	storeName: t.Optional(t.Union([t.Null(), t.String()])),
 	tagIds: t.Array(t.String()),
 	tags: t.Array(TagReturn),
