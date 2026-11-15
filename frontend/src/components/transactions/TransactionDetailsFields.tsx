@@ -110,6 +110,8 @@ export function TransactionDetailsFields({
 	time: string;
 	type: TransactionFormType;
 }) {
+	const showDestinationCurrency = Boolean(onDestinationCurrencyChange) && !counterpartIsPoints;
+
 	return (
 		<>
 			{showType ? (
@@ -146,8 +148,26 @@ export function TransactionDetailsFields({
 					<StorePicker onValueChange={onStoreNameChange} value={storeName} />
 				</FormFieldRow>
 			) : null}
-			<FormFieldRow className="max-sm:grid-cols-1">
-				{onCurrencyChange ? (
+			{showDestinationCurrency && onDestinationCurrencyChange ? (
+				<FormFieldRow className="grid-cols-2">
+					{onCurrencyChange ? (
+						<CurrencySelect
+							allowCrypto={type !== "YIELD"}
+							label="Ativo da transação"
+							onValueChange={onCurrencyChange}
+							value={currencyCode}
+						/>
+					) : null}
+					<CurrencySelect
+						allowCrypto
+						label="Ativo de destino"
+						onValueChange={onDestinationCurrencyChange}
+						value={counterpartCurrency ?? currencyCode}
+					/>
+				</FormFieldRow>
+			) : null}
+			<FormFieldRow className={showDestinationCurrency ? "grid-cols-1" : "max-sm:grid-cols-1"}>
+				{onCurrencyChange && !showDestinationCurrency ? (
 					<CurrencySelect
 						allowCrypto={type !== "YIELD"}
 						label="Ativo da transação"
@@ -175,14 +195,6 @@ export function TransactionDetailsFields({
 					/>
 				)}
 			</FormFieldRow>
-			{onDestinationCurrencyChange && !counterpartIsPoints && (
-				<CurrencySelect
-					allowCrypto
-					label="Ativo de destino"
-					onValueChange={onDestinationCurrencyChange}
-					value={counterpartCurrency ?? currencyCode}
-				/>
-			)}
 			{!counterpart && onDestinationAmountChange && counterpartCurrency !== currencyCode && (
 				<div className="space-y-2">
 					<AssetAmountField
