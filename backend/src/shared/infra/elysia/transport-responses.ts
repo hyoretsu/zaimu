@@ -560,7 +560,7 @@ export const transportResponses = {
 	}),
 	"post /transaction-imports/{}/items/{}/reconcile": contracts.TransactionImportReturn,
 	"post /transaction-imports/{}/items/{}/transfer-suggestions/{}/accept": t.Object({
-		removedImportId: t.String(),
+		removedImportId: t.Union([t.Null(), t.String()]),
 		success: t.Literal(true),
 	}),
 	"post /transaction-imports/{}/items/{}/transfer-suggestions/{}/reject": t.Object({

@@ -1435,22 +1435,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				destinationFinancialAccountId: pair.incoming.financialAccountId,
 				originFinancialAccountId: pair.outgoing.financialAccountId,
 			};
-			const outgoingImportItem =
-				pair.outgoing.source === "IMPORT_ITEM"
-					? await queryFirst(
-							db.sql.public.TransactionImportItem.select(
-								"id",
-								"amount",
-								"date",
-								"description",
-								"externalId",
-								"time",
-							)
-								.where((fields, functions) => functions.eq(fields.id, pair.outgoing.id))
-								.limit(1)
-								.build(),
-						)
-					: null;
+			const finalizedImportIds = new Set<string>();
 			await withTransaction(async transaction => {
 				if (savedSide) {
 					const importSide = importSides[0]!;
@@ -1484,38 +1469,35 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 							)
 							.build(),
 					);
-				} else {
-					if (!outgoingImportItem)
-						throw new HttpException("Item da importação não encontrado", 404);
-					await persistImportItem(
-						transaction,
-						{
-							...outgoingImportItem,
-							...transferAccounts,
-							amount: Number(outgoingImportItem.amount),
-							date: new Date(outgoingImportItem.date),
-							isHidden: false,
-							isReconciled: false,
-							paymentCreditCardId: null,
-							reconciledImportItemId: null,
-							reconciledTransactionId: null,
-							storeName: null,
-							transferCounterpartExternalId: pair.incoming.externalId,
-							type: "TRANSFER",
-						},
-						[],
-						pair.outgoing.financialAccountId,
-						userId,
-					);
+					await removeImportItem(transaction, importSide.id);
+					const importId = (importSide as TransferSuggestionCandidate).transactionImportId!;
+					if (await finalizeImportWhenEmpty(transaction, importId))
+						finalizedImportIds.add(importId);
+					return;
 				}
-				const importIds = new Set<string>();
-				for (const side of importSides) {
-					await removeImportItem(transaction, side.id);
-					importIds.add((side as TransferSuggestionCandidate).transactionImportId!);
-				}
-				for (const importId of importIds) await finalizeImportWhenEmpty(transaction, importId);
+				// Both sides are pending: keep the outgoing item as a single pending transfer carrying the
+				// incoming external id, so it stays editable until approval creates the transaction.
+				await transaction.executeStatement(
+					transaction.db.sql.public.TransactionImportItem.update({
+						...transferAccounts,
+						isHidden: false,
+						paymentCreditCardId: null,
+						storeName: null,
+						transferCounterpartExternalId: pair.incoming.externalId,
+						type: "TRANSFER",
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, pair.outgoing.id))
+						.build(),
+				);
+				await removeImportItem(transaction, pair.incoming.id);
+				const importId = (pair.incoming as TransferSuggestionCandidate).transactionImportId!;
+				if (await finalizeImportWhenEmpty(transaction, importId)) finalizedImportIds.add(importId);
 			});
-			return { removedImportId: transactionImport.id, success: true };
+			return {
+				removedImportId: finalizedImportIds.has(transactionImport.id) ? transactionImport.id : null,
+				success: true,
+			};
 		},
 		{
 			detail: {
