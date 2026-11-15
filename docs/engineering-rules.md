@@ -22,6 +22,8 @@ Opening or closing any modal must never change the current horizontal or vertica
 
 Keyboard scrolling (Home/End, PageUp/PageDown, Space, arrows) and Shift+wheel horizontal scrolling go through `useScrollKeys` (`frontend/src/hooks/use-scroll-keys.ts`, mounted in the root route). With a modal open, the topmost modal's scroll region receives them and the page behind never scrolls; otherwise they act on the nearest scroll container of the focused or last-clicked element. Text fields, option lists, tabs, sliders and other widgets that own these keys keep them. Never add per-component key handlers for this.
 
+Ctrl+Enter (Cmd+Enter on macOS) submits the current form from any field, including textareas, through `useFormKeys` (`frontend/src/hooks/use-form-keys.ts`, mounted in the root route). It calls `requestSubmit`, so validation and submit handlers still run, and does nothing while every submit button is disabled. Inside a modal it falls back to the modal's form. Never add per-form Ctrl+Enter handlers.
+
 Every modal must use the shared `Dialog` components from `frontend/src/components/ui/Dialog.tsx`, including wrappers such as `ImportDialogContent`. Keep `DialogHeader` and `DialogFooter` visible and outside the scrollable region on desktop, mobile, and touch devices. Only the central content scrolls, through the shared `DialogBody`, which uses `ScrollArea`. Limit `DialogContent` to the visible viewport and clip its overflow; never scroll the entire modal or wrap its header/footer in a scroll area. Preserve form submission by keeping `DialogBody` and `DialogFooter` inside the same form when needed. Avoid duplicate vertical scroll containers inside `DialogBody`.
 
 ## Back navigation

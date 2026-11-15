@@ -3,6 +3,7 @@ import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/rea
 import { useEffect, useRef } from "react";
 import { CurrencyLifecycle } from "@/components/currency/CurrencyLifecycle";
 import { AppShell } from "@/components/layout";
+import { useFormKeys } from "@/hooks/use-form-keys";
 import { useOpenFinanceAutoSync } from "@/hooks/use-open-finance";
 import { useScrollKeys } from "@/hooks/use-scroll-keys";
 import { initLocalDb, materializeLocalCreditBooks } from "@/lib/localStorage";
@@ -18,6 +19,7 @@ import { YieldCalendarLifecycle } from "./components/YieldCalendarLifecycle";
 
 function RootComponent() {
 	useOpenFinanceAutoSync();
+	useFormKeys();
 	useScrollKeys();
 	const pathname = useLocation().pathname;
 	const navigate = useNavigate();
